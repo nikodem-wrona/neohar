@@ -1,5 +1,5 @@
-# The checks and the tests of every push to main and every pull request, on macOS: the only
-# tested platform.
+# The checks and the tests of every push to main, every pull request and every release tag, on
+# macOS: the only tested platform.
 #
 # The local suites do not run here: the harness, GPU, keyboard, browser, apps, chaos, budget and
 # remote suites. They need installed harnesses, a GPU, Playwright browsers, a display, a release
@@ -13,6 +13,8 @@ on:
   push:
     branches: [main]
   pull_request:
+  # release.yml runs this workflow on a tag before it publishes the release.
+  workflow_call:
 
 # A new push cancels the older run of the same branch or pull request.
 concurrency:
@@ -40,7 +42,10 @@ jobs:
     runs-on: macos-15
     timeout-minutes: 120
     steps:
+      # The whole history with the tags: `check:version` compares the version with the last tag.
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       # Installs the tools that mise.toml pins (Rust, Bun, the cargo tools) and caches them.
       - uses: jdx/mise-action@v5

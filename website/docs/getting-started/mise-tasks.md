@@ -1,6 +1,6 @@
 ---
 title: "mise tasks"
-description: "All 44 tasks of mise.toml: what each one does, what it depends on and the commands it runs."
+description: "All 47 tasks of mise.toml: what each one does, what it depends on and the commands it runs."
 sidebar_position: 6
 toc_max_heading_level: 3
 ---
@@ -46,7 +46,9 @@ mise installs these tools at these versions (`mise install`):
 | [`check:bundle`](#check-bundle) | Fail when the gzipped scripts, styles and WASM of the webview are over 300 KB, or those of the phone app over 150 KB. It builds both first |  |
 | [`check:docs`](#check-docs) | Fail when a generated page of website/docs is not what `bun run gen` writes, or when the page checker finds a fault (offline, writes nothing). The CLI pages need an nh binary in target/ that is newer than crates/nh/src |  |
 | [`check:holder-size`](#check-holder-size) | Fail when crates/nh-hold/src has more than 2,500 lines of code |  |
-| [`check`](#check) | Every static check | fmt, clippy, cargo-deny, ESLint, tsc, Prettier, crate dependency rules, generated.ts, third-party notices, generated docs, holder size, bundle size |
+| [`check:commits`](#check-commits) | Fail when a commit that @{upstream} does not have is not a Conventional Commit (scripts/commits.ts) |  |
+| [`check:version`](#check-version) | Fail when a file holds another version than Cargo.toml, CHANGELOG.md has no section for it, or it is not the version of the last tag v* |  |
+| [`check`](#check) | Every static check | commit messages, versions, fmt, clippy, cargo-deny, ESLint, tsc, Prettier, crate dependency rules, generated.ts, third-party notices, generated docs, holder size, bundle size |
 | [`test:rust`](#test-rust) | Run the Rust tests |  |
 | [`test:ui`](#test-ui) | Run the UI and tooling tests |  |
 | [`test`](#test) | Every test that does not need a live harness, a GPU or a browser | Rust tests (nextest), UI tests (bun test) and the test of app-install.sh |
@@ -77,6 +79,7 @@ mise installs these tools at these versions (`mise install`):
 | [`gen:notices`](#gen-notices) | Write THIRD_PARTY_LICENSES.md: the licenses of the Rust crates, JavaScript packages and data that ship in neohar.app (cargo-about with about.toml, then node_modules) |  |
 | [`record:golden`](#record-golden) | Record every scenario of the installed Claude Code and Codex into tests/harness-golden (local, macOS) |  |
 | [`setup:browsers`](#setup-browsers) | Download the browsers of the render tests: Playwright WebKit and Chromium (needs the network and node) |  |
+| [`release`](#release) | Make the release commit and the tag vX.Y.Z on main. The commits since the last tag give the version and the section of CHANGELOG.md. Pass -- --dry-run to see them first | the release commit and the tag vX.Y.Z (only when the maintainer asks) |
 | [`remote:deploy`](#remote-deploy) | Copy a development nh and its wrapper nh-dev to ~/.neohar-dev/bin on a second machine over ssh (needs NEOHAR_REMOTE_TARGET; local). Options after --: --release, --no-build, --bin &lt;path> |  |
 
 ## Checks
@@ -192,13 +195,29 @@ Fail when crates/nh-hold/src has more than 2,500 lines of code
 bun scripts/holder-size.ts
 ```
 
+### `check:commits` {#check-commits}
+
+Fail when a commit that @{upstream} does not have is not a Conventional Commit (scripts/commits.ts)
+
+```bash
+bun scripts/commits.ts --unpushed
+```
+
+### `check:version` {#check-version}
+
+Fail when a file holds another version than Cargo.toml, CHANGELOG.md has no section for it, or it is not the version of the last tag v*
+
+```bash
+bun scripts/release.ts --check
+```
+
 ### `check` {#check}
 
 Every static check
 
-**AGENTS.md:** fmt, clippy, cargo-deny, ESLint, tsc, Prettier, crate dependency rules, generated.ts, third-party notices, generated docs, holder size, bundle size
+**AGENTS.md:** commit messages, versions, fmt, clippy, cargo-deny, ESLint, tsc, Prettier, crate dependency rules, generated.ts, third-party notices, generated docs, holder size, bundle size
 
-**Depends on:** [`check:fmt`](#check-fmt), [`check:clippy`](#check-clippy), [`check:deny`](#check-deny), [`check:eslint`](#check-eslint), [`check:tsc`](#check-tsc), [`check:deps`](#check-deps), [`check:gen`](#check-gen), [`check:notices`](#check-notices), [`check:docs`](#check-docs), [`check:holder-size`](#check-holder-size), [`check:bundle`](#check-bundle)
+**Depends on:** [`check:commits`](#check-commits), [`check:version`](#check-version), [`check:fmt`](#check-fmt), [`check:clippy`](#check-clippy), [`check:deny`](#check-deny), [`check:eslint`](#check-eslint), [`check:tsc`](#check-tsc), [`check:deps`](#check-deps), [`check:gen`](#check-gen), [`check:notices`](#check-notices), [`check:docs`](#check-docs), [`check:holder-size`](#check-holder-size), [`check:bundle`](#check-bundle)
 
 It runs only its dependencies.
 
@@ -504,6 +523,16 @@ cd tests/render && ./node_modules/.bin/playwright install webkit chromium
 ```
 
 ## Other tasks
+
+### `release` {#release}
+
+Make the release commit and the tag vX.Y.Z on main. The commits since the last tag give the version and the section of CHANGELOG.md. Pass -- --dry-run to see them first
+
+**AGENTS.md:** the release commit and the tag vX.Y.Z (only when the maintainer asks)
+
+```bash
+bun scripts/release.ts
+```
 
 ### `remote:deploy` {#remote-deploy}
 

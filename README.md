@@ -9,6 +9,7 @@
 Your agents continue to run when the app quits. Their requests come to you, also when you do not look.
 
 [![CI](https://github.com/nikodem-wrona/neohar/actions/workflows/ci.yml/badge.svg)](https://github.com/nikodem-wrona/neohar/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/nikodem-wrona/neohar)](https://github.com/nikodem-wrona/neohar/releases/latest)
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 ![Platform: macOS](https://img.shields.io/badge/platform-macOS-lightgrey.svg)
 ![Harnesses: Claude Code and Codex](https://img.shields.io/badge/harnesses-Claude%20Code%20%7C%20Codex-8a63d2.svg)
@@ -98,7 +99,7 @@ flowchart LR
 
 | Item | Status |
 |---|---|
-| Version | 1.0.0. See [CHANGELOG.md](CHANGELOG.md) |
+| Version | The [latest release](https://github.com/nikodem-wrona/neohar/releases/latest). neohar uses Semantic Versioning, and [CHANGELOG.md](CHANGELOG.md) records each release |
 | macOS | The only tested platform, on Apple Silicon |
 | Builds | Ad-hoc signed and not notarized. You build the app from source. There is no download and no updater |
 | Linux | Not tested. The app can possibly build, but nobody verified it. Notifications are not built for Linux |

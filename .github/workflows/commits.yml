@@ -1,0 +1,47 @@
+# The Conventional Commits of every push to main and every pull request (scripts/commits.ts).
+#
+# GitHub squashes a pull request into one commit on main, with the title of the pull request as
+# its header. Thus this workflow lints the title too, and the title must keep the release level of
+# the commits: a "feat" commit needs a "feat" title, a breaking commit a "!" in the title.
+name: commits
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+
+concurrency:
+  group: commits-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: conventional commits
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: jdx/mise-action@v5
+        with:
+          install_args: bun
+
+      # The title goes through the environment, never into the script text.
+      - name: The title and the commits of the pull request
+        if: github.event_name == 'pull_request'
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+          RANGE: ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}
+        run: bun scripts/commits.ts --title "$TITLE" --range "$RANGE"
+
+      - name: The commits of the push
+        if: github.event_name == 'push'
+        env:
+          RANGE: ${{ github.event.before }}..${{ github.sha }}
+        run: bun scripts/commits.ts --range "$RANGE"

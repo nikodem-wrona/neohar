@@ -35,13 +35,92 @@ sudo apt-get install libwebkit2gtk-4.1-dev libgtk-3-dev libxdo-dev librsvg2-dev
 3. Make your change, with its tests and the pages of the guide that it makes wrong.
 4. Run `mise run check` and `mise run test`. Both must pass.
 5. Run the local suites that cover your change (see [Local suites](#local-suites)). Put their results in the pull request.
-6. Push the branch and open a pull request against `main`.
+6. Push the branch and open a pull request against `main`. Give it a title that is a [commit header](#commit-messages).
 
 The CI workflow runs `mise run check` and `mise run test` on macOS for each pull request. The maintainer reviews each pull request. Keep a pull request to one change. Do not include refactors that the change does not need.
 
+GitHub squashes each pull request into one commit on `main`. The title of the pull request becomes the header of that commit. Thus the commits workflow lints the title as a commit header. The title must also keep the release level of the commits: if one commit is a `feat`, the title is a `feat`, and if one commit is a breaking change, the title has a `!`.
+
+## Commits, versions and releases
+
 ### Commit messages
 
-Write commit messages in Simplified Technical English (STE). Give a short subject in the imperative, and the evidence in the body. A commit that changes a path with a budget includes the numbers of the budget run.
+Each commit on `main` is a [Conventional Commit](https://www.conventionalcommits.org/en/v1.0.0/):
+
+```text
+<type>(<scope>): <description>
+
+<body>
+
+BREAKING CHANGE: <what does not work now, and what a user must do>
+```
+
+- **Header.** Use at most 72 characters. Write the description as an instruction in STE. Start it with a verb in lowercase, for example "add", "fix" or "remove". Do not put a period at the end.
+- **Type.** Use a type from the table below. The type sets the next version.
+- **Scope.** The scope is optional. Use a scope from `SCOPES` in [scripts/commits.ts](scripts/commits.ts), for example `core`, `ui`, `agents` or `website`. If the change is in many parts, do not give a scope. A new part of the repository gets a new row in `SCOPES`.
+- **Body.** Tell why you made the change, and give the evidence. A commit that changes a path with a budget includes the numbers of the budget run.
+- **Breaking change.** Put a `!` before the colon, and add a `BREAKING CHANGE:` footer. The footer tells what does not work now and what a user must do. [Versions](#versions) gives the rules for a breaking change.
+- **Revert.** Write `revert: <the header of the reverted commit>`, and put `This reverts commit <sha>.` in the body.
+- **No merge commits.** `main` has a linear history. Rebase your branch. Squash each `fixup!` commit before you push to `main`.
+
+| Type | Use it for | Release |
+|---|---|---|
+| `feat` | A new feature for users | minor |
+| `fix` | A bug fix for users | patch |
+| `perf` | Less time or memory, with the numbers in the body | patch |
+| `revert` | The removal of an earlier commit | patch |
+| `refactor` | A change of the code that keeps the behavior | none |
+| `docs` | Documentation only | none |
+| `test` | Tests only | none |
+| `build` | The build, the toolchain and the dependencies | none |
+| `ci` | The GitHub workflows | none |
+| `style` | Formatting only | none |
+| `chore` | Other work that changes no file that neohar ships | none |
+
+A `!` makes a major release with each type. Examples:
+
+```text
+feat(ui): show the errors of commands in a banner
+fix(core): keep the holder of a pane that moves to a new tab
+docs(website): serve the site under /neohar/ on GitHub Pages
+feat(api)!: remove the method pane.paste_confirm
+
+BREAKING CHANGE: pane.paste_confirm gives the error method_not_found. Send pane.paste.
+```
+
+Three checks lint the commits:
+
+- The commit-msg hook in `.githooks/` refuses a message with a fault. `bun install` sets `core.hooksPath` to `.githooks`, so the hook starts to work after your first `bun install`.
+- `mise run check:commits` (part of `mise run check`) lints the commits that you did not push.
+- The commits workflow lints each push to `main`, and the title and the commits of each pull request.
+
+### Versions
+
+neohar uses [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html): `MAJOR.MINOR.PATCH`. `[workspace.package] version` in `Cargo.toml` is the version. Every `package.json`, `tauri.conf.json`, `Cargo.lock` and `bun.lock` holds the same version. Only `mise run release` changes it. `mise run check:version` fails when a file holds a different version, or when the version is not the version of the last tag.
+
+The public interface of neohar is what a user, a script or an earlier build of neohar uses:
+
+- The `nh` commands, their options and their `--json` output.
+- The JSON-RPC API in `nh-proto`: the methods, the fields, the events and the error codes.
+- The keys of the configuration file.
+- The data of a session. A new build opens the database of an earlier build and talks to its holders.
+- The hooks that neohar installs in Claude Code and Codex.
+- The link to `nh daemon` on another machine. An app and a remote core with the same major version work together.
+
+If an item of the public interface does not work as before after a change, the change is a breaking change. Examples are a removed method or option, a renamed configuration key, and a schema that an earlier database cannot get. A new item is a feature. A change of the window only is not a breaking change.
+
+### Releases
+
+The maintainer makes the releases. A coding agent makes a release only when the maintainer asks for it.
+
+1. Run `mise run release -- --dry-run`. It shows the next version and its section of `CHANGELOG.md`.
+2. Run `mise run release`. It needs a clean `main` that is equal to `origin/main`. It writes the version into each file and the section into `CHANGELOG.md`. Then it makes the commit `chore(release): X.Y.Z` and the annotated tag `vX.Y.Z`.
+3. Run `mise run check` and `mise run test`.
+4. Push the commit and the tag together: `git push --atomic origin main vX.Y.Z`.
+
+The tag starts `.github/workflows/release.yml`. The workflow makes sure that the tag is on the release commit on `main`. Then it runs the CI workflow on the tag, and it publishes the GitHub release with the section of `CHANGELOG.md` as its text. GitHub refuses a change or a deletion of a tag `v*`. If a release has a bug, make a new patch release.
+
+The release script writes the section of `CHANGELOG.md` from the commits since the last tag. The breaking changes come first. Then `feat` goes to "Added", `perf` and `revert` go to "Changed", and `fix` goes to "Fixed". The other types do not show. Text that you write under `## [Unreleased]`, for example a note about an update, goes to the top of the next release.
 
 ## Conventions
 

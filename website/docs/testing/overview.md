@@ -39,6 +39,8 @@ The generated list of every task is on [mise tasks](/docs/getting-started/mise-t
 
 | Check | What it guards |
 |---|---|
+| `check:commits` | Each commit that `@{upstream}` does not have is a Conventional Commit with a type and a scope of `scripts/commits.ts` |
+| `check:version` | Each version file holds the version of `Cargo.toml`, `CHANGELOG.md` has its section, and it is the version of the last tag `v*` |
 | `check:fmt` | `cargo fmt` and Prettier. `mise run fmt` fixes every failure |
 | `check:clippy` | Clippy with `-D warnings` on the workspace, and again with the features that the workspace build leaves off (`dev-ws`, `selftest`). No `unwrap()` outside tests; `unsafe` is denied unless a module allows it with a `// SAFETY:` comment |
 | `check:deny` | `cargo deny`: licenses, advisories, bans, crates.io only. It needs the network |

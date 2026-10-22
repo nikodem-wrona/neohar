@@ -2,8 +2,11 @@
 
 This file records the notable changes to neohar.
 
-The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). neohar uses
-[Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), with the breaking
+changes first. neohar uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+`mise run release` writes each section from the
+[Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) since the last release. Do
+not edit a released section. A note under Unreleased goes to the top of the next release.
 
 ## [Unreleased]
 

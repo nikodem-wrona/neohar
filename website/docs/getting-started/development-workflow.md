@@ -1,6 +1,6 @@
 ---
 title: Development workflow
-description: "How a change gets into neohar: a pull request from a fork, the checks before it, the conventions, the writing rules, and the commands of this site."
+description: "How a change gets into neohar: a pull request from a fork, the checks before it, the commit messages, versions and releases, the conventions, the writing rules, and the commands of this site."
 sidebar_position: 2
 ---
 
@@ -16,10 +16,37 @@ has the same rules in a short form for coding agents. This page gives the steps.
 4. Run `mise run check` and `mise run test`. Both must pass.
 5. Run the [local suites](/docs/testing/local-suites) that cover the change. Put their results in
    the pull request.
-6. Open a pull request against `main`. The maintainer reviews it.
+6. Open a pull request against `main`. Its title is a commit header (see below). The maintainer
+   reviews it, and GitHub squashes it into one commit on `main` with the title as its header.
 
 The CI workflow runs `mise run check` and `mise run test` on macOS for each pull request and each
-push to `main`. It does not run the local suites.
+push to `main`. It does not run the local suites. The commits workflow lints the commit messages
+and the title of each pull request.
+
+## Commits, versions and releases
+
+Each commit on `main` is a [Conventional Commit](https://www.conventionalcommits.org/en/v1.0.0/),
+for example `fix(core): keep the holder of a pane that moves to a new tab`. The types and the
+scopes are in [scripts/commits.ts](https://github.com/nikodem-wrona/neohar/blob/main/scripts/commits.ts).
+The commit-msg hook in `.githooks/` refuses a message with a fault. `bun install` turns the hook
+on.
+
+neohar uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html), and the commits set the
+next version:
+
+| Commits since the last release | Next version |
+|---|---|
+| A breaking change: a `!` before the colon, and a `BREAKING CHANGE:` footer | major |
+| A `feat` | minor |
+| A `fix`, a `perf` or a `revert` | patch |
+| Only other types | no release |
+
+Only `mise run release` changes the version. It writes the version into each file, writes the
+section of `CHANGELOG.md` from the commits, and makes the release commit and its tag.
+
+A push of the tag starts the release workflow. It runs CI on the tag and publishes the GitHub
+release. [CONTRIBUTING.md](https://github.com/nikodem-wrona/neohar/blob/main/CONTRIBUTING.md#commits-versions-and-releases)
+has the full rules, and the public interface that a breaking change changes.
 
 ## Rules
 
@@ -47,8 +74,8 @@ push to `main`. It does not run the local suites.
 
 ## Writing
 
-`README.md`, `CONTRIBUTING.md`, `AGENTS.md`, the guide pages, the pull request text and the commit
-messages use [Simplified Technical English](https://www.asd-ste100.org) (STE).
+`README.md`, `CONTRIBUTING.md`, `AGENTS.md`, the guide pages, the pull request text and the
+descriptions of the commit messages use [Simplified Technical English](https://www.asd-ste100.org) (STE).
 [CONTRIBUTING.md](https://github.com/nikodem-wrona/neohar/blob/main/CONTRIBUTING.md#documentation)
 gives its most important rules.
 

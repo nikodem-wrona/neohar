@@ -25,16 +25,17 @@ Run every command from the root of the repository. `mise tasks` lists every task
 ```bash
 mise install        # Rust, Bun and the cargo tools
 bun install         # UI and tooling packages
-mise run check      # fmt, clippy, cargo-deny, ESLint, tsc, Prettier, crate dependency rules, generated.ts, third-party notices, generated docs, holder size, bundle size
+mise run check      # commit messages, versions, fmt, clippy, cargo-deny, ESLint, tsc, Prettier, crate dependency rules, generated.ts, third-party notices, generated docs, holder size, bundle size
 mise run test       # Rust tests (nextest), UI tests (bun test) and the test of app-install.sh
 mise run fmt        # format the Rust and UI sources
 mise run app:dev    # open the app built from the working tree (config and data under target/dev-run, sockets under /tmp/nhdev-$UID)
 mise run app:stop   # kill the panes of the dev app
 mise run build:app  # the ad-hoc signed neohar.app; mise run app:install copies it to ~/Applications
+mise run release    # the release commit and the tag vX.Y.Z (only when the maintainer asks)
 ```
 
 - `mise run test` sets `NEOHAR_CONFIG_DIR`, `NEOHAR_DATA_DIR`, `NEOHAR_RUNTIME_DIR`, `CLAUDE_CONFIG_DIR` and `CODEX_HOME` to a new temporary directory (`scripts/with-test-env.sh`). A debug build of the app refuses to start without the three `NEOHAR_*_DIR` variables, so use `app:dev`.
-- The CI workflow (`.github/workflows/ci.yml`) runs `mise run check` and `mise run test` on a macOS runner. It does not run the local suites: budget, GPU, keyboard, apps, shell, phone, harness and remote. Some of them need node, a screen, installed harnesses or a second machine (`NEOHAR_REMOTE_TARGET`). See `website/docs/testing/local-suites.md`.
+- The CI workflow (`.github/workflows/ci.yml`) runs `mise run check` and `mise run test` on a macOS runner. The commits workflow lints the commit messages, and the release workflow publishes each tag `v*`. CI does not run the local suites: budget, GPU, keyboard, apps, shell, phone, harness and remote. Some of them need node, a screen, installed harnesses or a second machine (`NEOHAR_REMOTE_TARGET`). See `website/docs/testing/local-suites.md`.
 - The panes continue to run after a quit of the app. `NEOHAR_STOP_ON_EXIT=1` stops them.
 - The Playwright specs end in `.pw.ts`, so `bun test` does not run them.
 - On Linux, the app build needs `libwebkit2gtk-4.1-dev libgtk-3-dev libxdo-dev librsvg2-dev`.
@@ -46,6 +47,16 @@ A change to the API in `nh-proto` has three generated outputs. Make all three in
 1. Run `mise run gen:api`. It writes `packages/transport/src/generated.ts`. `mise run check:gen` fails without it.
 2. Accept the insta snapshot with `INSTA_UPDATE=always bash scripts/with-test-env.sh cargo nextest run -p nh-proto --features api`. Use this command because `cargo insta` is not installed. The schema tests of `nh-proto` run only with `--features api`.
 3. Run `bun run gen` in `website/`. `mise run check:docs` fails without it.
+
+## Commits, versions and releases
+
+[CONTRIBUTING.md](CONTRIBUTING.md#commits-versions-and-releases) has the full rules.
+
+- **Conventional Commits.** Write each commit message as `<type>(<scope>): <description>`. The types and the scopes are in `scripts/commits.ts`. The description is an STE instruction that starts with a verb in lowercase and has no period. The header has at most 72 characters.
+- **The checks.** The commit-msg hook in `.githooks/` refuses a message with a fault. If it refuses your message, correct the message and commit again. Do not use `--no-verify`: `mise run check` and CI lint the commits again.
+- **The type sets the version.** `feat` makes a minor release. `fix`, `perf` and `revert` make a patch release. A breaking change of the public interface gets a `!` and a `BREAKING CHANGE:` footer, and makes a major release. CONTRIBUTING.md tells what the public interface is. Do not put a feature in a `fix`, a `refactor` or a `chore`.
+- **Never change a version by hand.** Only `mise run release` writes the version, the sections of `CHANGELOG.md` and the tags `v*`. Run it only when the maintainer asks for a release. Then run `mise run check` and `mise run test`, and push with `git push --atomic origin main vX.Y.Z`. The tag publishes the GitHub release.
+- **Linear history.** Make no merge commits. Squash each `fixup!` commit before you push to `main`.
 
 ## Scope and fixed choices
 

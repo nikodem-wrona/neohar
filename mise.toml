@@ -79,9 +79,19 @@ run = ["bun website/scripts/gen-all.ts --check", "bun run --cwd website check"]
 description = "Fail when crates/nh-hold/src has more than 2,500 lines of code"
 run = "bun scripts/holder-size.ts"
 
+[tasks."check:commits"]
+description = "Fail when a commit that @{upstream} does not have is not a Conventional Commit (scripts/commits.ts)"
+run = "bun scripts/commits.ts --unpushed"
+
+[tasks."check:version"]
+description = "Fail when a file holds another version than Cargo.toml, CHANGELOG.md has no section for it, or it is not the version of the last tag v*"
+run = "bun scripts/release.ts --check"
+
 [tasks.check]
 description = "Every static check"
 depends = [
+  "check:commits",
+  "check:version",
   "check:fmt",
   "check:clippy",
   "check:deny",
@@ -94,6 +104,10 @@ depends = [
   "check:holder-size",
   "check:bundle",
 ]
+
+[tasks.release]
+description = "Make the release commit and the tag vX.Y.Z on main. The commits since the last tag give the version and the section of CHANGELOG.md. Pass -- --dry-run to see them first"
+run = "bun scripts/release.ts"
 
 # Tests run with the three directory overrides pointing at a fresh temp dir.
 [tasks."test:rust"]

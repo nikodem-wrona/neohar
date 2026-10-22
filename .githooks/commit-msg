@@ -1,0 +1,8 @@
+#!/bin/sh
+# Refuses a commit message that is not a Conventional Commit of neohar (scripts/commits.ts).
+# `bun install` points core.hooksPath at this folder. `mise run check` and the commits workflow
+# lint the commits again, so `git commit --no-verify` only moves the failure to later.
+if command -v bun >/dev/null 2>&1; then
+  exec bun scripts/commits.ts --file "$1"
+fi
+exec mise exec -- bun scripts/commits.ts --file "$1"

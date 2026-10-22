@@ -14,6 +14,7 @@
     "tools/nh-keytest"
   ],
   "scripts": {
+    "prepare": "test \"$(git rev-parse --show-toplevel 2>/dev/null)\" = \"$(pwd -P)\" && git config core.hooksPath .githooks || true",
     "lint": "eslint .",
     "typecheck": "bun run --filter '@neohar/*' typecheck && tsc --noEmit -p scripts",
     "fmt": "prettier --write \"**/*.{ts,tsx,js,mjs,cjs,css,json}\"",

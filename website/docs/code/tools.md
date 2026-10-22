@@ -29,6 +29,8 @@ The heavy runs (`bench`, `test:harness`, and the chaos tool by hand) are not par
 
 | Script | Task | What it does |
 |---|---|---|
+| `commits.ts` | `check:commits`, the commit-msg hook, the commits workflow | The types and the scopes of a commit message, and its lint |
+| `release.ts` | `release`, `check:version`, the release workflow | The version files, the next version from the commits, the sections of `CHANGELOG.md` |
 | `check-deps.ts` | `check:deps` | The crate dependency rules and the `wasm-bindgen` pin |
 | `check-bundle.ts` | `check:bundle` | The gzipped bundles of the webview and of the phone app against 300 KB each, and the first chunk of the phone app against 150 KB |
 | `holder-size.ts` | `check:holder-size` | The lines of code of `crates/nh-hold/src` against 2,500 |

@@ -1,0 +1,60 @@
+# The GitHub release of a tag vX.Y.Z. `mise run release` makes the tag on the release commit, and
+# `git push --atomic origin main vX.Y.Z` starts this workflow.
+#
+# 1. verify: the tag is the release commit "chore(release): X.Y.Z" on main, and every version
+#    file and CHANGELOG.md agree with it (scripts/release.ts --check --tag).
+# 2. ci: the same check and tests as a push to main (ci.yml), on the tagged commit.
+# 3. publish: the GitHub release, with the section of the version in CHANGELOG.md as its text.
+#
+# The release has no binaries: builds have an ad-hoc signature and are for local use only.
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: verify the tag
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: jdx/mise-action@v5
+        with:
+          install_args: bun
+
+      - run: bun scripts/release.ts --check --tag "$GITHUB_REF_NAME"
+
+  ci:
+    needs: verify
+    uses: ./.github/workflows/ci.yml
+
+  publish:
+    name: publish the release
+    needs: ci
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: jdx/mise-action@v5
+        with:
+          install_args: bun
+
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          bun scripts/release.ts --notes "$version" > "$RUNNER_TEMP/notes.md"
+          gh release create "$GITHUB_REF_NAME" --verify-tag --title "neohar $version" \
+            --notes-file "$RUNNER_TEMP/notes.md"
