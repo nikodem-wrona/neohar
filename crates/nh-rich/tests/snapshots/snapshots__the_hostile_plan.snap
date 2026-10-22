@@ -1,0 +1,7 @@
+---
+source: crates/nh-rich/tests/snapshots.rs
+expression: markdown(plan).html
+---
+<p>Run  and <img>.</p>
+<p><a rel="noopener noreferrer">bad</a> <a href="nh://open?url=https%3A%2F%2Fexample.com%2F" rel="noopener noreferrer">ok</a></p>
+<p>report</p>

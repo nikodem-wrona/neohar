@@ -1,0 +1,33 @@
+# Claude Code headless: a PermissionRequest hook allows before the client answers. Claude Code sends control_cancel_request for the control_request.
+harness = "claude"
+mode = "pipe"
+args = ["-p", "--output-format", "stream-json", "--input-format", "stream-json", "--verbose", "--permission-prompt-tool", "stdio"]
+
+[state]
+hasSeenAutoDefaultNudge = true
+
+[settings.permissions]
+defaultMode = "default"
+
+[[hook_reply]]
+event = "PermissionRequest"
+reply = { hookSpecificOutput = { hookEventName = "PermissionRequest", decision = { behavior = "allow" } } }
+
+[[turn]]
+blocks = [{ type = "text", text = "I will make a note." }, { type = "tool_use", name = "Bash", input = { command = "touch note.txt", description = "Create a note" } }]
+
+[[turn]]
+blocks = [{ type = "text", text = "The note is made." }]
+
+
+[[step]]
+send_json = { type = "user", message = { role = "user", content = "make a note" } }
+
+[[step]]
+wait_line = '"type":"result"'
+
+[[step]]
+close_stdin = true
+
+[[step]]
+expect_exit = true

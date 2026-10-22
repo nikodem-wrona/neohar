@@ -1,0 +1,73 @@
+# Claude Code: in plan mode, a hook denies ExitPlanMode with feedback. The payload has the plan text and the plan file.
+harness = "claude"
+cols = 120
+rows = 40
+
+
+[state]
+hasSeenAutoDefaultNudge = true
+
+[settings.permissions]
+defaultMode = "plan"
+
+[[hook_reply]]
+event = "PermissionRequest"
+reply = { hookSpecificOutput = { hookEventName = "PermissionRequest", decision = { behavior = "deny", message = "Please add a test step." } } }
+
+[[turn]]
+blocks = [{ type = "tool_use", name = "Write", input = { file_path = '{{find:/[^"\\ ]+/plans/[a-z0-9-]+\.md}}', content = "# Plan\n\n1. Make a note\n2. Check the note\n" } }]
+
+[[turn]]
+blocks = [{ type = "text", text = "Here is my plan." }, { type = "tool_use", name = "ExitPlanMode", input = {} }]
+
+[[turn]]
+blocks = [{ type = "text", text = "I will revise the plan." }]
+
+# Text that differs from run to run is hidden when two recordings are compared.
+[[mask]]
+# Claude Code names the time it worked with a verb that it picks at random.
+pattern = "✻ \\S+ for [0-9hms ]+ · done \\d+:\\d+ [AP]M"
+with = "✻ <verb> for <time spent> · done <time>"
+
+[[mask]]
+pattern = "claude --resume [0-9a-f-]{36}"
+with = "claude --resume <session>"
+
+[[mask]]
+# Claude Code names the plan file after the prompt and two random words.
+pattern = "plan-a-note-[a-z]+-[a-z]+\\.md"
+with = "plan-a-note-<words>.md"
+
+[[step]]
+wait_signal = "SessionStart"
+
+[[step]]
+wait_screen = "^❯"
+
+[[step]]
+send = "plan a note"
+
+[[step]]
+sleep_ms = 300
+
+[[step]]
+key = "enter"
+
+[[step]]
+wait_signal = "Stop"
+
+[[step]]
+snapshot = "denied"
+
+
+[[step]]
+send = "/exit"
+
+[[step]]
+sleep_ms = 300
+
+[[step]]
+key = "enter"
+
+[[step]]
+expect_exit = true

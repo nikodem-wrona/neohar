@@ -1,0 +1,100 @@
+---
+source: crates/nh-rich/tests/snapshots.rs
+expression: out
+---
+[
+  [
+    "rust",
+    [
+      "kw     \"fn\"",
+      "fn     \"main\"",
+      "kw     \"let\"",
+      "op     \"=\"",
+      "str    \"\\\"hi\"",
+      "esc    \"\\\\n\"",
+      "str    \"\\\"\"",
+      "com    \"// greet\"",
+      "str    \"\\\"\"",
+      "const  \"{s}\"",
+      "str    \"\\\"\""
+    ]
+  ],
+  [
+    "js",
+    [
+      "kw     \"const\"",
+      "fn     \"add\"",
+      "op     \"=\"",
+      "var    \"a\"",
+      "var    \"b\"",
+      "kw     \"=>\"",
+      "op     \"+\"",
+      "kw     \"let\"",
+      "op     \"=\"",
+      "num    \"0x1f\"",
+      "com    \"/* c */\"",
+      "ty     \"console\"",
+      "fn     \"log\"",
+      "str    \"`x`\""
+    ]
+  ],
+  [
+    "python",
+    [
+      "kw     \"def\"",
+      "fn     \"f\"",
+      "var    \"x\"",
+      "com    \"\\\"\\\"\\\"doc\\\"\\\"\\\"\"",
+      "kw     \"return\"",
+      "op     \"*\"",
+      "num    \"2\"",
+      "com    \"# twice\""
+    ]
+  ],
+  [
+    "bash",
+    [
+      "kw     \"if\"",
+      "fn     \"[\"",
+      "var    \"-f\"",
+      "str    \"\\\"$HOME/.x\\\"\"",
+      "fn     \"]\"",
+      "op     \";\"",
+      "kw     \"then\"",
+      "fn     \"echo\"",
+      "str    \"\\\"yes\\\"\"",
+      "op     \";\"",
+      "kw     \"fi\""
+    ]
+  ],
+  [
+    "json",
+    [
+      "str    \"\\\"a\\\"\"",
+      "num    \"1\"",
+      "const  \"true\"",
+      "const  \"null\"",
+      "str    \"\\\"b\\\"\"",
+      "str    \"\\\"c\\\"\""
+    ]
+  ],
+  [
+    "yaml",
+    [
+      "tag    \"name\"",
+      "str    \"demo\"",
+      "tag    \"items\"",
+      "str    \"one\"",
+      "num    \"2\""
+    ]
+  ],
+  [
+    "html",
+    [
+      "tag    \"div\"",
+      "attr   \"class\"",
+      "str    \"\\\"a\\\"\"",
+      "tag    \"div\""
+    ]
+  ]
+]

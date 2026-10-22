@@ -1,0 +1,39 @@
+[package]
+name = "nh-web"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+aes-gcm.workspace = true
+async-trait.workspace = true
+base64.workspace = true
+bytes.workspace = true
+futures-util.workspace = true
+getrandom.workspace = true
+hkdf.workspace = true
+http-body-util.workspace = true
+# The client is for the push.
+hyper = { workspace = true, features = ["client"] }
+hyper-util.workspace = true
+# Without the feature `fsevents`: `nh` links this crate, and the start of its hook shim must not
+# load CoreServices. The app turns the feature on through its own dependency.
+nh-core = { path = "../nh-core", default-features = false }
+nh-proto = { path = "../nh-proto", features = ["api"] }
+p256.workspace = true
+rustls.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+tokio.workspace = true
+tokio-rustls.workspace = true
+tokio-tungstenite.workspace = true
+tracing.workspace = true
+ulid.workspace = true
+webpki-roots.workspace = true

@@ -1,0 +1,5 @@
+{"event":"SessionStart","reply":"continue","signals":["SessionStarted { session_id: \"01a11de7-3fe4-7110-80af-13f730ff0a25\", transcript_path: Some(\"/private/tmp/nhg-codex/home/codex/sessions/2026/10/09/rollout-2026-10-09T01-44-16-01a11de7-3fe4-7110-80af-13f730ff0a25.jsonl\"), source: Startup, model: Some(\"mock-model\") }","PermissionMode { mode: \"bypassPermissions\" }"]}
+{"event":"UserPromptSubmit","reply":"continue","signals":["TurnStarted { turn_ref: Some(\"01a11de7-42d9-7bc3-87a0-eafb10022fc9\"), prompt_preview: Some(\"make a note\") }"]}
+{"event":"PreToolUse","reply":"continue","signals":["ToolStarted { call_id: \"call_mock_0001_1\", tool: \"Bash\", input: Object {\"command\": String(\"touch note.txt\")} }"]}
+{"event":"Stop","reply":"continue","signals":["TurnEnded { turn_ref: Some(\"01a11de7-42d9-7bc3-87a0-eafb10022fc9\"), stop_reason: None, last_message_preview: Some(\"Done.\") }"]}
+{"event":"SessionEnd","reply":"continue","signals":["SessionEnded { reason: \"other\" }"]}

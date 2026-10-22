@@ -1,0 +1,327 @@
+# Cases in which the browser events need the keyboard layer: dead keys, input methods, AltGr and the
+# Option key of macOS. The events are modelled on what Safari and Chrome report. They are synthetic
+# until real captures (the capture page, run in the webview of the app) replace or
+# join them. The bytes come from the characters: UTF-8, ESC for Alt, and the tables of ctlseqs.
+
+# --- dead keys and input methods ---
+
+[[case]]
+name = "dead key on macOS: Option+E then A is a composed text"
+platform = "macos"
+events = [
+  { type = "keydown", key = "Alt", code = "AltLeft", location = 1, alt = true, key_code = 18 },
+  { type = "keydown", key = "Dead", code = "KeyE", alt = true, key_code = 229 },
+  { type = "compositionstart", data = "" },
+  { type = "compositionupdate", data = "´" },
+  { type = "keyup", key = "e", code = "KeyE", alt = true, key_code = 69 },
+  { type = "keyup", key = "Alt", code = "AltLeft", location = 1, key_code = 18 },
+  { type = "keydown", key = "a", code = "KeyA", is_composing = true, key_code = 229 },
+  { type = "compositionupdate", data = "á" },
+  { type = "compositionend", data = "á" },
+  { type = "keyup", key = "a", code = "KeyA", key_code = 65 },
+]
+logical = [
+  { type = "key", code = "AltLeft", key = "Alt", mods = ["alt"], kind = "press", location = 1 },
+  { type = "key", code = "KeyE", key = "e", mods = [], kind = "release", location = 0 },
+  { type = "key", code = "AltLeft", key = "Alt", mods = [], kind = "release", location = 1 },
+  { type = "text", text = "á" },
+  { type = "key", code = "KeyA", key = "a", mods = [], kind = "release", location = 0 },
+]
+expect = "c3a1"
+source = "UTF-8 of U+00E1"
+
+[[case]]
+name = "dead key on Linux: the next key is the composed character"
+platform = "linux"
+events = [
+  { type = "keydown", key = "Dead", code = "Quote", key_code = 229 },
+  { type = "keyup", key = "Dead", code = "Quote", key_code = 222 },
+  { type = "keydown", key = "á", code = "KeyA", key_code = 65 },
+  { type = "keyup", key = "á", code = "KeyA", key_code = 65 },
+]
+logical = [
+  { type = "key", code = "KeyA", key = "á", mods = [], kind = "press", text = "á", location = 0 },
+  { type = "key", code = "KeyA", key = "á", mods = [], kind = "release", location = 0 },
+]
+expect = "c3a1"
+source = "UTF-8 of U+00E1"
+
+[[case]]
+name = "input method: a Japanese composition is one text"
+events = [
+  { type = "keydown", key = "Process", code = "KeyN", is_composing = false, key_code = 229 },
+  { type = "compositionstart", data = "" },
+  { type = "compositionupdate", data = "に" },
+  { type = "keydown", key = "Process", code = "KeyH", is_composing = true, key_code = 229 },
+  { type = "compositionupdate", data = "にほ" },
+  { type = "keydown", key = "Process", code = "Space", is_composing = true, key_code = 229 },
+  { type = "compositionupdate", data = "日本" },
+  { type = "keydown", key = "Process", code = "Enter", is_composing = true, key_code = 229 },
+  { type = "compositionend", data = "日本語" },
+  { type = "keyup", key = "Enter", code = "Enter", key_code = 13 },
+]
+logical = [
+  { type = "text", text = "日本語" },
+  { type = "key", code = "Enter", key = "Enter", mods = [], kind = "release", location = 0 },
+]
+expect = "e697a5e69cace8aa9e"
+source = "UTF-8 of U+65E5 U+672C U+8A9E"
+
+# --- AltGr ---
+
+[[case]]
+name = "AltGr on Linux, German layout: AltGr+Q is @"
+platform = "linux"
+events = [
+  { type = "keydown", key = "AltGraph", code = "AltRight", location = 2, alt_graph = true, key_code = 225 },
+  { type = "keydown", key = "@", code = "KeyQ", alt_graph = true, key_code = 81 },
+  { type = "keyup", key = "@", code = "KeyQ", alt_graph = true, key_code = 81 },
+]
+logical = [
+  { type = "key", code = "AltRight", key = "AltGraph", mods = [], kind = "press", location = 2 },
+  { type = "key", code = "KeyQ", key = "@", mods = [], kind = "press", text = "@", location = 0 },
+  { type = "key", code = "KeyQ", key = "@", mods = [], kind = "release", location = 0 },
+]
+expect = "40"
+source = "US-ASCII 0x40"
+
+[[case]]
+name = "AltGr on Windows, German layout: AltGr+Q is @ although Ctrl and Alt are down"
+events = [
+  { type = "keydown", key = "@", code = "KeyQ", ctrl = true, alt = true, alt_graph = true, key_code = 81 },
+]
+logical = [
+  { type = "key", code = "KeyQ", key = "@", mods = [], kind = "press", text = "@", location = 0 },
+]
+expect = "40"
+source = "US-ASCII 0x40"
+
+[[case]]
+name = "AltGr, German layout: AltGr+7 is {"
+platform = "linux"
+events = [{ type = "keydown", key = "{", code = "Digit7", alt_graph = true, key_code = 55 }]
+logical = [{ type = "key", code = "Digit7", key = "{", mods = [], kind = "press", text = "{", location = 0 }]
+expect = "7b"
+source = "US-ASCII 0x7b"
+
+[[case]]
+name = "AltGr, German layout: AltGr+E is the euro sign"
+platform = "linux"
+events = [{ type = "keydown", key = "€", code = "KeyE", alt_graph = true, key_code = 69 }]
+logical = [{ type = "key", code = "KeyE", key = "€", mods = [], kind = "press", text = "€", location = 0 }]
+expect = "e282ac"
+source = "UTF-8 of U+20AC"
+
+[[case]]
+name = "AltGr, German layout: AltGr+ß is a backslash"
+platform = "linux"
+events = [{ type = "keydown", key = "\\", code = "Minus", alt_graph = true, key_code = 219 }]
+logical = [{ type = "key", code = "Minus", key = "\\", mods = [], kind = "press", text = "\\", location = 0 }]
+expect = "5c"
+source = "US-ASCII 0x5c"
+
+[[case]]
+name = "AltGr with kitty flag 1: the character is text"
+kitty = 1
+platform = "linux"
+events = [{ type = "keydown", key = "@", code = "KeyQ", alt_graph = true, key_code = 81 }]
+logical = [{ type = "key", code = "KeyQ", key = "@", mods = [], kind = "press", text = "@", location = 0 }]
+expect = "40"
+source = "kitty keyboard protocol, flag 1: keys that produce text are sent as text"
+
+[[case]]
+name = "German layout: Alt+Z is ESC and the letter of the layout"
+platform = "linux"
+events = [{ type = "keydown", key = "z", code = "KeyY", alt = true, key_code = 90 }]
+logical = [{ type = "key", code = "KeyY", key = "z", mods = ["alt"], kind = "press", text = "z", location = 0 }]
+expect = "1b7a"
+source = "xterm ctlseqs, Alt and Meta Keys: ESC and the character of the key"
+
+[[case]]
+name = "German layout: Alt+Ö on Linux is ESC and Ö, not a composed character"
+platform = "linux"
+events = [{ type = "keydown", key = "ö", code = "Semicolon", alt = true, key_code = 192 }]
+logical = [{ type = "key", code = "Semicolon", key = "ö", mods = ["alt"], kind = "press", text = "ö", location = 0 }]
+expect = "1bc3b6"
+source = "xterm ctlseqs, Alt and Meta Keys: ESC and the UTF-8 of the character"
+
+# --- the Option key of macOS ---
+
+[[case]]
+name = "macOS Option+A with Option as Alt off is å"
+platform = "macos"
+events = [
+  { type = "keydown", key = "Alt", code = "AltLeft", location = 1, alt = true, key_code = 18 },
+  { type = "keydown", key = "å", code = "KeyA", alt = true, key_code = 65 },
+]
+logical = [
+  { type = "key", code = "AltLeft", key = "Alt", mods = ["alt"], kind = "press", location = 1 },
+  { type = "key", code = "KeyA", key = "å", mods = [], kind = "press", text = "å", location = 0 },
+]
+expect = "c3a5"
+source = "UTF-8 of U+00E5"
+
+[[case]]
+name = "macOS Option+A with the left Option as Alt, left Option down: ESC a"
+platform = "macos"
+config = { macos_option_as_alt = "left" }
+events = [
+  { type = "keydown", key = "Alt", code = "AltLeft", location = 1, alt = true, key_code = 18 },
+  { type = "keydown", key = "å", code = "KeyA", alt = true, key_code = 65 },
+]
+logical = [
+  { type = "key", code = "AltLeft", key = "Alt", mods = ["alt"], kind = "press", location = 1 },
+  { type = "key", code = "KeyA", key = "a", mods = ["alt"], kind = "press", text = "a", location = 0 },
+]
+expect = "1b61"
+source = "xterm ctlseqs, Alt and Meta Keys: ESC and the character of the key"
+
+[[case]]
+name = "macOS Option+A with the left Option as Alt, right Option down: å"
+platform = "macos"
+config = { macos_option_as_alt = "left" }
+events = [
+  { type = "keydown", key = "Alt", code = "AltRight", location = 2, alt = true, key_code = 18 },
+  { type = "keydown", key = "å", code = "KeyA", alt = true, key_code = 65 },
+]
+logical = [
+  { type = "key", code = "AltRight", key = "Alt", mods = ["alt"], kind = "press", location = 2 },
+  { type = "key", code = "KeyA", key = "å", mods = [], kind = "press", text = "å", location = 0 },
+]
+expect = "c3a5"
+source = "UTF-8 of U+00E5"
+
+[[case]]
+name = "macOS Option+A with the right Option as Alt, right Option down: ESC a"
+platform = "macos"
+config = { macos_option_as_alt = "right" }
+events = [
+  { type = "keydown", key = "Alt", code = "AltRight", location = 2, alt = true, key_code = 18 },
+  { type = "keydown", key = "å", code = "KeyA", alt = true, key_code = 65 },
+]
+logical = [
+  { type = "key", code = "AltRight", key = "Alt", mods = ["alt"], kind = "press", location = 2 },
+  { type = "key", code = "KeyA", key = "a", mods = ["alt"], kind = "press", text = "a", location = 0 },
+]
+expect = "1b61"
+source = "xterm ctlseqs, Alt and Meta Keys: ESC and the character of the key"
+
+[[case]]
+name = "macOS Option+A with the right Option as Alt, left Option down: å"
+platform = "macos"
+config = { macos_option_as_alt = "right" }
+events = [
+  { type = "keydown", key = "Alt", code = "AltLeft", location = 1, alt = true, key_code = 18 },
+  { type = "keydown", key = "å", code = "KeyA", alt = true, key_code = 65 },
+]
+logical = [
+  { type = "key", code = "AltLeft", key = "Alt", mods = ["alt"], kind = "press", location = 1 },
+  { type = "key", code = "KeyA", key = "å", mods = [], kind = "press", text = "å", location = 0 },
+]
+expect = "c3a5"
+source = "UTF-8 of U+00E5"
+
+[[case]]
+name = "macOS Option+Shift+A with both Options as Alt: ESC A"
+platform = "macos"
+config = { macos_option_as_alt = "both" }
+events = [{ type = "keydown", key = "Å", code = "KeyA", alt = true, shift = true, key_code = 65 }]
+logical = [{ type = "key", code = "KeyA", key = "A", mods = ["shift", "alt"], kind = "press", text = "A", location = 0 }]
+expect = "1b41"
+source = "xterm ctlseqs, Alt and Meta Keys: ESC and the character of the key"
+
+[[case]]
+name = "macOS Option+1 with both Options as Alt: ESC 1"
+platform = "macos"
+config = { macos_option_as_alt = "both" }
+events = [{ type = "keydown", key = "¡", code = "Digit1", alt = true, key_code = 49 }]
+logical = [{ type = "key", code = "Digit1", key = "1", mods = ["alt"], kind = "press", text = "1", location = 0 }]
+expect = "1b31"
+source = "xterm ctlseqs, Alt and Meta Keys: ESC and the character of the key"
+
+[[case]]
+name = "macOS Option+/ with both Options as Alt: ESC /"
+platform = "macos"
+config = { macos_option_as_alt = "both" }
+events = [{ type = "keydown", key = "÷", code = "Slash", alt = true, key_code = 191 }]
+logical = [{ type = "key", code = "Slash", key = "/", mods = ["alt"], kind = "press", text = "/", location = 0 }]
+expect = "1b2f"
+source = "xterm ctlseqs, Alt and Meta Keys: ESC and the character of the key"
+
+[[case]]
+name = "macOS Option+E (a dead key) with both Options as Alt: ESC e"
+platform = "macos"
+config = { macos_option_as_alt = "both" }
+events = [{ type = "keydown", key = "Dead", code = "KeyE", alt = true, key_code = 229 }]
+logical = [{ type = "key", code = "KeyE", key = "e", mods = ["alt"], kind = "press", text = "e", location = 0 }]
+expect = "1b65"
+source = "xterm ctlseqs, Alt and Meta Keys: ESC and the character of the key"
+
+[[case]]
+name = "macOS Option+E (a dead key) with Option as Alt off: nothing yet"
+platform = "macos"
+events = [{ type = "keydown", key = "Dead", code = "KeyE", alt = true, key_code = 229 }]
+logical = []
+expect = ""
+source = "The input method owns the key; the composition delivers the text"
+
+[[case]]
+name = "macOS Ctrl+Option+A with both Options as Alt: ESC and C0"
+platform = "macos"
+config = { macos_option_as_alt = "both" }
+events = [{ type = "keydown", key = "å", code = "KeyA", alt = true, ctrl = true, key_code = 65 }]
+logical = [{ type = "key", code = "KeyA", key = "a", mods = ["ctrl", "alt"], kind = "press", location = 0 }]
+expect = "1b01"
+source = "xterm ctlseqs: Alt sends ESC first, Ctrl+A is 0x01"
+
+[[case]]
+name = "macOS Option+Left keeps Alt whatever the setting"
+platform = "macos"
+events = [{ type = "keydown", key = "ArrowLeft", code = "ArrowLeft", alt = true, key_code = 37 }]
+logical = [{ type = "key", code = "ArrowLeft", key = "ArrowLeft", mods = ["alt"], kind = "press", location = 0 }]
+expect = "1b5b313b3344"
+source = "xterm ctlseqs, PC-Style Function Keys: CSI 1 ; 3 D"
+
+[[case]]
+name = "macOS Option+Backspace with both Options as Alt: ESC DEL"
+platform = "macos"
+config = { macos_option_as_alt = "both" }
+events = [{ type = "keydown", key = "Backspace", code = "Backspace", alt = true, key_code = 8 }]
+logical = [{ type = "key", code = "Backspace", key = "Backspace", mods = ["alt"], kind = "press", location = 0 }]
+expect = "1b7f"
+source = "xterm ctlseqs, Alt and Meta Keys: ESC and DEL"
+
+[[case]]
+name = "macOS Option+A with both Options as Alt and kitty flag 1: CSI u"
+platform = "macos"
+kitty = 1
+config = { macos_option_as_alt = "both" }
+events = [{ type = "keydown", key = "å", code = "KeyA", alt = true, key_code = 65 }]
+logical = [{ type = "key", code = "KeyA", key = "a", mods = ["alt"], kind = "press", text = "a", location = 0 }]
+expect = "1b5b39373b3375"
+source = "kitty keyboard protocol, flag 1: alt+a is CSI 97 ; 3 u"
+
+[[case]]
+name = "macOS Option+A with Option as Alt off and kitty flag 1: å is text"
+platform = "macos"
+kitty = 1
+events = [{ type = "keydown", key = "å", code = "KeyA", alt = true, key_code = 65 }]
+logical = [{ type = "key", code = "KeyA", key = "å", mods = [], kind = "press", text = "å", location = 0 }]
+expect = "c3a5"
+source = "kitty keyboard protocol, flag 1: keys that produce text are sent as text"
+
+# --- keys of the browser that no terminal has ---
+
+[[case]]
+name = "unidentified key sends nothing"
+events = [{ type = "keydown", key = "Unidentified", code = "", key_code = 0 }]
+logical = [{ type = "key", code = "", key = "Unidentified", mods = [], kind = "press", location = 0 }]
+expect = ""
+source = "no terminal encoding exists"
+
+[[case]]
+name = "shift alone sends nothing in legacy mode"
+events = [{ type = "keydown", key = "Shift", code = "ShiftLeft", location = 1, shift = true, key_code = 16 }]
+logical = [{ type = "key", code = "ShiftLeft", key = "Shift", mods = ["shift"], kind = "press", location = 1 }]
+expect = ""
+source = "xterm ctlseqs: modifier keys have no encoding"

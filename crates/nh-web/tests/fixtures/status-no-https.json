@@ -1,0 +1,11 @@
+{
+  "Version": "1.104.1",
+  "BackendState": "Running",
+  "Self": {
+    "HostName": "studio",
+    "DNSName": "studio.example.ts.net.",
+    "Online": true
+  },
+  "MagicDNSSuffix": "example.ts.net",
+  "CertDomains": null
+}

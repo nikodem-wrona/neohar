@@ -1,0 +1,666 @@
+/* The middle of the window: the banners, the tab bar, the layout with its dividers, floating panes,
+   and the pane with its strip, its surface, its scrollbar and the strips of a held paste. */
+@layer components {
+  /* --- the tabs and the panes ------------------------------------------------------------------ */
+
+  /* The main panel. The canvas paints it under the panes: its fill, its radius, the
+     radius of the bottom corners of a pane and the padding of a pane are read by the render host
+     (`render/host.ts`). */
+  .main {
+    --frame-fill: var(--bg-raised);
+    --frame-radius: var(--r-panel);
+    --pane-radius: var(--r-md);
+    --pane-pad: var(--s2);
+    grid-area: main;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+  }
+
+  /* The tabs are pills on the main panel. */
+  .tabbar {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: var(--s1);
+    height: 36px;
+    flex: none;
+    padding: 0 var(--s2);
+    overflow: hidden;
+  }
+
+  .tablist {
+    display: flex;
+    align-items: center;
+    gap: var(--s1);
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  /* A tab is a row high. Its hover is one step under the card of the selected tab, so that the
+     tab under the pointer never looks selected. The fill comes and goes in 150 ms, and a press
+     moves the control down by 1 px. */
+  .tab,
+  .tab-new {
+    --tab-hover: color-mix(in oklch, var(--text) 5%, transparent);
+    display: flex;
+    align-items: center;
+    height: var(--row);
+    border-radius: var(--r-tab);
+    color: var(--text-dim);
+    white-space: nowrap;
+  }
+
+  .tab-new {
+    justify-content: center;
+    width: var(--row);
+  }
+
+  /* The cross has a slot at the right that it keeps when it is hidden, so that no tab moves when
+     the pointer comes. */
+  .tab {
+    gap: var(--s1);
+    min-width: 0;
+    padding: 0 var(--s1) 0 var(--s3);
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .tab,
+    .tab-new,
+    .tab-close {
+      transition-property: background-color, color, opacity, translate;
+      transition-duration: 150ms;
+      transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    }
+  }
+
+  .tab:active,
+  .tab-new:active:enabled {
+    translate: 0 1px;
+  }
+
+  /* The handle of the tab, from `data-handle`, so that the text of the tab stays its name. The bar
+     sets it only with `ui.show_handles`. */
+  .tab[data-handle]::before {
+    content: attr(data-handle);
+    color: var(--text-dim);
+  }
+
+  .tab-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .tab:hover,
+  .tab-new:hover:enabled {
+    background: var(--tab-hover);
+    color: var(--text);
+  }
+
+  .tab:active,
+  .tab-new:active:enabled {
+    background: var(--bg-card);
+  }
+
+  /* The selected tab is a card on the panel. Its name keeps the weight of the other names, so that
+     the text and the width of a tab do not change when it becomes selected. */
+  .tab.selected {
+    background: var(--bg-card);
+    color: var(--text);
+    box-shadow: inset 0 0 0 1px var(--hairline);
+  }
+
+  /* The cross of a tab: on the selected tab and under the pointer. It is not red: a close is not
+     a warning, and the core asks before it closes programs. */
+  .tab-close {
+    display: flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    border-radius: var(--r-sm);
+    color: var(--text-dim);
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .tab:hover .tab-close,
+  .tab.selected .tab-close {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .tab-close:hover {
+    background: var(--hairline);
+    color: var(--text);
+  }
+
+  .tab-new:disabled {
+    opacity: 0.4;
+  }
+
+  .tab-rename {
+    position: absolute;
+    z-index: 1;
+    top: calc((36px - var(--row)) / 2);
+    height: var(--row);
+    min-width: 16ch;
+    border-radius: var(--r-tab);
+  }
+
+  .tab.drop-target,
+  .side-tab.drop-target {
+    box-shadow: inset 0 0 0 1px var(--text);
+  }
+
+  /* A drag of a tab or a pane. The page draws no copy under the pointer: the cursor and the
+     dim source show the drag, and a target shows its outline. */
+  .shell.dragging,
+  .shell.dragging * {
+    cursor: grabbing;
+  }
+
+  .tab.lifted,
+  .pane.lifted > .pane-title,
+  .files-row.lifted {
+    opacity: 0.5;
+  }
+
+  .notice {
+    margin: 24px;
+    color: var(--text-dim);
+  }
+
+  /* The panes lie on the main panel with a gap around them. */
+  .layout {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    padding: 0 var(--s2) var(--s2);
+  }
+
+  .split {
+    display: flex;
+    width: 100%;
+    height: 100%;
+  }
+
+  .split.column {
+    flex-direction: column;
+  }
+
+  .split-child {
+    min-width: 0;
+    min-height: 0;
+  }
+
+  /* The divider is the gap between two panes. It shows a line under the pointer and with the
+     focus only. */
+  .divider {
+    position: relative;
+    flex: 0 0 8px;
+    background: transparent;
+    cursor: col-resize;
+    touch-action: none;
+  }
+
+  .divider::after {
+    content: '';
+    position: absolute;
+    inset: var(--r-md) calc(50% - 1px);
+    border-radius: 1px;
+  }
+
+  .split.column > .divider {
+    cursor: row-resize;
+  }
+
+  .split.column > .divider::after {
+    inset: calc(50% - 1px) var(--r-md);
+  }
+
+  .divider:hover::after {
+    background: var(--text-dim);
+  }
+
+  .divider:focus-visible::after {
+    background: var(--text);
+  }
+
+  .divider:focus-visible {
+    outline: none;
+  }
+
+  .surface {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+  }
+
+  .floating {
+    position: absolute;
+    z-index: 2;
+    border-radius: var(--r-md);
+    box-shadow: var(--glass-shadow);
+  }
+
+  .floating .pane-title {
+    cursor: move;
+  }
+
+  .float-resize {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    width: 14px;
+    height: 14px;
+    border-bottom-right-radius: var(--r-md);
+    cursor: nwse-resize;
+    touch-action: none;
+    background: linear-gradient(135deg, transparent 50%, var(--text-dim) 50%);
+  }
+
+  /* A pane is a card with round corners: its strip has the top ones, and the canvas paints the
+     bottom ones. */
+  .pane {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+    border-radius: var(--r-md);
+  }
+
+  .pane-title {
+    display: flex;
+    gap: 1ch;
+    height: var(--row);
+    flex: none;
+    padding: 0 var(--s2) 0 var(--s3);
+    align-items: center;
+    border-radius: var(--r-md) var(--r-md) 0 0;
+    background: var(--bg-card);
+    color: var(--text-dim);
+    white-space: nowrap;
+    overflow: hidden;
+    /* A press on the strip can start a drag, and a drag selects no text. */
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  /* A dot at the start of the strip in the colour of the state of its agent, as on the board.
+    The quiet states have none. */
+  .pane-edge {
+    flex: none;
+    width: 8px;
+    height: 8px;
+    margin-left: -4px;
+    border-radius: 50%;
+  }
+
+  .pane-edge:not([data-code='WORK'], [data-code='WAIT'], [data-code='ERR']) {
+    display: none;
+  }
+
+  .pane-edge[data-code='WORK'] {
+    background: var(--live);
+  }
+
+  .pane-edge[data-code='WAIT'] {
+    background: var(--caution);
+  }
+
+  .pane-edge[data-code='ERR'] {
+    background: var(--danger);
+  }
+
+  .pane-handle {
+    color: var(--text-dim);
+    flex: none;
+  }
+
+  .pane-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--text);
+    font-weight: 500;
+  }
+
+  /* The last folders name the repository, so a path that does not fit loses its start. */
+  .pane-cwd {
+    min-width: 0;
+    max-width: 48ch;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    direction: rtl;
+    text-align: left;
+    color: var(--text-dim);
+  }
+
+  .pane-cost {
+    flex: none;
+    color: var(--text);
+  }
+
+  .pane-unconfirmed {
+    color: var(--danger);
+    font-weight: 600;
+  }
+
+  .pane-clipboard-dropped {
+    flex: none;
+    color: var(--caution);
+  }
+
+  /* Another window has the size of the PTY. */
+  .pane-size {
+    flex: none;
+    padding: 0 6px;
+    border-radius: var(--r-sm);
+    color: var(--text-dim);
+    font: inherit;
+  }
+
+  .pane-size:hover,
+  .pane-size:focus-visible {
+    background: var(--bg-hover);
+    color: var(--text);
+  }
+
+  .pane-spacer {
+    flex: 1;
+  }
+
+  .pane-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    width: 22px;
+    height: 22px;
+    border-radius: var(--r-sm);
+    color: var(--text-dim);
+  }
+
+  /* A hairline over the fill of the strip, so a hover shows on the strip in focus too. */
+  .pane-button:hover {
+    background: var(--hairline);
+  }
+
+  .pane-button:hover,
+  .pane-button[aria-pressed='true'] {
+    color: var(--text);
+  }
+
+  .pane-button.pane-close:hover {
+    color: var(--danger);
+  }
+
+  /* The strip of the pane in focus is one step lighter, with no ring around the pane. It is
+     quiet, so that a wait stays louder than the focus. */
+  .pane.focused .pane-title {
+    background: var(--bg-hover);
+    color: var(--text);
+  }
+
+  /* The box of the background of a pane: the cells and the padding around them. */
+  .pane-body {
+    flex: 1;
+    min-height: 0;
+    padding: var(--pane-pad);
+  }
+
+  .pane-surface {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    outline: none;
+    overflow: hidden;
+  }
+
+  /* The scrollbar lies over the right edge of the surface. */
+  .scrollbar {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 10px;
+    opacity: 0;
+    transition: opacity 120ms;
+  }
+
+  .pane-surface:hover > .scrollbar.active,
+  .scrollbar.active:active {
+    opacity: 1;
+  }
+
+  .scrollbar-thumb {
+    position: absolute;
+    left: 3px;
+    right: 3px;
+    background: var(--text-dim);
+    opacity: 0.8;
+    touch-action: none;
+  }
+
+  .scrollbar-thumb:hover {
+    opacity: 1;
+    background: var(--text);
+  }
+
+  /* The text of the focused pane for screen readers. It lies off the screen. */
+  .mirror {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: pre;
+  }
+
+  .pane-exited,
+  .pane-held {
+    display: flex;
+    gap: 1ch;
+    align-items: center;
+    min-height: var(--row);
+    padding: 0 6px;
+    background: var(--bg-hover);
+    color: var(--text);
+  }
+
+  .pane-exited {
+    color: var(--text-dim);
+  }
+
+  .pane-held {
+    box-shadow: inset 2px 0 0 var(--caution);
+  }
+
+  .pane-exited button,
+  .pane-held button {
+    padding: 0 8px;
+    border: 1px solid var(--line);
+    color: var(--text);
+  }
+
+  .pane-exited button:hover,
+  .pane-held button:hover {
+    border-color: var(--text);
+  }
+
+  /* A pane that waits for the screen of its holder shimmers until the first frame comes. */
+  .pane.restoring .pane-body {
+    animation: shimmer 1.2s ease-in-out infinite;
+  }
+
+  @keyframes shimmer {
+    50% {
+      opacity: 0.5;
+    }
+  }
+
+  /* The input follows the cursor cell. It is empty and has no caret, except while an input method
+     composes, and then the browser draws the preview here. */
+  .pane-input {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 24em;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    outline: none;
+    resize: none;
+    overflow: hidden;
+    white-space: pre;
+    background: transparent;
+    color: var(--text);
+    caret-color: transparent;
+    font-family: var(--font-data);
+  }
+
+  .pane-clipboard .clipboard-preview {
+    display: inline-block;
+    max-width: 24em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    vertical-align: bottom;
+    color: var(--text-dim);
+  }
+
+  .clipboard-remember {
+    color: var(--text-dim);
+  }
+
+  /* What is wrong with the core: a banner over the tab bar. */
+  .banner {
+    display: flex;
+    gap: 1ch;
+    padding: 0 8px;
+    line-height: 20px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .banner-storage {
+    background: var(--danger);
+    color: var(--on-signal);
+    font-weight: 600;
+  }
+
+  .banner-warning {
+    background: var(--bg-raised);
+    color: var(--text);
+    box-shadow: inset 2px 0 0 var(--caution);
+  }
+
+  .banner-hint {
+    color: var(--text-dim);
+  }
+
+  /* A link that is down: the window waits for it and takes no input. */
+  .banner-link {
+    background: var(--bg-raised);
+    color: var(--text);
+    box-shadow: inset 2px 0 0 var(--danger);
+  }
+
+  .banner-link-text {
+    font-weight: 600;
+  }
+
+  /* A command of this window that failed: the message of the core, its code and a cross. */
+  .banner-failure {
+    align-items: center;
+    background: var(--bg-raised);
+    color: var(--text);
+    box-shadow: inset 2px 0 0 var(--danger);
+  }
+
+  .banner-failure-text {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .banner-close {
+    display: flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    margin-left: auto;
+    border-radius: var(--r-sm);
+    color: var(--text-dim);
+  }
+
+  .banner-close:hover {
+    background: var(--hairline);
+    color: var(--text);
+  }
+
+  .main-body {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+  }
+
+  .main-body[inert] {
+    opacity: 0.55;
+  }
+
+  .pane-harness {
+    display: inline-flex;
+    align-items: center;
+    gap: 1ch;
+    flex: none;
+    color: var(--text-dim);
+  }
+
+  /* A mode that the person chose and that does not change: a dim tag, not an alarm. */
+  .pane-yolo {
+    flex: none;
+    padding: 0 5px;
+    border: 1px solid var(--text-dim);
+    border-radius: var(--r-sm);
+    line-height: 14px;
+    color: var(--text-dim);
+  }
+
+  /* A version of the harness that is not validated: a fact about the harness, so it is
+     dim and shows only here. */
+  .pane-unvalidated {
+    flex: none;
+    color: var(--text-dim);
+    font-weight: 600;
+    cursor: help;
+  }
+
+  /* A path of the Files tab over a pane: the pane takes it. */
+  .pane.path-over {
+    outline: 1px dashed var(--text);
+    outline-offset: -1px;
+  }
+}
+
+@layer states {
+  /* A press on a tab selects it, so the card of the selected tab is the answer to the press, and
+     not reverse white. */
+  .tab:active:not(:disabled) {
+    background: var(--bg-card);
+    color: var(--text);
+  }
+}

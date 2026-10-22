@@ -1,0 +1,19 @@
+{
+  "model": "mock-codex",
+  "stream": false,
+  "tools": [{ "type": "function", "name": "shell", "parameters": { "type": "object" } }],
+  "input": [
+    {
+      "type": "message",
+      "role": "user",
+      "content": [{ "type": "input_text", "text": "list the files" }]
+    },
+    {
+      "type": "function_call",
+      "call_id": "call_mock_0001_1",
+      "name": "shell",
+      "arguments": "{\"command\":[\"ls\"]}"
+    },
+    { "type": "function_call_output", "call_id": "call_mock_0001_1", "output": "a.txt\nb.txt" }
+  ]
+}

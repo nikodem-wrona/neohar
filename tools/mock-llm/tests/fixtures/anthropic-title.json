@@ -1,0 +1,7 @@
+{
+  "model": "claude-haiku-4-5",
+  "max_tokens": 64,
+  "stream": false,
+  "system": [{ "type": "text", "text": "Write a title of 3 to 5 words for this conversation." }],
+  "messages": [{ "role": "user", "content": "say hello" }]
+}

@@ -1,0 +1,11 @@
+{
+  "name": "@neohar/eslint-plugin",
+  "private": true,
+  "license": "Apache-2.0",
+  "version": "1.0.0",
+  "type": "module",
+  "exports": "./src/index.js",
+  "scripts": {
+    "typecheck": "tsc --noEmit -p ."
+  }
+}

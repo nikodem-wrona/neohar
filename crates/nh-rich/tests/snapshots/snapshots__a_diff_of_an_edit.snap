@@ -1,0 +1,254 @@
+---
+source: crates/nh-rich/tests/snapshots.rs
+expression: result
+---
+{
+  "files": [
+    {
+      "path": "src/order.rs",
+      "status": "modified",
+      "hunks": [
+        {
+          "header": "@@ -1,8 +1,8 @@",
+          "lines": [
+            {
+              "kind": "ctx",
+              "old": 1,
+              "new": 1,
+              "text": {
+                "text": "use std::fmt;",
+                "spans": [
+                  {
+                    "start": 0,
+                    "end": 3,
+                    "class": "kw"
+                  }
+                ]
+              },
+              "intra": null
+            },
+            {
+              "kind": "ctx",
+              "old": 2,
+              "new": 2,
+              "text": {
+                "text": "",
+                "spans": []
+              },
+              "intra": null
+            },
+            {
+              "kind": "ctx",
+              "old": 3,
+              "new": 3,
+              "text": {
+                "text": "pub fn total(price: u32, count: u32) -> u32 {",
+                "spans": [
+                  {
+                    "start": 0,
+                    "end": 3,
+                    "class": "kw"
+                  },
+                  {
+                    "start": 4,
+                    "end": 6,
+                    "class": "kw"
+                  },
+                  {
+                    "start": 7,
+                    "end": 12,
+                    "class": "fn"
+                  },
+                  {
+                    "start": 13,
+                    "end": 18,
+                    "class": "var"
+                  },
+                  {
+                    "start": 20,
+                    "end": 23,
+                    "class": "kw"
+                  },
+                  {
+                    "start": 25,
+                    "end": 30,
+                    "class": "var"
+                  },
+                  {
+                    "start": 32,
+                    "end": 35,
+                    "class": "kw"
+                  },
+                  {
+                    "start": 40,
+                    "end": 43,
+                    "class": "kw"
+                  }
+                ]
+              },
+              "intra": null
+            },
+            {
+              "kind": "del",
+              "old": 4,
+              "new": null,
+              "text": {
+                "text": "    let total = price * count;",
+                "spans": [
+                  {
+                    "start": 4,
+                    "end": 7,
+                    "class": "kw"
+                  },
+                  {
+                    "start": 14,
+                    "end": 15,
+                    "class": "op"
+                  },
+                  {
+                    "start": 22,
+                    "end": 23,
+                    "class": "op"
+                  }
+                ]
+              },
+              "intra": null
+            },
+            {
+              "kind": "del",
+              "old": 5,
+              "new": null,
+              "text": {
+                "text": "    println!(\"total: {}\", total);",
+                "spans": [
+                  {
+                    "start": 13,
+                    "end": 21,
+                    "class": "str"
+                  },
+                  {
+                    "start": 21,
+                    "end": 23,
+                    "class": "const"
+                  },
+                  {
+                    "start": 23,
+                    "end": 24,
+                    "class": "str"
+                  }
+                ]
+              },
+              "intra": [
+                [
+                  4,
+                  11
+                ]
+              ]
+            },
+            {
+              "kind": "add",
+              "old": null,
+              "new": 4,
+              "text": {
+                "text": "    let total = price * quantity(count);",
+                "spans": [
+                  {
+                    "start": 4,
+                    "end": 7,
+                    "class": "kw"
+                  },
+                  {
+                    "start": 14,
+                    "end": 15,
+                    "class": "op"
+                  },
+                  {
+                    "start": 22,
+                    "end": 23,
+                    "class": "op"
+                  },
+                  {
+                    "start": 24,
+                    "end": 32,
+                    "class": "fn"
+                  }
+                ]
+              },
+              "intra": [
+                [
+                  24,
+                  33
+                ],
+                [
+                  38,
+                  39
+                ]
+              ]
+            },
+            {
+              "kind": "add",
+              "old": null,
+              "new": 5,
+              "text": {
+                "text": "    log::debug!(\"total: {}\", total);",
+                "spans": [
+                  {
+                    "start": 14,
+                    "end": 15,
+                    "class": "op"
+                  },
+                  {
+                    "start": 16,
+                    "end": 27,
+                    "class": "str"
+                  }
+                ]
+              },
+              "intra": [
+                [
+                  4,
+                  14
+                ]
+              ]
+            },
+            {
+              "kind": "ctx",
+              "old": 6,
+              "new": 6,
+              "text": {
+                "text": "    total",
+                "spans": []
+              },
+              "intra": null
+            },
+            {
+              "kind": "ctx",
+              "old": 7,
+              "new": 7,
+              "text": {
+                "text": "}",
+                "spans": []
+              },
+              "intra": null
+            },
+            {
+              "kind": "ctx",
+              "old": 8,
+              "new": 8,
+              "text": {
+                "text": "",
+                "spans": []
+              },
+              "intra": null
+            }
+          ]
+        }
+      ],
+      "stats": {
+        "add": 2,
+        "del": 2
+      },
+      "truncated": false
+    }
+  ]
+}

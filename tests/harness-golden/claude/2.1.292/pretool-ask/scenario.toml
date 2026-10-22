@@ -1,0 +1,79 @@
+# Claude Code: a PreToolUse hook answers ask for a call that Claude Code would allow without asking (ls). The native dialog opens and PermissionRequest fires.
+harness = "claude"
+cols = 120
+rows = 40
+
+
+[state]
+hasSeenAutoDefaultNudge = true
+
+[settings.permissions]
+defaultMode = "default"
+
+[[hook_reply]]
+event = "PreToolUse"
+reply = { hookSpecificOutput = { hookEventName = "PreToolUse", permissionDecision = "ask", permissionDecisionReason = "Ask the user" } }
+
+[[turn]]
+blocks = [{ type = "text", text = "I will list the files." }, { type = "tool_use", name = "Bash", input = { command = "ls", description = "List files" } }]
+
+[[turn]]
+blocks = [{ type = "text", text = "The listing is done." }]
+
+# Text that differs from run to run is hidden when two recordings are compared.
+[[mask]]
+# Claude Code names the time it worked with a verb that it picks at random.
+pattern = "✻ \\S+ for [0-9hms ]+ · done \\d+:\\d+ [AP]M"
+with = "✻ <verb> for <time spent> · done <time>"
+
+[[mask]]
+pattern = "claude --resume [0-9a-f-]{36}"
+with = "claude --resume <session>"
+
+[[mask]]
+# The dot in front of a running tool call blinks. A screen can show it or not.
+pattern = "(?m)^[⏺ ] ?Listing files$"
+with = "<dot> Listing files"
+
+[[step]]
+wait_signal = "SessionStart"
+
+[[step]]
+wait_screen = "^❯"
+
+[[step]]
+send = "list the files"
+
+[[step]]
+sleep_ms = 300
+
+[[step]]
+key = "enter"
+
+[[step]]
+wait_screen = "Do you want to proceed"
+
+[[step]]
+snapshot = "dialog"
+
+[[step]]
+key = "enter"
+
+[[step]]
+wait_signal = "Stop"
+
+[[step]]
+snapshot = "done"
+
+
+[[step]]
+send = "/exit"
+
+[[step]]
+sleep_ms = 300
+
+[[step]]
+key = "enter"
+
+[[step]]
+expect_exit = true

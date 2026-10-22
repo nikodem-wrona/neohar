@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- The master of the icon of neohar: a black square with three white strips, the top one
+     with a green edge, as the board shows an agent that works. `cargo tauri icon icons/icon.svg`
+     makes the sizes and icon.icns. The colours are the tokens of packages/ui/src/styles/tokens.css. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <rect x="103" y="103" width="818" height="818" rx="182" fill="#000000" stroke="#3d3d3d" stroke-width="6"/>
+  <rect x="232" y="300" width="560" height="112" rx="10" fill="#f2f2f2"/>
+  <path d="M242 300h38v112h-38a10 10 0 0 1-10-10v-92a10 10 0 0 1 10-10z" fill="#4aea7d"/>
+  <rect x="232" y="456" width="560" height="112" rx="10" fill="#f2f2f2"/>
+  <rect x="232" y="612" width="560" height="112" rx="10" fill="#f2f2f2"/>
+</svg>

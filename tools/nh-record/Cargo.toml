@@ -1,0 +1,26 @@
+[package]
+name = "nh-record"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true
+
+[lib]
+name = "nh_record"
+path = "src/lib.rs"
+
+[[bin]]
+name = "nh-record"
+path = "src/main.rs"
+
+[dependencies]
+libc.workspace = true
+nh-proto = { path = "../../crates/nh-proto" }
+rustix = { workspace = true, features = ["process"] }
+thiserror.workspace = true
+ulid.workspace = true

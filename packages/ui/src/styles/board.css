@@ -1,0 +1,325 @@
+/* The agents: the board with a strip for each run, the list behind its `+N`
+   cell, the badge of a run and the state in four letters. */
+
+/* The colour of the border of a strip is registered, so that its flash animates a colour and not
+   a property of the layout. */
+@property --edge {
+  syntax: '<color>';
+  inherits: false;
+  initial-value: transparent;
+}
+
+@layer components {
+  /* The board: a strip for each agent run, across the top of the window. It is a list of
+     strips on the ground, with no panel, border or padding around them, so it is as high as
+     a strip. Its height is fixed: two lines, or one when it is narrow. A new agent never
+     changes it, because a change of the height resizes every pane. */
+  .board {
+    grid-area: board;
+    position: relative;
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    box-sizing: border-box;
+    height: 40px;
+    overflow: hidden;
+  }
+
+  /* The board keeps the data family, so a strip is a number of its characters (`fit.ts`). The
+     work and the harness are text. */
+  .board :is(.strip-work, .board-empty, .strip-harness) {
+    font-family: var(--font-ui);
+    font-size: 13px;
+  }
+
+  .board .strip-harness {
+    font-size: var(--size-small);
+  }
+
+  .board.one-line {
+    height: 26px;
+  }
+
+  .board-empty {
+    flex: 1;
+    margin: 0;
+    padding: 0 var(--s1);
+    color: var(--text-dim);
+  }
+
+  .strips {
+    display: flex;
+    gap: 1ch;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  /* A strip is a card of a fixed size, so a change of its text lays out the strip only
+     (`contain: strict`). It has the corners of a tab. The agents change state many times a
+     minute. `fit.ts` sets `--strip`, in characters, and counts the gap after each strip. */
+  .strip {
+    --edge: var(--hairline);
+    contain: strict;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    width: calc(var(--strip, 30) * 1ch);
+    height: 40px;
+    padding: 0 10px;
+    border: 1px solid var(--edge);
+    border-radius: var(--r-tab);
+    background: var(--bg-card);
+    text-align: left;
+    white-space: nowrap;
+  }
+
+  .one-line .strip {
+    height: 26px;
+  }
+
+  /* A drag of a strip: the strip that moves is dim, and a bar in the gap shows where it lands. The
+     board clips what is left of the first strip, so the bar before it lies on its edge. */
+  .strips > li {
+    position: relative;
+  }
+
+  .strips > li.lifted {
+    opacity: 0.5;
+  }
+
+  .strips > li:is(.drop-before, .drop-after)::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    border-radius: 1px;
+    background: var(--text);
+  }
+
+  .strips > li.drop-before::after {
+    left: calc(-0.5ch - 1px);
+  }
+
+  .strips > li.drop-before:first-child::after {
+    left: 0;
+  }
+
+  .strips > li.drop-after::after {
+    right: calc(-0.5ch - 1px);
+  }
+
+  /* A strip that waits or failed has a border and a tint of its colour. A strip that works
+     has the green glyph of its badge. The quiet states have no colour. */
+  .strip[data-code='WAIT'] {
+    --edge: var(--caution);
+    background: var(--tint-caution);
+  }
+
+  .strip[data-code='ERR'] {
+    --edge: var(--danger);
+    background: var(--tint-danger);
+  }
+
+  .strip:hover:not(:disabled) {
+    background: var(--bg-hover);
+  }
+
+  .strip:disabled .strip-work {
+    color: var(--text-dim);
+    font-weight: 400;
+  }
+
+  /* The strip of the agent of the focused pane: a fill one step lighter than a hover, and no mark
+     at its edge. A strip that waits or failed keeps the border of its state and gets a
+     stronger tint, so a wait stays louder than the focus. The fill does not change under
+     the pointer. */
+  .strip.focused,
+  .strip.focused:hover:not(:disabled) {
+    background: var(--bg-focus);
+  }
+
+  .strip.focused[data-code='WAIT'],
+  .strip.focused[data-code='WAIT']:hover:not(:disabled) {
+    background: var(--tint-caution-focus);
+  }
+
+  .strip.focused[data-code='ERR'],
+  .strip.focused[data-code='ERR']:hover:not(:disabled) {
+    background: var(--tint-danger-focus);
+  }
+
+  .strip-line {
+    display: flex;
+    align-items: center;
+    gap: 1ch;
+    min-width: 0;
+    height: 17px;
+  }
+
+  .strip-work {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-weight: 600;
+  }
+
+  /* The second line starts under the state, and the cost is at the right edge, so that the digits
+     line up from strip to strip. */
+  .strip-meta {
+    padding-left: 2ch;
+  }
+
+  .strip-harness {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--text-dim);
+  }
+
+  .strip-cost {
+    flex: none;
+    margin-left: auto;
+    text-align: right;
+  }
+
+  /* The runs that do not fit are behind this cell. It is amber when one of them waits. */
+  .board-more {
+    flex: none;
+    width: 5ch;
+    height: 26px;
+    margin-left: 1ch;
+    border-radius: var(--r-tab);
+    background: var(--bg-card);
+    color: var(--text);
+  }
+
+  .board-more:hover {
+    background: var(--bg-hover);
+  }
+
+  .board-more.waiting {
+    background: var(--caution);
+    color: var(--on-signal);
+    font-weight: 600;
+  }
+
+  /* The list of every agent lies in the top layer under the `+N` cell. The page sets the place. */
+  .board-list {
+    position: fixed;
+    inset: auto;
+    top: var(--list-top, 0);
+    right: var(--list-right, 0);
+    width: 44ch;
+    max-height: 60vh;
+    margin: 0;
+    padding: 0;
+    overflow-y: auto;
+    padding: var(--s1);
+    border-radius: var(--r-md);
+    color: var(--text);
+  }
+
+  .board-list ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .board-list .strip {
+    width: 100%;
+    height: var(--row);
+    border-radius: var(--r-sm);
+  }
+
+  /* A strip that starts to wait flashes its edge twice, with the attention line. */
+  @media (prefers-reduced-motion: no-preference) {
+    .strip.flash {
+      animation: edge-flash 0.45s steps(1) 2;
+    }
+  }
+
+  @keyframes edge-flash {
+    50% {
+      --edge: transparent;
+    }
+  }
+
+  /* The state in four letters. WORK is green, WAIT is reverse amber (a person has to act), ERR is
+     red, and the quiet states are white or dim. */
+  .agent-code,
+  .pane-state {
+    font-weight: 600;
+    color: var(--text-dim);
+  }
+
+  .agent-code[data-code='WORK'],
+  .pane-state[data-code='WORK'] {
+    color: var(--live);
+  }
+
+  .agent-code[data-code='WAIT'],
+  .pane-state[data-code='WAIT'] {
+    padding: 0 3px;
+    border-radius: 3px;
+    background: var(--caution);
+    color: var(--on-signal);
+  }
+
+  .agent-code[data-code='ERR'],
+  .pane-state[data-code='ERR'] {
+    color: var(--danger);
+  }
+
+  .agent-code[data-code='RATE'],
+  .pane-state[data-code='RATE'] {
+    color: var(--text);
+  }
+
+  .agent-code[data-code='DONE'],
+  .pane-state[data-code='DONE'] {
+    color: var(--text);
+  }
+
+  /* --- the agents ---------------------------------------------------------------- */
+
+  /* A badge: the glyph of the state, a `~` when the state is a guess, and a dot when the run is
+     done. */
+  .agent-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 1px;
+    min-width: 1ch;
+    color: var(--text);
+  }
+
+  .agent-badge[data-state='error'] {
+    color: var(--danger);
+  }
+
+  .agent-badge[data-state='working'] {
+    color: var(--live);
+  }
+
+  .agent-exited,
+  .agent-badge[data-state='unknown'] {
+    color: var(--text-dim);
+  }
+
+  .agent-mark {
+    color: var(--text-dim);
+  }
+
+  .agent-dot {
+    width: 6px;
+    height: 6px;
+    margin-left: 3px;
+    border-radius: 50%;
+    background: var(--text);
+  }
+}

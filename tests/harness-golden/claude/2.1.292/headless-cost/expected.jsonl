@@ -1,0 +1,6 @@
+{"event":"SessionStart","reply":"continue","signals":["SessionStarted { session_id: \"08e385ae-ae2f-4a8b-981d-514ec1a5f30a\", transcript_path: Some(\"/tmp/nhg-claude/home/claude/projects/-private-tmp-nhg-claude-work/08e385ae-ae2f-4a8b-981d-514ec1a5f30a.jsonl\"), source: Startup, model: None }"]}
+{"event":"UserPromptSubmit","reply":"continue","signals":["PermissionMode { mode: \"default\" }","TurnStarted { turn_ref: Some(\"1b21d677-8228-4224-a645-ae2f10300acc\"), prompt_preview: Some(\"first question\") }"]}
+{"event":"Stop","reply":"continue","signals":["TurnEnded { turn_ref: Some(\"1b21d677-8228-4224-a645-ae2f10300acc\"), stop_reason: None, last_message_preview: Some(\"First answer.\") }"]}
+{"event":"UserPromptSubmit","reply":"continue","signals":["TurnStarted { turn_ref: Some(\"7c9bff00-bc97-4e3c-9c5e-bd219cf80c73\"), prompt_preview: Some(\"second question\") }"]}
+{"event":"Stop","reply":"continue","signals":["TurnEnded { turn_ref: Some(\"7c9bff00-bc97-4e3c-9c5e-bd219cf80c73\"), stop_reason: None, last_message_preview: Some(\"Second answer.\") }"]}
+{"event":"SessionEnd","reply":"continue","signals":["SessionEnded { reason: \"other\" }"]}

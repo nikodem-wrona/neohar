@@ -1,0 +1,45 @@
+# git log --graph --decorate --stat on a generated repository (see git-log.setup.sh), paged by
+# less with LESS=FRX. 100x30 at the start, one resize.
+#
+# X keeps less on the main screen, so the output scrolls into the scrollback of the terminal and
+# less does not use the alternate screen. After each command less prints its prompt ":" followed
+# by "\e[K", so ":\e[K" is the signal that a command is finished. git prints no colon followed by
+# "\e[K".
+
+# The first screen.
+expect ":\e[K"
+
+# Pages: forward, forward, back, half page forward, half page back.
+send " "
+expect ":\e[K"
+send " "
+expect ":\e[K"
+send "b"
+expect ":\e[K"
+send "d"
+expect ":\e[K"
+send "u"
+expect ":\e[K"
+
+# Search for a word that is in a few messages, forward and back.
+send "/plugin\r"
+expect ":\e[K"
+send "n"
+expect ":\e[K"
+send "N"
+expect ":\e[K"
+
+# The end of the log, and the start again.
+send "G"
+expect "(END)\e[27m\e[K"
+send "g"
+expect ":\e[K"
+
+# The terminal gets smaller.
+resize 80 24
+expect ":\e[K"
+send " "
+expect ":\e[K"
+
+send "q"
+expect_exit

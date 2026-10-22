@@ -1,0 +1,25 @@
+╭────────────────────────────────────────────╮
+│ >_ OpenAI Codex (v0.156.1)                 │
+│                                            │
+│ model:       mock-model   /model to change │
+│ directory:   /private/tmp/nhg-codex/work   │
+│ permissions: YOLO mode                     │
+╰────────────────────────────────────────────╯
+
+
+› make a note
+
+
+• I will make a note.
+
+• Ran touch note.txt
+  └ (no output)
+
+• The note is made.
+
+  01:44
+
+
+› Ask Codex to do anything
+
+  mock-model default · /private/tmp/nhg-codex/work                                             ⚠ 1 warning · f2 to view

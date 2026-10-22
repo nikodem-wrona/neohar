@@ -1,0 +1,25 @@
+harness = "claude"
+harness_version = "2.1.303"
+scenario = "reply-after-turn"
+scenario_blake3 = "e5089f0754da80c9f375bbf4304de99cccab869af64225710d6761d17be393e9"
+mode = "pty"
+os = "macos 26.6.2"
+arch = "aarch64"
+cols = 120
+rows = 40
+duration_ms = 4522
+exit = "code 0"
+llm_requests = 3
+llm_main_requests = 2
+turns_used = 2
+turns_total = 2
+unmatched_main = 0
+hook_calls = 6
+hook_calls_api = 6
+terminal_replies = 6
+screens = [
+    "turn-ended",
+    "replied",
+    "final",
+]
+processes = []

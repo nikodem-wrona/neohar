@@ -1,0 +1,21 @@
+[
+  {
+    "acked": false,
+    "attempts": ["released"],
+    "deadline_ms": 1791508468285,
+    "decided_by": null,
+    "decision": null,
+    "event": "PermissionRequest",
+    "fail_reason": null,
+    "id": "01M4F1WPQX17J6V1XJ48X0KMX3",
+    "idempotency_key": null,
+    "kind": "approval",
+    "lease": false,
+    "mode": "observe",
+    "native_ref": "call_mock_0001_1",
+    "rev": 0,
+    "shim_pid": 18655,
+    "state": "resolved_elsewhere",
+    "token": "nh-golden"
+  }
+]

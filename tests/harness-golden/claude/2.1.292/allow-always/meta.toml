@@ -1,0 +1,22 @@
+harness = "claude"
+harness_version = "2.1.292"
+scenario = "allow-always"
+scenario_blake3 = "aca0758a27b2ba015fbef71924e23a7d4eeac03b2ae9f1670ba7640c9b96407a"
+os = "macos 26.6.2"
+arch = "aarch64"
+cols = 120
+rows = 40
+duration_ms = 2051
+exit = "code 0"
+llm_requests = 4
+llm_main_requests = 3
+turns_used = 3
+turns_total = 3
+unmatched_main = 0
+hook_calls = 9
+hook_calls_api = 9
+terminal_replies = 6
+screens = [
+    "done",
+    "final",
+]

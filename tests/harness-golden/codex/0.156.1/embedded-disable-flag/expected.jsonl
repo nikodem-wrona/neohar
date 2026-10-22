@@ -1,0 +1,4 @@
+{"event":"SessionStart","reply":"continue","signals":["SessionStarted { session_id: \"01a11de7-0465-7ba3-9093-4a3feba4f71e\", transcript_path: Some(\"/private/tmp/nhg-codex/home/codex/sessions/2026/10/09/rollout-2026-10-09T01-44-01-01a11de7-0465-7ba3-9093-4a3feba4f71e.jsonl\"), source: Startup, model: Some(\"mock-model\") }","PermissionMode { mode: \"bypassPermissions\" }"]}
+{"event":"UserPromptSubmit","reply":"continue","signals":["TurnStarted { turn_ref: Some(\"01a11de7-07f6-7522-baa0-541e920b117f\"), prompt_preview: Some(\"say hello\") }"]}
+{"event":"Stop","reply":"continue","signals":["TurnEnded { turn_ref: Some(\"01a11de7-07f6-7522-baa0-541e920b117f\"), stop_reason: None, last_message_preview: Some(\"Hello from the mock model.\") }"]}
+{"event":"SessionEnd","reply":"continue","signals":["SessionEnded { reason: \"other\" }"]}

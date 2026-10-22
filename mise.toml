@@ -1,0 +1,237 @@
+[tools]
+rust = { version = "1.99.0", profile = "minimal", components = "rustfmt,clippy", targets = "wasm32-unknown-unknown" }
+bun = "1.4.2"
+hyperfine = "1.21.0"
+# Lets the cargo: backend download prebuilt binaries instead of compiling every tool.
+cargo-binstall = "1.25.2"
+"cargo:cargo-nextest" = "0.9.146"
+"cargo:cargo-deny" = "0.20.2"
+# Must equal the `wasm-bindgen` crate version in Cargo.lock. `mise run check:deps` enforces this.
+"cargo:wasm-bindgen-cli" = "0.2.129"
+"cargo:tauri-cli" = "2.12.1"
+# Writes THIRD_PARTY_LICENSES.md (`mise run gen:notices`).
+"cargo:cargo-about" = "0.9.2"
+
+[tasks.fmt]
+description = "Format Rust and UI sources"
+run = ["cargo fmt --all", "bun run fmt"]
+
+[tasks."check:fmt"]
+description = "Check Rust and UI formatting"
+run = ["cargo fmt --all --check", "bun run fmt:check"]
+
+[tasks."check:clippy"]
+description = "Run clippy on the whole workspace with warnings as errors"
+run = [
+  "cargo clippy --workspace --all-targets --locked -- -D warnings",
+  # The features that the workspace build leaves off: the dev WebSocket of `nh daemon` and the check of the sandbox.
+  "cargo clippy -p nh --features dev-ws --all-targets --locked -- -D warnings",
+  "cargo clippy -p neohar-desktop --features selftest --all-targets --locked -- -D warnings",
+]
+
+[tasks."check:deny"]
+description = "Run cargo-deny (licenses, advisories, bans, sources)"
+run = "cargo deny --locked check"
+
+[tasks."check:eslint"]
+description = "Run ESLint, including the thin-presentation rules"
+run = "bun run lint"
+
+[tasks."check:tsc"]
+description = "Type-check every package and script"
+depends = ["build:wasm"]
+run = "bun run typecheck"
+
+[tasks."gen:api"]
+description = "Write packages/transport/src/generated.ts from `nh api schema`"
+run = "bun tools/gen-ts/index.ts"
+
+[tasks."check:gen"]
+description = "Fail when packages/transport/src/generated.ts is not what `nh api schema` makes"
+run = "bun tools/gen-ts/index.ts --check"
+
+[tasks."gen:icons"]
+description = "Write the icons of the Files tab from the package material-icon-theme: the tables of names in nh-core and the art in packages/ui"
+run = "bun scripts/gen-file-icons.ts"
+
+[tasks."gen:notices"]
+description = "Write THIRD_PARTY_LICENSES.md: the licenses of the Rust crates, JavaScript packages and data that ship in neohar.app (cargo-about with about.toml, then node_modules)"
+run = ["cargo fetch --locked", "bun scripts/gen-notices.ts"]
+
+[tasks."check:notices"]
+description = "Fail when THIRD_PARTY_LICENSES.md is not what gen:notices writes (offline)"
+run = "bun scripts/gen-notices.ts --check"
+
+[tasks."check:deps"]
+description = "Check the crate dependency rules (scripts/check-deps.ts) and the wasm-bindgen pin"
+run = "bun scripts/check-deps.ts"
+
+[tasks."check:bundle"]
+description = "Fail when the gzipped scripts, styles and WASM of the webview are over 300 KB, or those of the phone app over 150 KB. It builds both first"
+depends = ["build:wasm"]
+run = ["bun run --cwd apps/desktop build", "bun run --cwd apps/web build", "bun scripts/check-bundle.ts"]
+
+[tasks."check:docs"]
+description = "Fail when a generated page of website/docs is not what `bun run gen` writes, or when the page checker finds a fault (offline, writes nothing). The CLI pages need an nh binary in target/ that is newer than crates/nh/src"
+run = ["bun website/scripts/gen-all.ts --check", "bun run --cwd website check"]
+
+[tasks."check:holder-size"]
+description = "Fail when crates/nh-hold/src has more than 2,500 lines of code"
+run = "bun scripts/holder-size.ts"
+
+[tasks.check]
+description = "Every static check"
+depends = [
+  "check:fmt",
+  "check:clippy",
+  "check:deny",
+  "check:eslint",
+  "check:tsc",
+  "check:deps",
+  "check:gen",
+  "check:notices",
+  "check:docs",
+  "check:holder-size",
+  "check:bundle",
+]
+
+# Tests run with the three directory overrides pointing at a fresh temp dir.
+[tasks."test:rust"]
+description = "Run the Rust tests"
+run = "bash scripts/with-test-env.sh cargo nextest run --workspace --locked"
+
+[tasks."test:ui"]
+description = "Run the UI and tooling tests"
+depends = ["build:wasm"]
+run = "bash scripts/with-test-env.sh bun test"
+
+[tasks.test]
+description = "Every test that does not need a live harness, a GPU or a browser"
+depends = ["test:rust", "test:ui", "test:install"]
+
+# Local suites. They need a browser, a GPU, installed programs or a second machine, so
+# `mise run test` does not run them.
+[tasks.bench]
+description = "Run the benches of nh-term against their budgets: frame build, snapshot and restore"
+run = "cargo bench -p nh-term"
+
+[tasks."setup:browsers"]
+description = "Download the browsers of the render tests: Playwright WebKit and Chromium (needs the network and node)"
+run = "cd tests/render && ./node_modules/.bin/playwright install webkit chromium"
+
+[tasks."test:gpu"]
+description = "Render tests in browsers: renderers equal, context loss, no allocation, budgets (needs node)"
+depends = ["build:wasm"]
+run = "bash scripts/test-gpu.sh"
+
+[tasks."test:keyboard"]
+description = "The keyboard fidelity matrix in WebKit: DOM events, the keyboard layer, the encoder (local, needs node)"
+run = "bash scripts/test-keyboard.sh"
+
+[tasks."build:nh"]
+description = "Build the nh binary that the app starts holders with (target/debug/nh)"
+run = "cargo build -p nh --locked"
+
+[tasks."build:web"]
+description = "Build the phone app into target/web-dist. The builds of nh and of the app put it into the binary with NEOHAR_WEB_DIST"
+depends = ["build:wasm"]
+run = "bun run --cwd apps/web build"
+
+[tasks."build:sidecar"]
+description = "Build nh in release, with the phone app, and copy it to the sidecar path of the bundle (apps/desktop/src-tauri/binaries)"
+depends = ["build:web"]
+env = { NEOHAR_WEB_DIST = "{{config_root}}/target/web-dist" }
+run = "bash scripts/build-sidecar.sh"
+
+[tasks."build:app"]
+description = "Build the ad-hoc signed neohar.app with the nh sidecar and the phone app (local). The bundle is under target/release/bundle/macos"
+depends = ["build:wasm", "build:web", "build:sidecar"]
+env = { NEOHAR_WEB_DIST = "{{config_root}}/target/web-dist" }
+dir = "apps/desktop"
+run = "cargo tauri build --bundles app -c src-tauri/tauri.bundle.conf.json"
+
+[tasks."test:transport"]
+description = "The WebSocketTransport in WebKit against a headless core: a snapshot, then a patch after a CLI call (local, needs node)"
+run = "bash scripts/test-transport.sh"
+
+[tasks."test:shell"]
+description = "The shell of the UI in WebKit against a headless core: the DOM follows the projections, a click sends its command (local, needs node)"
+depends = ["build:wasm"]
+run = "bash scripts/test-shell.sh"
+
+[tasks."test:phone"]
+description = "The phone app in WebKit as an iPhone 17 Pro Max against a headless core and its phone listener: the pairing, the desk, the cards, the reply, the sheets, the banner (local, needs node)"
+depends = ["build:wasm"]
+run = "bash scripts/test-phone.sh"
+
+[tasks."test:shell:link"]
+description = "The shell tests of tests/ui through link.sock: the core serves the page from a client of link/1 (local, needs node)"
+depends = ["build:wasm"]
+env = { NEOHAR_UI_LINK = "1" }
+run = "bash scripts/test-shell.sh"
+
+[tasks."remote:deploy"]
+description = "Copy a development nh and its wrapper nh-dev to ~/.neohar-dev/bin on a second machine over ssh (needs NEOHAR_REMOTE_TARGET; local). Options after --: --release, --no-build, --bin <path>"
+run = "bash scripts/remote-dev.sh"
+
+[tasks."test:remote"]
+description = "The remote tests over real ssh to a second machine, crates/nh/tests/remote_*.rs (needs NEOHAR_REMOTE_TARGET; local)"
+run = "bash scripts/test-remote.sh"
+
+[tasks."test:host"]
+description = "The sandbox of the webview: only the three commands, the CSP, no network (local, opens a window)"
+depends = ["build:wasm"]
+run = "bash scripts/test-host.sh"
+
+[tasks."app:dev"]
+description = "Open the app with the shell, built from the working tree (local). Config and data are under target/dev-run, the sockets under /tmp/nhdev-$UID"
+depends = ["build:wasm", "build:web", "build:nh"]
+env = { NEOHAR_WEB_DIST = "{{config_root}}/target/web-dist" }
+dir = "apps/desktop"
+run = "bash ../../scripts/dev-env.sh cargo tauri dev"
+
+[tasks."app:dev:client"]
+description = "Start nh daemon for the dev session and open the app as its client through link.sock (local). A quit of the app leaves the daemon running; Enter opens the app again, q stops the daemon and its panes"
+depends = ["build:wasm"]
+raw = true
+run = "bash scripts/dev-env.sh bash scripts/app-dev-client.sh"
+
+[tasks."test:install"]
+description = "The test of scripts/app-install.sh, on folders under /tmp (it never touches ~/Applications)"
+run = "bash scripts/app-install.test.sh"
+
+[tasks."app:install"]
+description = "Copy the ad-hoc signed neohar.app of build:app to ~/Applications (local). It keeps an installed app unless you pass --yes: mise run app:install -- --yes"
+run = "bash scripts/app-install.sh"
+
+[tasks."build:chaos"]
+description = "Build the release binaries of the chaos runs: nh, nh-fixture and nh-chaos (local)"
+run = "cargo build --release --locked -p nh -p nh-fixture -p nh-chaos"
+
+[tasks."app:stop"]
+description = "Kill the panes of the dev app (target/dev-run). A quit of the app leaves its panes running, and the next launch brings them back"
+run = "cargo run -q -p nh-chaos -- clean --data-dir target/dev-run/data --session dev"
+
+[tasks."test:apps"]
+description = "Real programs in panes of nh-core: less, vim and htop (local, needs them installed)"
+run = "bash scripts/with-test-env.sh env NEOHAR_APPS=1 cargo nextest run -p nh --test core_apps --locked"
+
+[tasks."test:harness"]
+description = "Record the scenarios of the installed Claude Code and Codex offline and compare them with the committed recordings (local, macOS, needs both installed)"
+depends = ["build:nh"]
+run = "bash scripts/with-test-env.sh env NEOHAR_HARNESS=1 cargo nextest run -p nh-golden --test record --test delivery --locked"
+
+[tasks."record:golden"]
+description = "Record every scenario of the installed Claude Code and Codex into tests/harness-golden (local, macOS)"
+depends = ["build:nh"]
+run = [
+  "cargo run -q -p nh-golden --locked -- record-all claude --dir tests/harness-golden/scenarios/claude --out-root tests/harness-golden",
+  "cargo run -q -p nh-golden --locked -- record-all codex --dir tests/harness-golden/scenarios/codex --out-root tests/harness-golden",
+]
+
+[tasks."build:wasm"]
+description = "Build the WASM frame decoder and its JavaScript glue into packages/proto-wasm/pkg"
+run = [
+  "cargo build --profile wasm --target wasm32-unknown-unknown -p proto-wasm --locked",
+  "wasm-bindgen --target web --out-dir packages/proto-wasm/pkg --out-name proto_wasm target/wasm32-unknown-unknown/wasm/proto_wasm.wasm",
+]

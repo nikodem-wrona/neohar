@@ -1,0 +1,15 @@
+{
+  "name": "@neohar/phone-tests",
+  "private": true,
+  "license": "Apache-2.0",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit -p ."
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.0",
+    "@types/node": "^26.6.4",
+    "axe-core": "^4.14.0"
+  }
+}

@@ -1,0 +1,22 @@
+[package]
+name = "nh-fixture"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true
+
+[[bin]]
+name = "nh-fixture"
+path = "src/main.rs"
+# The library has the same crate name; this keeps `cargo doc` from writing both to one place.
+doc = false
+
+[dependencies]
+proptest.workspace = true
+# `tui` and `echo-seq` read the size of the terminal and set raw mode (the chaos test).
+rustix = { workspace = true, features = ["stdio", "termios"] }

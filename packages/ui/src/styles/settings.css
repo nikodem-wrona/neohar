@@ -1,0 +1,177 @@
+/* The settings window: the sections on the left, the settings of one section on the
+   right, and the section Phone. */
+@layer components {
+  /* --- the settings window ---------------------------------------------------------------------- */
+
+  /* The settings window: sections on the left, the settings of one section on the right. */
+  /* The sections are a panel with round corners, as the columns of a window are. */
+  .settings {
+    display: grid;
+    grid-template-columns: 24ch minmax(0, 1fr);
+    gap: var(--gutter);
+    box-sizing: border-box;
+    height: 100vh;
+    padding: var(--gutter);
+  }
+
+  .settings-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: var(--s2);
+    border-radius: var(--r-lg);
+    background: var(--bg-raised);
+    box-shadow: inset 0 0 0 1px var(--hairline);
+  }
+
+  .settings-section-button {
+    padding: 0 var(--s3);
+    line-height: var(--row);
+    text-align: left;
+    color: var(--text-dim);
+  }
+
+  .settings-section-button:hover {
+    background: var(--bg-hover);
+  }
+
+  .settings-section-button.selected {
+    background: var(--here);
+    color: var(--on-here);
+  }
+
+  .settings-main {
+    padding: var(--s3) var(--s4);
+    overflow-y: auto;
+  }
+
+  .settings-title {
+    margin: 0 0 8px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .settings-note {
+    color: var(--text-dim);
+  }
+
+  .setting {
+    display: grid;
+    grid-template-columns: 30ch minmax(0, 1fr) auto auto;
+    gap: 1ch;
+    align-items: center;
+    padding: var(--s2) 0;
+    border-bottom: 1px solid var(--hairline);
+  }
+
+  .setting-input {
+    min-width: 0;
+    padding: 1px 6px;
+    border: 1px solid var(--text-dim);
+    background: var(--bg);
+    color: var(--text);
+    font: inherit;
+  }
+
+  .setting-input:focus {
+    border-color: var(--text);
+    outline: none;
+  }
+
+  .setting-source {
+    padding: 0 4px;
+    color: var(--text-dim);
+  }
+
+  .setting-source[data-source='file'],
+  .setting-source[data-source='ui'] {
+    color: var(--text);
+  }
+
+  .setting-reset {
+    padding: 0 8px;
+    border: 1px solid var(--line);
+  }
+
+  .setting-error {
+    grid-column: 1 / -1;
+    margin: 0;
+    color: var(--danger);
+  }
+
+  /* The section Phone: the state of the listener, its buttons, the phones. */
+  .phone-section {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 12px;
+  }
+
+  .phone-summary {
+    margin: 0;
+    color: var(--text);
+  }
+
+  .phone-section .settings-note {
+    margin: 0;
+  }
+
+  .phone-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .phone-actions button:disabled {
+    opacity: 0.5;
+  }
+
+  .phone-title {
+    margin: 8px 0 0;
+  }
+
+  .phone-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .phone-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    gap: 1ch;
+    align-items: center;
+    padding: 3px 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .phone-name {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .phone-dialog {
+    gap: 8px;
+    width: min(48ch, 100%);
+    padding: 0 12px 12px;
+  }
+
+  /* The core draws the QR code in black on white, with its quiet zone. */
+  .phone-qr {
+    align-self: center;
+    width: 256px;
+    height: 256px;
+    background: #fff;
+  }
+
+  .phone-code-line {
+    margin: 0;
+    color: var(--text-dim);
+  }
+
+  .phone-code {
+    color: var(--text);
+    font-size: 1.4em;
+    letter-spacing: 0.1em;
+  }
+}

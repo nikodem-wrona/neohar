@@ -1,0 +1,72 @@
+# The checks and the tests of every push to main and every pull request, on macOS: the only
+# tested platform.
+#
+# The local suites do not run here: the harness, GPU, keyboard, browser, apps, chaos, budget and
+# remote suites. They need installed harnesses, a GPU, Playwright browsers, a display, a release
+# build on quiet hardware or a second machine. See website/docs/testing/local-suites.md.
+#
+# The versions of the actions are the major tags that the earlier workflow of this repository
+# used (until commit 17f7380), when its runs passed.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# A new push cancels the older run of the same branch or pull request.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  # The check and the tests build the whole workspace, with Tauri, in the dev profile. Line tables
+  # keep the backtraces of a panic and make the target directory and the cache much smaller.
+  CARGO_PROFILE_DEV_DEBUG: line-tables-only
+  CARGO_INCREMENTAL: "0"
+
+jobs:
+  check-and-test:
+    name: check and test (macOS)
+    # The job runs only when the repository is public. GitHub bills the minutes of a private
+    # repository, and a macOS minute costs much more than a Linux minute. A public repository
+    # gets its standard runners free of charge. In the private repository, run `mise run check`
+    # and `mise run test` locally.
+    if: ${{ !github.event.repository.private }}
+    runs-on: macos-15
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v7
+
+      # Installs the tools that mise.toml pins (Rust, Bun, the cargo tools) and caches them.
+      - uses: jdx/mise-action@v5
+
+      - uses: Swatinem/rust-cache@v2
+
+      - uses: actions/cache@v6
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+
+      - run: bun install --frozen-lockfile
+
+      # `check:notices` runs cargo-about offline: it reads the sources of the crates in the cargo
+      # registry. The runner has rustup too, so call the cargo of mise.
+      - name: Fetch the crates
+        run: mise exec -- cargo fetch --locked
+
+      - run: mise run check
+
+      - run: mise run test
+
+      # Again after the tests: the tests build target/debug/nh, so this run also checks the
+      # generated CLI pages. The run inside `mise run check` had no nh binary and skipped them.
+      - run: mise run check:docs
+
+      - name: Disk use at the end
+        if: always()
+        run: df -h / && du -sh target

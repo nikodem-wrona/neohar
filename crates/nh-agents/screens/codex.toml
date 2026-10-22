@@ -1,0 +1,53 @@
+# The screen manifest of Codex CLI. It was written from the recordings of 0.156.1
+# (`tests/harness-golden/codex/0.156.1`). Codex draws on the main screen, and it puts its state in
+# the title of the terminal: a spinner while it works, "Action Required" while it waits for you.
+schema = 1
+id = "codex"
+harness = "codex"
+versions = ">=0.156.0, <0.157.0"
+
+[defaults]
+# Codex draws on the main screen, from the top, so the whole screen is its region.
+region = { rows = "all" }
+normalize = ["strip_sgr_except_fg", "collapse_spaces", "nfc"]
+
+[[rules]]
+id = "working"
+state = "working"
+any = ['Working \(\d+[smh]', 'esc to interrupt']
+not = ['Would you like to ']
+confidence = 0.8
+hold_ms = 400
+
+# The spinner in the title is a second sign, and it needs no text from the screen.
+[[rules]]
+id = "working_title"
+state = "working"
+window_title_regex = '^[⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏] '
+confidence = 0.7
+hold_ms = 400
+
+# The prompt of Codex: "› Ask Codex to do anything", or the text that you typed.
+[[rules]]
+id = "input_box"
+state = "idle"
+all = ['(?m)^\s*› ']
+not = ['esc to interrupt', 'Would you like to ', 'Hooks need review']
+confidence = 0.6
+hold_ms = 300
+
+[[rules]]
+id = "approval"
+opens = "approval"
+all = ['Would you like to ', '(?m)^\s*(› )?1\. Yes']
+any = ['(?m)^\s*\$ (?P<command>.+)$', '(?m)^\s*Reason: ', '(?m)^\s*Environment: ', 'following edits']
+confidence = 0.95
+[rules.interaction]
+kind = "approval"
+title_from = { regex = 'Would you like to (.+?)\?', group = 1 }
+[rules.dialog]
+options_regex = '^\s*(?P<ptr>›)?\s*(?P<n>\d+)\. (?P<label>.+?)(?: \((?P<key>\w+)\))?$'
+pointer = { glyph = "›" }
+accelerators = "digits"
+map = { allow = 1, allow_always = 2, deny = 3 }
+labels = { allow = '^Yes, proceed', allow_always = '^Yes, and (always|don.t ask again)', deny = '^No\b' }

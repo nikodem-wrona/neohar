@@ -1,0 +1,67 @@
+# htop 3.5.2 on four processes of our own (see htop.setup.sh). 100x30 at the start, two resizes.
+#
+# htop also repaints its meters and its rows once a second (delay=10), so the steps never wait for
+# "a repaint". Each step waits for text that only the answer to its key has: a changed column
+# title, a panel, or the function bar that htop draws again after a full repaint.
+
+# The first screen. The function bar is the last thing in it. Then two refreshes.
+expect "F10\e[30m\e[46mQuit"
+wait 3000
+
+# Sort by memory, open the sort panel with F6 and close it, sort by CPU.
+send "M"
+expect "MEM%▽"
+send "\e[17~"
+expect "Enter\e[30m\e[46mSort"
+send "\e"
+expect "F10\e[30m\e[46mQuit"
+send "P"
+expect "CPU%▽"
+
+# Tree view on and off.
+send "t"
+expect "PID△"
+send "t"
+expect "CPU%▽"
+
+# F4 filters the rows by what is typed.
+send "\e[14~"
+expect "Filter:"
+send "perl"
+expect "\e[46ml\e[39;49m"
+send "\e"
+expect "Quit  \e[39;49m"
+
+# The help screen.
+send "h"
+expect "select sort column"
+send "\e"
+expect "Quit\e[K"
+
+# The setup screen with F2. Application cursor mode is on, so the arrow key is "ESC O B".
+send "\e[12~"
+expect "F10\e[30m\e[46mDone"
+send "\eOB"
+expect "full width"
+send "\eOB"
+expect "Available meters"
+send "\eOB"
+expect "Active Columns"
+send "\e"
+expect "Quit  \e[39;49m"
+
+# The terminal changes size. htop repaints everything.
+resize 120 35
+expect "Quit\e[K"
+
+# The mouse (modes 1000 and 1006 are on): a click on a row, and on another row.
+send "\e[<0;10;17M\e[<0;10;17m"
+expect "\e[17d\e[30m\e[46m"
+send "\e[<0;10;19M\e[<0;10;19m"
+expect "\e[19d\e[30m\e[46m"
+
+resize 100 30
+expect "Quit\e[K"
+
+send "q"
+expect_exit

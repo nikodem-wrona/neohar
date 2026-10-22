@@ -1,0 +1,81 @@
+# The screen manifest of Claude Code. It was written from the recordings of 2.1.292
+# (`tests/harness-golden/claude/2.1.292`). The screen is the fallback: the hooks say more, and a
+# match of the screen never overwrites what they say.
+schema = 1
+id = "claude"
+harness = "claude"
+versions = ">=2.1.0, <2.2.0"
+
+[defaults]
+region = { rows = "-30..-1" }
+normalize = ["strip_sgr_except_fg", "collapse_spaces", "nfc"]
+
+# The line with the spinner ("✢ Hyperspacing… (running PreToolUse hook · 0s)"), and the note in the
+# status bar. The spinner blinks, so the rule needs a moment.
+[[rules]]
+id = "working"
+state = "working"
+any = ['(?m)^\s*[✻✶✳✢✽·*]\s+\w+…', 'esc to interrupt']
+not = ['Do you want to ', 'Would you like to proceed\?', 'Enter to select']
+confidence = 0.8
+hold_ms = 400
+
+# The input box: a line with the prompt between two rules. It is there when Claude Code waits for a
+# prompt, and the harness manifest uses it as the sign that the session is ready.
+[[rules]]
+id = "input_box"
+state = "idle"
+all = ['(?m)^\s*─{10,}\n\s*❯[^\n]*\n\s*─{10,}']
+not = ['esc to interrupt', 'Do you want to ', 'Would you like to proceed\?', 'Enter to select']
+confidence = 0.6
+hold_ms = 300
+
+# "Do you want to proceed?" with the list of choices, and the command in a box above it.
+[[rules]]
+id = "approval"
+opens = "approval"
+all = ['Do you want to ', '(?m)^\s*(❯ )?1\. Yes']
+confidence = 0.95
+[rules.interaction]
+kind = "approval"
+title_from = { regex = 'Do you want to (.+?)\?', group = 1 }
+command_from = { region = "box_above_question", trim = true }
+[rules.dialog]
+options_regex = '^\s*(?P<ptr>❯)?\s*(?P<n>\d+)\. (?P<label>.+)$'
+pointer = { glyph = "❯" }
+accelerators = "digits"
+map = { allow = 1, allow_always = 2 }
+labels = { allow = '^Yes$', allow_always = '^Yes, and (always|don.t ask again)', deny = '^No\b' }
+
+# A question of the agent: a header with a box, numbered choices, and the keys at the bottom.
+[[rules]]
+id = "question"
+opens = "question"
+region = { rows = "all" }
+all = ['(?m)^\s*[☐☒]', 'Enter to select']
+confidence = 0.9
+[rules.interaction]
+kind = "question"
+title_from = { regex = '(?m)^\s*[☐☒] (.+)$', group = 1 }
+[rules.dialog]
+options_regex = '^\s*(?P<ptr>❯)?\s*(?P<n>\d+)\. (?P<label>.+)$'
+pointer = { glyph = "❯" }
+accelerators = "digits"
+multi_toggle = "space"
+labels = { other = '^Type something' }
+
+# The review of a plan: "Would you like to proceed?" under the plan.
+[[rules]]
+id = "plan"
+opens = "plan_review"
+region = { rows = "all" }
+all = ['Would you like to proceed\?', '(?m)^\s*(❯ )?1\. Yes']
+confidence = 0.95
+[rules.interaction]
+kind = "plan_review"
+title_from = { regex = '(Would you like to proceed)\?', group = 1 }
+[rules.dialog]
+options_regex = '^\s*(?P<ptr>❯)?\s*(?P<n>\d+)\. (?P<label>.+)$'
+pointer = { glyph = "❯" }
+accelerators = "digits"
+labels = { allow = '^Yes, manually approve', deny = '^Tell Claude what to change' }

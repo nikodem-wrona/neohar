@@ -1,0 +1,205 @@
+/* The ground rules of the chrome: the reset of the controls, the type of the page, the focus, the
+   press, glass, and the parts that every area uses (a handle, a key cap, the band of a panel). */
+@layer reset {
+  html,
+  body {
+    margin: 0;
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    overflow: hidden;
+  }
+
+  button {
+    font: inherit;
+    color: inherit;
+    background: none;
+    border: 0;
+    padding: 0;
+    cursor: pointer;
+  }
+
+  button:disabled {
+    cursor: default;
+  }
+
+  input,
+  select,
+  textarea {
+    font: inherit;
+  }
+
+  kbd {
+    font: inherit;
+  }
+}
+
+@layer base {
+  /* Text is in the face of the system. The data of the chrome takes the family of the
+     terminal from the rule under it. */
+  :root {
+    font: 13px / var(--row) var(--font-ui);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Data: what the person compares from row to row, or reads as code. `:where` gives the rule no
+     weight, so a component that sets its own size wins. */
+  :where(
+    kbd,
+    code,
+    pre,
+    .cap,
+    .handle,
+    .agent-code,
+    .pane-state,
+    .pane-handle,
+    .pane-cwd,
+    .pane-cost,
+    .strip-cost,
+    .board-more,
+    .badge,
+    .status-limit,
+    .card-command,
+    .card-peek,
+    .card-handle,
+    .card-cwd,
+    .card-key,
+    .diff,
+    .file-body,
+    .files-root-path,
+    .file-modal-path,
+    .changes-lines,
+    .changes-root,
+    .timeline-usage,
+    .timeline-limit,
+    .palette-shortcut,
+    .task-file-size,
+    .task-facts .port,
+    .folder-path,
+    .diff-stats,
+    .setting-input,
+    .phone-code
+  ) {
+    font-family: var(--font-data);
+    font-size: var(--size-data);
+  }
+
+  /* The title of a panel, a dialog or a card. */
+  :where(.band, .confirm-title, .task-dialog-title, .settings-title, .card-title) {
+    font: var(--t-title);
+  }
+
+  /* Small text: a second line, a hint, a source. */
+  :where(.strip-harness, .task-hint, .setting-source) {
+    font-size: var(--size-small);
+  }
+
+  :focus-visible {
+    outline: 1px solid var(--text);
+    outline-offset: -1px;
+  }
+
+  /* Every control has the radius of a control. A row or a card that is a button sets its
+     own. */
+  :where(button, input, select, textarea) {
+    border-radius: var(--r-sm);
+  }
+
+  /* Text for a screen reader only: it lies off the screen. */
+  .visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+
+@layer components {
+  /* Glass: what floats over the panes. The panes under it show through, blurred. With
+     the setting of the system that reduces transparency, it is opaque. The components that float
+     are listed here, so a component sets its shape and not its fill. */
+  :is(
+    .glass,
+    .palette,
+    .board-list,
+    .files-menu,
+    .confirm,
+    .task-dialog,
+    .file-modal,
+    .floating > .pane-title
+  ) {
+    background: var(--glass);
+    -webkit-backdrop-filter: var(--glass-filter);
+    backdrop-filter: var(--glass-filter);
+    border: 1px solid var(--hairline);
+    box-shadow: var(--glass-edge), var(--glass-shadow);
+  }
+
+  @media (prefers-reduced-transparency: reduce) {
+    :is(
+      .glass,
+      .palette,
+      .board-list,
+      .files-menu,
+      .confirm,
+      .task-dialog,
+      .file-modal,
+      .floating > .pane-title
+    ) {
+      background: var(--bg-raised);
+      -webkit-backdrop-filter: none;
+      backdrop-filter: none;
+    }
+  }
+
+  .handle {
+    color: var(--text-dim);
+    font-weight: 400;
+  }
+
+  /* A key cap is gray: a key is not live. The cap of Answer is amber while an agent
+     waits. */
+  .cap {
+    display: inline-block;
+    min-width: 2ch;
+    padding: 0 4px;
+    border-radius: 2px;
+    line-height: 16px;
+    font-weight: 600;
+    text-align: center;
+    background: var(--cap);
+    color: var(--text);
+  }
+
+  .cap-wait {
+    background: var(--caution);
+    color: var(--on-signal);
+  }
+
+  /* The title row of a panel. */
+  .band {
+    display: flex;
+    align-items: center;
+    gap: 1ch;
+    height: 40px;
+    padding: 0 var(--s2);
+    flex: none;
+    color: var(--text);
+    white-space: nowrap;
+  }
+
+  .band-count {
+    color: var(--text-dim);
+    font: var(--t-body);
+  }
+}
+
+@layer states {
+  /* A control answers the press at once, before the core does. */
+  button:active:not(:disabled) {
+    background: var(--here);
+    color: var(--on-here);
+  }
+}

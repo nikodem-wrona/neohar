@@ -1,0 +1,24 @@
+[package]
+name = "nh-snapcheck"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+nh-fixture = { path = "../nh-fixture" }
+nh-hold = { path = "../../crates/nh-hold" }
+nh-proto = { path = "../../crates/nh-proto" }
+nh-term = { path = "../../crates/nh-term", features = ["test-support"] }
+
+[[bin]]
+name = "nh-snapcheck"
+path = "src/main.rs"
+
+[dev-dependencies]
+proptest.workspace = true

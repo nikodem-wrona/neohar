@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- The glyph of the menu bar: the three strips of the board, the top one with its edge cut
+     out. It is a template image, black and alpha only, so macOS tints it for the menu bar: it has no
+     green. `rsvg-convert -w 44 -h 44 tray.svg -o tray.png` makes the PNG that the app embeds. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 22 22">
+  <rect x="3" y="4.5" width="2.5" height="3.5" rx="0.6" fill="#000000"/>
+  <rect x="7" y="4.5" width="12" height="3.5" rx="0.6" fill="#000000"/>
+  <rect x="3" y="9.25" width="16" height="3.5" rx="0.6" fill="#000000"/>
+  <rect x="3" y="14" width="16" height="3.5" rx="0.6" fill="#000000"/>
+</svg>

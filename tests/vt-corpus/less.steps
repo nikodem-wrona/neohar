@@ -1,0 +1,60 @@
+# less 668 on big.txt (made by less.setup.sh), with LESS=-R. 100x30 at the start, one resize.
+#
+# After each command less prints its prompt ":" followed by "\e[K", so ":\e[K" is the signal that
+# a command is finished. No line of big.txt has a colon followed by "\e[K".
+
+# The first screen. less shows the file name in reverse video and no prompt yet.
+expect "big.txt\e[27m\e[K"
+
+# Pages: forward, forward, back, half page forward, half page back.
+send " "
+expect ":\e[K"
+send " "
+expect ":\e[K"
+send "b"
+expect ":\e[K"
+send "d"
+expect ":\e[K"
+send "u"
+expect ":\e[K"
+
+# Search for a marker, with a regular expression, forward and back.
+send "/NEEDLE-0[0-9]\r"
+expect ":\e[K"
+send "n"
+expect ":\e[K"
+send "N"
+expect ":\e[K"
+
+# The end of the file, and the start again.
+send "G"
+expect "(END)\e[27m\e[K"
+send "g"
+expect ":\e[K"
+
+# The terminal gets smaller. less repaints.
+resize 80 24
+expect ":\e[K"
+
+# A few lines at a time.
+send "5j"
+expect ":\e[K"
+send "3k"
+expect ":\e[K"
+
+# Chop long lines and fold them again. less asks for RETURN after each message.
+send "-S"
+expect "Chop long lines"
+send "\r"
+expect ":\e[K"
+send "/日本語\r"
+expect ":\e[K"
+send "n"
+expect ":\e[K"
+send "-S"
+expect "Fold long lines"
+send "\r"
+expect ":\e[K"
+
+send "q"
+expect_exit

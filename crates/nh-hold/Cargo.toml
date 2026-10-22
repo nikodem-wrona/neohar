@@ -1,0 +1,22 @@
+[package]
+name = "nh-hold"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+libc.workspace = true
+nh-proto = { path = "../nh-proto" }
+polling.workspace = true
+rustix = { workspace = true, features = ["fs", "net", "pipe", "process", "pty", "stdio", "termios"] }
+ulid.workspace = true
+
+[dev-dependencies]
+proptest.workspace = true
+vte.workspace = true

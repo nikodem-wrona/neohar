@@ -1,0 +1,32 @@
+# What the golden recordings cover. A capability goes to a run only when a range of
+# a manifest names it and a row of this file names it too, so a manifest of the user cannot grant
+# what no recording shows. No tool generates this file from the results of the corpus yet: it
+# is written by hand from the recordings in `tests/harness-golden/`.
+#
+# `recorded` lists the versions that the recordings were made with. `versions` is the range that
+# those recordings stand for: the patch releases of the same minor version.
+
+[[covered]]
+harness = "claude"
+mode = "tui"
+versions = ">=2.1.0, <2.2.0"
+recorded = ["2.1.292"]
+observe = true
+gate = true
+# `question` waits for the golden test of the delivery of `AskUserQuestion`.
+answer_native = ["approval", "plan_review"]
+answer_keystroke = true
+resume = true
+survive_disconnect = true
+
+[[covered]]
+harness = "codex"
+mode = "tui"
+versions = ">=0.156.0, <0.157.0"
+recorded = ["0.156.1"]
+observe = true
+gate = true
+answer_native = ["approval"]
+answer_keystroke = true
+resume = true
+survive_disconnect = true

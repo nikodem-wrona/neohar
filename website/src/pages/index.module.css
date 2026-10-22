@@ -1,0 +1,391 @@
+.hero {
+  padding: 4.5rem 1rem 3.5rem;
+  border-bottom: 1px solid var(--nh-line);
+  background:
+    radial-gradient(60rem 30rem at 85% -10%, var(--nh-accent-soft), transparent 60%), var(--nh-bg);
+}
+
+.heroInner {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.45fr);
+  gap: 3rem;
+  align-items: center;
+}
+
+.logo {
+  border-radius: 12px;
+  margin-bottom: 1rem;
+}
+
+.title {
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 3.4rem;
+  letter-spacing: -0.03em;
+  margin-bottom: 1rem;
+}
+
+.tagline {
+  font-size: 1.2rem;
+  line-height: 1.55;
+  color: var(--nh-text);
+  max-width: 34rem;
+}
+
+.harnesses {
+  color: var(--nh-text-dim);
+  margin-bottom: 1.6rem;
+}
+
+.buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.textLink {
+  font-weight: 600;
+  margin-left: 0.4rem;
+}
+
+/* The still picture of the app. */
+.window {
+  border: 1px solid var(--nh-line);
+  border-radius: 10px;
+  overflow: hidden;
+  background: #14161a;
+  color: #d7dae0;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.74rem;
+}
+
+.titlebar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: #1b1e24;
+  border-bottom: 1px solid #2c3038;
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #2c3038;
+}
+
+.titletext {
+  margin-left: 10px;
+  color: #8b919c;
+}
+
+.body {
+  display: grid;
+  grid-template-columns: 10.5rem minmax(0, 1fr) 13.5rem;
+  min-height: 15rem;
+}
+
+.sidebar,
+.drawer {
+  background: #1b1e24;
+  padding: 10px 8px;
+}
+
+.sidebar {
+  border-right: 1px solid #2c3038;
+}
+
+.drawer {
+  border-left: 1px solid #2c3038;
+}
+
+.sideHead {
+  color: #8b919c;
+  text-transform: uppercase;
+  font-size: 0.64rem;
+  letter-spacing: 0.08em;
+  margin: 0 4px 8px;
+}
+
+.agent {
+  display: grid;
+  grid-template-columns: 10px 1fr;
+  column-gap: 8px;
+  padding: 6px 6px;
+  border-radius: 5px;
+}
+
+.agent:nth-child(2) {
+  background: #242830;
+}
+
+.badge {
+  grid-row: span 3;
+  width: 8px;
+  height: 8px;
+  margin-top: 4px;
+  border-radius: 50%;
+}
+
+.work {
+  background: #6fbf9b;
+  box-shadow: 0 0 0 3px rgba(111, 191, 155, 0.18);
+}
+
+.wait {
+  background: #d9a54a;
+  box-shadow: 0 0 0 3px rgba(217, 165, 74, 0.2);
+}
+
+.done {
+  background: #8fb7e8;
+}
+
+.idle {
+  background: #545a66;
+}
+
+.agentName {
+  color: #d7dae0;
+}
+
+.agentMeta {
+  color: #8b919c;
+}
+
+.agentSource {
+  color: #5f6673;
+  font-size: 0.62rem;
+}
+
+.pane {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.paneStrip {
+  padding: 5px 12px;
+  color: #8b919c;
+  border-bottom: 1px solid #2c3038;
+  font-size: 0.66rem;
+}
+
+.term {
+  padding: 12px 14px;
+  line-height: 1.7;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.prompt {
+  color: #6fbf9b;
+}
+
+.dim {
+  color: #a9aeb8;
+}
+
+.cursor {
+  display: inline-block;
+  width: 7px;
+  height: 13px;
+  background: #d7dae0;
+  vertical-align: middle;
+  animation: blink 1.1s steps(1) infinite;
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cursor {
+    animation: none;
+  }
+}
+
+.card {
+  border: 1px solid #2c3038;
+  border-left: 3px solid #d9a54a;
+  border-radius: 6px;
+  background: #14161a;
+  padding: 9px 10px;
+}
+
+.cardHead {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  column-gap: 8px;
+  row-gap: 2px;
+  margin-bottom: 6px;
+}
+
+.cardKind {
+  color: #d7dae0;
+  font-weight: 600;
+}
+
+.risk {
+  color: #d9a54a;
+}
+
+.cardWhy {
+  color: #8b919c;
+  margin-bottom: 6px;
+}
+
+.cmd {
+  display: block;
+  white-space: normal;
+  word-break: break-word;
+  background: #1b1e24;
+  border: 1px solid #2c3038;
+  color: #e6c07b;
+  padding: 5px 6px;
+  font-size: 0.7rem;
+}
+
+.actions {
+  display: flex;
+  gap: 5px;
+  margin-top: 8px;
+}
+
+.actions span {
+  padding: 3px 7px;
+  border-radius: 4px;
+  border: 1px solid #2c3038;
+  font-size: 0.66rem;
+}
+
+.allow {
+  background: #6fbf9b;
+  color: #14161a;
+  border-color: #6fbf9b !important;
+}
+
+.always {
+  color: #d7dae0;
+}
+
+.deny {
+  color: #e0786c;
+}
+
+/* Sections below the hero. */
+.section {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 3.5rem 1rem 1rem;
+}
+
+.sectionTitle {
+  font-size: 1.6rem;
+  margin-bottom: 1.4rem;
+}
+
+.bets {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.bet {
+  display: block;
+  border: 1px solid var(--nh-line);
+  border-radius: 8px;
+  padding: 1.2rem 1.2rem 0.6rem;
+  background: var(--nh-bg-raised);
+  color: inherit;
+  transition:
+    border-color 120ms ease,
+    transform 120ms ease;
+}
+
+.bet:hover {
+  border-color: var(--nh-accent);
+  text-decoration: none;
+  color: inherit;
+  transform: translateY(-2px);
+}
+
+.bet h3 {
+  font-size: 1.02rem;
+  margin-bottom: 0.6rem;
+}
+
+.bet p {
+  color: var(--nh-text-dim);
+  font-size: 0.93rem;
+  line-height: 1.55;
+}
+
+.doors {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
+.door {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--nh-line);
+  border-radius: 8px;
+  color: inherit;
+  background: var(--nh-bg-raised);
+}
+
+.door:hover {
+  border-color: var(--nh-accent);
+  text-decoration: none;
+  color: inherit;
+}
+
+.doorTitle {
+  font-weight: 650;
+}
+
+.doorText {
+  color: var(--nh-text-dim);
+  font-size: 0.88rem;
+}
+
+@media (max-width: 1100px) {
+  .heroInner {
+    grid-template-columns: 1fr;
+  }
+  .bets,
+  .doors {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .hero {
+    padding: 2.5rem 1rem 2rem;
+  }
+  .title {
+    font-size: 2.6rem;
+  }
+  .body {
+    grid-template-columns: 1fr;
+  }
+  .sidebar,
+  .drawer {
+    border: none;
+  }
+  .bets,
+  .doors {
+    grid-template-columns: 1fr;
+  }
+}

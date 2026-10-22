@@ -1,0 +1,9 @@
+target
+node_modules
+bun.lock
+docs
+.claude
+packages/proto-wasm/pkg
+website/build
+website/.docusaurus
+website/scripts/data

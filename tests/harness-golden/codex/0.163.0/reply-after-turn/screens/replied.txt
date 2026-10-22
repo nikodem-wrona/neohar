@@ -1,0 +1,40 @@
+
+  >_ OpenAI Codex (v0.163.0)
+     /private/tmp/nhg-codex/work
+  permissions: YOLO mode
+
+
+› start
+
+
+• The first turn is done.
+
+  Worked for <1s • 15:58
+
+
+› next step
+  with a second line
+
+
+• The reply arrived.
+
+  Worked for <1s • 15:58
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+› Ask Codex to do anything
+
+  mock-model default · /private/tmp/nhg-codex/work
+  ? for shortcuts                                                                              ⚠ 1 warning · f2 to view

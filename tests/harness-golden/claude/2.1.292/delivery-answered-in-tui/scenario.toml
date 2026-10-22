@@ -1,0 +1,93 @@
+# Delivery case 4: the pane is focused, so the core releases the hook. The harness shows its dialog, the user answers there, and the interaction ends as resolved_elsewhere. A late answer of a client is refused.
+harness = "claude"
+cols = 120
+rows = 40
+
+[core]
+
+[state]
+hasSeenAutoDefaultNudge = true
+
+[settings.permissions]
+defaultMode = "default"
+
+[[turn]]
+blocks = [{ type = "text", text = "I will make a note." }, { type = "tool_use", name = "Bash", input = { command = "touch note.txt", description = "Create a note" } }]
+
+[[turn]]
+blocks = [{ type = "text", text = "The note is made." }]
+
+# Text that differs from run to run is hidden when two recordings are compared.
+[[mask]]
+# Claude Code names the time it worked with a verb that it picks at random.
+pattern = "✻ \\S+ for [0-9hms ]+ · done \\d+:\\d+ [AP]M"
+with = "✻ <verb> for <time spent> · done <time>"
+
+[[mask]]
+pattern = "claude --resume [0-9a-f-]{36}"
+with = "claude --resume <session>"
+
+[[mask]]
+# The dot in front of a running tool call blinks. A screen can show it or not.
+pattern = "(?m)^[⏺ ] ?(Creat[a-z]* a note|Running)[^\\n]*$"
+with = "<dot> <tool call>"
+
+[[step]]
+wait_signal = "SessionStart"
+
+[[step]]
+wait_screen = "^❯"
+
+[[step]]
+send = "make a note"
+
+[[step]]
+sleep_ms = 300
+
+[[step]]
+key = "enter"
+
+[[step]]
+core = { op = "wait", state = "open", lease = true }
+
+[[step]]
+sleep_ms = 500
+
+[[step]]
+snapshot = "held"
+
+[[step]]
+core = { op = "release", reason = "focused" }
+
+[[step]]
+wait_screen = "Do you want to proceed"
+
+[[step]]
+snapshot = "dialog"
+
+[[step]]
+key = "enter"
+
+[[step]]
+wait_signal = "Stop"
+
+[[step]]
+snapshot = "done"
+
+[[step]]
+core = { op = "wait", state = "resolved_elsewhere" }
+
+[[step]]
+sleep_ms = 100
+
+[[step]]
+send = "/exit"
+
+[[step]]
+sleep_ms = 300
+
+[[step]]
+key = "enter"
+
+[[step]]
+expect_exit = true

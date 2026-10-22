@@ -1,0 +1,25 @@
+---
+source: crates/nh-rich/tests/snapshots.rs
+expression: markdown(plan).html
+---
+<h1>Plan: add a retry</h1>
+<ol>
+<li>Read <code>src/client.rs</code>.</li>
+<li>Add a retry with <strong>backoff</strong>.</li>
+<li>Run the tests.</li>
+</ol>
+<table><thead><tr><th style="text-align: left">step</th><th style="text-align: right">owner</th></tr></thead><tbody>
+<tr><td style="text-align: left">code</td><td style="text-align: right">agent</td></tr>
+<tr><td style="text-align: left">review</td><td style="text-align: right">you</td></tr>
+</tbody></table>
+<pre><code class="language-rust"><span class="hl-kw">fn</span> <span class="hl-fn">retry</span>&lt;T&gt;(<span class="hl-kw">mut</span> <span class="hl-var">f</span>: impl FnMut() -&gt; Option&lt;T&gt;) -&gt; Option&lt;T&gt; {
+    <span class="hl-kw">for</span> <span class="hl-op">_</span> <span class="hl-op">in</span> <span class="hl-num">0</span><span class="hl-op">..</span><span class="hl-num">3</span> { <span class="hl-kw">if</span> <span class="hl-kw">let</span> <span class="hl-ty">Some</span>(v) <span class="hl-op">=</span> <span class="hl-fn">f</span>() { <span class="hl-kw">return</span> <span class="hl-ty">Some</span>(v); } }
+    <span class="hl-ty">None</span> <span class="hl-com">// give up</span>
+}
+</code></pre>
+<p>See <a href="nh://open?url=https%3A%2F%2Fexample.com%2Fdocs%3Fa%3D1%26b%3D2" rel="noopener noreferrer">the docs</a> or write to <a href="nh://open?url=mailto%3Ateam%40example.com" rel="noopener noreferrer">us</a>.</p>
+<ul>
+<li>☑ design</li>
+<li>☐ code</li>
+</ul>
+<p><img src="nh://blob/0f3a9c" alt="diagram"></p>

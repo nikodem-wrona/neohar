@@ -1,0 +1,6 @@
+{"event":"SessionStart","reply":"continue","signals":["SessionStarted { session_id: \"195d424c-15db-4966-804a-d9ee604c97e2\", transcript_path: Some(\"/tmp/nhg-claude/home/claude/projects/-private-tmp-nhg-claude-work/195d424c-15db-4966-804a-d9ee604c97e2.jsonl\"), source: Startup, model: Some(\"claude-opus-5-5\") }"]}
+{"event":"UserPromptSubmit","reply":"continue","signals":["PermissionMode { mode: \"auto\" }","TurnStarted { turn_ref: Some(\"8538f83f-3446-454e-9994-dac5897b99a1\"), prompt_preview: Some(\"start\") }"]}
+{"event":"Stop","reply":"continue","signals":["TurnEnded { turn_ref: Some(\"8538f83f-3446-454e-9994-dac5897b99a1\"), stop_reason: None, last_message_preview: Some(\"The first turn is done.\") }"]}
+{"event":"UserPromptSubmit","reply":"continue","signals":["TurnStarted { turn_ref: Some(\"48595c2c-0db1-4740-9fd9-9a43cca20da2\"), prompt_preview: Some(\"next step\\nwith a second line\") }"]}
+{"event":"Stop","reply":"continue","signals":["TurnEnded { turn_ref: Some(\"48595c2c-0db1-4740-9fd9-9a43cca20da2\"), stop_reason: None, last_message_preview: Some(\"The reply arrived.\") }"]}
+{"event":"SessionEnd","reply":"continue","signals":["SessionEnded { reason: \"prompt_input_exit\" }"]}

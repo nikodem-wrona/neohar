@@ -1,0 +1,32 @@
+[
+  {
+    "acked": false,
+    "answerable": true,
+    "attempts": [],
+    "channel": "native",
+    "conn": null,
+    "deadline": 1791606252462,
+    "decided_by": "golden",
+    "decision": {
+      "always": false,
+      "behavior": "allow",
+      "kind": "approval",
+      "persist": false,
+      "stop": false
+    },
+    "fail_reason": null,
+    "handle": "i1",
+    "holder": null,
+    "id": "01M4HZ4V3EVBT2H5PFA9D8TJ2V",
+    "key": "0052394ab129854cbbed6590e300212cf98229a8d9bf9846627b317d5e36cf28",
+    "kind": "approval",
+    "lease": false,
+    "mode": "gate",
+    "native_ref": "toolu_mock_0002_1",
+    "rev": 1,
+    "risk": "unknown",
+    "shim_pid": null,
+    "state": "resolved_elsewhere",
+    "via": "cli"
+  }
+]

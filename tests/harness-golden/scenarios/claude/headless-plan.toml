@@ -1,0 +1,40 @@
+# Claude Code headless: ExitPlanMode arrives as a can_use_tool control_request with the plan, and a deny with feedback keeps Claude in plan mode.
+harness = "claude"
+mode = "pipe"
+args = ["-p", "--output-format", "stream-json", "--input-format", "stream-json", "--verbose", "--permission-prompt-tool", "stdio"]
+
+[state]
+hasSeenAutoDefaultNudge = true
+
+[settings.permissions]
+defaultMode = "plan"
+
+[[turn]]
+blocks = [{ type = "tool_use", name = "Write", input = { file_path = '{{find:/[^"\\ ]+/plans/[a-z0-9-]+\.md}}', content = "# Plan\n\n1. Make a note\n2. Check the note\n" } }]
+
+[[turn]]
+blocks = [{ type = "text", text = "Here is my plan." }, { type = "tool_use", name = "ExitPlanMode", input = {} }]
+
+[[turn]]
+blocks = [{ type = "text", text = "I will revise the plan." }]
+
+
+[[mask]]
+# Claude Code names the plan file after the prompt and two random words.
+pattern = "plan-a-note-[a-z]+-[a-z]+\\.md"
+with = "plan-a-note-<words>.md"
+
+[[step]]
+send_json = { type = "user", message = { role = "user", content = "plan a note" } }
+
+[[step]]
+respond = { behavior = "deny", message = "Please add a test step." }
+
+[[step]]
+wait_line = '"type":"result"'
+
+[[step]]
+close_stdin = true
+
+[[step]]
+expect_exit = true

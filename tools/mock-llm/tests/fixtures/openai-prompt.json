@@ -1,0 +1,27 @@
+{
+  "model": "mock-codex",
+  "instructions": "You are Codex, a coding agent.",
+  "stream": true,
+  "store": false,
+  "parallel_tool_calls": false,
+  "tools": [
+    {
+      "type": "function",
+      "name": "shell",
+      "description": "Run a command",
+      "strict": false,
+      "parameters": {
+        "type": "object",
+        "properties": { "command": { "type": "array", "items": { "type": "string" } } },
+        "required": ["command"]
+      }
+    }
+  ],
+  "input": [
+    {
+      "type": "message",
+      "role": "user",
+      "content": [{ "type": "input_text", "text": "say hello" }]
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+{"event":"SessionStart","reply":"continue","signals":["SessionStarted { session_id: \"01a15474-8c18-7a12-86e6-cda5cbb59063\", transcript_path: Some(\"/private/tmp/nhg-codex/home/codex/sessions/2026/10/19/rollout-2026-10-19T15-58-06-01a15474-8c18-7a12-86e6-cda5cbb59063.jsonl\"), source: Startup, model: Some(\"mock-model\") }","PermissionMode { mode: \"bypassPermissions\" }"]}
+{"event":"UserPromptSubmit","reply":"continue","signals":["TurnStarted { turn_ref: Some(\"01a15474-8d40-7583-8abc-4f14e2771b90\"), prompt_preview: Some(\"start\") }"]}
+{"event":"Stop","reply":"continue","signals":["TurnEnded { turn_ref: Some(\"01a15474-8d40-7583-8abc-4f14e2771b90\"), stop_reason: None, last_message_preview: Some(\"The first turn is done.\") }"]}
+{"event":"UserPromptSubmit","reply":"continue","signals":["TurnStarted { turn_ref: Some(\"01a15474-9080-7d41-8165-043ba6b31ba1\"), prompt_preview: Some(\"next step\\nwith a second line\") }"]}
+{"event":"Stop","reply":"continue","signals":["TurnEnded { turn_ref: Some(\"01a15474-9080-7d41-8165-043ba6b31ba1\"), stop_reason: None, last_message_preview: Some(\"The reply arrived.\") }"]}
+{"event":"SessionEnd","reply":"continue","signals":["SessionEnded { reason: \"other\" }"]}

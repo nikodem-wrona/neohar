@@ -1,0 +1,884 @@
+[
+  {
+    "path": [],
+    "about": ""
+  },
+  {
+    "path": [
+      "api"
+    ],
+    "about": "Call the API directly"
+  },
+  {
+    "path": [
+      "api",
+      "call"
+    ],
+    "about": "Call a method and print its result as JSON"
+  },
+  {
+    "path": [
+      "api",
+      "schema"
+    ],
+    "about": "Print the contract of the API as one JSON document"
+  },
+  {
+    "path": [
+      "doctor"
+    ],
+    "about": "Check the install and the core: the symlink, the sockets, the integrations of the harnesses, the storage. It works also when neohar does not run"
+  },
+  {
+    "path": [
+      "debug"
+    ],
+    "about": "Tools for a bug report"
+  },
+  {
+    "path": [
+      "debug",
+      "bundle"
+    ],
+    "about": "Write a zip with the logs, the doctor, the configuration and the recent events. Secrets are removed from every text"
+  },
+  {
+    "path": [
+      "events"
+    ],
+    "about": "The log of events"
+  },
+  {
+    "path": [
+      "events",
+      "tail"
+    ],
+    "about": "Print events as JSON lines"
+  },
+  {
+    "path": [
+      "completions"
+    ],
+    "about": "Print the completions of a shell"
+  },
+  {
+    "path": [
+      "session"
+    ],
+    "about": "The session of the core"
+  },
+  {
+    "path": [
+      "session",
+      "stop-everything"
+    ],
+    "about": "Stop every program of every pane, as \"Quit and stop everything\" does"
+  },
+  {
+    "path": [
+      "session",
+      "shutdown"
+    ],
+    "about": "End the core of a daemon. The panes keep running"
+  },
+  {
+    "path": [
+      "session",
+      "info"
+    ],
+    "about": "Show the session and its core"
+  },
+  {
+    "path": [
+      "machine"
+    ],
+    "about": "This machine and the machines it connects to"
+  },
+  {
+    "path": [
+      "machine",
+      "info"
+    ],
+    "about": "Show the machine"
+  },
+  {
+    "path": [
+      "machine",
+      "list"
+    ],
+    "about": "List this machine and the machines of config.toml with their links"
+  },
+  {
+    "path": [
+      "machine",
+      "connect"
+    ],
+    "about": "Open the link to a machine of config.toml"
+  },
+  {
+    "path": [
+      "machine",
+      "disconnect"
+    ],
+    "about": "End the link to a machine. Its programs keep running"
+  },
+  {
+    "path": [
+      "machine",
+      "open-window"
+    ],
+    "about": "Open a window of a machine, and connect it first"
+  },
+  {
+    "path": [
+      "workspace"
+    ],
+    "about": "Workspaces"
+  },
+  {
+    "path": [
+      "workspace",
+      "create"
+    ],
+    "about": "Make a workspace with one tab"
+  },
+  {
+    "path": [
+      "workspace",
+      "list"
+    ],
+    "about": "List the workspaces"
+  },
+  {
+    "path": [
+      "workspace",
+      "show"
+    ],
+    "about": "Show a workspace with its tabs"
+  },
+  {
+    "path": [
+      "workspace",
+      "rename"
+    ],
+    "about": "Rename a workspace"
+  },
+  {
+    "path": [
+      "workspace",
+      "close"
+    ],
+    "about": "Close a workspace"
+  },
+  {
+    "path": [
+      "workspace",
+      "move"
+    ],
+    "about": "Move a workspace to a group or before another"
+  },
+  {
+    "path": [
+      "group"
+    ],
+    "about": "Groups of workspaces"
+  },
+  {
+    "path": [
+      "group",
+      "create"
+    ],
+    "about": "Make a group"
+  },
+  {
+    "path": [
+      "group",
+      "list"
+    ],
+    "about": "List the groups"
+  },
+  {
+    "path": [
+      "group",
+      "show"
+    ],
+    "about": "Show a group"
+  },
+  {
+    "path": [
+      "group",
+      "rename"
+    ],
+    "about": "Rename a group"
+  },
+  {
+    "path": [
+      "group",
+      "close"
+    ],
+    "about": "Close a group"
+  },
+  {
+    "path": [
+      "group",
+      "move"
+    ],
+    "about": "Move a group"
+  },
+  {
+    "path": [
+      "tab"
+    ],
+    "about": "Tabs"
+  },
+  {
+    "path": [
+      "tab",
+      "create"
+    ],
+    "about": "Make a tab in a workspace"
+  },
+  {
+    "path": [
+      "tab",
+      "rename"
+    ],
+    "about": "Rename a tab"
+  },
+  {
+    "path": [
+      "tab",
+      "close"
+    ],
+    "about": "Close a tab"
+  },
+  {
+    "path": [
+      "tab",
+      "move"
+    ],
+    "about": "Move a tab"
+  },
+  {
+    "path": [
+      "tab",
+      "select"
+    ],
+    "about": "Show a tab in a window"
+  },
+  {
+    "path": [
+      "layout"
+    ],
+    "about": "The layout of the panes of a tab"
+  },
+  {
+    "path": [
+      "layout",
+      "set-ratios"
+    ],
+    "about": "Set the shares of a split"
+  },
+  {
+    "path": [
+      "layout",
+      "equalize"
+    ],
+    "about": "Give the panes of a split equal shares"
+  },
+  {
+    "path": [
+      "layout",
+      "zoom"
+    ],
+    "about": "Zoom a pane, or show all panes"
+  },
+  {
+    "path": [
+      "pane"
+    ],
+    "about": "Panes"
+  },
+  {
+    "path": [
+      "pane",
+      "list"
+    ],
+    "about": "List the panes"
+  },
+  {
+    "path": [
+      "pane",
+      "show"
+    ],
+    "about": "Show a pane"
+  },
+  {
+    "path": [
+      "pane",
+      "split"
+    ],
+    "about": "Split a pane"
+  },
+  {
+    "path": [
+      "pane",
+      "close"
+    ],
+    "about": "Close a pane"
+  },
+  {
+    "path": [
+      "pane",
+      "move"
+    ],
+    "about": "Move a pane to a tab"
+  },
+  {
+    "path": [
+      "pane",
+      "float"
+    ],
+    "about": "Float a pane over the tab"
+  },
+  {
+    "path": [
+      "pane",
+      "unfloat"
+    ],
+    "about": "Put a floating pane back in the layout"
+  },
+  {
+    "path": [
+      "pane",
+      "popout"
+    ],
+    "about": "Move a pane to a window of its own"
+  },
+  {
+    "path": [
+      "pane",
+      "restart"
+    ],
+    "about": "Start the program of a pane again"
+  },
+  {
+    "path": [
+      "pane",
+      "paste"
+    ],
+    "about": "Paste text into a pane"
+  },
+  {
+    "path": [
+      "pane",
+      "send-keys"
+    ],
+    "about": "Type keys into a pane: text, and names such as Enter, Escape, C-c"
+  },
+  {
+    "path": [
+      "pane",
+      "scroll"
+    ],
+    "about": "Scroll the viewport of a pane"
+  },
+  {
+    "path": [
+      "pane",
+      "copy"
+    ],
+    "about": "Copy the selection of a pane"
+  },
+  {
+    "path": [
+      "pane",
+      "read"
+    ],
+    "about": "Print the text of a pane"
+  },
+  {
+    "path": [
+      "agent"
+    ],
+    "about": "Agents: the runs of Claude Code and Codex"
+  },
+  {
+    "path": [
+      "agent",
+      "list"
+    ],
+    "about": "List the agents"
+  },
+  {
+    "path": [
+      "agent",
+      "show"
+    ],
+    "about": "Show an agent"
+  },
+  {
+    "path": [
+      "agent",
+      "start"
+    ],
+    "about": "Start an agent in a new pane, a new tab or an idle shell"
+  },
+  {
+    "path": [
+      "agent",
+      "choices"
+    ],
+    "about": "List the models and the effort levels that a start can choose"
+  },
+  {
+    "path": [
+      "agent",
+      "stop"
+    ],
+    "about": "Ask an agent to end"
+  },
+  {
+    "path": [
+      "agent",
+      "interrupt"
+    ],
+    "about": "Interrupt the turn of an agent"
+  },
+  {
+    "path": [
+      "agent",
+      "prompt"
+    ],
+    "about": "Type a prompt into an agent"
+  },
+  {
+    "path": [
+      "agent",
+      "reply"
+    ],
+    "about": "Send the next prompt to an agent whose turn ended"
+  },
+  {
+    "path": [
+      "agent",
+      "resume"
+    ],
+    "about": "Start an agent that ended with its session"
+  },
+  {
+    "path": [
+      "agent",
+      "wait"
+    ],
+    "about": "Wait until an agent is idle, has ended, or needs you"
+  },
+  {
+    "path": [
+      "agent",
+      "link"
+    ],
+    "about": "Bind a pane to its agent"
+  },
+  {
+    "path": [
+      "agent",
+      "unlink"
+    ],
+    "about": "Break the link of an agent"
+  },
+  {
+    "path": [
+      "agent",
+      "move"
+    ],
+    "about": "Move an agent to another place on the board"
+  },
+  {
+    "path": [
+      "harness"
+    ],
+    "about": "Claude Code and Codex on this machine: installed, version, login"
+  },
+  {
+    "path": [
+      "harness",
+      "refresh"
+    ],
+    "about": "Find the harnesses again and ask each one for its login state"
+  },
+  {
+    "path": [
+      "interaction"
+    ],
+    "about": "What agents ask: approvals, questions, plans"
+  },
+  {
+    "path": [
+      "interaction",
+      "list"
+    ],
+    "about": "List the interactions"
+  },
+  {
+    "path": [
+      "interaction",
+      "show"
+    ],
+    "about": "Show an interaction"
+  },
+  {
+    "path": [
+      "interaction",
+      "answer"
+    ],
+    "about": "Answer an interaction: allow, allow-always or deny for an approval"
+  },
+  {
+    "path": [
+      "interaction",
+      "dismiss"
+    ],
+    "about": "Close an interaction without an answer"
+  },
+  {
+    "path": [
+      "interaction",
+      "next"
+    ],
+    "about": "Show the interaction that is next"
+  },
+  {
+    "path": [
+      "interaction",
+      "reveal"
+    ],
+    "about": "Show an interaction in a window"
+  },
+  {
+    "path": [
+      "task"
+    ],
+    "about": "Task workspaces"
+  },
+  {
+    "path": [
+      "task",
+      "create"
+    ],
+    "about": "Keep a draft of a task; with --start, make its worktree, ports and tab and start its agent"
+  },
+  {
+    "path": [
+      "task",
+      "update"
+    ],
+    "about": "Change a draft, or the title of a task that started"
+  },
+  {
+    "path": [
+      "task",
+      "start"
+    ],
+    "about": "Start a draft: its worktree, branch, ports, files, tab and agent"
+  },
+  {
+    "path": [
+      "task",
+      "delete"
+    ],
+    "about": "Remove a draft or a closed task"
+  },
+  {
+    "path": [
+      "task",
+      "list"
+    ],
+    "about": "List the tasks"
+  },
+  {
+    "path": [
+      "task",
+      "show"
+    ],
+    "about": "Show a task"
+  },
+  {
+    "path": [
+      "task",
+      "changes"
+    ],
+    "about": "Count the changes of a task now: its files from the merge base to the worktree"
+  },
+  {
+    "path": [
+      "task",
+      "diff"
+    ],
+    "about": "Show the diff of one changed file of a task"
+  },
+  {
+    "path": [
+      "task",
+      "close"
+    ],
+    "about": "Close a task"
+  },
+  {
+    "path": [
+      "favorite"
+    ],
+    "about": "Favorite folders for new tasks"
+  },
+  {
+    "path": [
+      "favorite",
+      "list"
+    ],
+    "about": "List the favorite folders, the one used last first"
+  },
+  {
+    "path": [
+      "favorite",
+      "add"
+    ],
+    "about": "Add the repository of a folder, or of the current directory, to the favorites"
+  },
+  {
+    "path": [
+      "favorite",
+      "remove"
+    ],
+    "about": "Remove a folder, or the current directory, from the favorites"
+  },
+  {
+    "path": [
+      "phone"
+    ],
+    "about": "Phones that supervise this machine"
+  },
+  {
+    "path": [
+      "phone",
+      "pair-begin"
+    ],
+    "about": "Offer a pairing to a phone: print the URL of the QR code and the short code"
+  },
+  {
+    "path": [
+      "phone",
+      "pair-cancel"
+    ],
+    "about": "End the offer of a pairing"
+  },
+  {
+    "path": [
+      "phone",
+      "remove"
+    ],
+    "about": "Remove a paired phone and close its connections"
+  },
+  {
+    "path": [
+      "phone",
+      "rename"
+    ],
+    "about": "Change the name of a paired phone"
+  },
+  {
+    "path": [
+      "phone",
+      "publish"
+    ],
+    "about": "Put the phone listener on the tailnet with tailscale serve (HTTPS, never a Funnel)"
+  },
+  {
+    "path": [
+      "phone",
+      "unpublish"
+    ],
+    "about": "Remove the mapping of tailscale serve for the phone listener"
+  },
+  {
+    "path": [
+      "phone",
+      "push-test"
+    ],
+    "about": "Send the push \"Test notification\" to a paired phone"
+  },
+  {
+    "path": [
+      "fs"
+    ],
+    "about": "The file system of the machine"
+  },
+  {
+    "path": [
+      "fs",
+      "dirs"
+    ],
+    "about": "List the folders in a folder of the machine, or in its home folder"
+  },
+  {
+    "path": [
+      "fs",
+      "list"
+    ],
+    "about": "List the folders and files in a folder of the machine, or in the current directory"
+  },
+  {
+    "path": [
+      "worktree"
+    ],
+    "about": "Git worktrees of the tasks"
+  },
+  {
+    "path": [
+      "worktree",
+      "list"
+    ],
+    "about": "List the worktrees"
+  },
+  {
+    "path": [
+      "config"
+    ],
+    "about": "The configuration"
+  },
+  {
+    "path": [
+      "config",
+      "get"
+    ],
+    "about": "Show the settings"
+  },
+  {
+    "path": [
+      "config",
+      "set"
+    ],
+    "about": "Set a value in config.toml"
+  },
+  {
+    "path": [
+      "config",
+      "reload"
+    ],
+    "about": "Read config.toml again"
+  },
+  {
+    "path": [
+      "config",
+      "edit"
+    ],
+    "about": "Open config.toml in $EDITOR, and read it again"
+  },
+  {
+    "path": [
+      "policy"
+    ],
+    "about": "Rules that decide approvals"
+  },
+  {
+    "path": [
+      "policy",
+      "list"
+    ],
+    "about": "List the rules"
+  },
+  {
+    "path": [
+      "policy",
+      "add"
+    ],
+    "about": "Add a rule, as JSON"
+  },
+  {
+    "path": [
+      "policy",
+      "remove"
+    ],
+    "about": "Remove a rule"
+  },
+  {
+    "path": [
+      "policy",
+      "suggest"
+    ],
+    "about": "Suggest rules from the answers so far"
+  },
+  {
+    "path": [
+      "integration"
+    ],
+    "about": "The hooks of the harnesses"
+  },
+  {
+    "path": [
+      "integration",
+      "list"
+    ],
+    "about": "List the integrations"
+  },
+  {
+    "path": [
+      "integration",
+      "install"
+    ],
+    "about": "Install the hooks of a harness"
+  },
+  {
+    "path": [
+      "integration",
+      "status"
+    ],
+    "about": "Show what is installed"
+  },
+  {
+    "path": [
+      "integration",
+      "uninstall"
+    ],
+    "about": "Remove the hooks of a harness"
+  },
+  {
+    "path": [
+      "integration",
+      "doctor"
+    ],
+    "about": "Check a harness with a live round trip"
+  },
+  {
+    "path": [
+      "integration",
+      "capabilities"
+    ],
+    "about": "Show what each harness version can do"
+  },
+  {
+    "path": [
+      "search"
+    ],
+    "about": "Search the scrollback"
+  },
+  {
+    "path": [
+      "search",
+      "query"
+    ],
+    "about": "Search the scrollback of the panes"
+  },
+  {
+    "path": [
+      "jobs"
+    ],
+    "about": "Long commands"
+  },
+  {
+    "path": [
+      "jobs",
+      "cancel"
+    ],
+    "about": "Cancel a job"
+  }
+]

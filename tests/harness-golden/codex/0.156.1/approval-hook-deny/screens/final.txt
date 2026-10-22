@@ -1,0 +1,22 @@
+╭──────────────────────────────────────────╮
+│ >_ OpenAI Codex (v0.156.1)               │
+│                                          │
+│ model:     mock-model   /model to change │
+│ directory: /private/tmp/nhg-codex/work   │
+╰──────────────────────────────────────────╯
+
+
+› make a note
+
+
+• I will make a note.
+
+• Blocked by hook
+  └ Denied from the test
+
+• Done.
+
+  01:44
+Token usage: total=22,491 input=22,460 output=31
+To continue this session, run:
+  codex resume 01a11de7-352a-7871-a1f1-f6621d410d92

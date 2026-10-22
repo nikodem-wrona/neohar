@@ -1,0 +1,23 @@
+[
+  {
+    "acked": true,
+    "attempts": ["sent", "acked"],
+    "deadline_ms": 1791508464600,
+    "decided_by": "golden",
+    "decision": {
+      "behavior": "allow"
+    },
+    "event": "PermissionRequest",
+    "fail_reason": null,
+    "id": "01M4F1WK4RQYV6SYP7TB3M8MSJ",
+    "idempotency_key": "03bad3579063c428e157e572ade3b7a3ec7ce59047b113c9a073fc1b2ff748f8",
+    "kind": "approval",
+    "lease": false,
+    "mode": "gate",
+    "native_ref": "call_mock_0001_1",
+    "rev": 1,
+    "shim_pid": 18615,
+    "state": "delivered",
+    "token": "nh-golden"
+  }
+]

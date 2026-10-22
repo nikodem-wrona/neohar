@@ -1,0 +1,120 @@
+# vim 9.1 editing sample.c (made by vim.setup.sh). 100x30 at the start, three resizes (to 120x35,
+# to 80x24 and back to 100x30).
+#
+# Vim hides the cursor while it draws and shows it again when the screen is done ("\e[?25l" and
+# "\e[?25h"), so "\e[?25h" is the signal that a command is finished. Where vim prints a message,
+# the step waits for the message first and then for the end of the draw, so that the next command
+# does not start in the middle of the answer to this one.
+
+expect "110L, 2265B"
+expect "Top"
+expect "\e[?25h"
+
+# Move around: down, to the end, to the start, by pages and half pages.
+send "5j"
+expect "\e[6;5H\e[?25h"
+send "G"
+expect "Bot\e[29;5H\e[?25h"
+send "gg"
+expect "Top\e[1;5H\e[?25h"
+send "\x06"
+expect "33%\e[1;9H\e[?25h"
+send "\x06"
+expect "66%\e[1;5H\e[?25h"
+send "\x02"
+expect "\e[29;5H\e[?25h"
+send "\x04"
+expect "50%\e[29;9H\e[?25h"
+send "\x15"
+expect "33%\e[29;5H\e[?25h"
+
+# Search with highlighting, forward and back, wrapping around the end of the file.
+send "/table_set\r"
+expect "\e[21;13H\e[?25h"
+send "n"
+expect "search hit BOTTOM"
+expect "\e[?25h"
+send "N"
+expect "search hit TOP"
+expect "\e[?25h"
+send ":noh\r"
+expect "\e[?25h"
+
+# Insert a line with wide characters; delete three lines and bring them back.
+send ":20\r"
+expect "\e[?25h"
+send "O"
+expect "-- INSERT --"
+expect "\e[?25h"
+send "/* inserted: 日本語 and ✓ */"
+expect "✓ */"
+expect "\e[?25h"
+send "\e"
+expect "\e[?25h"
+send "3dd"
+expect "3 fewer lines"
+expect "\e[?25h"
+send "u"
+expect "more lines"
+expect "\e[?25h"
+
+# Options that redraw the whole screen.
+send ":set nonumber\r"
+expect "\e[?25h"
+send ":set number list\r"
+expect "\e[?25h"
+send ":set nolist cursorline colorcolumn=40\r"
+expect "\e[?25h"
+
+# Windows: a vertical split, a horizontal split in the other window, and back to one window.
+send ":vsplit\r"
+expect "\e[?25h"
+send "\x17w"
+expect "\e[?25h"
+send ":split\r"
+expect "\e[?25h"
+send "G"
+expect "\e[?25h"
+send ":only\r"
+expect "\e[?25h"
+send ":20\r"
+expect "\e[?25h"
+
+# The terminal changes size. Vim gets SIGWINCH and redraws.
+resize 120 35
+expect "\e[?25h"
+resize 80 24
+expect "\e[?25h"
+resize 100 30
+expect "\e[?25h"
+
+# Visual mode, shifting lines, a substitution.
+send "V5j"
+expect "-- VISUAL LINE --"
+expect "\e[?25h"
+send ">"
+expect "lines >ed 1 time"
+expect "\e[?25h"
+send ":%s/table/tbl/g\r"
+expect "substitutions on"
+expect "\e[?25h"
+
+# The mouse (modes 1002 and 1006 are on): a click and a wheel step down.
+send "\e[<0;20;10M\e[<0;20;10m"
+expect "\e[?25h"
+send "\e[<65;20;10M"
+expect "\e[?25h"
+
+# Bracketed paste in insert mode (mode 2004 is on).
+send "o"
+expect "-- INSERT --"
+expect "\e[?25h"
+send "\e[200~    pasted_line();\r    another();\e[201~"
+expect "another();"
+expect "\e[?25h"
+send "\e"
+expect "\e[?25h"
+
+# Leave without saving.
+send ":q!\r"
+expect_exit

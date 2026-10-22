@@ -1,0 +1,2 @@
+{"api":"openai","at_ms":107,"last_user":"make a note","main":true,"method":"POST","model":"mock-model","path":"/v1/responses","query":null,"seq":1,"stream":true,"turn":0}
+{"api":"openai","at_ms":157,"last_user":"Chunk ID: ffd2d2\nWall time: 0.0000 seconds\nProcess exited with code 0\nOriginal token count: 0\nOutput:\n","main":true,"method":"POST","model":"mock-model","path":"/v1/responses","query":null,"seq":2,"stream":true,"turn":1}

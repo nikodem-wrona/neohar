@@ -1,0 +1,96 @@
+# Codex: a turn ends, and a bracketed paste and Enter send the next prompt, as `agent.reply` writes
+# it (`06 §7`, D-197). The text has two lines, so it shows that a paste with a new line is one
+# prompt.
+harness = "codex"
+cols = 120
+rows = 40
+# Codex 0.163 starts a shared app-server daemon, and the sandbox of the recorder refuses the `ps`
+# that it runs. The neohar shim adds the same flag (D-194).
+args = ["--no-daemon"]
+
+[[turn]]
+blocks = [{ type = "text", text = "The first turn is done." }]
+
+[[turn]]
+blocks = [{ type = "text", text = "The reply arrived." }]
+
+# Text that differs from run to run is hidden when two recordings are compared.
+[[mask]]
+pattern = "(?m)^  \\d\\d:\\d\\d$"
+with = "  <time>"
+
+[[mask]]
+pattern = "codex resume [0-9a-f-]{36}"
+with = "codex resume <session>"
+
+# Codex asks to trust the hooks of a new config. The scenario picks "Trust all and continue".
+[[step]]
+wait_screen = "Continue without trusting"
+
+# Codex 0.163 draws the dialog before it reads keys.
+[[step]]
+sleep_ms = 500
+
+[[step]]
+key = "down"
+
+[[step]]
+sleep_ms = 200
+
+[[step]]
+key = "enter"
+
+[[step]]
+wait_screen = "^› Ask Codex to do anything"
+
+[[step]]
+send = "start"
+
+[[step]]
+sleep_ms = 300
+
+[[step]]
+key = "enter"
+
+[[step]]
+wait_signal = "Stop"
+
+[[step]]
+wait_screen = "The first turn is done\\."
+
+[[step]]
+snapshot = "turn-ended"
+
+# What `agent.reply` writes: the text in a bracketed paste, a pause, and a carriage return.
+[[step]]
+send = "\u001b[200~next step\nwith a second line\u001b[201~"
+
+[[step]]
+sleep_ms = 300
+
+[[step]]
+key = "enter"
+
+[[step]]
+wait_signal = "UserPromptSubmit"
+
+[[step]]
+wait_signal = "Stop"
+
+[[step]]
+wait_screen = "The reply arrived\\."
+
+[[step]]
+snapshot = "replied"
+
+[[step]]
+send = "/exit"
+
+[[step]]
+sleep_ms = 300
+
+[[step]]
+key = "enter"
+
+[[step]]
+expect_exit = true

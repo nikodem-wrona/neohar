@@ -1,0 +1,4 @@
+{"detail":{"mode":"gate","state":"open"},"op":"wait","t":0.691581}
+{"detail":{"mode":"gate","state":"failed"},"op":"wait","t":3.195786}
+{"detail":{"details":{"state":"failed"},"error":"interaction_closed"},"op":"answer","t":3.196797}
+{"detail":{"mode":"gate","state":"failed"},"op":"expect","t":3.814643}

@@ -1,0 +1,3 @@
+{"detail":{"mode":"gate","state":"open"},"op":"wait","t":1.667147}
+{"detail":{"result":{"interaction":"01M4F1WPQX17J6V1XJ48X0KMX3","mode":"observe"}},"op":"release","t":1.957465}
+{"detail":{"mode":"observe","state":"resolved_elsewhere"},"op":"wait","t":3.582759}

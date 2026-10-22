@@ -1,0 +1,804 @@
+/* The drawer: its tabs, its rail, and the panels Tasks, Timeline, Files and Changes. The
+   Inbox and its cards are in `cards.css`. */
+@layer components {
+  /* --- the drawer ------------------------------------------------------------------------------ */
+
+  .drawer {
+    grid-area: drawer;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  /* The tabs of the drawer are pills, as the tabs of the bar are. */
+  .drawer-tabs {
+    display: flex;
+    align-items: center;
+    height: 40px;
+    flex: none;
+    padding: 0 var(--s1);
+  }
+
+  .drawer-tablist {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    flex: 1;
+    min-width: 0;
+  }
+
+  /* Five tabs do not fit a narrow drawer: a tab that is not selected gets narrower and cuts its
+     label, and the selected tab keeps its label. */
+  .drawer-tab {
+    flex: 0 1 auto;
+    min-width: 3ch;
+    height: 26px;
+    padding: 0 6px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    line-height: 26px;
+    border-radius: var(--r-tab);
+    color: var(--text-dim);
+  }
+
+  .drawer-tab:hover {
+    background: var(--bg-hover);
+    color: var(--text);
+  }
+
+  /* The selected tab is a card on the panel, in bold, with no colour. */
+  .drawer-tab.selected {
+    flex-shrink: 0;
+    background: var(--bg-card);
+    color: var(--text);
+    font-weight: 600;
+    box-shadow: inset 0 0 0 1px var(--hairline);
+  }
+
+  .drawer-count {
+    margin-left: 1ch;
+    color: var(--caution);
+  }
+
+  .drawer-fold,
+  .column-fold {
+    display: flex;
+    align-items: center;
+    padding: 0 6px;
+    height: 26px;
+    border-radius: var(--r-sm);
+    color: var(--text-dim);
+  }
+
+  .drawer-fold:hover,
+  .column-fold:hover {
+    color: var(--text);
+  }
+
+  /* The fold of the left column is at the end of its band. */
+  .column-fold {
+    margin-left: auto;
+    margin-right: -6px;
+  }
+
+  .drawer-body {
+    flex: 1;
+    min-height: 0;
+    padding: var(--s1) var(--s3) var(--s3);
+    overflow-y: auto;
+  }
+
+  .drawer-empty {
+    margin: 0;
+    color: var(--text-dim);
+  }
+
+  /* The folded drawer: a rail with a button for each tab. The folded left column is the same rail
+     on the left, with the Workspaces button. */
+  .drawer-rail,
+  .left-rail {
+    grid-area: drawer;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--s1);
+    padding: var(--s1);
+    overflow: hidden;
+  }
+
+  .left-rail {
+    grid-area: sidebar;
+  }
+
+  /* A button of a rail is an icon, and its name is its tooltip. It is a square of a row,
+     with 6 px around the icon. */
+  .rail-button {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 6px 0;
+    border-radius: var(--r-tab);
+    color: var(--text-dim);
+  }
+
+  .rail-count {
+    font: 600 var(--size-small) / 12px var(--font-data);
+  }
+
+  .rail-button:hover {
+    color: var(--text);
+    background: var(--bg-hover);
+  }
+
+  .rail-button.hot {
+    background: var(--caution);
+    color: var(--on-signal);
+    font-weight: 600;
+  }
+
+  /* --- the tasks: the Tasks tab and the task dialog -------------------------------------- */
+
+  .task-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .task-new,
+  .task-start,
+  .task-dialog-buttons button,
+  .task-path button,
+  .task-files-add button {
+    padding: 3px 12px;
+    border: 1px solid var(--line);
+    color: var(--text);
+  }
+
+  .task-new {
+    align-self: flex-start;
+  }
+
+  .task-new:hover,
+  .task-start:hover:not(:disabled),
+  .task-dialog-buttons button:hover:not(:disabled),
+  .task-path button:hover:not(:disabled),
+  .task-files-add button:hover {
+    border-color: var(--text);
+  }
+
+  .task-new::before {
+    content: '+ ';
+    color: var(--text);
+  }
+
+  .task-group {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .task-group-title {
+    margin: 0 0 2px;
+    font-size: inherit;
+    font-weight: 600;
+    color: var(--text-dim);
+    text-transform: uppercase;
+  }
+
+  .task-group-toggle {
+    padding: 0;
+    color: inherit;
+    font: inherit;
+    text-transform: inherit;
+  }
+
+  .task-group-toggle::before {
+    content: '▸ ';
+  }
+
+  .task-group-toggle[aria-expanded='true']::before {
+    content: '▾ ';
+  }
+
+  /* The tasks as rows of a table: the handle, the title, the status, and "Start" for a draft. */
+  .task-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    border-top: 1px solid var(--line);
+  }
+
+  .task-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0 6px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .task-row.current {
+    box-shadow: inset 2px 0 0 var(--text);
+  }
+
+  .task-open {
+    display: grid;
+    grid-template-columns: 4ch minmax(0, 1fr) auto;
+    gap: 0 1ch;
+    min-width: 0;
+    padding: 0 4px;
+    line-height: var(--row);
+    text-align: left;
+    color: var(--text);
+  }
+
+  .task-open:hover {
+    background: var(--bg-hover);
+  }
+
+  .task-row-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .task-row-status {
+    color: var(--text-dim);
+  }
+
+  .task-open.failed .task-row-status {
+    color: var(--danger);
+  }
+
+  .task-start {
+    margin-right: 2px;
+    line-height: 16px;
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .task-start::before {
+    content: '▶ ';
+  }
+
+  .task-start:disabled {
+    opacity: 0.5;
+  }
+
+  .task-row-note {
+    grid-column: 1 / -1;
+    margin: 0;
+    padding: 0 4px 2px calc(4px + 5ch);
+    color: var(--text-dim);
+    overflow-wrap: anywhere;
+  }
+
+  .task-row-note.failed {
+    color: var(--danger);
+  }
+
+  /* --- the Timeline tab ------------------------------------------------------------------- */
+
+  .timeline-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .timeline-head {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 1ch;
+    align-items: baseline;
+  }
+
+  .timeline-agent {
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .timeline-usage,
+  .timeline-limit {
+    color: var(--text-dim);
+  }
+
+  .timeline-older {
+    align-self: flex-start;
+    padding: 0 8px;
+    border: 1px solid var(--line);
+    color: var(--text);
+  }
+
+  .timeline-message {
+    margin: 0;
+    color: var(--danger);
+  }
+
+  .timeline-turn-title {
+    margin: 6px 0 2px;
+    font-size: inherit;
+    font-weight: 600;
+    color: var(--text);
+    border-bottom: 1px solid var(--line);
+  }
+
+  .timeline-items {
+    display: flex;
+    flex-direction: column;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .timeline-item {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0 1ch;
+  }
+
+  .timeline-label {
+    flex: none;
+    min-width: 8ch;
+    color: var(--text-dim);
+  }
+
+  .timeline-prompt .timeline-label {
+    color: var(--text);
+  }
+
+  .timeline-status[data-status='failed'],
+  .timeline-status[data-status='refused'] {
+    color: var(--danger);
+  }
+
+  .timeline-text {
+    flex: 1 1 auto;
+    min-width: 0;
+    margin: 0;
+    overflow-wrap: anywhere;
+  }
+
+  pre.timeline-text {
+    max-height: 160px;
+    overflow: auto;
+    padding: 2px 6px;
+    background: var(--bg-raised);
+    font: inherit;
+    white-space: pre-wrap;
+  }
+
+  .timeline-cut {
+    color: var(--text-dim);
+  }
+
+  /* --- the Files tab ------------------------------------------------------------------- */
+
+  /* The body of the drawer gives its height to the panel, which scrolls the tree and the file. */
+  .drawer-body.fill {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .files-panel {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    gap: 4px;
+  }
+
+  .files-head {
+    display: flex;
+    align-items: center;
+    gap: 1ch;
+    flex: none;
+  }
+
+  .files-root {
+    display: flex;
+    align-items: baseline;
+    gap: 1ch;
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+  }
+
+  .files-root-name {
+    flex: none;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .files-root-path {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--text-dim);
+  }
+
+  .files-refresh,
+  .file-action {
+    flex: none;
+    padding: 0 8px;
+    border: 1px solid var(--line);
+    color: var(--text);
+  }
+
+  .files-refresh:hover,
+  .file-action:hover {
+    border-color: var(--text);
+  }
+
+  .files-message {
+    margin: 0;
+    flex: none;
+    color: var(--text-dim);
+  }
+
+  .files-message.error,
+  .files-note.error,
+  .file-error {
+    color: var(--danger);
+  }
+
+  .files-tree {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+  }
+
+  .files-row,
+  .files-note {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5ch;
+    white-space: nowrap;
+  }
+
+  .files-row {
+    cursor: default;
+  }
+
+  /* The page skips the layout and the paint of a row out of view: a tree has up to 2,000 rows
+     (`fs.list`), and a turn of the Timeline can be long. A row keeps the last size it had. */
+  .files-row,
+  .changes-row,
+  .timeline-item {
+    content-visibility: auto;
+    contain-intrinsic-size: auto var(--row);
+  }
+
+  .files-row:hover,
+  .files-row.menu-open {
+    background: var(--bg-hover);
+  }
+
+  .files-row.current {
+    background: var(--here);
+    color: var(--on-here);
+  }
+
+  .files-row.current :is(.files-name, .files-arrow, .files-link) {
+    color: inherit;
+  }
+
+  .files-row:focus-visible {
+    outline: 1px solid var(--text);
+    outline-offset: -1px;
+  }
+
+  .files-row.hidden .files-name,
+  .files-row.other .files-name,
+  .files-note {
+    color: var(--text-dim);
+  }
+
+  .files-row[aria-busy='true'] .files-arrow {
+    color: var(--text);
+  }
+
+  .files-arrow {
+    flex: none;
+    width: 2ch;
+    color: var(--text-dim);
+  }
+
+  /* The icon of an entry keeps the colours of its theme: like the highlight of a file, it is
+     content and not chrome. The row aligns its text by the baseline, so the icon sits in the middle
+     of the line. */
+  .file-icon {
+    flex: none;
+    align-self: center;
+    width: 16px;
+    height: 16px;
+  }
+
+  .files-row[data-kind='dir'] .files-name {
+    font-weight: 600;
+  }
+
+  .files-link {
+    color: var(--text-dim);
+  }
+
+  .files-rule {
+    flex: none;
+    height: 5px;
+    margin: 0 -8px;
+    cursor: row-resize;
+    border-top: 1px solid var(--line);
+  }
+
+  .files-rule:hover,
+  .files-rule.dragging,
+  .files-rule:focus-visible {
+    border-top-color: var(--text);
+    outline: none;
+  }
+
+  /* The menu of a row is a popover in the top layer. The page sets `left` and `top`. Its
+     layout applies only while it is open: a rule for `display` would show a closed popover. */
+  .files-menu {
+    position: fixed;
+    inset: auto;
+    min-width: 22ch;
+    margin: 0;
+    padding: var(--s1);
+    border-radius: var(--r-md);
+    color: var(--text);
+  }
+
+  .files-menu:popover-open {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .files-menu-item {
+    padding: 2px var(--s2);
+    text-align: left;
+  }
+
+  .files-menu-item:hover,
+  .files-menu-item:focus {
+    background: var(--here);
+    color: var(--on-here);
+    outline: none;
+  }
+
+  .file-view {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    gap: 4px;
+  }
+
+  .file-head,
+  .file-actions {
+    display: flex;
+    align-items: baseline;
+    gap: 1ch;
+    flex: none;
+    min-width: 0;
+  }
+
+  .file-actions {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  .file-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .file-info {
+    flex: none;
+    color: var(--text-dim);
+  }
+
+  .file-spacer {
+    flex: 1;
+  }
+
+  .file-close {
+    flex: none;
+    display: flex;
+    align-items: center;
+    padding: 0 4px;
+    height: 18px;
+    color: var(--text-dim);
+  }
+
+  .file-close:hover {
+    color: var(--text);
+  }
+
+  .file-source[aria-pressed='true'] {
+    border-color: var(--text);
+  }
+
+  .file-error,
+  .file-truncated {
+    margin: 0;
+  }
+
+  .file-truncated {
+    color: var(--text-dim);
+  }
+
+  .file-body {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+  }
+
+  .file-body:focus-visible {
+    outline: 1px solid var(--line);
+  }
+
+  /* Two columns: the numbers, which stay in place when the lines scroll to the side, and the
+     lines, which keep their spaces and never wrap. */
+  .file-lines {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    width: max-content;
+    min-width: 100%;
+  }
+
+  .file-line {
+    display: contents;
+  }
+
+  .file-num {
+    position: sticky;
+    left: 0;
+    padding: 0 1ch 0 0;
+    text-align: right;
+    color: var(--text-dim);
+    background: var(--bg);
+    user-select: none;
+  }
+
+  .file-text {
+    white-space: pre;
+    tab-size: 4;
+  }
+
+  .file-body .rich-html {
+    max-height: none;
+    overflow: visible;
+  }
+
+  .file-image {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    background: repeating-conic-gradient(var(--bg-raised) 0 25%, var(--bg) 0 50%) 0 0 / 16px 16px;
+  }
+
+  /* --- the Changes tab ----------------------------------------------------------------- */
+
+  .changes-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .changes-head {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .changes-branch,
+  .changes-root {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .changes-branch-name {
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .changes-base,
+  .changes-root,
+  .changes-facts,
+  .changes-note {
+    color: var(--text-dim);
+  }
+
+  .changes-note,
+  .changes-error {
+    margin: 0;
+  }
+
+  .changes-error {
+    color: var(--danger);
+    overflow-wrap: anywhere;
+  }
+
+  .changes-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .changes-row {
+    display: grid;
+    grid-template-columns: 2ch minmax(0, 1fr) auto auto;
+    align-items: baseline;
+    gap: 0 1ch;
+    width: 100%;
+    padding: 0 2px;
+    text-align: left;
+    color: var(--text);
+  }
+
+  .changes-row:hover {
+    background: var(--bg-hover);
+  }
+
+  .changes-row.open {
+    background: var(--bg-raised);
+  }
+
+  .changes-row:focus-visible {
+    outline: 1px solid var(--text);
+    outline-offset: -1px;
+  }
+
+  .changes-status[data-status='added'],
+  .changes-status[data-status='untracked'] {
+    color: var(--live);
+  }
+
+  .changes-status[data-status='deleted'] {
+    color: var(--danger);
+  }
+
+  .changes-status[data-status='modified'],
+  .changes-status[data-status='renamed'] {
+    color: var(--text);
+  }
+
+  .changes-path {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .changes-dir {
+    color: var(--text-dim);
+  }
+
+  .changes-uncommitted {
+    color: var(--caution);
+  }
+
+  .changes-lines .add {
+    color: var(--live);
+  }
+
+  .changes-lines .del {
+    color: var(--danger);
+  }
+
+  .changes-binary {
+    color: var(--text-dim);
+  }
+
+  .changes-diff {
+    margin: 2px 0 6px 3ch;
+  }
+}

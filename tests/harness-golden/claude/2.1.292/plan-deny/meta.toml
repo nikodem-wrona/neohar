@@ -1,0 +1,22 @@
+harness = "claude"
+harness_version = "2.1.292"
+scenario = "plan-deny"
+scenario_blake3 = "296dd9519e4862da3fb37402e4b66cd188e92cb92407db107ea968da6db44799"
+os = "macos 26.6.2"
+arch = "aarch64"
+cols = 120
+rows = 40
+duration_ms = 1710
+exit = "code 0"
+llm_requests = 4
+llm_main_requests = 3
+turns_used = 3
+turns_total = 3
+unmatched_main = 0
+hook_calls = 8
+hook_calls_api = 8
+terminal_replies = 6
+screens = [
+    "denied",
+    "final",
+]

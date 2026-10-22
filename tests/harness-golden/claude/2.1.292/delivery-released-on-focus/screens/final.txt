@@ -1,0 +1,3 @@
+
+Resume this session with:
+claude --resume 18cefeba-f3c2-4f13-b166-d3dc7766de0c

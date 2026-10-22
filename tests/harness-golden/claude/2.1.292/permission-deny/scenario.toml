@@ -1,0 +1,65 @@
+# Claude Code: a hook denies a tool call with a message (decision.message).
+harness = "claude"
+cols = 120
+rows = 40
+
+
+[state]
+hasSeenAutoDefaultNudge = true
+
+[settings.permissions]
+defaultMode = "default"
+
+[[hook_reply]]
+event = "PermissionRequest"
+reply = { hookSpecificOutput = { hookEventName = "PermissionRequest", decision = { behavior = "deny", message = "Denied from the test" } } }
+
+[[turn]]
+blocks = [{ type = "text", text = "I will make a note." }, { type = "tool_use", name = "Bash", input = { command = "touch note.txt", description = "Create a note" } }]
+
+[[turn]]
+blocks = [{ type = "text", text = "The note was not made." }]
+
+# Text that differs from run to run is hidden when two recordings are compared.
+[[mask]]
+# Claude Code names the time it worked with a verb that it picks at random.
+pattern = "✻ \\S+ for [0-9hms ]+ · done \\d+:\\d+ [AP]M"
+with = "✻ <verb> for <time spent> · done <time>"
+
+[[mask]]
+pattern = "claude --resume [0-9a-f-]{36}"
+with = "claude --resume <session>"
+
+[[step]]
+wait_signal = "SessionStart"
+
+[[step]]
+wait_screen = "^❯"
+
+[[step]]
+send = "make a note"
+
+[[step]]
+sleep_ms = 300
+
+[[step]]
+key = "enter"
+
+[[step]]
+wait_signal = "Stop"
+
+[[step]]
+snapshot = "denied"
+
+
+[[step]]
+send = "/exit"
+
+[[step]]
+sleep_ms = 300
+
+[[step]]
+key = "enter"
+
+[[step]]
+expect_exit = true

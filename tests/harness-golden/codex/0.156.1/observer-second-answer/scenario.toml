@@ -1,0 +1,114 @@
+# Codex app-server: client a answers the approval first. The answer of client b comes after serverRequest/resolved, and the server refuses it.
+harness = "codex"
+mode = "pipe"
+args = ["app-server", "--listen", "unix://{scratch}/run/cx.sock"]
+writable = ["/private/tmp/codex-daemon-{uid}"]
+
+[settings]
+approval_policy = "on-request"
+sandbox_mode = "read-only"
+
+[[peer]]
+name = "a"
+kind = "ws"
+path = "{scratch}/run/cx.sock"
+
+[[peer]]
+name = "b"
+kind = "ws"
+path = "{scratch}/run/cx.sock"
+start = "step"
+
+[[turn]]
+blocks = [{ type = "text", text = "I will make a note." }, { type = "tool_use", name = "exec_command", input = { cmd = "touch note.txt", sandbox_permissions = "require_escalated", justification = "Make a note" } }]
+
+[[turn]]
+blocks = [{ type = "text", text = "The note is made." }]
+
+# Ids that differ from run to run are hidden when two recordings are compared.
+[[mask]]
+pattern = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
+with = "<uuid>"
+
+[[mask]]
+# The output of a command starts with the id of a chunk of output.
+pattern = "Chunk ID: [0-9a-f]+"
+with = "Chunk ID: <id>"
+
+[[step]]
+peer = "a"
+send_json = { id = 1, method = "initialize", params = { clientInfo = { name = "golden-a", title = "golden-a", version = "0" } } }
+
+[[step]]
+peer = "a"
+wait_line = '"id":1'
+
+[[step]]
+peer = "a"
+send_json = { method = "initialized" }
+
+[[step]]
+peer = "a"
+send_json = { id = 2, method = "thread/start", params = { approvalPolicy = "on-request", sandbox = "read-only" } }
+
+[[step]]
+peer = "a"
+wait_line = '"id":2'
+
+[[step]]
+start_peer = "b"
+
+[[step]]
+peer = "b"
+send_json = { id = 1, method = "initialize", params = { clientInfo = { name = "golden-b", title = "golden-b", version = "0" } } }
+
+[[step]]
+peer = "b"
+wait_line = '"id":1'
+
+[[step]]
+peer = "b"
+send_json = { method = "initialized" }
+
+[[step]]
+peer = "a"
+send_json = { id = 3, method = "turn/start", params = { threadId = '{{find:"thread":\{"id":"([0-9a-f-]+)"}}', input = [{ type = "text", text = "make a note" }] } }
+
+[[step]]
+peer = "a"
+wait_line = '"method":"turn/started"'
+
+[[step]]
+peer = "b"
+send_json = { id = 3, method = "thread/resume", params = { threadId = '{{find:"thread":\{"id":"([0-9a-f-]+)"}}' } }
+
+[[step]]
+peer = "b"
+wait_line = '"id":3'
+
+[[step]]
+peer = "a"
+wait_line = '"method":"item/commandExecution/requestApproval"'
+
+[[step]]
+peer = "b"
+wait_line = '"method":"item/commandExecution/requestApproval"'
+
+[[step]]
+peer = "a"
+answer_request = { method = "item/commandExecution/requestApproval", result = { decision = "accept" } }
+
+[[step]]
+peer = "b"
+wait_line = '"method":"serverRequest/resolved"'
+
+[[step]]
+peer = "b"
+send_json = { id = 0, result = { decision = "accept" } }
+
+[[step]]
+sleep_ms = 500
+
+[[step]]
+peer = "a"
+wait_line = '"method":"turn/completed"'

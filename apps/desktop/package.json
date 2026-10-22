@@ -1,0 +1,21 @@
+{
+  "name": "@neohar/desktop",
+  "private": true,
+  "license": "Apache-2.0",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "typecheck": "tsc --noEmit -p ."
+  },
+  "dependencies": {
+    "@neohar/proto-wasm": "workspace:*",
+    "@neohar/transport": "workspace:*",
+    "@neohar/ui": "workspace:*"
+  },
+  "devDependencies": {
+    "vite": "^8.0.0",
+    "vite-plugin-solid": "2.11.14"
+  }
+}

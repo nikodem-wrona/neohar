@@ -1,0 +1,35 @@
+# Claude Code headless: allow with updatedPermissions (addRules). The second call needs no control_request.
+harness = "claude"
+mode = "pipe"
+args = ["-p", "--output-format", "stream-json", "--input-format", "stream-json", "--verbose", "--permission-prompt-tool", "stdio"]
+
+[state]
+hasSeenAutoDefaultNudge = true
+
+[settings.permissions]
+defaultMode = "default"
+
+[[turn]]
+blocks = [{ type = "tool_use", name = "Bash", input = { command = "touch a.txt", description = "First note" } }]
+
+[[turn]]
+blocks = [{ type = "tool_use", name = "Bash", input = { command = "touch b.txt", description = "Second note" } }]
+
+[[turn]]
+blocks = [{ type = "text", text = "Both notes are made." }]
+
+
+[[step]]
+send_json = { type = "user", message = { role = "user", content = "make two notes" } }
+
+[[step]]
+respond = { behavior = "allow", updatedInput = "$input", updatedPermissions = [{ type = "addRules", rules = [{ toolName = "Bash", ruleContent = "touch:*" }], behavior = "allow", destination = "session" }] }
+
+[[step]]
+wait_line = '"type":"result"'
+
+[[step]]
+close_stdin = true
+
+[[step]]
+expect_exit = true

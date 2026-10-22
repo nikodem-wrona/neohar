@@ -1,0 +1,25 @@
+harness = "claude"
+harness_version = "2.1.292"
+scenario = "resume"
+scenario_blake3 = "31ab79e47c9d180907f8810edcdc476b955e35352001fabff83bd465a6969237"
+mode = "pty"
+os = "macos 26.6.2"
+arch = "aarch64"
+cols = 120
+rows = 40
+duration_ms = 1996
+exit = "code 0"
+llm_requests = 1
+llm_main_requests = 1
+turns_used = 1
+turns_total = 1
+unmatched_main = 0
+hook_calls = 4
+hook_calls_api = 4
+terminal_replies = 6
+screens = [
+    "resumed",
+    "answered",
+    "final",
+]
+processes = []

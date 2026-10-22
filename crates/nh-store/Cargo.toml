@@ -1,0 +1,35 @@
+[package]
+name = "nh-store"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true
+
+[features]
+# A fault injector for the write path, for the tests of the degraded mode. Tests in this
+# crate always have it.
+fault-injection = []
+
+[dependencies]
+blake3.workspace = true
+getrandom.workspace = true
+# The event log uses the event and cursor types of the API.
+nh-proto = { path = "../nh-proto", features = ["api"] }
+# Secrets do not reach the log.
+nh-redact = { path = "../nh-redact" }
+postcard.workspace = true
+rusqlite.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+ulid.workspace = true
+unicode-segmentation.workspace = true
+zstd.workspace = true
+
+[dev-dependencies]
+insta.workspace = true

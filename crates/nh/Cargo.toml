@@ -1,0 +1,64 @@
+[package]
+name = "nh"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+# The command line. The roles `hold` and `hook` do not parse their arguments with it.
+clap.workspace = true
+# `nh completions <shell>`.
+clap_complete.workspace = true
+# `nh daemon`: the core without windows. It is a role of the shipped sidecar. Without
+# the feature `fsevents`, so that the start of the hook shim does not load CoreServices.
+nh-core = { path = "../nh-core", default-features = false }
+nh-hold = { path = "../nh-hold" }
+# `link.sock` of the daemon, and the client of `--dev-ws-through-link`.
+nh-remote = { path = "../nh-remote" }
+# The listener of the phone in `nh daemon`.
+nh-web = { path = "../nh-web" }
+# `nh api schema` prints the contract of the API. The hook shim does not use it.
+nh-proto = { path = "../nh-proto", features = ["api"] }
+# `nh daemon --detach` forks twice, as a holder does.
+libc.workspace = true
+# The hook shim: `rustix` for a connect with a timeout, `serde` and `serde_json` to
+# compact the hook payload into one line. The shim has no async runtime and no `tracing`. The
+# daemon uses `pipe`, `setsid` and `dup2`.
+rustix = { workspace = true, features = ["net", "pipe", "process", "stdio"] }
+serde.workspace = true
+serde_json.workspace = true
+tracing.workspace = true
+
+[features]
+# `nh daemon --dev-ws`: the dev WebSocket for the tests of the transport and the shell.
+# It also turns on the `debug.*` methods of the core, for example `debug.drop_links` of the
+# tests of the reconnect. A release of the product never has it.
+dev-ws = ["nh-core/dev-ws", "nh-core/debug", "nh-remote/dev-ws"]
+
+[[bin]]
+name = "nh"
+path = "src/main.rs"
+
+[dev-dependencies]
+async-trait.workspace = true
+base64.workspace = true
+blake3.workspace = true
+futures-util.workspace = true
+nh-core = { path = "../nh-core", features = ["debug", "dev-ws"] }
+nh-remote = { path = "../nh-remote" }
+nh-store = { path = "../nh-store" }
+nh-term = { path = "../nh-term", features = ["test-support"] }
+nh-web = { path = "../nh-web" }
+p256.workspace = true
+postcard.workspace = true
+rustix = { workspace = true, features = ["process"] }
+tokio.workspace = true
+tokio-tungstenite.workspace = true
+tracing-subscriber.workspace = true
+ulid.workspace = true

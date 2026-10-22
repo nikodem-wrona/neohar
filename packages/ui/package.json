@@ -1,0 +1,21 @@
+{
+  "name": "@neohar/ui",
+  "private": true,
+  "license": "Apache-2.0",
+  "version": "1.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./phone": "./src/phone/index.ts",
+    "./style.css": "./src/styles/index.css",
+    "./phone.css": "./src/phone/phone.css"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p ."
+  },
+  "dependencies": {
+    "@neohar/proto-wasm": "workspace:*",
+    "solid-js": "1.9.17",
+    "@neohar/transport": "workspace:*"
+  }
+}

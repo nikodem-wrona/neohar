@@ -1,0 +1,16 @@
+[package]
+name = "nh-bench"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+nh-proto = { path = "../../crates/nh-proto" }
+nh-term = { path = "../../crates/nh-term" }
+postcard.workspace = true

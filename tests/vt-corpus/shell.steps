@@ -1,0 +1,98 @@
+# An interactive bash 5.3 (Homebrew) session: bash --noprofile --norc -i, with a coloured prompt
+# that holds no user name, host or path. 100x30 at the start, one resize and back.
+#
+# The prompt ends with "work" in blue, a reset, and "$ ". "work\e[0m $ " is the signal that a
+# command is finished. Nothing that the commands print has that text. When readline prints the
+# prompt again, for example after a list of completions or after a resize, the text appears
+# again, and that is the signal too.
+
+expect "work\e[0m $ "
+
+# Colours: 16, 256 and RGB, and wide characters.
+send "echo -e '\\e[31mred\\e[0m \\e[1;32mbold green\\e[0m \\e[4munderlined\\e[0m \\e[38;5;208m256 colours\\e[0m \\e[38;2;10;200;120mrgb\\e[0m'\r"
+expect "work\e[0m $ "
+send "echo '日本語のテキスト ✓ 🎉 café'\r"
+expect "work\e[0m $ "
+
+# A listing with colours, then output that scrolls the screen.
+send "ls -G\r"
+expect "work\e[0m $ "
+send "seq -f 'line %03g: the quick brown fox jumps over the lazy dog' 1 150\r"
+expect "line 150"
+expect "work\e[0m $ "
+
+# A command that fails, and its status.
+send "ls does-not-exist\r"
+expect "work\e[0m $ "
+send "echo \"status $?\"\r"
+expect "work\e[0m $ "
+
+# Tab completion of a file name: only the rest of the name is printed.
+send "cat quar\t"
+expect "terly-report-final.txt"
+send "\r"
+expect "work\e[0m $ "
+
+# An ambiguous prefix: the second Tab lists the files, and readline prints the prompt again.
+# ^U then cuts the line.
+send "cat notes-\t\t"
+expect "notes-b.txt"
+expect "work\e[0m $ "
+send "\x15"
+expect "\e[K"
+send "echo cleared\r"
+expect "work\e[0m $ "
+
+# Tab completion of a command.
+send "zzprobe-g\t"
+expect "reet "
+send "\r"
+expect "work\e[0m $ "
+
+# Line editing: ^A, Alt-f twice and ^K cut a line down to "echo one".
+send "echo one two three"
+expect "two three"
+send "\x01\x1bf\x1bf\x0b"
+expect "\e[K"
+send "\r"
+expect "work\e[0m $ "
+
+# A line that wraps over the right edge, and a multi-line command with a continuation prompt.
+send "echo 0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789 end\r"
+expect "work\e[0m $ "
+send "for i in 1 2 3; do\r"
+expect "> "
+send "echo item $i\r"
+expect "> "
+send "done\r"
+expect "work\e[0m $ "
+
+# Reverse history search, abandoned with ^G, and a paste in bracketed paste mode.
+send "\x12seq"
+expect "q': \e[7mseq\e[27m"
+send "\x07"
+expect "work\e[0m $ "
+send "\e[200~echo pasted text\e[201~"
+expect "pasted text"
+send "\r"
+expect "work\e[0m $ "
+
+# The terminal changes size. Readline prints the prompt again. stty reads the size from the PTY.
+resize 70 20
+expect "work\e[0m $ "
+send "stty size\r"
+expect "20 70"
+expect "work\e[0m $ "
+send "seq 1 25\r"
+expect "work\e[0m $ "
+resize 100 30
+expect "work\e[0m $ "
+send "history\r"
+expect "work\e[0m $ "
+
+# Clear the screen, and leave.
+send "clear\r"
+expect "\e[3J\e[H\e[2J"
+expect "work\e[0m $ "
+send "exit\r"
+expect_exit

@@ -1,0 +1,18 @@
+╭────────────────────────────────────────────╮
+│ >_ OpenAI Codex (v0.156.1)                 │
+│                                            │
+│ model:       mock-model   /model to change │
+│ directory:   /private/tmp/nhg-codex/work   │
+│ permissions: YOLO mode                     │
+╰────────────────────────────────────────────╯
+
+
+› say hello
+
+
+• Hello from the mock model.
+
+  01:05
+Token usage: total=10,249 input=10,242 output=7
+To continue this session, run:
+  codex resume 01a11dc3-ae1c-7250-9fc0-132e2bc60d05

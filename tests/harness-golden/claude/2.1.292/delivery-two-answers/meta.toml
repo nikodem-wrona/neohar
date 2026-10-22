@@ -1,0 +1,25 @@
+harness = "claude"
+harness_version = "2.1.292"
+scenario = "delivery-two-answers"
+scenario_blake3 = "0e94ede7275f61bc5496eabff0f0a8bef10a08383e112125ab1850404d9dd521"
+mode = "pty"
+os = "macos 26.6.2"
+arch = "aarch64"
+cols = 120
+rows = 40
+duration_ms = 2973
+exit = "code 0"
+llm_requests = 3
+llm_main_requests = 2
+turns_used = 2
+turns_total = 2
+unmatched_main = 0
+hook_calls = 7
+hook_calls_api = 7
+terminal_replies = 6
+screens = [
+    "held",
+    "done",
+    "final",
+]
+processes = []

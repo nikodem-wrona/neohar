@@ -1,0 +1,40 @@
+
+ ▐▛███▛█   Claude Code v2.1.292
+▝▜██████▀  Opus 5.5 · API Usage Billing
+ ▝▝   ▝▝   /private/tmp/nhg-claude/work
+
+
+❯ list the files
+
+⏺ I will list the files.
+
+  Listed 1 directory
+
+⏺ The listing is done.
+
+✻ Brewed for 0s · done 2:09 AM
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                                                                                    ◐ medium · /effort
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+❯
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  ⏸ manual mode on · ? for shortcuts · ← for agents

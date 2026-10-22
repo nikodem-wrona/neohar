@@ -1,0 +1,24 @@
+harness = "codex"
+harness_version = "0.156.1"
+scenario = "startup"
+scenario_blake3 = "3f0507451351f0b5b0fe12c72eadf1849aed639c7177cecaad24e32ef60c917b"
+os = "macos 26.6.2"
+arch = "aarch64"
+cols = 120
+rows = 40
+duration_ms = 2679
+exit = "code 0"
+llm_requests = 2
+llm_main_requests = 1
+turns_used = 1
+turns_total = 1
+unmatched_main = 0
+hook_calls = 4
+hook_calls_api = 4
+terminal_replies = 5
+screens = [
+    "hooks-review",
+    "prompt",
+    "answered",
+    "final",
+]

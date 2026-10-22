@@ -1,0 +1,779 @@
+/* The phone app. These rules come after the styles of the chrome, with no layer, so they
+   win over every layer of it. The colours are the tokens of `styles/tokens.css`, and `/theme.css`
+   of the listener sets them before the socket opens.
+
+   Two parts: the views of a phone alone (Pair, This phone, the waits), in a box `.phone` with a
+   gutter of 16 px, and the desk on the phone (`.shell.phone`). Each control is at least
+   44 px high, and each field has a font of 16 px, so that Safari does not zoom. */
+:root {
+  --control: 44px;
+  -webkit-text-size-adjust: 100%;
+}
+
+/* --- the views of a phone alone ---------------------------------------------------------------- */
+
+.phone-page {
+  --gutter: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  box-sizing: border-box;
+  height: 100dvh;
+  overflow-y: auto;
+  padding: max(12px, env(safe-area-inset-top)) max(var(--gutter), env(safe-area-inset-right))
+    max(32px, env(safe-area-inset-bottom)) max(var(--gutter), env(safe-area-inset-left));
+  font: 14px / 1.45 var(--font-data);
+}
+
+.phone-banner {
+  margin: 0;
+  padding: 8px 16px;
+  background: var(--caution);
+  color: var(--on-signal);
+}
+
+/* The banner of a lost connection lies over the desk, under the safe area of the top. */
+.phone-banner-top {
+  position: fixed;
+  top: env(safe-area-inset-top);
+  left: 0;
+  right: 0;
+  z-index: 50;
+}
+
+.phone-section,
+.phone-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.phone-title {
+  margin: 0;
+  font-size: inherit;
+  font-weight: 700;
+  color: var(--text-dim);
+  text-transform: uppercase;
+}
+
+.phone-empty,
+.phone-note {
+  margin: 0;
+  color: var(--text-dim);
+  overflow-wrap: anywhere;
+}
+
+.phone-page .card-button,
+.phone-button {
+  justify-content: center;
+  min-height: var(--control);
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  color: var(--text);
+  text-align: center;
+  text-decoration: none;
+}
+
+.phone-button.selected {
+  border-color: var(--text);
+  color: var(--text);
+}
+
+.phone-button.danger {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.phone-button:disabled {
+  opacity: 0.5;
+}
+
+/* The switch Notifications: the whole line takes the tap. */
+.phone-switch {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: var(--control);
+  color: var(--text);
+}
+
+.phone-switch input {
+  width: 24px;
+  height: 24px;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.phone-field {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: var(--control);
+  padding: 8px 10px;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 0;
+  font: 16px / 1.4 var(--font-data);
+}
+
+.phone-label {
+  color: var(--text-dim);
+}
+
+.phone-code {
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.phone-steps {
+  margin: 0;
+  padding-left: 2ch;
+}
+
+.phone-steps li + li {
+  margin-top: 6px;
+}
+
+/* --- the desk on the phone --------------------------------------------------------- */
+
+/* The shell has the height of the visual viewport, so that the panes stay above the keyboard. The
+   safe areas are part of the padding. */
+.shell.phone {
+  height: var(--phone-height, 100dvh);
+  padding: max(var(--gutter), env(safe-area-inset-top))
+    max(var(--gutter), env(safe-area-inset-right)) max(var(--gutter), env(safe-area-inset-bottom))
+    max(var(--gutter), env(safe-area-inset-left));
+}
+
+/* Every field has a font of 16 px: Safari zooms into a field with a smaller one. */
+.shell.phone :is(input:not([type='checkbox']):not([type='radio']), textarea, select) {
+  font-size: 16px;
+}
+
+/* The command line: Workspaces, the search field, and the attention pill. */
+.shell.phone .commandbar {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: var(--s2);
+  padding: 0 var(--s2);
+}
+
+.phone-workspaces {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--control);
+  height: var(--control);
+  color: var(--text);
+}
+
+.phone-workspaces[aria-pressed='true'] {
+  background: var(--bg-hover);
+  border-radius: var(--r-sm);
+}
+
+.shell.phone .ticker :is(.ticker-title, .handle, kbd) {
+  display: none;
+}
+
+.shell.phone .ticker-next,
+.shell.phone .cmdline {
+  min-height: 36px;
+}
+
+/* Each control of the chrome has the height of a finger. */
+.shell.phone
+  :is(
+    .tab,
+    .drawer-tab,
+    .card-button,
+    .phone-dock-button,
+    .phone-sheet-close,
+    .phone-more-row,
+    .settings-section-button
+  ) {
+  min-height: var(--control);
+}
+
+.shell.phone .tabbar {
+  height: var(--control);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.shell.phone .tablist {
+  flex: none;
+}
+
+/* The strip of a pane keeps room for the cells: its buttons are 36 px. */
+.shell.phone .pane-title {
+  min-height: 36px;
+}
+
+.shell.phone .pane-button,
+.shell.phone .pane-size {
+  min-width: 36px;
+  min-height: 36px;
+}
+
+/* Float and zoom are in the menu ⋯ of a pane on a phone. */
+.shell.phone .pane-button:is([data-action='float'], [data-action='zoom']) {
+  display: none;
+}
+
+/* A link to an address of the Mac: it does not open on the phone. */
+.rich-note {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s2);
+  margin: var(--s2) 0 0;
+  color: var(--text-dim);
+}
+
+.rich-note code {
+  overflow-wrap: anywhere;
+}
+
+/* The menu of a long press, over a scrim that takes the tap beside it. */
+.press-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+}
+
+.press-menu {
+  position: fixed;
+  z-index: 61;
+  display: flex;
+  flex-direction: column;
+  padding: var(--s1);
+  border-radius: var(--r-md);
+  background: var(--glass);
+  -webkit-backdrop-filter: var(--glass-filter);
+  backdrop-filter: var(--glass-filter);
+  box-shadow: var(--glass-edge), var(--glass-shadow);
+}
+
+.press-item {
+  min-height: var(--control);
+  padding: 0 var(--s3);
+  border-radius: var(--r-sm);
+  color: var(--text);
+  text-align: left;
+}
+
+.press-item:active {
+  background: var(--bg-hover);
+}
+
+.press-item.danger {
+  color: var(--danger);
+}
+
+/* With no hover, the parts that a hover shows are always on. */
+@media (hover: none) {
+  .shell.phone .row-close {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .shell.phone .scrollbar.active {
+    opacity: 1;
+  }
+
+  /* A finger is wider than the gap of 8 px: a divider and a gutter take the touches near them,
+     and the corner of a floating pane is larger. Its strip moves it with no scroll of Safari. */
+  .shell.phone :is(.divider, .gutter) {
+    z-index: 2;
+  }
+
+  .shell.phone :is(.divider, .gutter)::before {
+    content: '';
+    position: absolute;
+    inset: 0 -10px;
+  }
+
+  .shell.phone .split.column > .divider::before {
+    inset: -10px 0;
+  }
+
+  .shell.phone .float-resize {
+    width: 28px;
+    height: 28px;
+  }
+
+  .shell.phone .floating .pane-title {
+    touch-action: none;
+  }
+}
+
+/* The dots of the single view: one for each pane of the tab. */
+.pane-dots {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+  padding: 0 var(--s1);
+}
+
+.pane-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-dim);
+  opacity: 0.5;
+}
+
+.pane-dot.current {
+  background: var(--text);
+  opacity: 1;
+}
+
+/* The single view: the one pane fills the tab. */
+.layout.single > .pane {
+  flex: 1;
+}
+
+/* The bottom bar: the tabs of the drawer and More. It shows in portrait only. */
+.phone-dock {
+  display: none;
+}
+
+.phone-dock-button {
+  position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-width: 0;
+  color: var(--text-dim);
+  font: var(--t-small);
+}
+
+.phone-dock-button[aria-pressed='true'] {
+  color: var(--text);
+  background: var(--bg-hover);
+  border-radius: var(--r-sm);
+}
+
+.phone-dock-button.hot {
+  color: var(--caution);
+}
+
+.phone-dock-count {
+  position: absolute;
+  top: 2px;
+  right: calc(50% - 22px);
+  min-width: 16px;
+  padding: 0 4px;
+  box-sizing: border-box;
+  border-radius: 8px;
+  background: var(--caution);
+  color: var(--on-signal);
+  font: 600 10px / 16px var(--font-ui);
+  text-align: center;
+}
+
+/* The sheets of More and of the settings take the screen under the command line. */
+.phone-sheet {
+  grid-area: 2 / 1 / -1 / -1;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--bg-raised);
+  border-radius: var(--r-panel);
+  box-shadow:
+    inset 0 0 0 1px var(--hairline),
+    var(--glass-shadow);
+}
+
+.phone-sheet-head {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  min-height: var(--control);
+  padding: 0 var(--s1) 0 var(--s3);
+  border-bottom: 1px solid var(--hairline);
+}
+
+.phone-sheet-title {
+  margin: 0;
+  font: var(--t-title);
+}
+
+.phone-sheet-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--control);
+  color: var(--text-dim);
+}
+
+.phone-sheet-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* The settings in a sheet: the sections are a row that scrolls sideways, over the settings. */
+.phone-sheet .settings {
+  display: flex;
+  flex-direction: column;
+  height: auto;
+  padding: var(--s2);
+}
+
+.phone-sheet .settings-nav {
+  flex-direction: row;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.phone-sheet .settings-section-button {
+  flex: none;
+}
+
+.phone-sheet .settings-main {
+  padding: var(--s3) var(--s1);
+  overflow: visible;
+}
+
+.phone-sheet .setting {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+/* This phone, in the section Phone of the settings. */
+.phone-sheet .phone-section {
+  margin-bottom: var(--s4);
+}
+
+/* More: the commands, the facts of the status bar, and the actions. */
+.phone-more {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+  padding: var(--s2);
+}
+
+.phone-more-list,
+.phone-more-warnings {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.phone-more-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s2);
+  width: 100%;
+  padding: 0 var(--s3);
+  border-radius: var(--r-sm);
+  color: var(--text);
+  text-align: left;
+}
+
+.phone-more-row[aria-pressed='true'] {
+  background: var(--bg-hover);
+}
+
+.phone-more-row.danger {
+  color: var(--danger);
+}
+
+.phone-more-facts {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--s1) var(--s3);
+  margin: 0;
+  padding: 0 var(--s3);
+  color: var(--text-dim);
+}
+
+.phone-more-facts dd {
+  margin: 0;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.phone-more-warnings li {
+  padding: var(--s1) var(--s3);
+  color: var(--caution);
+}
+
+.phone-more-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s1);
+}
+
+.phone-more-confirm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s2);
+  padding: var(--s2) var(--s3);
+  border-radius: var(--r-sm);
+  background: var(--tint-danger);
+}
+
+.phone-more-confirm p {
+  flex-basis: 100%;
+  margin: 0;
+}
+
+.phone-more-note {
+  margin: 0;
+  padding: 0 var(--s3);
+  color: var(--text-dim);
+}
+
+/* The box Reply of a run whose turn ended, in the Inbox. */
+.card-reply {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s1);
+  margin-top: var(--s2);
+}
+
+.card-field {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: var(--control);
+  padding: 8px 10px;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--text-dim);
+  border-radius: var(--r-sm);
+  font: 16px / 1.4 var(--font-data);
+  resize: vertical;
+}
+
+/* A finger on a pane is the input of the page: no scroll and no zoom of the browser. */
+.shell.phone .pane-surface {
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* The key bar over the keyboard, in the place of the bottom bar, and the field of Compose. */
+.key-bar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s1);
+  min-width: 0;
+  padding: var(--s1);
+  background: var(--bg-raised);
+  border-radius: var(--r-panel);
+  box-shadow: inset 0 0 0 1px var(--hairline);
+}
+
+.key-row {
+  display: flex;
+  gap: var(--s1);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.key {
+  flex: none;
+  min-width: var(--control);
+  min-height: var(--control);
+  padding: 0 var(--s2);
+  border-radius: var(--r-sm);
+  background: var(--bg-hover);
+  color: var(--text);
+  font: 500 15px / 1 var(--font-data);
+}
+
+.key[aria-pressed='true'] {
+  background: var(--text);
+  color: var(--bg);
+}
+
+.key[data-locked='true'] {
+  box-shadow: inset 0 -3px 0 var(--accent);
+}
+
+.key-compose {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s1);
+}
+
+.key-compose-field {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 88px;
+  padding: 8px 10px;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--text-dim);
+  border-radius: var(--r-sm);
+  font: 16px / 1.4 var(--font-data);
+  resize: none;
+}
+
+.key-compose-buttons {
+  display: flex;
+  gap: var(--s2);
+}
+
+/* The bar of a selection that a long press made: Copy and Paste. */
+.selection-bar {
+  position: absolute;
+  top: var(--s2);
+  left: 50%;
+  translate: -50% 0;
+  z-index: 2;
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: var(--r-md);
+  background: var(--glass);
+  -webkit-backdrop-filter: var(--glass-filter);
+  backdrop-filter: var(--glass-filter);
+  box-shadow: var(--glass-edge), var(--glass-shadow);
+}
+
+.selection-bar button {
+  min-width: 72px;
+  min-height: var(--control);
+  border-radius: var(--r-sm);
+  color: var(--text);
+}
+
+@media (orientation: portrait) {
+  /* The command line, the board, the tab bar with one pane, and the bottom bar. */
+  .shell.phone {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: var(--control) auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      'cmd'
+      'board'
+      'main'
+      'dock';
+  }
+
+  .shell.phone > :is(.statusbar, .left-rail, .drawer-rail, .gutter) {
+    display: none;
+  }
+
+  .shell.phone > .key-bar {
+    grid-area: dock;
+  }
+
+  .shell.phone > .phone-dock {
+    grid-area: dock;
+    display: flex;
+    gap: var(--s1);
+    min-height: 52px;
+    padding: var(--s1);
+    background: var(--bg-raised);
+    border-radius: var(--r-panel);
+    box-shadow: inset 0 0 0 1px var(--hairline);
+  }
+
+  /* The drawer is a sheet over the pane area, up to the board: a phone has no room beside it. */
+  .shell.phone > .drawer {
+    grid-area: main;
+    z-index: 20;
+    min-height: 0;
+    box-shadow:
+      inset 0 0 0 1px var(--hairline),
+      var(--glass-shadow);
+  }
+
+  /* The left column is a sheet from the left, over the board and the panes. */
+  .shell.phone > .sidebar {
+    grid-row: 2 / 4;
+    grid-column: 1;
+    justify-self: start;
+    z-index: 20;
+    width: min(85%, 340px);
+    min-height: 0;
+    box-shadow:
+      inset 0 0 0 1px var(--hairline),
+      var(--glass-shadow);
+  }
+
+  /* The palette and the search take the width of the screen. */
+  .shell.phone .palette {
+    left: var(--s1);
+    right: var(--s1);
+    translate: none;
+    width: auto;
+  }
+
+  /* The task dialog and the large view of a file take the screen. */
+  .shell.phone :is(.task-dialog, .file-modal) {
+    box-sizing: border-box;
+    width: 100vw;
+    height: 100dvh;
+    max-height: none;
+    margin: 0;
+    padding-top: env(safe-area-inset-top);
+    border-radius: 0;
+  }
+}
+
+@media (orientation: landscape) {
+  /* While a pane has the keyboard, the key bar takes the place of the status bar. */
+  .shell.phone.typing {
+    grid-template-rows: 44px auto minmax(0, 1fr) auto;
+  }
+
+  .shell.phone.typing > .statusbar {
+    display: none;
+  }
+
+  .shell.phone > .key-bar {
+    grid-area: status;
+  }
+}
+
+/* The machines of the Mac at the end of the left column. A row is high enough for a
+   finger, and the machine that the desk shows has its name in bold. */
+.phone-machines {
+  margin-top: var(--s3);
+}
+
+.machine-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.machine-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  min-height: 44px;
+  padding: 0 var(--s2);
+}
+
+.machine-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.machine-row[aria-current='true'] .machine-name {
+  font-weight: 600;
+}
+
+.machine-state {
+  color: var(--text-dim);
+  font-size: 12px;
+}

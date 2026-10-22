@@ -1,0 +1,6 @@
+{"event":"SessionStart","reply":"continue","signals":["SessionStarted { session_id: \"01a11de7-0f6e-7d30-a66f-a34511b9a945\", transcript_path: Some(\"/private/tmp/nhg-codex/home/codex/sessions/2026/10/09/rollout-2026-10-09T01-44-04-01a11de7-0f6e-7d30-a66f-a34511b9a945.jsonl\"), source: Startup, model: Some(\"mock-model\") }","PermissionMode { mode: \"bypassPermissions\" }"]}
+{"event":"UserPromptSubmit","reply":"continue","signals":["TurnStarted { turn_ref: Some(\"01a11de7-124d-7863-9754-9c2e7e3b5dac\"), prompt_preview: Some(\"make a note\") }"]}
+{"event":"PreToolUse","reply":"continue","signals":["ToolStarted { call_id: \"call_mock_0001_1\", tool: \"Bash\", input: Object {\"command\": String(\"touch note.txt\")} }"]}
+{"event":"PostToolUse","reply":"continue","signals":["ToolEnded { call_id: \"call_mock_0001_1\", tool: \"Bash\", ok: true, summary: None }"]}
+{"event":"Stop","reply":"continue","signals":["TurnEnded { turn_ref: Some(\"01a11de7-124d-7863-9754-9c2e7e3b5dac\"), stop_reason: None, last_message_preview: Some(\"The note is made.\") }"]}
+{"event":"SessionEnd","reply":"continue","signals":["SessionEnded { reason: \"other\" }"]}

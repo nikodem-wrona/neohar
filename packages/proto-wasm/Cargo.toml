@@ -1,0 +1,25 @@
+[package]
+name = "proto-wasm"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+nh-proto = { path = "../../crates/nh-proto" }
+postcard.workspace = true
+serde.workspace = true
+wasm-bindgen.workspace = true
+
+[dev-dependencies]
+nh-fixture = { path = "../../tools/nh-fixture" }
+nh-term = { path = "../../crates/nh-term", features = ["test-support"] }
+proptest.workspace = true

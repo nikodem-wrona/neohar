@@ -1,0 +1,65 @@
+[package]
+name = "neohar-desktop"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true
+
+[lib]
+name = "neohar_desktop"
+
+[[bin]]
+name = "neohar-desktop"
+path = "src/main.rs"
+
+[features]
+# `cargo tauri build` turns this on: the app then serves the files of `frontendDist` and not the
+# dev server. A build with `cargo build --release` needs `--features custom-protocol`.
+custom-protocol = ["tauri/custom-protocol"]
+# A check of the sandbox of the webview (`NEOHAR_SELFTEST=1`, `mise run test:host`). A release of the
+# product is built without this feature.
+selftest = []
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+async-trait.workspace = true
+nh-core = { path = "../../../crates/nh-core" }
+nh-proto = { path = "../../../crates/nh-proto" }
+# `link.sock`: the server of the links of clients.
+nh-remote = { path = "../../../crates/nh-remote" }
+# The listener of the phone, for the core in the process of the app.
+nh-web = { path = "../../../crates/nh-web" }
+serde_json.workspace = true
+tauri = { version = "2", features = ["tray-icon"] }
+# The host calls these from Rust. The webview gets none of their commands: its capability allows the
+# three commands of the transport and nothing else.
+tauri-plugin-clipboard-manager = "2"
+tauri-plugin-deep-link = "2"
+tauri-plugin-dialog = "2"
+tauri-plugin-global-shortcut = "2"
+tauri-plugin-opener = "2"
+tauri-plugin-single-instance = "2"
+tracing.workspace = true
+tokio.workspace = true
+ulid.workspace = true
+
+# The notification centre and the dock badge of macOS. The bindings are safe to
+# call from the thread that the framework wants, and the one module that declares the delegate
+# needs `unsafe` for the macro of objc2. The lock of the screen and the sleep of the displays
+# come from the notification centres of Foundation and of `NSWorkspace`.
+[target.'cfg(target_os = "macos")'.dependencies]
+block2 = "0.6"
+objc2 = "0.6"
+objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSAlert", "NSApplication", "NSControl", "NSDockTile", "NSResponder", "NSSecureTextField", "NSTextField", "NSView", "NSWindow", "NSWorkspace"] }
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "block2", "NSArray", "NSBundle", "NSDictionary", "NSDistributedNotificationCenter", "NSError", "NSGeometry", "NSNotification", "NSOperation", "NSSet", "NSString", "NSValue", "NSObject"] }
+objc2-user-notifications = "0.3"
+# The faces of the fonts that the person installed: CoreText finds their files.
+objc2-core-foundation = { version = "0.3", default-features = false, features = ["std", "CFArray", "CFDictionary", "CFNumber", "CFString", "CFURL"] }
+objc2-core-text = { version = "0.3", default-features = false, features = ["std", "CTFontDescriptor", "CTFontTraits"] }

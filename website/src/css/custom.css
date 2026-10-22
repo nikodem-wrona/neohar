@@ -1,0 +1,173 @@
+/*
+ * The theme of the site. The dark colours are the tokens of the app itself
+ * (packages/ui/src/styles/tokens.css, the defaults of `[theme]` in
+ * crates/nh-core/src/config/defaults.toml), so the site looks like neohar: black, white text,
+ * green for what is live, amber for a wait and red for an error. The site has its own
+ * `bun install`, so it copies the values; tokens.css is the source. The light colours are the same
+ * grays and hues at a lightness that has a contrast of 4.5 or more on the light ground.
+ */
+
+:root {
+  --nh-bg: #fafafa;
+  --nh-bg-raised: #ffffff;
+  --nh-bg-hover: #f0f0f0;
+  --nh-line: #d9d9d9;
+  --nh-text: #161616;
+  --nh-text-dim: #5d5d5d;
+  --nh-accent: #0a7e3a;
+  --nh-accent-soft: rgba(10, 126, 58, 0.1);
+  --nh-danger: #c92f33;
+  --nh-warn: #946400;
+
+  --ifm-color-primary: #0a7e3a;
+  --ifm-color-primary-dark: #097134;
+  --ifm-color-primary-darker: #086b31;
+  --ifm-color-primary-darkest: #075829;
+  --ifm-color-primary-light: #0b8b40;
+  --ifm-color-primary-lighter: #0b9143;
+  --ifm-color-primary-lightest: #0da44b;
+  --ifm-background-color: var(--nh-bg);
+  --ifm-background-surface-color: var(--nh-bg-raised);
+  --ifm-font-color-base: var(--nh-text);
+  --ifm-toc-border-color: var(--nh-line);
+  --ifm-hr-border-color: var(--nh-line);
+  --ifm-table-border-color: var(--nh-line);
+  --ifm-code-font-size: 88%;
+  --ifm-font-family-base: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --ifm-font-family-monospace: 'JetBrains Mono', 'SF Mono', Menlo, 'DejaVu Sans Mono', monospace;
+  --ifm-heading-font-weight: 650;
+  --ifm-navbar-shadow: none;
+  /* The radii of the app (tokens.css): a control, a card, a panel. */
+  --ifm-global-radius: 6px;
+  --ifm-card-border-radius: 10px;
+  --ifm-code-border-radius: 6px;
+  --ifm-alert-border-radius: 10px;
+  --ifm-pagination-nav-border-radius: 10px;
+  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.08);
+}
+
+[data-theme='dark'] {
+  --nh-bg: #000000;
+  --nh-bg-raised: #141414;
+  --nh-bg-hover: #262626;
+  --nh-line: #3d3d3d;
+  --nh-text: #f2f2f2;
+  --nh-text-dim: #989898;
+  --nh-accent: #4aea7d;
+  --nh-accent-soft: rgba(74, 234, 125, 0.12);
+  --nh-danger: #ff5251;
+  --nh-warn: #ffb831;
+
+  --ifm-color-primary: #4aea7d;
+  --ifm-color-primary-dark: #2ee769;
+  --ifm-color-primary-darker: #21e55f;
+  --ifm-color-primary-darkest: #16c14d;
+  --ifm-color-primary-light: #66ed91;
+  --ifm-color-primary-lighter: #73ef9b;
+  --ifm-color-primary-lightest: #9df4b8;
+  --ifm-background-color: var(--nh-bg);
+  --ifm-background-surface-color: var(--nh-bg-raised);
+  --ifm-navbar-background-color: rgba(0, 0, 0, 0.92);
+  --ifm-footer-background-color: #0a0a0a;
+  --ifm-font-color-base: var(--nh-text);
+  --ifm-color-content-secondary: var(--nh-text-dim);
+  --docusaurus-highlighted-code-line-bg: rgba(255, 255, 255, 0.07);
+}
+
+body {
+  background: var(--nh-bg);
+}
+
+.navbar {
+  border-bottom: 1px solid var(--nh-line);
+  backdrop-filter: saturate(140%) blur(8px);
+}
+
+.navbar__title {
+  font-family: var(--ifm-font-family-monospace);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.navbar__logo img {
+  border-radius: 5px;
+}
+
+/* Documents: tighter tables and readable long reference pages. */
+.markdown table {
+  display: table;
+  width: 100%;
+  font-size: 0.9rem;
+}
+
+.markdown table thead tr {
+  background: var(--nh-bg-hover);
+}
+
+.markdown table tr:nth-child(2n) {
+  background: transparent;
+}
+
+.markdown table td,
+.markdown table th {
+  padding: 0.45rem 0.7rem;
+  vertical-align: top;
+}
+
+@media (max-width: 996px) {
+  .markdown table {
+    display: block;
+    overflow-x: auto;
+  }
+}
+
+.markdown h2 {
+  margin-top: 2.6rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--nh-line);
+}
+
+.markdown h1 + h2,
+.markdown header + h2 {
+  border-top: none;
+}
+
+.markdown blockquote {
+  border-left-color: var(--nh-accent);
+  background: var(--nh-accent-soft);
+  padding: 0.6rem 1rem;
+  color: inherit;
+}
+
+.markdown blockquote p:last-child {
+  margin-bottom: 0;
+}
+
+code {
+  border: 1px solid var(--nh-line);
+  background: var(--nh-bg-hover);
+}
+
+a code {
+  color: var(--ifm-link-color);
+}
+
+.theme-doc-sidebar-container {
+  border-right-color: var(--nh-line) !important;
+}
+
+.menu__link {
+  font-size: 0.92rem;
+}
+
+.footer {
+  border-top: 1px solid var(--nh-line);
+}
+
+/* Mermaid diagrams fit their column and stay centred. */
+.docusaurus-mermaid-container {
+  display: flex;
+  justify-content: center;
+  overflow-x: auto;
+  margin-bottom: var(--ifm-leading);
+}

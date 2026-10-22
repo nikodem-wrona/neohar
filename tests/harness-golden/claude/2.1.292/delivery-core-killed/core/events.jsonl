@@ -1,0 +1,6 @@
+{"detail":{"mode":"gate","state":"open"},"op":"wait","t":0.664514}
+{"detail":{"gates":1,"signals":3},"op":"kill","t":1.83273}
+{"detail":{"interactions":1},"op":"start","t":2.353997}
+{"detail":{"mode":"gate","state":"open"},"op":"wait","t":2.381298}
+{"detail":{"result":{"rev":1,"state":"decision_recorded"}},"op":"answer","t":2.382234}
+{"detail":{"mode":"gate","state":"delivered"},"op":"wait","t":2.891729}

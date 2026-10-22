@@ -1,0 +1,414 @@
+/* The Inbox and its cards, and the rich content that a card or a file shows: the
+   plan as HTML, a diff, and the classes of highlighted text. */
+@layer components {
+  /* --- the inbox and the cards --------------------------------------------------------- */
+
+  .inbox {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .inbox-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .inbox-run {
+    margin: 0;
+    font-size: inherit;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .inbox-pane {
+    color: var(--text-dim);
+    font-weight: 400;
+  }
+
+  .card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s2);
+    min-width: 0;
+    padding: var(--s1) var(--s3) var(--s3);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-md);
+    background: var(--bg-card);
+  }
+
+  /* The focus is a ring around the card, so the border keeps the colour of its state. */
+  .card:focus-visible,
+  .card:focus-within {
+    outline: 1px solid var(--text);
+    outline-offset: 2px;
+  }
+
+  /* A card that waits for a person has an amber border and tint, and a red one at a high risk.
+    A card whose answer may not have arrived stays amber. */
+  .card[data-state='open'],
+  .card[data-state='delivery_unknown'] {
+    border-color: var(--caution);
+    background: var(--tint-caution);
+  }
+
+  .card.risk-high[data-state='open'] {
+    border-color: var(--danger);
+    background: var(--tint-danger);
+  }
+
+  .card-button:focus-visible,
+  .card input:focus-visible,
+  .card textarea:focus-visible {
+    outline: 1px solid var(--text);
+    outline-offset: 0;
+  }
+
+  /* The line of a run that counts in the inbox without a card. */
+  .card-run-state[data-state='error'] .card-title {
+    color: var(--danger);
+  }
+
+  .card-run-state[data-state='rate_limited'] .card-title {
+    color: var(--text-dim);
+  }
+
+  /* A card that ended keeps the contrast of its text: a dashed border and a dim title, not a lower
+     opacity (WCAG 1.4.3). */
+  .card-ended {
+    border-style: dashed;
+  }
+
+  .card-ended .card-title {
+    color: var(--text-dim);
+  }
+
+  /* The head of a card: its title, its risk and its handle. */
+  .card-head {
+    display: flex;
+    gap: 1ch;
+    align-items: center;
+    min-height: 32px;
+  }
+
+  .card-title {
+    flex: 1;
+    margin: 0;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+  }
+
+  .card-risk,
+  .card-handle,
+  .card-label {
+    color: var(--text-dim);
+  }
+
+  .card-handle {
+    color: var(--text-dim);
+  }
+
+  .card-risk {
+    text-transform: uppercase;
+    font-weight: 600;
+  }
+
+  .card-risk[data-risk='high'] {
+    padding: 0 6px;
+    border-radius: 4px;
+    background: var(--danger);
+    color: var(--on-signal);
+  }
+
+  .card-risk[data-risk='medium'] {
+    color: var(--caution);
+  }
+
+  .card-command,
+  .card-peek,
+  .card-input pre {
+    margin: 0;
+    padding: 6px var(--s2);
+    border-radius: var(--r-sm);
+    background: var(--bg);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    max-height: 160px;
+    overflow: auto;
+  }
+
+  .card-command {
+    color: var(--text);
+  }
+
+  .card-peek {
+    color: var(--text-dim);
+    background: transparent;
+    padding: 0;
+  }
+
+  .card-reasons,
+  .card-paths {
+    margin: 0;
+    padding-left: 2ch;
+    color: var(--text);
+  }
+
+  .card-hint,
+  .card-note,
+  .card-context,
+  .card-cwd,
+  .card-text {
+    margin: 0;
+    color: var(--text-dim);
+    overflow-wrap: anywhere;
+  }
+
+  .card-cwd {
+    color: var(--text);
+  }
+
+  .card-input summary {
+    color: var(--text-dim);
+    cursor: pointer;
+  }
+
+  .card-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    align-items: center;
+  }
+
+  .card-approval .card-button {
+    flex: 1 1 calc(50% - 4px);
+  }
+
+  .card-button {
+    display: flex;
+    align-items: center;
+    gap: 1ch;
+    padding: 4px var(--s2);
+    border: 1px solid var(--line);
+    color: var(--text);
+    text-align: left;
+  }
+
+  .card-button:hover:not(:disabled) {
+    border-color: var(--text);
+  }
+
+  .card-button.selected {
+    border-color: var(--text);
+    color: var(--text);
+  }
+
+  .card-button.refuses.selected {
+    border-color: var(--danger);
+    color: var(--danger);
+  }
+
+  /* The answers that let the agent go on are green, and the answer that stops it is red. */
+  .card-button:is([data-choice='allow'], [data-choice='allow_always'], [data-choice='approve']) {
+    color: var(--accent);
+  }
+
+  .card-button.selected:is(
+      [data-choice='allow'],
+      [data-choice='allow_always'],
+      [data-choice='approve']
+    ) {
+    border-color: var(--accent);
+  }
+
+  .card-button[data-choice='deny_stop'] {
+    color: var(--danger);
+  }
+
+  .card-button:disabled {
+    opacity: 0.5;
+  }
+
+  .card-key {
+    padding: 0 5px;
+    border-radius: 4px;
+    background: var(--cap);
+    color: var(--text);
+    font-weight: 600;
+  }
+
+  .card-button.selected .card-key {
+    background: var(--here);
+    color: var(--on-here);
+  }
+
+  .card-button.refuses.selected .card-key {
+    background: var(--danger);
+  }
+
+  .card-message,
+  .card-feedback {
+    flex: 1 1 100%;
+    box-sizing: border-box;
+    padding: 1px 6px;
+    color: var(--text);
+    font: inherit;
+    background: var(--bg);
+    border: 1px solid var(--text-dim);
+  }
+
+  .card-message::placeholder,
+  .card-feedback::placeholder {
+    color: var(--text-dim);
+  }
+
+  .card-feedback {
+    min-height: 56px;
+    resize: vertical;
+  }
+
+  .card-question {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    min-width: 0;
+  }
+
+  .card-option {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0 6px;
+  }
+
+  .card-option-description {
+    grid-column: 2;
+    color: var(--text-dim);
+  }
+
+  .card-status {
+    margin: 0;
+  }
+
+  .card-status[data-tone='ok'] {
+    color: var(--live);
+  }
+
+  .card-status[data-tone='warn'] {
+    color: var(--caution);
+  }
+
+  .card-status[data-tone='error'],
+  .card-error {
+    color: var(--danger);
+  }
+
+  .card-status[data-tone='info'] {
+    color: var(--text);
+  }
+
+  .card-status[data-tone='muted'] {
+    color: var(--text-dim);
+  }
+
+  .card-error {
+    margin: 0;
+  }
+
+  /* The plan of an agent. `contain: content` keeps its layout out of the page. */
+  .rich-html {
+    contain: content;
+    max-height: 260px;
+    overflow: auto;
+    overflow-wrap: anywhere;
+  }
+
+  .rich-html h1,
+  .rich-html h2,
+  .rich-html h3 {
+    margin: 6px 0 2px;
+    font-size: inherit;
+    color: var(--text);
+  }
+
+  .diff {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    max-height: 240px;
+    overflow: auto;
+  }
+
+  .diff-title {
+    color: var(--text-dim);
+    cursor: default;
+  }
+
+  .diff-hunk-header {
+    color: var(--text-dim);
+  }
+
+  .diff-line {
+    display: grid;
+    grid-template-columns: 3ch 3ch 1ch 1fr;
+    gap: 0 4px;
+    white-space: pre-wrap;
+  }
+
+  .diff-num {
+    color: var(--text-dim);
+    text-align: right;
+  }
+
+  .diff-add {
+    background: var(--fill-live);
+  }
+
+  .diff-del {
+    background: var(--fill-danger);
+  }
+
+  .diff-intra {
+    background: var(--fill-mark);
+  }
+
+  .diff-truncated {
+    margin: 0;
+    color: var(--text-dim);
+  }
+
+  /* The classes of highlighted text. */
+  .hl-kw,
+  .hl-cmd,
+  .hl-tag {
+    color: var(--syntax-keyword);
+  }
+
+  .hl-str {
+    color: var(--syntax-string);
+  }
+
+  .hl-num,
+  .hl-const,
+  .hl-esc,
+  .hl-ty,
+  .hl-opt {
+    color: var(--syntax-number);
+  }
+
+  .hl-com {
+    color: var(--syntax-comment);
+  }
+
+  .hl-fn,
+  .hl-attr {
+    color: var(--syntax-function);
+  }
+
+  .hl-err {
+    color: var(--danger);
+  }
+}

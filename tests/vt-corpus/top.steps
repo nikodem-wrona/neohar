@@ -1,0 +1,34 @@
+# top (macOS, interactive) on one busy process (see top.setup.sh). 100x30, no resize.
+#
+# top refreshes once a second and redraws only the cells that changed. Where the steps wait for
+# refreshes, they wait for a time (1.1 s per refresh) because the end of a refresh does not look
+# the same twice. Everything else waits for what top prints. The busy process ends itself after
+# 25 s, and the steps need about 12 s.
+
+# The first full screen ends with the row of the process. Then four refreshes.
+expect "running *0[1]"
+wait 4400
+
+# The help screen, and back to the full screen. Then two refreshes.
+send "?"
+expect "Press any key to continue..."
+send "x"
+expect "running *0[1]"
+wait 2200
+
+# Redraw with ^L. Then two refreshes.
+send "\x0c"
+expect "\e[?1h\e="
+wait 2200
+
+# Change the sort key: top asks for it in the line above the table. Then two refreshes.
+send "o"
+expect "primary key [-cpu]:"
+send "mem"
+expect "\e[9;23Hm"
+send "\r"
+expect "MEM\e[11;21H"
+wait 2200
+
+send "q"
+expect_exit

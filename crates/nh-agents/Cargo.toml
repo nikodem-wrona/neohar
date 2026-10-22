@@ -1,0 +1,33 @@
+[package]
+name = "nh-agents"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+async-trait.workspace = true
+blake3.workspace = true
+libc.workspace = true
+# The facets and the capabilities are the types of the API, so the arbiter makes them
+# as the projections show them.
+nh-proto = { path = "../nh-proto", features = ["api"] }
+regex.workspace = true
+# The probes run a harness in its own process group and kill the group (`run_output`).
+rustix = { workspace = true, features = ["process"] }
+schemars.workspace = true
+semver.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+toml.workspace = true
+
+[dev-dependencies]
+# The tests replay the casts of the recordings through the engine of the panes.
+nh-term = { path = "../nh-term" }
+tokio = { workspace = true, features = ["macros", "rt"] }

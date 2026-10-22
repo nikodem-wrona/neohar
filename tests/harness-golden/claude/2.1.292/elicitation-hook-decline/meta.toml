@@ -1,0 +1,23 @@
+harness = "claude"
+harness_version = "2.1.292"
+scenario = "elicitation-hook-decline"
+scenario_blake3 = "05e8da57ba86965b2af114b8a790c902344b336f10951ac8c1c3ffaa0e4cde5f"
+mode = "pty"
+os = "macos 26.6.2"
+arch = "aarch64"
+cols = 120
+rows = 40
+duration_ms = 2402
+exit = "code 0"
+llm_requests = 3
+llm_main_requests = 2
+turns_used = 2
+turns_total = 2
+unmatched_main = 0
+hook_calls = 7
+hook_calls_api = 7
+terminal_replies = 6
+screens = [
+    "answered",
+    "final",
+]

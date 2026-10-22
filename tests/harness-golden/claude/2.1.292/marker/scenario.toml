@@ -1,0 +1,53 @@
+# Claude Code: every hook object has an extra key (_neohar = true). Claude Code loads the settings and the hooks still fire.
+harness = "claude"
+cols = 120
+rows = 40
+hook_marker = "_neohar"
+
+
+[[turn]]
+blocks = [{ type = "text", text = "Hello from the mock model." }]
+
+# Text that differs from run to run is hidden when two recordings are compared.
+[[mask]]
+# Claude Code names the time it worked with a verb that it picks at random.
+pattern = "✻ \\S+ for [0-9hms ]+ · done \\d+:\\d+ [AP]M"
+with = "✻ <verb> for <time spent> · done <time>"
+
+[[mask]]
+pattern = "claude --resume [0-9a-f-]{36}"
+with = "claude --resume <session>"
+
+[[step]]
+wait_signal = "SessionStart"
+
+[[step]]
+wait_screen = "^❯"
+
+[[step]]
+send = "say hello"
+
+[[step]]
+sleep_ms = 300
+
+[[step]]
+key = "enter"
+
+[[step]]
+wait_signal = "Stop"
+
+[[step]]
+snapshot = "answered"
+
+
+[[step]]
+send = "/exit"
+
+[[step]]
+sleep_ms = 300
+
+[[step]]
+key = "enter"
+
+[[step]]
+expect_exit = true

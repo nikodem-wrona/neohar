@@ -1,0 +1,51 @@
+# Claude Code: start, show the prompt, answer one prompt with text, and exit (P0-14b).
+harness = "claude"
+cols = 120
+rows = 40
+
+[[turn]]
+blocks = [{ type = "text", text = "Hello from the mock model." }]
+
+# Text that differs from run to run is hidden when two recordings are compared.
+[[mask]]
+# Claude Code names the time it worked with a verb that it picks at random, such as "Cogitated" or
+# "Sautéed".
+pattern = "✻ \\S+ for [0-9hms ]+ · done \\d+:\\d+ [AP]M"
+with = "✻ <verb> for <time spent> · done <time>"
+
+[[mask]]
+pattern = "claude --resume [0-9a-f-]{36}"
+with = "claude --resume <session>"
+
+[[step]]
+wait_signal = "SessionStart"
+
+[[step]]
+wait_screen = "^❯"
+
+[[step]]
+snapshot = "prompt"
+
+[[step]]
+send = "say hello"
+
+[[step]]
+key = "enter"
+
+[[step]]
+wait_signal = "Stop"
+
+[[step]]
+wait_screen = "Hello from the mock model\\."
+
+[[step]]
+snapshot = "answered"
+
+[[step]]
+send = "/exit"
+
+[[step]]
+key = "enter"
+
+[[step]]
+expect_exit = true

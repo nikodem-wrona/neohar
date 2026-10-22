@@ -1,0 +1,71 @@
+---
+source: crates/nh-rich/tests/snapshots.rs
+expression: result
+---
+{
+  "files": [
+    {
+      "path": "web/hello.ts",
+      "status": "added",
+      "hunks": [
+        {
+          "header": "@@ -0,0 +1,2 @@",
+          "lines": [
+            {
+              "kind": "add",
+              "old": null,
+              "new": 1,
+              "text": {
+                "text": "export const greeting = \"héllo 😀\";",
+                "spans": [
+                  {
+                    "start": 0,
+                    "end": 6,
+                    "class": "kw"
+                  },
+                  {
+                    "start": 7,
+                    "end": 12,
+                    "class": "kw"
+                  },
+                  {
+                    "start": 22,
+                    "end": 23,
+                    "class": "op"
+                  },
+                  {
+                    "start": 24,
+                    "end": 34,
+                    "class": "str"
+                  }
+                ]
+              },
+              "intra": null
+            },
+            {
+              "kind": "add",
+              "old": null,
+              "new": 2,
+              "text": {
+                "text": "// done",
+                "spans": [
+                  {
+                    "start": 0,
+                    "end": 7,
+                    "class": "com"
+                  }
+                ]
+              },
+              "intra": null
+            }
+          ]
+        }
+      ],
+      "stats": {
+        "add": 2,
+        "del": 0
+      },
+      "truncated": false
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+[package]
+name = "nh-keytest"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true
+
+[lib]
+name = "nh_keytest"
+path = "src/lib.rs"
+
+[[bin]]
+name = "nh-keytest"
+path = "src/main.rs"
+
+[dependencies]
+nh-proto = { path = "../../crates/nh-proto" }
+nh-term = { path = "../../crates/nh-term" }
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+toml.workspace = true

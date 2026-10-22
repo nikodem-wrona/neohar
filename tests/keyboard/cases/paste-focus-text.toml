@@ -1,0 +1,92 @@
+# Paste, focus reports and text input. The bytes are written by hand from the documents in `source`.
+
+[[case]]
+name = "paste: line ends become carriage returns"
+paste = "one\ntwo\r\nthree\rfour"
+expect = "6f6e65 0d 74776f 0d 7468726565 0d 666f7572"
+source = "xterm ctlseqs: the terminal sends Enter as CR, so a paste sends CR for each line end"
+
+[[case]]
+name = "paste: bracketed"
+modes = ["bracketed_paste"]
+paste = "ls\n"
+expect = "1b5b3230307e 6c73 0d 1b5b3230317e"
+source = "xterm ctlseqs, Bracketed Paste Mode: ESC [ 200 ~ text ESC [ 201 ~"
+
+[[case]]
+name = "paste: bracketed and empty"
+modes = ["bracketed_paste"]
+paste = ""
+expect = "1b5b3230307e1b5b3230317e"
+source = "xterm ctlseqs, Bracketed Paste Mode"
+
+[[case]]
+name = "paste: the end marker in the text is removed"
+modes = ["bracketed_paste"]
+paste = "a\u001b[201~b"
+expect = "1b5b3230307e 6162 1b5b3230317e"
+source = "neohar: pasted text cannot end the bracket"
+
+[[case]]
+name = "paste: removing a marker does not make a new one"
+modes = ["bracketed_paste"]
+paste = "\u001b[20\u001b[201~1~x"
+expect = "1b5b3230307e 78 1b5b3230317e"
+source = "neohar: pasted text cannot end the bracket"
+
+[[case]]
+name = "paste: without bracketed paste the text is not changed except for line ends"
+paste = "a\u001b[201~b"
+expect = "61 1b5b3230317e 62"
+source = "xterm ctlseqs, Bracketed Paste Mode: the markers exist only when the mode is on"
+
+[[case]]
+name = "paste: UTF-8"
+paste = "日本\n語"
+expect = "e697a5 e69cac 0d e8aa9e"
+source = "UTF-8 of U+65E5 U+672C U+8A9E"
+
+[[case]]
+name = "focus: in, with focus events on"
+modes = ["focus_events"]
+focus = "in"
+expect = "1b5b49"
+source = "xterm ctlseqs, mode 1004: CSI I when the window gets focus"
+
+[[case]]
+name = "focus: out, with focus events on"
+modes = ["focus_events"]
+focus = "out"
+expect = "1b5b4f"
+source = "xterm ctlseqs, mode 1004: CSI O when the window loses focus"
+
+[[case]]
+name = "focus: nothing without the mode"
+focus = "in"
+expect = ""
+source = "xterm ctlseqs, mode 1004: the report exists only when the mode is on"
+
+[[case]]
+name = "text: UTF-8"
+logical = [{ type = "text", text = "é" }]
+expect = "c3a9"
+source = "UTF-8 of U+00E9"
+
+[[case]]
+name = "text: an input method result"
+logical = [{ type = "text", text = "日本語" }]
+expect = "e697a5e69cace8aa9e"
+source = "UTF-8 of U+65E5 U+672C U+8A9E"
+
+[[case]]
+name = "text: with a line end and bracketed paste on, it is bracketed"
+modes = ["bracketed_paste"]
+logical = [{ type = "text", text = "a\nb" }]
+expect = "1b5b3230307e 61 0d 62 1b5b3230317e"
+source = "neohar"
+
+[[case]]
+name = "text: with a line end and bracketed paste off, it is not changed"
+logical = [{ type = "text", text = "a\nb" }]
+expect = "610a62"
+source = "neohar"

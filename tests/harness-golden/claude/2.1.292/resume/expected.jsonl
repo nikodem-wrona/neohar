@@ -1,0 +1,4 @@
+{"event":"SessionStart","reply":"continue","signals":["SessionStarted { session_id: \"c2def791-972b-4c42-985f-5ed98dab3347\", transcript_path: Some(\"/tmp/nhg-claude/home/claude/projects/-private-tmp-nhg-claude-work/c2def791-972b-4c42-985f-5ed98dab3347.jsonl\"), source: Resume, model: None }"]}
+{"event":"UserPromptSubmit","reply":"continue","signals":["PermissionMode { mode: \"auto\" }","TurnStarted { turn_ref: Some(\"96133e61-f324-4980-9c6c-97e4e2d207fc\"), prompt_preview: Some(\"say it again\") }"]}
+{"event":"Stop","reply":"continue","signals":["TurnEnded { turn_ref: Some(\"96133e61-f324-4980-9c6c-97e4e2d207fc\"), stop_reason: None, last_message_preview: Some(\"Second answer.\") }"]}
+{"event":"SessionEnd","reply":"continue","signals":["SessionEnded { reason: \"prompt_input_exit\" }"]}

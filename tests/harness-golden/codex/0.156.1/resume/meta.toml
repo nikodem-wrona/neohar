@@ -1,0 +1,26 @@
+harness = "codex"
+harness_version = "0.156.1"
+scenario = "resume"
+scenario_blake3 = "0546a4f2721a35ae63bb9530ff39b08219313e64871ae9067d529a66311fed49"
+mode = "pty"
+os = "macos 26.6.2"
+arch = "aarch64"
+cols = 120
+rows = 40
+duration_ms = 2286
+exit = "code 0"
+llm_requests = 2
+llm_main_requests = 1
+turns_used = 1
+turns_total = 1
+unmatched_main = 0
+hook_calls = 4
+hook_calls_api = 4
+terminal_replies = 5
+screens = [
+    "hooks-review",
+    "resumed",
+    "answered",
+    "final",
+]
+processes = []

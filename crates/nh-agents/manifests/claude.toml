@@ -1,0 +1,110 @@
+# The built-in manifest of Claude Code. It is compiled into neohar, and the capability
+# ranges list only the versions that the golden recordings cover (2.1.292).
+schema = 1
+id = "claude"
+name = "Claude Code"
+min_version = "2.1.0"
+icon = "✳"
+color = "#d97757"
+
+[detect]
+priority = 100
+
+[[detect.process]]
+exe_basename = ["claude"]
+
+[[detect.process]]
+interpreter = ["node", "bun"]
+script_regex = '(@anthropic-ai/claude-code|/claude-code/).*(cli|claude)\.(m?js|cjs)$'
+
+[[detect.process]]
+exe_path_regex = '/nix/store/[^/]+-claude-code-[^/]+/'
+
+[[detect.process]]
+env = { CLAUDECODE = "1" }
+
+[version]
+# `claude --version` prints `2.1.292 (Claude Code)`.
+command = ["claude", "--version"]
+regex = '^(?P<v>\d+\.\d+\.\d+)'
+
+[auth]
+# The login state. Claude Code 2.1.299 writes JSON to stdout and exits with 0
+# when it is logged in and 1 when it is not. `authMethod` is `claude.ai`, `api_key`, `oauth_token`
+# or `none`. The JSON also has the address and the org of the account: the core keeps neither.
+status = ["claude", "auth", "status", "--json"]
+logged_in = { json = "/loggedIn", equals = true }
+logged_out = { json = "/loggedIn", equals = false }
+method = { json = "/authMethod", values = { "claude.ai" = "subscription", api_key = "api_key", oauth_token = "token" } }
+login_hint = "Log in on this machine: run `claude auth login`, or run `claude` and follow its login."
+
+[launch]
+argv = ["claude"]
+argv_with_session = ["claude", "--session-id", "{session_id}"]
+session_id_format = "uuid"
+prompt_arg = "trailing"
+model_arg = ["--model", "{model}"]
+effort_arg = ["--effort", "{effort}"]
+# The aliases of `claude --help` (2.1.296); `[1m]` is the context of a million tokens.
+models = [
+  { id = "fable", label = "Fable" },
+  { id = "fable[1m]", label = "Fable (1M context)" },
+  { id = "opus", label = "Opus" },
+  { id = "opus[1m]", label = "Opus (1M context)" },
+  { id = "sonnet", label = "Sonnet" },
+  { id = "sonnet[1m]", label = "Sonnet (1M context)" },
+  { id = "haiku", label = "Haiku" },
+]
+efforts = ["low", "medium", "high", "xhigh", "max"]
+ready = { screen_rule = "input_box", timeout_ms = 30000 }
+
+[resume]
+argv = ["claude", "--resume", "{resume_id}"]
+continue_argv = ["claude", "--continue"]
+needs_cwd = true
+
+[identity]
+sources = ["hook:SessionStart", "preassigned", "transcript_scan"]
+transcript_glob = "~/.claude/projects/{cwd_slug}/{session_id}.jsonl"
+cwd_slug = "replace:/,-;replace:.,-"
+
+[integration]
+transports = ["hooks", "transcript", "screen"]
+install = "builtin:claude"
+headless = "stream_json"
+
+[[capabilities]]
+versions = ">=2.1.0, <2.2.0"
+mode = "tui"
+observe = true
+gate = true
+answer_native = ["approval", "plan_review"]
+answer_keystroke = true
+resume = true
+survive_disconnect = true
+
+[states]
+"hook:UserPromptSubmit" = "working"
+"hook:PreToolUse" = "working"
+"hook:PermissionRequest" = "open:approval"
+"hook:Stop" = "idle"
+"hook:StopFailure" = "error"
+"hook:SessionEnd" = "session_ended"
+
+[interactions]
+question_tools = ["AskUserQuestion"]
+plan_tools = ["ExitPlanMode"]
+
+[yolo]
+flags = ["--dangerously-skip-permissions"]
+
+[screen]
+manifest = "claude"
+
+[transcript]
+format = "claude_jsonl"
+usage = true
+
+[ui]
+interrupt_keys = ["esc"]
+quit_keys = ["ctrl+c", "ctrl+c"]

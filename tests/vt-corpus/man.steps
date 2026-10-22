@@ -1,0 +1,40 @@
+# man ls on macOS, with PAGER=less and MANPAGER=less. man formats the page with bold and underline
+# (SGR 1 and 4). 100x30 at the start, one resize.
+#
+# The pager is less, so after each command it prints its prompt ":" followed by "\e[K" (see
+# less.steps), and ":\e[K" is the signal that a command is finished. No line of the page has a
+# colon followed by "\e[K".
+
+# The first screen of the page.
+expect ":\e[K"
+
+# Pages: forward, forward, back.
+send " "
+expect ":\e[K"
+send " "
+expect ":\e[K"
+send "b"
+expect ":\e[K"
+
+# Search for a phrase, forward and back. Matches are in reverse video.
+send "/symbolic link\r"
+expect ":\e[K"
+send "n"
+expect ":\e[K"
+send "N"
+expect ":\e[K"
+
+# The terminal gets smaller.
+resize 80 24
+expect ":\e[K"
+
+# Half a page, the end of the page, and the start again.
+send "d"
+expect ":\e[K"
+send "G"
+expect "(END)\e[27m\e[K"
+send "g"
+expect ":\e[K"
+
+send "q"
+expect_exit

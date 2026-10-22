@@ -1,0 +1,167 @@
+# The compiled-in defaults of neohar. A key that `config.toml` does not have gets its value from
+# here. Every key that the core reads is in this file, and a key of `config.toml` that is not here
+# is reported and ignored. `~/.config/neohar/config.toml` holds only what the user changed.
+
+[machines]
+# Machines that this client connects to over ssh. Write one block for each:
+#   [machines.studio]
+#   ssh = "me@studio.example.ts.net"  # any target that ssh accepts
+#   session = "default"               # the session on that machine
+#   connect = "manual"                # "launch" connects at launch, "manual" only when you ask
+# The label has 1 to 32 characters of a-z, 0-9 and "-". "local" is the label of this machine.
+
+[approvals]
+# How the core treats a request of an agent for approval.
+# "observe": the harness shows its dialog. "gate": the core holds the hook. "auto": it depends on
+# whether the pane has focus.
+mode = "auto"
+# How long the core holds a hook for an answer. The installer writes the same time as the timeout
+# of the hooks.
+gate_timeout = "30m"
+
+[approvals.claude]
+# Write "allow always" rules to the settings of Claude Code, and not only to the session.
+persist_always = false
+# The mode for Claude Code: "inherit" (the mode above), "observe", "gate" or "auto".
+mode = "inherit"
+
+[approvals.codex]
+# The mode for Codex: "inherit" (the mode above), "observe", "gate" or "auto".
+mode = "inherit"
+
+[policy]
+# Rules that decide an approval before a person is asked. Write them as
+# `[[policy.rule]]` blocks in `config.toml`. `nh policy suggest` makes blocks from your answers.
+rule = []
+
+[agents]
+# Put the shims of `claude` and `codex` first in the PATH of every pane.
+shims = true
+# What to do with the agents of the last session after a reboot: "ask", "always" or "never".
+resume_on_launch = "ask"
+# A notification when the turn of an agent ends while nobody looks at its pane. The run
+# counts in the badge in both cases.
+turn_end_notice = true
+
+[agents.harness.claude]
+# How the runs of Claude Code are paid for. "api": each token has a price, and the usage
+# shows a cost. "subscription": the usage shows tokens and no dollars.
+billing = "api"
+
+[agents.harness.codex]
+# The same for Codex.
+billing = "api"
+
+[tasks]
+# Where the worktrees of tasks go. `~` is the home directory.
+worktree_root = "~/.neohar/worktrees"
+# The branch of a task is `<branch_prefix><slug>`.
+branch_prefix = "neohar/"
+# How many ports a task leases, and from which range.
+ports = 1
+port_range = [41000, 41999]
+# Commands that run in the worktree before the agent starts, one after the other. The first one
+# that fails stops the task in the status `setup_failed`.
+setup = []
+
+# Variables that every pane of a task gets, as `NAME = "value"` lines below this header.
+[tasks.env]
+
+[events]
+# How long the event log keeps the events that a client uses to catch up. The core deletes older
+# events when it starts and then once an hour. A client with an older cursor takes a new snapshot.
+sync_retention = "7d"
+# How long the log keeps the audit kinds: interactions, policy, tasks and the state changes of
+# agents.
+audit_retention = "90d"
+
+[scrollback]
+# The most bytes of archive for one pane. 0 means no limit. When the core starts and then once an
+# hour, it deletes the oldest segments of a pane that has more. The newest segment stays.
+max_bytes_per_pane = 0
+
+[daemon]
+# When `nh daemon` keeps the Mac awake: "while_agents_work" (an agent run is working,
+# or a gate holds a hook), "always" or "never". The app does not use it. A MacBook with a closed
+# lid on battery sleeps in all cases.
+prevent_sleep = "while_agents_work"
+
+[phone]
+# The listener of the phone: the app or `nh daemon` serves the phone app on a port of
+# 127.0.0.1, and `tailscale serve` puts it on the tailnet with HTTPS.
+enabled = false
+# The port on 127.0.0.1. The mapping of `tailscale serve` names it.
+port = 47310
+# The HTTPS port of `tailscale serve` on the tailnet.
+https_port = 8443
+# The HTTPS origin that the phone uses, for example "https://studio.example.ts.net:8443". Empty:
+# the name of this machine in the tailnet and `https_port`.
+url = ""
+# The `sub` of a push: a "mailto:" or "https:" address. Empty: a fixed address.
+contact = ""
+# Keep the Mac out of idle sleep for a phone with Notifications on: while an agent works,
+# while a gate holds a hook, and for 2 hours after a push. A MacBook with a closed lid on battery
+# sleeps in all cases.
+keep_awake = true
+# The font size of the panes on a phone, in CSS pixels. A pinch on a pane changes it.
+# The phone takes a size from 9 to 20.
+font_size = 12
+# The keys of the key bar over the keyboard of a phone, after Esc, Tab, Ctrl, Alt,
+# Shift+Tab and the arrows. Each key types its text.
+keys = ["|", "/", "~", "-"]
+
+[ui]
+# The font of the terminal surface: families as CSS lists them, and the size in pixels. The
+# first family is a Nerd Font, so that the icons of shells and agents show. A machine without
+# it falls back to Menlo, and gets the icons from the symbols font when that one is installed.
+font_family = "\"Hack Nerd Font Mono\", Menlo, \"SF Mono\", \"DejaVu Sans Mono\", \"Symbols Nerd Font Mono\", monospace"
+font_size = 13
+# Which Option keys of a Mac act as Alt: "none", "left", "right" or "both".
+macos_option_as_alt = "none"
+# The chord that shows neohar and the card that waits longest, from any application. The
+# modifiers are `ctrl`, `alt`, `shift` and `cmd`, joined with "+", then a letter or a digit. An
+# empty text turns the hotkey off.
+global_hotkey = "ctrl+alt+cmd+n"
+# The app that opens a file or a folder of the Files tab, by its name, such as "Visual Studio
+# Code" or "Zed". An empty text opens a file with its default app and a folder in the
+# Finder.
+editor = ""
+# Whether the tab bar, the strip of a pane, the attention line, the Inbox and the search show the
+# handles of tabs and panes, such as "w1:t2" and "w1:p3". Off, a pane goes by its title.
+show_handles = false
+
+[theme]
+# The colours of the chrome of the window, as CSS colours. The palette of the terminal
+# comes with the frames of each pane. The defaults are true black, white values, gray labels,
+# green for what is live and the action that goes, red for an error or a destructive answer. The
+# page makes the other shades from these colours.
+bg = "#000000"
+bg_raised = "#141414"
+bg_hover = "#262626"
+line = "#3d3d3d"
+text = "#f2f2f2"
+text_dim = "#989898"
+accent = "#4aea7d"
+danger = "#ff5251"
+
+[keys]
+# The reserved chords of a window. The page takes them before a pane sees a key. A chord is
+# modifiers and a key joined with "+". `mod` is Command on a Mac and Control elsewhere. The other
+# modifiers are `shift` and `alt`. The key is a letter, a digit, `[`, `]`, `,` or an arrow (`left`,
+# `right`, `up`, `down`). The names are the ids of the commands with `_` for `.`.
+palette_open = "mod+k"
+tab_next = "mod+shift+]"
+tab_previous = "mod+shift+["
+pane_focus_left = "mod+alt+left"
+pane_focus_right = "mod+alt+right"
+pane_focus_up = "mod+alt+up"
+pane_focus_down = "mod+alt+down"
+pane_split_right = "mod+d"
+pane_split_down = "mod+shift+d"
+inbox_open = "mod+shift+i"
+interaction_answer_next = "mod+shift+a"
+peek_sibling = "mod+shift+p"
+search_open = "mod+shift+f"
+window_new = "mod+shift+n"
+# The chord that lets the next key reach the pane, also when it is reserved.
+pass_through = "mod+alt+v"

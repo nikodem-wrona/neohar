@@ -1,0 +1,3 @@
+{"detail":{"mode":"gate","state":"open"},"op":"wait","t":1.907262}
+{"detail":{"result":{"interaction":"01M4F1WK4RQYV6SYP7TB3M8MSJ","rev":1,"state":"delivering"}},"op":"answer","t":2.807286}
+{"detail":{"mode":"gate","state":"delivered"},"op":"wait","t":3.32251}

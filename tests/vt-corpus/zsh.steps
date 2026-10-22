@@ -1,0 +1,108 @@
+# An interactive zsh 5.9 session: zsh -d -i, with ZDOTDIR on the scratch home, a coloured prompt
+# with a right prompt, compinit and a completion menu (see zsh.setup.sh). The prompt holds no user
+# name, host or path. 100x30 at the start, one resize and back.
+#
+# zsh turns bracketed paste on ("\e[?2004h") each time it is ready for a line, after the prompt and
+# the right prompt, so "\e[?2004h" is the signal that a command is finished. After a command whose
+# output does not end in a newline, zsh prints a reverse-video "%" and spaces first.
+
+expect "\e[?2004h"
+
+# Colours: 16, 256 and RGB, and wide characters.
+send "print -P '%F{red}red%f %Bbold%b %F{208}orange%f %F{#0a8870}teal%f'\r"
+expect "\e[?2004h"
+send "echo '日本語のテキスト ✓ 🎉 café'\r"
+expect "\e[?2004h"
+
+# A listing with colours, then output that scrolls the screen.
+send "ls -G\r"
+expect "\e[?2004h"
+send "seq -f 'line %03g: the quick brown fox jumps over the lazy dog' 1 150\r"
+expect "line 150"
+expect "\e[?2004h"
+
+# Output without a final newline.
+send "printf 'no newline'\r"
+expect "no newline"
+expect "\e[?2004h"
+
+# A command that fails, and its status.
+send "ls does-not-exist\r"
+expect "\e[?2004h"
+send "echo \"status $?\"\r"
+expect "\e[?2004h"
+
+# Tab completion of a file name.
+send "cat quar\t"
+expect "terly-report-final.txt"
+send "\r"
+expect "Q3 report"
+expect "\e[?2004h"
+
+# An ambiguous prefix. The first Tab lists the files. The second Tab starts the menu and puts
+# the first file in the line. The next Return accepts it and the last one runs the command.
+send "cat notes-\t"
+expect "notes-b.txt"
+send "\t"
+expect "cat notes-a.txt\e[K"
+send "\r"
+expect "\e[1m \e[0m"
+send "\r"
+expect "first note"
+expect "\e[?2004h"
+
+# Tab completion of a command.
+send "zzprobe-g\t"
+expect "reet"
+send "\r"
+expect "hello from zzprobe-greet"
+expect "\e[?2004h"
+
+# AUTO_CD: a directory name is a command. The prompt shows the new directory.
+send "bin\r"
+expect "\e[?2004h"
+send "cd ..\r"
+expect "\e[?2004h"
+
+# Reverse history search, abandoned with ^G.
+send "\x12seq"
+expect "q_"
+send "\x07"
+expect "\e[1B\r\e[K\e[A"
+
+# Line editing: ^A, Alt-f twice and ^K cut a line down to "echo one".
+send "echo one two three"
+expect "two thre"
+send "\x01\x1bf\x1bf\x0b"
+expect "\e[9D"
+send "\r"
+expect "one\r\n"
+expect "\e[?2004h"
+
+# A paste in bracketed paste mode: zsh shows the pasted text in reverse video.
+send "\e[200~echo pasted text\e[201~"
+expect "pasted text\e[27m"
+send "\r"
+expect "pasted text\r\n"
+expect "\e[?2004h"
+
+# The terminal changes size. zsh redraws the prompt, with the right prompt at the new edge.
+resize 70 20
+expect "\e[57D"
+send "echo hi\r"
+expect "hi\r\n"
+expect "\e[?2004h"
+resize 100 30
+expect "\e[87D"
+
+# A line that wraps over the right edge.
+send "echo 0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789 end\r"
+expect "89 end\r\n"
+expect "\e[?2004h"
+
+# Clear the screen, and leave.
+send "clear\r"
+expect "\e[3J\e[H\e[2J"
+expect "\e[?2004h"
+send "exit\r"
+expect_exit

@@ -1,0 +1,41 @@
+[package]
+name = "nh-remote"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true
+
+[features]
+# The dev WebSocket served from a link client: the shell tests through
+# `link.sock`. A release of the product is built without it.
+dev-ws = ["nh-core/dev-ws"]
+
+[dependencies]
+async-trait.workspace = true
+blake3.workspace = true
+getrandom.workspace = true
+# The addresses of the interfaces (`getifaddrs`), for the change of the network path.
+libc.workspace = true
+# Without the feature `fsevents`: `nh` links this crate, and the start of its hook shim must not
+# load CoreServices. The app turns the feature on through its own dependency.
+nh-core = { path = "../nh-core", default-features = false }
+nh-proto = { path = "../nh-proto", features = ["api"] }
+postcard.workspace = true
+serde.workspace = true
+serde_bytes.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+ulid.workspace = true
+zstd.workspace = true
+
+[dev-dependencies]
+proptest.workspace = true
+# A paused clock for the pauses of a reconnect.
+tokio = { workspace = true, features = ["test-util"] }

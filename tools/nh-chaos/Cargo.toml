@@ -1,0 +1,34 @@
+[package]
+name = "nh-chaos"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true
+
+[[bin]]
+name = "nh-chaos"
+path = "src/main.rs"
+
+[dependencies]
+anyhow.workspace = true
+futures-util.workspace = true
+getrandom.workspace = true
+nh-core = { path = "../../crates/nh-core", features = ["debug", "dev-ws"] }
+nh-fixture = { path = "../nh-fixture" }
+nh-proto = { path = "../../crates/nh-proto" }
+nh-store = { path = "../../crates/nh-store" }
+nh-term = { path = "../../crates/nh-term" }
+rustix = { workspace = true, features = ["process"] }
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+tokio-tungstenite.workspace = true
+ulid.workspace = true
+
+[dev-dependencies]
+nh-term = { path = "../../crates/nh-term", features = ["test-support"] }

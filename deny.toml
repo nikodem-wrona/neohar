@@ -1,0 +1,51 @@
+# The workspace crates are `publish = false` and Apache-2.0 (the file LICENSE).
+[graph]
+all-features = true
+
+[advisories]
+yanked = "deny"
+# Tauri's Linux backend (wry, tao, muda) uses the GTK3 bindings of gtk-rs, and these use
+# `proc-macro-error`. The crate is a build-time macro helper, and Tauri has no release without it.
+# Remove the entry when Tauri leaves GTK3.
+ignore = [
+  { id = "RUSTSEC-2024-0370", reason = "proc-macro-error: unmaintained; only a proc-macro dependency of gtk3-macros (Tauri on Linux)" },
+  { id = "RUSTSEC-2025-0141", reason = "bincode 1: unmaintained, no vulnerability; syntect reads its bundled grammar dump with it, and that data is in our own binary" },
+  { id = "RUSTSEC-2026-0370", reason = "zvariant: unmaintained as a standalone crate (merged into zbus 6), no vulnerability; D-Bus of tauri-plugin-opener and tauri-plugin-single-instance (Tauri on Linux), no safe upgrade yet" },
+  { id = "RUSTSEC-2026-0371", reason = "zbus_names: unmaintained as a standalone crate (merged into zbus 6), no vulnerability; same path as zvariant" },
+  { id = "RUSTSEC-2026-0372", reason = "zvariant_derive: unmaintained as a standalone crate (merged into zbus 6), no vulnerability; same path as zvariant" },
+]
+
+[licenses]
+unused-allowed-license = "allow"
+allow = [
+  "MIT",
+  "Apache-2.0",
+  "BSD-2-Clause",
+  "BSD-3-Clause",
+  "ISC",
+  "Zlib",
+  "Unicode-3.0",
+  "MPL-2.0",
+  # `notify` (file watching for the config and the transcripts). A public domain
+  # dedication, so it is as permissive as MIT.
+  "CC0-1.0",
+  # `target-lexicon` (a build dependency of the GTK system crates under Tauri). Apache-2.0 with an
+  # exception that allows more, so it fits the same policy.
+  "Apache-2.0 WITH LLVM-exception",
+  # `error-code` and `clipboard-win` (Windows clipboard, under `tauri-plugin-clipboard-manager`,
+  # in the Tauri host). The Boost license is permissive and has no copyleft term.
+  "BSL-1.0",
+  # `webpki-roots` (the root certificates of Mozilla for the push of the phone). A license for
+  # data that asks for no more than the notice, so it is as permissive as MIT.
+  "CDLA-Permissive-2.0",
+]
+
+[bans]
+multiple-versions = "warn"
+wildcards = "deny"
+allow-wildcard-paths = true
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]

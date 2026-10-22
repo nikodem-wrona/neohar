@@ -1,0 +1,36 @@
+[package]
+name = "nh-term"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true
+
+[features]
+# `ClientGrid`, a reference applier of frames for tests across the workspace.
+test-support = []
+
+[dependencies]
+alacritty_terminal.workspace = true
+nh-proto = { path = "../nh-proto" }
+postcard.workspace = true
+serde.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+nh-fixture = { path = "../../tools/nh-fixture" }
+nh-term = { path = ".", features = ["test-support"] }
+proptest.workspace = true
+serde_json.workspace = true
+
+[[bench]]
+name = "frame_build"
+harness = false
+
+[[bench]]
+name = "snapshot"
+harness = false

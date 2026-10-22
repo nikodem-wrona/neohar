@@ -1,0 +1,33 @@
+{
+  "model": "claude-sonnet-4-5",
+  "max_tokens": 32000,
+  "stream": true,
+  "tools": [
+    {
+      "name": "Bash",
+      "description": "Run a shell command",
+      "input_schema": { "type": "object", "properties": { "command": { "type": "string" } } }
+    }
+  ],
+  "messages": [
+    { "role": "user", "content": "list the files" },
+    {
+      "role": "assistant",
+      "content": [
+        { "type": "text", "text": "I will look." },
+        {
+          "type": "tool_use",
+          "id": "toolu_mock_0001_1",
+          "name": "Bash",
+          "input": { "command": "ls" }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        { "type": "tool_result", "tool_use_id": "toolu_mock_0001_1", "content": "a.txt\nb.txt" }
+      ]
+    }
+  ]
+}

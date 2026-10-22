@@ -1,0 +1,125 @@
+/* The tokens of the chrome. This file has custom properties only and no rule for
+   a shell, so the desktop shell and the phone shell both import it.
+
+   One rule gives every colour its meaning, as the colours of a glass cockpit do. Green is live: an
+   agent that works, the action that goes. Amber is a caution: an agent that waits for a person,
+   `delivery_unknown`. Red is a warning: an error, a high risk, a destructive answer. White is a
+   value, dim gray is a label, and reverse white is "you are here". No colour decorates, so a quiet
+   window is black and white.
+
+   The first eight properties are the keys of the `theme` section: the core sends them, and the
+   page sets them on the root element, so they win over these defaults. The values here equal the
+   defaults of `defaults.toml` (a test checks it). Each one is an OKLCH colour, written in hex
+   because amber and red lie outside sRGB and are clipped. The other shades come from the eight
+   with `color-mix(in oklch, …)`, so a theme of the person changes them too.
+
+   The window has four levels: the ground (`--bg`), the panels (`--bg-raised`), the cards
+   (`--bg-card`) and the panes (the background of their palette). What floats over the panes is
+   glass. The type has two families: the sans-serif of the system for titles, names and text, and
+   the family of the terminal for data. */
+@layer tokens {
+  :root {
+    --bg: #000000; /* oklch(0 0 0) */
+    --bg-raised: #141414; /* oklch(0.19 0 0) */
+    --bg-hover: #262626; /* oklch(0.27 0 0) */
+    --line: #3d3d3d; /* oklch(0.36 0 0); a rule, never the border of a field (1.9 on black) */
+    --text: #f2f2f2; /* oklch(0.96 0 0) */
+    --text-dim: #989898; /* oklch(0.68 0 0); labels, and the border of a field */
+    --accent: #4aea7d; /* oklch(0.83 0.2 150) */
+    --danger: #ff5251; /* oklch(0.68 0.21 25) */
+
+    /* The signals that the theme does not change. */
+    --live: #4aea7d; /* oklch(0.83 0.2 150) */
+    --caution: #ffb831; /* oklch(0.83 0.16 78) */
+    /* Text on a signal is dark: white on red has a contrast of 3.3 only. */
+    --on-signal: #000000;
+
+    /* "You are here": the strip of the focused agent, a press, a selected item. */
+    --here: var(--text);
+    --on-here: var(--bg);
+
+    /* Shades from the colours above. */
+    --cap: color-mix(in oklch, var(--text) 30%, var(--bg));
+    --fill-live: color-mix(in oklch, var(--live) 16%, transparent);
+    --fill-danger: color-mix(in oklch, var(--danger) 18%, transparent);
+    --fill-mark: color-mix(in oklch, currentColor 22%, transparent);
+    --shadow: color-mix(in oklch, var(--bg) 75%, transparent);
+    --danger-hover: color-mix(in oklch, var(--danger) 85%, #ffffff);
+
+    /* The card level, the hairline of a panel or a card, and the tints of a strip or a card that
+       waits or failed. The hairline is decoration: the border of a field stays `--text-dim`. */
+    --bg-card: color-mix(in oklch, var(--text) 6%, var(--bg-raised));
+    --hairline: color-mix(in oklch, var(--text) 10%, transparent);
+    --tint-caution: color-mix(in oklch, var(--caution) 8%, var(--bg-card));
+    --tint-danger: color-mix(in oklch, var(--danger) 10%, var(--bg-card));
+    /* The strip of the agent of the focused pane: a step lighter than Hover, so that the focus is
+       not a hover. A strip that waits or failed keeps its colour, with a stronger tint. */
+    --bg-focus: color-mix(in oklch, var(--text) 15%, var(--bg-raised));
+    --tint-caution-focus: color-mix(in oklch, var(--caution) 12%, var(--bg-card));
+    --tint-danger-focus: color-mix(in oklch, var(--danger) 11%, var(--bg-card));
+
+    /* Glass: what floats over the panes. Its alpha is the smallest that gives text and dim text
+       a contrast of 4.5 over the worst backdrop, a pane with a light background (a test checks
+       it). */
+    --glass: color-mix(in oklch, var(--bg-raised) 87%, transparent);
+    --glass-filter: blur(24px) saturate(1.6);
+    --glass-edge: inset 0 1px 0 color-mix(in oklch, var(--text) 12%, transparent);
+    --glass-shadow: 0 16px 48px var(--shadow);
+
+    /* The highlighted text of a file or a diff is content, as the palette of a terminal
+       is, and not a signal of the chrome. */
+    --syntax-keyword: #c792ea;
+    --syntax-string: #a5d6a7;
+    --syntax-number: #82aaff;
+    --syntax-function: #ffcb6b;
+    --syntax-comment: color-mix(in oklch, var(--text) 45%, transparent);
+
+    /* Two families and four sizes. Data (state codes, costs, handles, paths, commands,
+       key caps, numbers) is in the family of the terminal, which the settings set. The rest is in
+       the face of the system, which needs no font file. */
+    --font-ui: -apple-system, system-ui, sans-serif;
+    --font-data:
+      'Hack Nerd Font Mono', Menlo, 'SF Mono', 'DejaVu Sans Mono', 'Symbols Nerd Font Mono',
+      monospace;
+    --t-title: 600 15px / 20px var(--font-ui);
+    --t-body: 13px / 18px var(--font-ui);
+    --t-data: 12px / 16px var(--font-data);
+    --t-small: 11px / 14px var(--font-ui);
+    --size-data: 12px;
+    --size-small: 11px;
+
+    /* Space and shape. Every padding and gap is a step of four, and every corner is one of three
+       radii: a control, a pane or a card, a dialog. Every panel, every tab and every strip of the
+       board has the same corner, whatever its size, so that a rail and a bar look like the panel
+       next to them. */
+    --s1: 4px;
+    --s2: 8px;
+    --s3: 12px;
+    --s4: 16px;
+    --s5: 24px;
+    --r-sm: 6px;
+    --r-md: 10px;
+    --r-lg: 14px;
+    --r-panel: 4px;
+    --r-tab: 4px;
+
+    --gutter: var(--s2);
+    --row: 28px;
+    --bar: 32px;
+    /* The field of the command line, where the palette opens: the gutter and the padding of the
+       panel. The field is in the middle of the row, which the buttons of the window move right by
+       half their room. */
+    --cmd-top: calc(var(--gutter) + 8px);
+    /* The room for the three buttons of a window with no title bar: `.title-overlay` on
+       the root element sets it. */
+    --traffic: 0px;
+    --cmd-width: min(64ch, 48vw);
+    color-scheme: dark;
+  }
+
+  /* The three buttons of macOS end about 80 px from the left edge of the window: 20 px, three
+     buttons of 14 px and two gaps. The command line starts 8 px in and has its own padding. */
+  :root.title-overlay {
+    --traffic: 72px;
+  }
+}

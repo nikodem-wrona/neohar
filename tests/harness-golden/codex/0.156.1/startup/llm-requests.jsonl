@@ -1,0 +1,2 @@
+{"api":"openai","at_ms":1694,"last_user":"say hello","main":true,"method":"POST","model":"mock-model","path":"/v1/responses","query":null,"seq":1,"stream":true,"turn":0}
+{"api":"openai","at_ms":1735,"last_user":"Generate a concise, single-line task title of at most 36 characters and under five words where possible. Start with an imperative verb. Capitalize only the first word unless the user's language, prope","main":false,"method":"POST","model":"mock-model","path":"/v1/responses","query":null,"seq":2,"stream":true,"turn":null}

@@ -1,0 +1,101 @@
+# The built-in manifest of Codex CLI. The capability ranges list only the versions that
+# the golden recordings cover (0.156.1). A newer version runs as unvalidated.
+schema = 1
+id = "codex"
+name = "Codex"
+min_version = "0.150.0"
+icon = "◇"
+color = "#10a37f"
+
+[detect]
+priority = 100
+# A Codex that attached to a shared daemon has hooks that run in the daemon, not in the pane.
+remote_loop = "codex_daemon"
+
+[[detect.process]]
+exe_basename = ["codex"]
+
+[[detect.process]]
+interpreter = ["node", "bun"]
+script_regex = '(@openai/codex|/codex-cli/).*(cli|codex)\.(m?js|cjs)$'
+
+[version]
+# `codex --version` prints `codex-cli 0.156.1`.
+command = ["codex", "--version"]
+regex = '(?P<v>\d+\.\d+\.\d+)'
+
+[auth]
+# The login state. Codex 0.162.1 writes one line to stderr: `Logged in using
+# ChatGPT`, `Logged in using an API key - sk-…` (the key is masked), or `Not logged in`. It exits
+# with 0 when it is logged in and 1 when it is not.
+status = ["codex", "login", "status"]
+logged_in = { exit = 0, regex = '(?m)^Logged in using ' }
+logged_out = { exit = 1, regex = '(?m)^Not logged in' }
+method = { regex = '(?m)^Logged in using (?P<m>ChatGPT|an API key)', values = { ChatGPT = "subscription", "an API key" = "api_key" } }
+login_hint = "Log in on this machine: run `codex login`, or run `codex` and follow its login."
+
+[launch]
+argv = ["codex"]
+prompt_arg = "trailing"
+model_arg = ["--model", "{model}"]
+# `-c` takes TOML text, so the level is a TOML string.
+effort_arg = ["-c", 'model_reasoning_effort="{effort}"']
+# The models come from the catalog of Codex. Each model there has its own effort levels, and
+# `efforts` is the list for the model of the settings of Codex.
+model_catalog = "codex"
+efforts = ["low", "medium", "high", "xhigh"]
+ready = { screen_rule = "input_box", timeout_ms = 30000 }
+
+[resume]
+argv = ["codex", "resume", "{resume_id}"]
+continue_argv = ["codex", "resume", "--last"]
+needs_cwd = true
+
+[identity]
+# `SessionStart` comes with the first prompt. The thread id is the session id.
+sources = ["hook:SessionStart", "transcript_scan"]
+transcript_glob = "~/.codex/sessions/*/*/*/rollout-*-{session_id}.jsonl"
+
+[integration]
+transports = ["hooks", "transcript", "screen"]
+install = "builtin:codex"
+headless = "app_server"
+
+[[capabilities]]
+versions = ">=0.156.0, <0.157.0"
+mode = "tui"
+observe = true
+gate = true
+answer_native = ["approval"]
+answer_keystroke = true
+resume = true
+survive_disconnect = false
+
+[states]
+"hook:UserPromptSubmit" = "working"
+"hook:PreToolUse" = "working"
+"hook:PermissionRequest" = "open:approval"
+"hook:Stop" = "idle"
+"hook:Interrupt" = "idle"
+"hook:SessionEnd" = "session_ended"
+
+[yolo]
+# A run with these flags, or these runs of consecutive arguments, has no approval dialog.
+flags = ["--dangerously-bypass-approvals-and-sandbox"]
+sequences = [
+  ["-a", "never"],
+  ["--ask-for-approval", "never"],
+  ["-s", "danger-full-access"],
+  ["--sandbox", "danger-full-access"],
+]
+
+[screen]
+manifest = "codex"
+
+[transcript]
+format = "codex_rollout"
+usage = true
+
+[ui]
+interrupt_keys = ["esc"]
+quit_keys = ["ctrl+c", "ctrl+c"]

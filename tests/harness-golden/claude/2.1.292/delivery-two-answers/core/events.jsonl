@@ -1,0 +1,3 @@
+{"detail":{"mode":"gate","state":"open"},"op":"wait","t":0.639331}
+{"detail":{"first":{"decision":"allow","result":{"error":"already_answered"}},"second":{"decision":"allow","result":"ok"}},"op":"race","t":1.920735}
+{"detail":{"mode":"gate","state":"delivered"},"op":"wait","t":2.434488}

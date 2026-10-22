@@ -1,0 +1,21 @@
+
+ ▐▛███▛█   Claude Code v2.1.292
+▝▜██████▀  Opus 5.5 · API Usage Billing
+ ▝▝   ▝▝   /private/tmp/nhg-claude/work
+
+
+❯ ask me a question
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ ☐ Color
+
+Which color do you want?
+
+❯ 1. Red
+     A warm color
+  2. Blue
+     A cool color
+  3. Type something.
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  4. Chat about this
+
+Enter to select · ↑/↓ to navigate · Esc to cancel

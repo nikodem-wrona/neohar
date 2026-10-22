@@ -1,0 +1,218 @@
+// The state of the view that belongs to this window only and that no other client needs: whether
+// the left column and the drawer are open, which tab of the drawer shows, the widths of the side
+// columns, the name that the person edits, the task dialog, and whether the next key passes
+// through to the pane. None of it is business state.
+
+import { createSignal } from 'solid-js';
+import type { Sticky } from '../input/soft';
+import type { Closing } from '../shell/close';
+import type { RenameTarget } from '../shell/rename';
+
+export type DrawerTab = 'inbox' | 'timeline' | 'tasks' | 'files' | 'changes';
+
+/** What the task dialog shows: the form of a new task, or a task by its id. */
+export type TaskDialog = { kind: 'new' } | { kind: 'task'; task: string };
+
+/**
+ * A sheet of the desk on a phone that takes the screen under the command line: More,
+ * with the parts of the status bar, and the settings at a section.
+ */
+export type PhoneSheet = { kind: 'more' } | { kind: 'settings'; section: string | null };
+
+/**
+ * The field of a pane that has the keyboard of a phone: the key bar sends to its
+ * pane, and it can start the text of the field again or close the keyboard.
+ */
+export interface TypingField {
+  pane: string;
+  /** The keys of the bar changed what the pane has: the field starts again. */
+  restart(): void;
+  /** Closes the keyboard. */
+  hide(): void;
+  /** Gives the field the focus again, after the field of Compose. */
+  focus(): void;
+}
+
+/** An item of the menu of a long press or of the button ⋯ of a pane. */
+export interface MenuAction {
+  label: string;
+  run: () => void;
+  danger?: boolean;
+}
+
+/** The menu that a long press opened, at the point of the press. */
+export interface PressMenu {
+  x: number;
+  y: number;
+  /** What the menu acts on, for a screen reader. */
+  title: string;
+  items: MenuAction[];
+}
+
+/** What the window shows: the page names it to a command of the page. */
+export interface Shown {
+  tab?: string | null;
+  workspace?: string | null;
+}
+
+/** The widths of the side columns, in characters of the chrome font. */
+export interface Columns {
+  left: number;
+  drawer: number;
+}
+
+export const COLUMN_LIMITS: Readonly<Record<keyof Columns, { min: number; max: number }>> = {
+  left: { min: 20, max: 80 },
+  drawer: { min: 32, max: 96 },
+};
+
+/** The left column has the workspaces only, so it is narrower than the monitor was. */
+const DEFAULT_COLUMNS: Columns = { left: 28, drawer: 44 };
+/**
+ * The key and the shape of the stored widths do not change: the width of the left column is in
+ * the field `monitor`, so a width that the person set for the monitor stays.
+ */
+const COLUMNS_KEY = 'neohar.columns';
+interface Stored {
+  monitor?: unknown;
+  drawer?: unknown;
+}
+
+/** A width in its limits, in whole characters. */
+export function clampColumn(column: keyof Columns, width: number): number {
+  const { min, max } = COLUMN_LIMITS[column];
+  return Math.min(max, Math.max(min, Math.round(width)));
+}
+
+/** The widths that this browser kept. Storage can be missing or refuse, and then the defaults. */
+function storedColumns(): Columns {
+  try {
+    const kept = JSON.parse(globalThis.localStorage?.getItem(COLUMNS_KEY) ?? 'null') as unknown;
+    if (typeof kept !== 'object' || kept === null) return DEFAULT_COLUMNS;
+    const { monitor, drawer } = kept as Stored;
+    return {
+      left: typeof monitor === 'number' ? clampColumn('left', monitor) : DEFAULT_COLUMNS.left,
+      drawer: typeof drawer === 'number' ? clampColumn('drawer', drawer) : DEFAULT_COLUMNS.drawer,
+    };
+  } catch {
+    return DEFAULT_COLUMNS;
+  }
+}
+
+export function createViewState() {
+  const [leftOpen, setLeftOpen] = createSignal(true);
+  const [drawerOpen, setDrawerOpen] = createSignal(true);
+  const [columns, setColumnsSignal] = createSignal<Columns>(storedColumns());
+  const [drawerTab, setDrawerTab] = createSignal<DrawerTab>('inbox');
+  const [passNext, setPassNext] = createSignal(false);
+  const [paletteOpen, setPaletteOpen] = createSignal(false);
+  const [sheet, setSheet] = createSignal<PhoneSheet | null>(null);
+  const [typing, setTyping] = createSignal<TypingField | null>(null);
+  const [pressMenu, setPressMenu] = createSignal<PressMenu | null>(null);
+  const [barCtrl, setBarCtrl] = createSignal<Sticky>('off');
+  const [barAlt, setBarAlt] = createSignal<Sticky>('off');
+  const [searchOpen, setSearchOpen] = createSignal(false);
+  const [focusedCard, setFocusedCard] = createSignal<string | null>(null);
+  const [taskDialog, setTaskDialog] = createSignal<TaskDialog | null>(null);
+  const [startJobs, setStartJobs] = createSignal<Readonly<Record<string, string>>>({});
+  const [closing, setClosing] = createSignal<Closing | null>(null);
+  const [renaming, setRenaming] = createSignal<RenameTarget | null>(null);
+  return {
+    /** The widths of the left column and of the drawer. A drag of their rule changes them. */
+    columns,
+    setColumn(column: keyof Columns, width: number): void {
+      const next = { ...columns(), [column]: clampColumn(column, width) };
+      setColumnsSignal(next);
+      try {
+        const stored: Stored = { monitor: next.left, drawer: next.drawer };
+        globalThis.localStorage?.setItem(COLUMNS_KEY, JSON.stringify(stored));
+      } catch {
+        // The width stays for this page only.
+      }
+    },
+    /** A tab or a workspace whose close waits for the person. */
+    closing,
+    setClosing,
+    /** The workspace or the tab whose name the person edits, and where. */
+    renaming,
+    setRenaming,
+    /** The dialog of a task floats over the window while it is open. */
+    taskDialog,
+    setTaskDialog,
+    /** The job of the last start of each task, so that its row shows the progress or the error. */
+    startJobs,
+    noteStart(task: string, job: string): void {
+      setStartJobs((jobs) => ({ ...jobs, [task]: job }));
+    },
+    /** The interaction whose card should have the focus, until the card takes it. */
+    focusedCard,
+    focusCard(interaction: string | null): void {
+      setFocusedCard(interaction);
+    },
+    paletteOpen,
+    setPaletteOpen,
+    /** The search of the scrollback is open. */
+    searchOpen,
+    setSearchOpen,
+    /**
+     * Does what a command of the page asks for. The core names it in `palette.execute`. A rename
+     * edits the tab or the workspace that the window shows, and the field of a workspace opens a
+     * folded left column.
+     */
+    pageAction(id: string, shown?: Shown): void {
+      if (id === 'tab.rename' && shown?.tab) {
+        setRenaming({ kind: 'tab', id: shown.tab, place: 'tabbar' });
+      } else if (id === 'workspace.rename' && shown?.workspace) {
+        setRenaming({ kind: 'workspace', id: shown.workspace, place: 'left' });
+        setLeftOpen(true);
+      } else if (id === 'inbox.open') {
+        setDrawerTab('inbox');
+        setDrawerOpen(true);
+      } else if (id === 'search.open') {
+        setSearchOpen(true);
+      } else if (id === 'task.new') {
+        setDrawerTab('tasks');
+        setDrawerOpen(true);
+        setTaskDialog({ kind: 'new' });
+      } else if (id === 'settings.open') {
+        // A phone has no settings window: the core names this command of the page.
+        setSheet({ kind: 'settings', section: null });
+      }
+    },
+    /** The sheet of a phone that shows, or none. */
+    sheet,
+    setSheet,
+    /** The menu of a long press or of the button ⋯ of a pane, or none. */
+    pressMenu,
+    setPressMenu,
+    /** The field of a pane that has the keyboard of a phone, or none. */
+    typing,
+    setTyping,
+    /** Ctrl and Alt of the key bar of a phone: off, for the next key, or locked. */
+    barCtrl,
+    setBarCtrl,
+    barAlt,
+    setBarAlt,
+    /** A key went out: a modifier of the bar that was for one key is off again. */
+    usedBarMods(): void {
+      if (barCtrl() === 'once') setBarCtrl('off');
+      if (barAlt() === 'once') setBarAlt('off');
+    },
+    /** The left column is open, or folded to a rail. */
+    leftOpen,
+    setLeftOpen,
+    drawerOpen,
+    setDrawerOpen,
+    drawerTab,
+    setDrawerTab,
+    passNext,
+    setPassNext,
+    /** Shows a tab of the drawer, and opens the drawer if it is closed. */
+    showDrawer(tab: DrawerTab): void {
+      setDrawerTab(tab);
+      setDrawerOpen(true);
+    },
+  };
+}
+
+export type ViewState = ReturnType<typeof createViewState>;

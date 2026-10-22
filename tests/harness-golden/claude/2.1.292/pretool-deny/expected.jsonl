@@ -1,0 +1,5 @@
+{"event":"SessionStart","reply":"continue","signals":["SessionStarted { session_id: \"45e38ff1-001a-44d4-974e-f846308d12fd\", transcript_path: Some(\"/tmp/nhg-claude/home/claude/projects/-private-tmp-nhg-claude-work/45e38ff1-001a-44d4-974e-f846308d12fd.jsonl\"), source: Startup, model: Some(\"claude-opus-5-5\") }"]}
+{"event":"UserPromptSubmit","reply":"continue","signals":["PermissionMode { mode: \"default\" }","TurnStarted { turn_ref: Some(\"b6bca01b-abe4-466e-bc5f-97767ac12083\"), prompt_preview: Some(\"make a note\") }"]}
+{"event":"PreToolUse","reply":"continue","signals":["ToolStarted { call_id: \"toolu_mock_0002_1\", tool: \"Bash\", input: Object {\"command\": String(\"touch note.txt\"), \"description\": String(\"Create a note\")} }"]}
+{"event":"Stop","reply":"continue","signals":["TurnEnded { turn_ref: Some(\"b6bca01b-abe4-466e-bc5f-97767ac12083\"), stop_reason: None, last_message_preview: Some(\"The note was not made.\") }"]}
+{"event":"SessionEnd","reply":"continue","signals":["SessionEnded { reason: \"prompt_input_exit\" }"]}

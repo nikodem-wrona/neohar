@@ -1,0 +1,26 @@
+╭────────────────────────────────────────────╮
+│ >_ OpenAI Codex (v0.156.1)                 │
+│                                            │
+│ model:       mock-model   /model to change │
+│ directory:   /private/tmp/nhg-codex/work   │
+│ permissions: YOLO mode                     │
+╰────────────────────────────────────────────╯
+
+
+› make a note
+
+
+• I will make a note.
+
+• Hook failed
+  └ PreToolUse hook returned unsupported permissionDecision:allow
+
+• Ran touch note.txt
+  └ (no output)
+
+• Done.
+
+  01:44
+Token usage: total=20,621 input=20,608 output=13
+To continue this session, run:
+  codex resume 01a11de7-4a55-7561-b189-862f60b37d05

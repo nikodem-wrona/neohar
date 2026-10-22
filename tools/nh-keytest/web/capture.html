@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>nh-keytest capture</title>
+    <style>
+      body { font: 14px/1.4 system-ui, sans-serif; margin: 1rem; }
+      textarea { width: 100%; height: 5rem; font: inherit; }
+      table { border-collapse: collapse; margin-top: 1rem; font: 12px/1.3 ui-monospace, monospace; }
+      td, th { border: 1px solid #8888; padding: 2px 6px; text-align: left; }
+      pre { background: #8881; padding: 0.5rem; overflow: auto; }
+      label { display: inline-block; margin-right: 1rem; }
+    </style>
+  </head>
+  <body>
+    <h1>Keyboard capture</h1>
+    <p>
+      Type into the box. Every browser event is listed with its fields. Give the capture a name and the
+      layout, then copy the TOML into a file of <code>tests/keyboard/cases/</code> and fill in
+      <code>expect</code> from a reference terminal or a document.
+    </p>
+    <p>
+      <label>Name <input id="name" size="40" placeholder="option+e then a, macOS US" /></label>
+      <label>Layout <input id="layout" size="24" placeholder="US, US International, German" /></label>
+      <label>Option as Alt <select id="option">
+        <option value="none">none</option><option>left</option><option>right</option><option>both</option>
+      </select></label>
+    </p>
+    <textarea id="box" placeholder="Click here and type"></textarea>
+    <p>
+      <button id="clear" type="button">Clear</button>
+      <button id="copy" type="button">Copy TOML</button>
+    </p>
+    <pre id="toml"></pre>
+    <table>
+      <thead><tr><th>event</th><th>key</th><th>code</th><th>loc</th><th>mods</th><th>repeat</th><th>composing</th><th>keyCode</th><th>states</th><th>data</th></tr></thead>
+      <tbody id="log"></tbody>
+    </table>
+    <script type="module" src="capture.js"></script>
+  </body>
+</html>

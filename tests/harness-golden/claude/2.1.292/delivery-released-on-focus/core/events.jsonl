@@ -1,0 +1,4 @@
+{"detail":{"mode":"gate","state":"open"},"op":"wait","t":1.384633}
+{"detail":{"result":{}},"op":"focus","t":2.518307}
+{"detail":{"mode":"observe","state":"open"},"op":"wait","t":3.029842}
+{"detail":{"mode":"observe","state":"resolved_elsewhere"},"op":"wait","t":3.642659}

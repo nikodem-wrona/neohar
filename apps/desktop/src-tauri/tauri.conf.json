@@ -1,0 +1,33 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "neohar",
+  "version": "1.0.0",
+  "identifier": "dev.neohar.app",
+  "build": {
+    "beforeDevCommand": "bun run dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "bun run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "withGlobalTauri": false,
+    "windows": [],
+    "security": {
+      "csp": "default-src 'self'; connect-src 'self' ipc: http://ipc.localhost; script-src 'self' 'wasm-unsafe-eval'; img-src nh: blob: data:; style-src 'self' 'unsafe-inline' nh:; font-src nh:",
+      "devCsp": "default-src 'self'; connect-src 'self' ipc: http://ipc.localhost ws://localhost:1420; script-src 'self' 'wasm-unsafe-eval'; img-src nh: blob: data:; style-src 'self' 'unsafe-inline' nh:; font-src nh:"
+    }
+  },
+  "bundle": {
+    "active": false,
+    "resources": {
+      "../../../THIRD_PARTY_LICENSES.md": "THIRD_PARTY_LICENSES.md"
+    }
+  },
+  "plugins": {
+    "deep-link": {
+      "desktop": {
+        "schemes": ["neohar"]
+      }
+    }
+  }
+}

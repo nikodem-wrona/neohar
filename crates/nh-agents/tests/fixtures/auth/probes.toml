@@ -1,0 +1,127 @@
+# The outputs of the login probes, as the installed harnesses gave them on a Mac on
+# 2026-10-15. Claude Code 2.1.299 (`claude auth status --json`) and Codex
+# 0.162.1 (`codex login status`). Each probe ran with stdin closed. The logged-out, API-key and
+# token cases ran with an empty `CLAUDE_CONFIG_DIR` or `CODEX_HOME` in a scratch directory, and
+# with a dummy key in the environment or in `auth.json`. No login ran and no model was called.
+#
+# The account name, the e-mail address, the org id and the paths are placeholders. The core keeps
+# none of them: only the state and the method.
+
+[[probe]]
+harness = "claude"
+case = "subscription"
+state = "logged_in"
+method = "subscription"
+exit = 0
+stdout = '''
+{
+  "loggedIn": true,
+  "authMethod": "claude.ai",
+  "apiProvider": "firstParty",
+  "analyticsDisabled": false,
+  "projectsDirectory": "/Users/<user>/.claude/projects",
+  "configDirectory": "/Users/<user>/.claude",
+  "email": "<email>",
+  "orgId": "00000000-0000-0000-0000-000000000000",
+  "orgName": "<email>'s Organization",
+  "subscriptionType": "max"
+}
+'''
+stderr = ""
+
+[[probe]]
+harness = "claude"
+case = "api key in the environment (ANTHROPIC_API_KEY)"
+state = "logged_in"
+method = "api_key"
+exit = 0
+stdout = '''
+{
+  "loggedIn": true,
+  "authMethod": "api_key",
+  "apiProvider": "firstParty",
+  "analyticsDisabled": false,
+  "projectsDirectory": "/tmp/<scratch>/.claude/projects",
+  "configDirectory": "/tmp/<scratch>/.claude",
+  "apiKeySource": "ANTHROPIC_API_KEY"
+}
+'''
+stderr = ""
+
+[[probe]]
+harness = "claude"
+case = "token in the environment (CLAUDE_CODE_OAUTH_TOKEN)"
+state = "logged_in"
+method = "token"
+exit = 0
+stdout = '''
+{
+  "loggedIn": true,
+  "authMethod": "oauth_token",
+  "apiProvider": "firstParty",
+  "analyticsDisabled": false,
+  "projectsDirectory": "/tmp/<scratch>/.claude/projects",
+  "configDirectory": "/tmp/<scratch>/.claude"
+}
+'''
+stderr = ""
+
+[[probe]]
+harness = "claude"
+case = "logged out (an empty CLAUDE_CONFIG_DIR)"
+state = "logged_out"
+exit = 1
+stdout = '''
+{
+  "loggedIn": false,
+  "authMethod": "none",
+  "apiProvider": "firstParty",
+  "analyticsDisabled": false,
+  "projectsDirectory": "/tmp/<scratch>/.claude/projects",
+  "configDirectory": "/tmp/<scratch>/.claude"
+}
+'''
+stderr = ""
+
+[[probe]]
+harness = "codex"
+case = "subscription (ChatGPT)"
+state = "logged_in"
+method = "subscription"
+exit = 0
+stdout = ""
+stderr = '''
+Logged in using ChatGPT
+'''
+
+[[probe]]
+harness = "codex"
+case = "api key in auth.json"
+state = "logged_in"
+method = "api_key"
+exit = 0
+stdout = ""
+stderr = '''
+Logged in using an API key - sk-dummy***bcdef
+'''
+
+[[probe]]
+harness = "codex"
+case = "logged out (an empty CODEX_HOME)"
+state = "logged_out"
+exit = 1
+stdout = ""
+stderr = '''
+Not logged in
+'''
+
+[[probe]]
+harness = "codex"
+case = "CODEX_HOME names a directory that does not exist"
+state = "unknown"
+exit = 1
+stdout = ""
+stderr = '''
+WARNING: proceeding, even though we could not create PATH aliases: CODEX_HOME points to "/tmp/<scratch>/.codex-none", but that path does not exist
+Error loading configuration: CODEX_HOME points to "/tmp/<scratch>/.codex-none", but that path does not exist
+'''

@@ -1,0 +1,27 @@
+[package]
+name = "nh-rich"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true
+
+# Pure Rust and no workspace crate (a crate dependency rule): the core maps these types to the API
+# types. No `tokio`: every function here is a plain function over text.
+[dependencies]
+ammonia = "4"
+pulldown-cmark = { version = "0.13", default-features = false, features = ["html"] }
+serde.workspace = true
+serde_json.workspace = true
+similar = { version = "3", default-features = false, features = ["text"] }
+# The grammars of Sublime Text, parsed by `fancy-regex`: Oniguruma is C.
+syntect = { version = "5", default-features = false, features = ["default-syntaxes", "parsing", "regex-fancy"] }
+toml.workspace = true
+
+[dev-dependencies]
+insta.workspace = true
+proptest.workspace = true

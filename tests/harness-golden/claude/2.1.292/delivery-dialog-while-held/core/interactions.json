@@ -1,0 +1,26 @@
+[
+  {
+    "acked": false,
+    "answerable": true,
+    "attempts": [],
+    "channel": null,
+    "conn": null,
+    "deadline": 1791606249427,
+    "decided_by": null,
+    "decision": null,
+    "fail_reason": null,
+    "handle": "i1",
+    "holder": null,
+    "id": "01M4HZ4R4M00G088XMNT81EABM",
+    "key": null,
+    "kind": "approval",
+    "lease": false,
+    "mode": "gate",
+    "native_ref": "toolu_mock_0002_1",
+    "rev": 0,
+    "risk": "unknown",
+    "shim_pid": null,
+    "state": "resolved_elsewhere",
+    "via": null
+  }
+]

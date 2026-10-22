@@ -1,0 +1,15 @@
+/* The styles of the chrome, one file for each area. The order of the layers decides
+   which rule wins, so no selector needs more specificity to win: a rule of `states` (a press) wins
+   over a rule of `components`, which wins over `base`. Inside a layer, the order of the files is
+   the order of the cascade. The phone shell adds `phone.css` after this file, with no layer. */
+@layer reset, tokens, base, layout, components, states;
+
+@import './tokens.css';
+@import './base.css';
+@import './frame.css';
+@import './board.css';
+@import './panes.css';
+@import './drawer.css';
+@import './cards.css';
+@import './dialogs.css';
+@import './settings.css';

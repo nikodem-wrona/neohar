@@ -1,0 +1,6 @@
+{"detail":{"mode":"gate","state":"open"},"op":"wait","t":0.698805}
+{"detail":{"result":{"rev":1,"state":"decision_recorded"}},"op":"answer","t":1.844639}
+{"detail":{"interaction":"01M4HZ4V3EVBT2H5PFA9D8TJ2V"},"op":"kill_shim","t":1.844852}
+{"detail":{"result":{}},"op":"deliver","t":2.147204}
+{"detail":{"mode":"gate","state":"decision_recorded"},"op":"wait","t":2.147292}
+{"detail":{"mode":"gate","state":"resolved_elsewhere"},"op":"wait","t":3.001698}

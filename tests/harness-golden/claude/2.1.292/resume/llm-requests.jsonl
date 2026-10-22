@@ -1,0 +1,1 @@
+{"api":"anthropic","at_ms":1020,"last_user":"say it again","main":true,"method":"POST","model":"claude-opus-5-5","path":"/v1/messages","query":"beta=true","seq":1,"stream":true,"turn":0}
