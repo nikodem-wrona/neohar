@@ -29,6 +29,20 @@ const COUNTER: &str =
 const SPINNER: &str =
     "echo spin; while :; do printf '\\r|'; sleep 0.05; printf '\\r/'; sleep 0.05; done";
 
+/// A spinner that shows how many times it changed. One row changes, 20 times a second on a quiet
+/// machine.
+const COUNTING_SPINNER: &str =
+    "echo spin; i=0; while :; do i=$((i+1)); printf '\\r%d' $i; sleep 0.05; done";
+
+/// How many times the [`COUNTING_SPINNER`] of `pane` changed.
+fn spins(pane: &Pane) -> u64 {
+    pane.text()
+        .iter()
+        .rev()
+        .find_map(|row| row.trim().parse().ok())
+        .unwrap_or(0)
+}
+
 /// The command of a pane that runs `script` in `sh`.
 fn sh(script: &str) -> Value {
     json!({ "argv": ["/bin/sh", "-c", script] })
@@ -223,18 +237,21 @@ async fn a_hidden_window_gets_no_frames_and_a_keyframe_when_shown() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn minor_damage_without_focus_goes_out_at_most_once_a_second() {
     let h = Harness::start();
-    let desk = desk(&h, &[sh(SPINNER), sh("sleep 60")], 40, 4).await;
+    let desk = desk(&h, &[sh(COUNTING_SPINNER), sh("sleep 60")], 40, 4).await;
     let (w, spinner, other) = (&desk.window, &desk.panes[0], &desk.panes[1]);
     let spinner_id = spinner.render_id();
 
+    // The frames of the spinner in 1.5 s, and how many times the spinner changed in that time.
     let count = |target: &Arc<Pane>| {
         let h = &h;
         let target = Arc::clone(target);
+        let spinner = Arc::clone(spinner);
         async move {
             // Focus the pane that the test names. The window is focused.
             focus(h, w, &target).await;
             let mut frames = Frames::open(&h.handle, w, 120.0);
             let started = Instant::now();
+            let first = spins(&spinner);
             let mut seen = 0;
             while let Some(left) = Duration::from_millis(1500).checked_sub(started.elapsed()) {
                 let Some(frame) = frames.next(left).await else {
@@ -245,19 +262,25 @@ async fn minor_damage_without_focus_goes_out_at_most_once_a_second() {
                 }
                 ack(h, w, &frame).await;
             }
-            seen
+            (seen, spins(&spinner).saturating_sub(first))
         }
     };
-    let focused = count(spinner).await;
-    let unfocused = count(other).await;
-    // 20 changes a second for 1.5 s, against one a second: the keyframe and one or two more.
+    let (focused, focused_changes) = count(spinner).await;
+    let (unfocused, unfocused_changes) = count(other).await;
+    // A busy machine runs the spinner slower than 20 changes a second, so the test compares the
+    // frames with the changes. The changes must be more than the limit without focus.
+    for changes in [focused_changes, unfocused_changes] {
+        assert!(changes >= 6, "the spinner changed {changes} times in 1.5 s");
+    }
+    // With focus, a frame for each change, or for two changes that come in one frame.
     assert!(
-        focused > 15,
-        "the focused spinner gets its frames: {focused}"
+        2 * focused >= focused_changes,
+        "the focused spinner gets its frames: {focused} for {focused_changes} changes"
     );
+    // Without focus, one a second: the keyframe and one or two more.
     assert!(
         unfocused <= 4,
-        "the unfocused spinner is limited: {unfocused}"
+        "the unfocused spinner is limited: {unfocused} for {unfocused_changes} changes"
     );
 }
 
