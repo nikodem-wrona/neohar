@@ -325,22 +325,6 @@ wire! {
         pub single: bool,
     }
 
-    /// The folder panel of the system, attached to the window.
-    pub struct WindowPickFolder {
-        pub window: WindowId,
-        /// The folder that the panel shows first. The core ignores a path that is not absolute.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        pub start: Option<String>,
-        /// The message of the panel.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        pub title: Option<String>,
-    }
-
-    /// The folder that the person chose, or `null` when the person cancelled the panel.
-    pub struct FolderPicked {
-        pub path: Option<String>,
-    }
-
     /// `fs.list`: the entries of a folder of the machine, for the Files tab.
     pub struct FsList {
         /// An absolute path.

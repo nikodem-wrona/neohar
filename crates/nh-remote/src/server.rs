@@ -42,9 +42,7 @@ use std::{
 
 use nh_core::{
     ClientInfo, CoreHandle, ErrorCode, FrameSink, Host, MessageSink, Origin, RpcError,
-    host::{
-        FolderChosen, FolderPick, HostNotification, NotificationCapabilities, TrayModel, WindowSpec,
-    },
+    host::{HostNotification, NotificationCapabilities, TrayModel, WindowSpec},
 };
 use nh_proto::{
     api::ids::{NotificationId, WindowId},
@@ -1148,12 +1146,6 @@ impl Host for LinkHost {
 
     fn open_settings(&self) {
         self.fire(&HostRequest::OpenSettings);
-    }
-
-    /// Only an in-process host shows the folder panel. `done` is dropped, and the core
-    /// answers `unsupported`.
-    fn pick_folder(&self, _: FolderPick, done: FolderChosen) {
-        drop(done);
     }
 }
 

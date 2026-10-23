@@ -196,7 +196,6 @@ async fn a_phone_has_full_access_less_the_pairing_and_the_native_windows() {
     for (id, method, code) in [
         (12, "window.open", "unsupported"),
         (13, "fs.open", "unsupported"),
-        (14, "window.pick_folder", "unsupported"),
         (15, "phone.pair_begin", "permission_denied"),
         (16, "phone.publish", "permission_denied"),
     ] {

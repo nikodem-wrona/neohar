@@ -1,6 +1,6 @@
 ---
 title: "Types"
-description: "Every one of the 404 named types of the API contract, with fields and the places that use it."
+description: "Every one of the 402 named types of the API contract, with fields and the places that use it."
 sidebar_position: 7
 toc_max_heading_level: 2
 ---
@@ -12,7 +12,7 @@ Do not edit it by hand. Change the source and run `bun run gen` in `website/`.
 
 :::
 
-The contract names 404 types. They are Rust types in `nh-proto` (behind its `api` feature) with `serde` and `schemars::JsonSchema`, and `mise run gen:api` turns the same schema into TypeScript in [`packages/transport/src/generated.ts`](https://github.com/nikodem-wrona/neohar/blob/main/packages/transport/src/generated.ts).
+The contract names 402 types. They are Rust types in `nh-proto` (behind its `api` feature) with `serde` and `schemars::JsonSchema`, and `mise run gen:api` turns the same schema into TypeScript in [`packages/transport/src/generated.ts`](https://github.com/nikodem-wrona/neohar/blob/main/packages/transport/src/generated.ts).
 
 Jump to a letter: [A](#letter-a) · [B](#letter-b) · [C](#letter-c) · [D](#letter-d) · [E](#letter-e) · [F](#letter-f) · [G](#letter-g) · [H](#letter-h) · [I](#letter-i) · [J](#letter-j) · [K](#letter-k) · [L](#letter-l) · [M](#letter-m) · [N](#letter-n) · [P](#letter-p) · [Q](#letter-q) · [R](#letter-r) · [S](#letter-s) · [T](#letter-t) · [U](#letter-u) · [V](#letter-v) · [W](#letter-w)
 
@@ -432,7 +432,7 @@ The answer of the person, or `null` when the person cancelled. The core keeps it
 |---|---|---|---|
 | `answer` | string \| `null` |  |  |
 
-**Rust:** [`crates/nh-proto/src/api/calls/workspace.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workspace.rs#L469) · **Used by:** [`askpass.ask`](/docs/reference/api/methods/askpass#askpass-ask)
+**Rust:** [`crates/nh-proto/src/api/calls/workspace.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workspace.rs#L453) · **Used by:** [`askpass.ask`](/docs/reference/api/methods/askpass#askpass-ask)
 
 ### `AskpassAsk` {#askpassask}
 
@@ -443,7 +443,7 @@ The answer of the person, or `null` when the person cancelled. The core keeps it
 | `machine` | string \| `null` |  | The label of the machine that the link is for, when the core knows it. |
 | `prompt` | string | yes | The question as ssh wrote it: a host key, a passphrase or a password. |
 
-**Rust:** [`crates/nh-proto/src/api/calls/workspace.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workspace.rs#L459) · **Used by:** [`askpass.ask`](/docs/reference/api/methods/askpass#askpass-ask)
+**Rust:** [`crates/nh-proto/src/api/calls/workspace.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workspace.rs#L443) · **Used by:** [`askpass.ask`](/docs/reference/api/methods/askpass#askpass-ask)
 
 ### `AttentionReason` {#attentionreason}
 
@@ -1292,16 +1292,6 @@ Values: `"modified"`, `"added"`, `"deleted"`, `"renamed"`.
 
 **Rust:** [`crates/nh-proto/src/api/model.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/model.rs#L114) · **Used by:** [`TabValue`](/docs/reference/api/types#tabvalue)
 
-### `FolderPicked` {#folderpicked}
-
-The folder that the person chose, or `null` when the person cancelled the panel.
-
-| Field | Type | Required | Description |
-|---|---|---|---|
-| `path` | string \| `null` |  |  |
-
-**Rust:** [`crates/nh-proto/src/api/calls/workspace.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workspace.rs#L340) · **Used by:** [`window.pick_folder`](/docs/reference/api/methods/window#window-pick-folder)
-
 ### `FsCopyPath` {#fscopypath}
 
 `fs.copy_path`: the core writes a path to the clipboard of the device that called.
@@ -1312,7 +1302,7 @@ The folder that the person chose, or `null` when the person cancelled the panel.
 | `relative_to` | string \| `null` |  | A folder that holds `path`. The clipboard gets the path from this folder. |
 | `return_text` | boolean |  | Return the text, and write no clipboard of a host: a phone writes it in the tap. Default: `false`. |
 
-**Rust:** [`crates/nh-proto/src/api/calls/workspace.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workspace.rs#L435) · **Used by:** [`fs.copy_path`](/docs/reference/api/methods/fs#fs-copy-path)
+**Rust:** [`crates/nh-proto/src/api/calls/workspace.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workspace.rs#L419) · **Used by:** [`fs.copy_path`](/docs/reference/api/methods/fs#fs-copy-path)
 
 ### `FsEntry` {#fsentry}
 
@@ -1325,7 +1315,7 @@ The folder that the person chose, or `null` when the person cancelled the panel.
 | `name` | string | yes |  |
 | `path` | string | yes | The absolute path, for `fs.list`, `fs.read` and the actions of a row. |
 
-**Rust:** [`crates/nh-proto/src/api/calls/workspace.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workspace.rs#L360) · **Used by:** [`FsListResult`](/docs/reference/api/types#fslistresult)
+**Rust:** [`crates/nh-proto/src/api/calls/workspace.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workspace.rs#L344) · **Used by:** [`FsListResult`](/docs/reference/api/types#fslistresult)
 
 ### `FsEntryKind` {#fsentrykind}
 
@@ -1335,7 +1325,7 @@ The folder that the person chose, or `null` when the person cancelled the panel.
 | `"file"` | A regular file, or a symlink to one. It opens in the file view. |
 | `"other"` | A socket, a pipe, a device or a broken link. The tree shows it and opens nothing. |
 
-**Rust:** [`crates/nh-proto/src/api/calls/workspace.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workspace.rs#L376) · **Used by:** [`FsEntry`](/docs/reference/api/types#fsentry)
+**Rust:** [`crates/nh-proto/src/api/calls/workspace.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workspace.rs#L360) · **Used by:** [`FsEntry`](/docs/reference/api/types#fsentry)
 
 ### `FsList` {#fslist}
 
@@ -1345,7 +1335,7 @@ The folder that the person chose, or `null` when the person cancelled the panel.
 |---|---|---|---|
 | `path` | string | yes | An absolute path. |
 
-**Rust:** [`crates/nh-proto/src/api/calls/workspace.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workspace.rs#L345) · **Used by:** [`fs.list`](/docs/reference/api/methods/fs#fs-list)
+**Rust:** [`crates/nh-proto/src/api/calls/workspace.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workspace.rs#L329) · **Used by:** [`fs.list`](/docs/reference/api/methods/fs#fs-list)
 
 ### `FsListResult` {#fslistresult}
 
@@ -1357,7 +1347,7 @@ The entries of a folder in the order of the tree: the folders first, then the ot
 | `path` | string | yes | The folder that the core listed, as an absolute path. |
 | `truncated` | boolean | yes | True when the folder has more entries than the core sends (2,000). |
 
-**Rust:** [`crates/nh-proto/src/api/calls/workspace.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workspace.rs#L352) · **Used by:** [`fs.list`](/docs/reference/api/methods/fs#fs-list)
+**Rust:** [`crates/nh-proto/src/api/calls/workspace.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workspace.rs#L336) · **Used by:** [`fs.list`](/docs/reference/api/methods/fs#fs-list)
 
 ### `FsOpen` {#fsopen}
 
@@ -1369,7 +1359,7 @@ The entries of a folder in the order of the tree: the folders first, then the ot
 | `reveal` | boolean |  | Show the path in the Finder, and do not open it. Default: `false`. |
 | `window` | [`WindowId`](/docs/reference/api/types#windowid) | yes |  |
 
-**Rust:** [`crates/nh-proto/src/api/calls/workspace.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workspace.rs#L425) · **Used by:** [`fs.open`](/docs/reference/api/methods/fs#fs-open)
+**Rust:** [`crates/nh-proto/src/api/calls/workspace.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workspace.rs#L409) · **Used by:** [`fs.open`](/docs/reference/api/methods/fs#fs-open)
 
 ### `FsPreviewKind` {#fspreviewkind}
 
@@ -1379,7 +1369,7 @@ The entries of a folder in the order of the tree: the folders first, then the ot
 | `"image"` | An image that the page shows from `image`. |
 | `"binary"` | Bytes that are not text. The view shows only `info`. |
 
-**Rust:** [`crates/nh-proto/src/api/calls/workspace.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workspace.rs#L393) · **Used by:** [`FsReadResult`](/docs/reference/api/types#fsreadresult)
+**Rust:** [`crates/nh-proto/src/api/calls/workspace.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workspace.rs#L377) · **Used by:** [`FsReadResult`](/docs/reference/api/types#fsreadresult)
 
 ### `FsRead` {#fsread}
 
@@ -1389,7 +1379,7 @@ The entries of a folder in the order of the tree: the folders first, then the ot
 |---|---|---|---|
 | `path` | string | yes | An absolute path. |
 
-**Rust:** [`crates/nh-proto/src/api/calls/workspace.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workspace.rs#L386) · **Used by:** [`fs.read`](/docs/reference/api/methods/fs#fs-read)
+**Rust:** [`crates/nh-proto/src/api/calls/workspace.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workspace.rs#L370) · **Used by:** [`fs.read`](/docs/reference/api/methods/fs#fs-read)
 
 ### `FsReadResult` {#fsreadresult}
 
@@ -1405,7 +1395,7 @@ The entries of a folder in the order of the tree: the folders first, then the ot
 | `path` | string | yes |  |
 | `truncated` | boolean | yes | The file has more than the core sends: 1 MiB or 10,000 lines. |
 
-**Rust:** [`crates/nh-proto/src/api/calls/workspace.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workspace.rs#L402) · **Used by:** [`fs.read`](/docs/reference/api/methods/fs#fs-read)
+**Rust:** [`crates/nh-proto/src/api/calls/workspace.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workspace.rs#L386) · **Used by:** [`fs.read`](/docs/reference/api/methods/fs#fs-read)
 
 ## G {#letter-g}
 
@@ -2409,7 +2399,7 @@ The login state of one harness on a machine, as the row of that machine says it.
 |---|---|---|---|
 | `machines` | [`MachineValue`](/docs/reference/api/types#machinevalue)[] | yes |  |
 
-**Rust:** [`crates/nh-proto/src/api/calls/workspace.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workspace.rs#L453) · **Used by:** [`machine.list`](/docs/reference/api/methods/machine#machine-list)
+**Rust:** [`crates/nh-proto/src/api/calls/workspace.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workspace.rs#L437) · **Used by:** [`machine.list`](/docs/reference/api/methods/machine#machine-list)
 
 ### `MachineState` {#machinestate}
 
@@ -2425,7 +2415,7 @@ Values: `"local"`, `"connecting"`, `"connected"`, `"disconnected"`.
 |---|---|---|---|
 | `machine` | string | yes |  |
 
-**Rust:** [`crates/nh-proto/src/api/calls/workspace.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workspace.rs#L448) · **Used by:** [`machine.connect`](/docs/reference/api/methods/machine#machine-connect), [`machine.disconnect`](/docs/reference/api/methods/machine#machine-disconnect), [`machine.open_window`](/docs/reference/api/methods/machine#machine-open-window)
+**Rust:** [`crates/nh-proto/src/api/calls/workspace.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workspace.rs#L432) · **Used by:** [`machine.connect`](/docs/reference/api/methods/machine#machine-connect), [`machine.disconnect`](/docs/reference/api/methods/machine#machine-disconnect), [`machine.open_window`](/docs/reference/api/methods/machine#machine-open-window)
 
 ### `MachineUpdate` {#machineupdate}
 
@@ -2665,7 +2655,7 @@ One painted frame. `pane` is the render id that the frames carry.
 | `pane` | integer (uint32) | yes |  |
 | `rev` | integer (uint64) | yes |  |
 
-**Rust:** [`crates/nh-proto/src/api/calls/workspace.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workspace.rs#L476) · **Used by:** [`RenderAck`](/docs/reference/api/types#renderack)
+**Rust:** [`crates/nh-proto/src/api/calls/workspace.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workspace.rs#L460) · **Used by:** [`RenderAck`](/docs/reference/api/types#renderack)
 
 ### `PaneBell` {#panebell}
 
@@ -3802,7 +3792,7 @@ Type: string.
 | `need_keyframe` | integer (uint32)[] |  | The panes whose frames the UI discarded. The core sends a keyframe for each. Default: `[]`. |
 | `window` | [`WindowId`](/docs/reference/api/types#windowid) | yes |  |
 
-**Rust:** [`crates/nh-proto/src/api/calls/workspace.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workspace.rs#L483) · **Used by:** [`render.ack`](/docs/reference/api/methods/render#render-ack)
+**Rust:** [`crates/nh-proto/src/api/calls/workspace.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workspace.rs#L467) · **Used by:** [`render.ack`](/docs/reference/api/methods/render#render-ack)
 
 ### `RenderParams` {#renderparams}
 
@@ -4488,7 +4478,7 @@ The ULID of a window, as 26 characters.
 
 Type: string. Pattern: `^[0-9A-HJKMNP-TV-Z]{26}$`.
 
-**Used by:** [`ChangesDiff`](/docs/reference/api/types#changesdiff), [`ChangesFollow`](/docs/reference/api/types#changesfollow), [`FsOpen`](/docs/reference/api/types#fsopen), [`InputStreamParams`](/docs/reference/api/types#inputstreamparams), [`InteractionReveal`](/docs/reference/api/types#interactionreveal), [`InteractionRevealed`](/docs/reference/api/types#interactionrevealed), [`PaletteExecute`](/docs/reference/api/types#paletteexecute), [`PaletteQuery`](/docs/reference/api/types#palettequery), [`PaneClaim`](/docs/reference/api/types#paneclaim), [`PaneFocus`](/docs/reference/api/types#panefocus), [`PaneResize`](/docs/reference/api/types#paneresize), [`PaneValue`](/docs/reference/api/types#panevalue), [`PhoneWindowResult`](/docs/reference/api/types#phonewindowresult), [`RenderAck`](/docs/reference/api/types#renderack), [`RenderParams`](/docs/reference/api/types#renderparams), [`TabSelect`](/docs/reference/api/types#tabselect), [`WindowClose`](/docs/reference/api/types#windowclose), [`WindowEvent`](/docs/reference/api/types#windowevent), [`WindowFocusReport`](/docs/reference/api/types#windowfocusreport), [`WindowOpened`](/docs/reference/api/types#windowopened), [`WindowPickFolder`](/docs/reference/api/types#windowpickfolder), [`WindowReportMetrics`](/docs/reference/api/types#windowreportmetrics), [`WindowSetBounds`](/docs/reference/api/types#windowsetbounds), [`WindowSetSingle`](/docs/reference/api/types#windowsetsingle), …
+**Used by:** [`ChangesDiff`](/docs/reference/api/types#changesdiff), [`ChangesFollow`](/docs/reference/api/types#changesfollow), [`FsOpen`](/docs/reference/api/types#fsopen), [`InputStreamParams`](/docs/reference/api/types#inputstreamparams), [`InteractionReveal`](/docs/reference/api/types#interactionreveal), [`InteractionRevealed`](/docs/reference/api/types#interactionrevealed), [`PaletteExecute`](/docs/reference/api/types#paletteexecute), [`PaletteQuery`](/docs/reference/api/types#palettequery), [`PaneClaim`](/docs/reference/api/types#paneclaim), [`PaneFocus`](/docs/reference/api/types#panefocus), [`PaneResize`](/docs/reference/api/types#paneresize), [`PaneValue`](/docs/reference/api/types#panevalue), [`PhoneWindowResult`](/docs/reference/api/types#phonewindowresult), [`RenderAck`](/docs/reference/api/types#renderack), [`RenderParams`](/docs/reference/api/types#renderparams), [`TabSelect`](/docs/reference/api/types#tabselect), [`WindowClose`](/docs/reference/api/types#windowclose), [`WindowEvent`](/docs/reference/api/types#windowevent), [`WindowFocusReport`](/docs/reference/api/types#windowfocusreport), [`WindowOpened`](/docs/reference/api/types#windowopened), [`WindowReportMetrics`](/docs/reference/api/types#windowreportmetrics), [`WindowSetBounds`](/docs/reference/api/types#windowsetbounds), [`WindowSetSingle`](/docs/reference/api/types#windowsetsingle), [`WindowSetVisiblePanes`](/docs/reference/api/types#windowsetvisiblepanes), …
 
 ### `WindowOpen` {#windowopen}
 
@@ -4507,18 +4497,6 @@ Type: string. Pattern: `^[0-9A-HJKMNP-TV-Z]{26}$`.
 | `window` | [`WindowId`](/docs/reference/api/types#windowid) | yes |  |
 
 **Rust:** [`crates/nh-proto/src/api/calls/workspace.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workspace.rs#L277) · **Used by:** [`pane.popout`](/docs/reference/api/methods/pane#pane-popout), [`window.open`](/docs/reference/api/methods/window#window-open)
-
-### `WindowPickFolder` {#windowpickfolder}
-
-The folder panel of the system, attached to the window.
-
-| Field | Type | Required | Description |
-|---|---|---|---|
-| `start` | string \| `null` |  | The folder that the panel shows first. The core ignores a path that is not absolute. |
-| `title` | string \| `null` |  | The message of the panel. |
-| `window` | [`WindowId`](/docs/reference/api/types#windowid) | yes |  |
-
-**Rust:** [`crates/nh-proto/src/api/calls/workspace.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workspace.rs#L329) · **Used by:** [`window.pick_folder`](/docs/reference/api/methods/window#window-pick-folder)
 
 ### `WindowReportMetrics` {#windowreportmetrics}
 

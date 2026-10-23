@@ -911,11 +911,6 @@ export interface FloatingPane {
   rect: Rect;
 }
 
-/** The folder that the person chose, or `null` when the person cancelled the panel. */
-export interface FolderPicked {
-  path?: string | null;
-}
-
 /** `fs.copy_path`: the core writes a path to the clipboard of the device that called. */
 export interface FsCopyPath {
   /** An absolute path. */
@@ -2916,15 +2911,6 @@ export interface WindowOpened {
   window: WindowId;
 }
 
-/** The folder panel of the system, attached to the window. */
-export interface WindowPickFolder {
-  /** The folder that the panel shows first. The core ignores a path that is not absolute. */
-  start?: string | null;
-  /** The message of the panel. */
-  title?: string | null;
-  window: WindowId;
-}
-
 /** What the page measured. */
 export interface WindowReportMetrics {
   cell_height_px: number;
@@ -3198,7 +3184,6 @@ export interface MethodMap {
   'window.report_metrics': { params: WindowReportMetrics; result: Empty };
   'window.set_bounds': { params: WindowSetBounds; result: Empty };
   'window.set_single': { params: WindowSetSingle; result: Empty };
-  'window.pick_folder': { params: WindowPickFolder; result: FolderPicked };
   'fs.list': { params: FsList; result: FsListResult };
   'fs.read': { params: FsRead; result: FsReadResult };
   'fs.open': { params: FsOpen; result: Empty };
@@ -3346,7 +3331,6 @@ export type UiMethod =
   | 'window.report_metrics'
   | 'window.set_bounds'
   | 'window.set_single'
-  | 'window.pick_folder'
   | 'fs.list'
   | 'fs.read'
   | 'fs.open'
@@ -3574,7 +3558,6 @@ export const METHOD_SCOPES: { readonly [M in Method]: readonly Scope[] } = {
   'window.report_metrics': ['ui', 'phone'],
   'window.set_bounds': ['ui', 'phone'],
   'window.set_single': ['ui', 'phone'],
-  'window.pick_folder': ['ui'],
   'fs.list': ['ui', 'cli', 'phone'],
   'fs.read': ['ui', 'phone'],
   'fs.open': ['ui'],

@@ -2,8 +2,8 @@
 //!
 //! The core sends a [`HostRequest`] for each call of the [`Host`] trait that its router gives to a
 //! link client. The enum has one variant for each host request that goes over a link.
-//! `sidecar_path` and `open_url` are never sent, and `pick_folder` answers `unsupported` on the
-//! side of the core, so they have no variant. No variant names a path of the client.
+//! `sidecar_path` and `open_url` are never sent, so they have no variant. No variant names a path
+//! of the client.
 //!
 //! The client does not trust a remote core with its machine. [`HostGuard`] checks each request
 //! against the [`HostLimits`] before it calls the host of the client, and refuses the rest.

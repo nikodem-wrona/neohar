@@ -14,12 +14,12 @@ The UI, the CLI and the hook shim all call the core through one contract. Its ve
 
 | Part | Count | Reference |
 |---|---|---|
-| Methods | 139 | [Methods](/docs/reference/api/methods) |
+| Methods | 138 | [Methods](/docs/reference/api/methods) |
 | Projections | 23 | [Projections](/docs/reference/api/projections) |
 | Event kinds | 49 | [Events](/docs/reference/api/events) |
 | Streams | 4 | [Streams](/docs/reference/api/streams) |
 | Error codes | 43 | [Errors](/docs/reference/api/errors) |
-| Named types | 404 | [Types](/docs/reference/api/types) |
+| Named types | 402 | [Types](/docs/reference/api/types) |
 
 ## Protocol versions
 
@@ -79,7 +79,7 @@ Every message is one JSON-RPC 2.0 object.
 
 | Scope | Who | Methods |
 |---|---|---|
-| `ui` | the UI, over the `rpc` command of the Tauri host or the WebSocket | 120 |
+| `ui` | the UI, over the `rpc` command of the Tauri host or the WebSocket | 119 |
 | `cli` | the CLI and any other client on the API socket | 93 |
 | `pane` | a hook shim, with the token of a pane | 4 |
 | `dev` | development and test builds only | 4 |
@@ -96,7 +96,7 @@ Every message is one JSON-RPC 2.0 object.
 | [`tab`](/docs/reference/api/methods/tab) | Tabs: one layout of panes in a workspace. | 5 |
 | [`layout`](/docs/reference/api/methods/layout) | The split tree of a tab: ratios, equal sizes and zoom. | 3 |
 | [`pane`](/docs/reference/api/methods/pane) | Panes: terminals with a holder, and their input, scrolling, selection, copy and text. | 27 |
-| [`window`](/docs/reference/api/methods/window) | The windows of the app: which panes they show, focus, metrics, bounds and panels. | 8 |
+| [`window`](/docs/reference/api/methods/window) | The windows of the app: which panes they show, focus, metrics, bounds and panels. | 7 |
 | [`fs`](/docs/reference/api/methods/fs) |  | 4 |
 | [`askpass`](/docs/reference/api/methods/askpass) |  | 1 |
 | [`render`](/docs/reference/api/methods/render) | Acknowledgements of painted frames, which free the slots of the render pacer. | 1 |

@@ -1,14 +1,13 @@
 //! The methods of the contract that the host's windows send to the render server:
-//! `window.focus_report`, `window.report_metrics` and `render.ack`. Also `window.pick_folder`,
-//! which asks the host for the folder panel of the system. Each one names a window of the layout.
+//! `window.focus_report`, `window.report_metrics` and `render.ack`. Each one names a window of the
+//! layout.
 //!
 //! They change the pace and the state of a window. The state that the UI shows (`focused`,
 //! `visible`, `refresh_hz` in the `windows` projection) goes through the state actor.
 
-use std::{path::PathBuf, sync::Arc};
+use std::sync::Arc;
 
 use nh_proto::api::{
-    calls::workspace::FolderPicked,
     common::Empty,
     ids::{PaneId, WindowId},
     methods::{Call, Method},
@@ -19,7 +18,6 @@ use crate::{
     ErrorCode,
     actor::{Origin, layout::apply_window_report},
     error::RpcError,
-    host::{FolderPick, Host as _},
     layout::model::WindowFacts,
     pane_calls::resolve_id,
     render::{Ack, AckParams, FocusReport},
@@ -30,12 +28,7 @@ use crate::{
 pub(crate) fn handles(method: &str) -> bool {
     matches!(
         Method::from_name(method),
-        Some(
-            Method::WindowFocusReport
-                | Method::WindowReportMetrics
-                | Method::RenderAck
-                | Method::WindowPickFolder
-        )
+        Some(Method::WindowFocusReport | Method::WindowReportMetrics | Method::RenderAck)
     )
 }
 
@@ -127,38 +120,6 @@ pub(crate) async fn run(inner: &Arc<Inner>, call: Call, origin: Origin) -> Resul
                 need_keyframe: p.need_keyframe,
             });
             empty()
-        }
-        Call::WindowPickFolder(p) => {
-            inner.render.require_window(p.window)?;
-            let start = p.start.map(PathBuf::from).filter(|path| path.is_absolute());
-            let (chosen, wait) = tokio::sync::oneshot::channel();
-            let pick = FolderPick {
-                window: p.window,
-                start,
-                title: p.title,
-            };
-            inner.host.pick_folder(
-                pick,
-                Box::new(move |path| {
-                    let _ = chosen.send(path);
-                }),
-            );
-            // The panel stays open while the person looks for the folder. The call waits on a
-            // task of its own, not on the state actor.
-            let path = wait.await.map_err(|_| {
-                RpcError::new(
-                    ErrorCode::Unsupported,
-                    "This app cannot show a folder panel. Type the path.",
-                )
-            })?;
-            let path = path
-                .map(|path| {
-                    path.into_os_string().into_string().map_err(|_| {
-                        RpcError::invalid_params("the name of the folder is not UTF-8")
-                    })
-                })
-                .transpose()?;
-            to_value(FolderPicked { path }).map_err(|e| RpcError::internal(e.to_string()))
         }
         other => Err(RpcError::internal(format!("not a window call: {other:?}"))),
     }

@@ -78,13 +78,12 @@ window itself: on macOS the command line is the title bar, so the capability als
 script of Tauri calls for `data-tauri-drag-region`. `scripts/tauri-commands.ts`
 checks this statically, and `mise run test:host` runs a real window that tries a plugin command, a
 fourth command, an inline script and a network fetch, and requires each to fail. Native work starts
-in the core: for a folder panel, the contract has `window.pick_folder` and the core asks the
-host.
+in the core: for a file to open, the contract has `fs.open` and the core asks the host.
 
 **The `Host` trait.** What the core needs from the process that carries it
 ([`crates/nh-core/src/host.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-core/src/host.rs)):
 notifications, the badge, the tray, focus of a window, the clipboard, opening a URL or a file
-(`fs.open` with `ui.editor`), the settings window, the folder panel, and the ssh question sheet of
+(`fs.open` with `ui.editor`), the settings window and the ssh question sheet of
 `nh askpass`. `nh daemon` and most tests use `NoopHost`. Requests from a remote core go
 through `MachineHost`, which adds the machine label to notifications and the tray.
 

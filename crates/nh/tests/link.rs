@@ -8,10 +8,7 @@ mod core_support;
 use std::{
     collections::VecDeque,
     path::PathBuf,
-    sync::{
-        Arc,
-        atomic::{AtomicBool, Ordering},
-    },
+    sync::Arc,
     time::{Duration, Instant},
 };
 
@@ -450,18 +447,8 @@ async fn host_requests_reach_the_client_within_the_limits() {
     core_host.focus_window(other);
     core_host.notify(notification(&"t".repeat(201)));
     core_host.clipboard_write("x".repeat((1 << 20) + 1));
-    // Never sent: a URL, the folder panel.
+    // Never sent: a URL.
     core_host.open_url("https://example.com".to_owned());
-    let chosen = Arc::new(AtomicBool::new(false));
-    let flag = Arc::clone(&chosen);
-    core_host.pick_folder(
-        nh_core::host::FolderPick {
-            window: mine,
-            start: None,
-            title: None,
-        },
-        Box::new(move |_| flag.store(true, Ordering::SeqCst)),
-    );
     // The next request shows that the ones before it were handled.
     core_host.set_badge(4);
     eventually("the last badge", || {
@@ -479,10 +466,6 @@ async fn host_requests_reach_the_client_within_the_limits() {
             HostCall::OpenSettings,
             HostCall::SetBadge(4),
         ]
-    );
-    assert!(
-        !chosen.load(Ordering::SeqCst),
-        "no folder panel over a link"
     );
 
     // A machine posts at most 10 notifications in 10 s: one is shown, 9 more fit.

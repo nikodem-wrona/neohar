@@ -23,7 +23,6 @@ The windows of the app: which panes they show, focus, metrics, bounds and panels
 | [`window.report_metrics`](#window-report-metrics) | `ui` `phone` | [`WindowReportMetrics`](/docs/reference/api/types#windowreportmetrics) | [`Empty`](/docs/reference/api/types#empty) |
 | [`window.set_bounds`](#window-set-bounds) | `ui` `phone` | [`WindowSetBounds`](/docs/reference/api/types#windowsetbounds) | [`Empty`](/docs/reference/api/types#empty) |
 | [`window.set_single`](#window-set-single) | `ui` `phone` | [`WindowSetSingle`](/docs/reference/api/types#windowsetsingle) | [`Empty`](/docs/reference/api/types#empty) |
-| [`window.pick_folder`](#window-pick-folder) | `ui` | [`WindowPickFolder`](/docs/reference/api/types#windowpickfolder) | [`FolderPicked`](/docs/reference/api/types#folderpicked) |
 
 ## `window.open` {#window-open}
 
@@ -173,27 +172,3 @@ The single view of a window. With `single`, the window draws only its focused pa
 [`Empty`](/docs/reference/api/types#empty)
 
 An object with no fields: `{}`.
-
-## `window.pick_folder` {#window-pick-folder}
-
-**Scopes:** `ui` — the UI, over the `rpc` command of the Tauri host or the WebSocket.
-
-The folder panel of the system, attached to the window.
-
-### Params
-
-[`WindowPickFolder`](/docs/reference/api/types#windowpickfolder)
-
-| Field | Type | Required | Description |
-|---|---|---|---|
-| `start` | string \| `null` |  | The folder that the panel shows first. The core ignores a path that is not absolute. |
-| `title` | string \| `null` |  | The message of the panel. |
-| `window` | [`WindowId`](/docs/reference/api/types#windowid) | yes |  |
-
-### Result
-
-[`FolderPicked`](/docs/reference/api/types#folderpicked)
-
-| Field | Type | Required | Description |
-|---|---|---|---|
-| `path` | string \| `null` |  |  |

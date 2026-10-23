@@ -1,6 +1,6 @@
 ---
 title: "Methods"
-description: "All 139 JSON-RPC methods of the core, by namespace."
+description: "All 138 JSON-RPC methods of the core, by namespace."
 sidebar_label: "Methods"
 ---
 
@@ -11,11 +11,11 @@ Do not edit it by hand. Change the source and run `bun run gen` in `website/`.
 
 :::
 
-The core has 139 methods in 29 namespaces. A method name is `<namespace>.<verb>`. Each method lists its callers (scopes); a caller that is not on the list gets [`permission_denied`](/docs/reference/api/errors#permission-denied).
+The core has 138 methods in 29 namespaces. A method name is `<namespace>.<verb>`. Each method lists its callers (scopes); a caller that is not on the list gets [`permission_denied`](/docs/reference/api/errors#permission-denied).
 
 | Scope | Who | Methods |
 |---|---|---|
-| `ui` | the UI, over the `rpc` command of the Tauri host or the WebSocket | 120 |
+| `ui` | the UI, over the `rpc` command of the Tauri host or the WebSocket | 119 |
 | `cli` | the CLI and any other client on the API socket | 93 |
 | `pane` | a hook shim, with the token of a pane | 4 |
 | `dev` | development and test builds only | 4 |
@@ -30,7 +30,7 @@ The core has 139 methods in 29 namespaces. A method name is `<namespace>.<verb>`
 | [`tab`](/docs/reference/api/methods/tab) | Tabs: one layout of panes in a workspace. | [`tab.create`](/docs/reference/api/methods/tab#tab-create), [`tab.rename`](/docs/reference/api/methods/tab#tab-rename), [`tab.close`](/docs/reference/api/methods/tab#tab-close), [`tab.move`](/docs/reference/api/methods/tab#tab-move), [`tab.select`](/docs/reference/api/methods/tab#tab-select) |
 | [`layout`](/docs/reference/api/methods/layout) | The split tree of a tab: ratios, equal sizes and zoom. | [`layout.set_ratios`](/docs/reference/api/methods/layout#layout-set-ratios), [`layout.equalize`](/docs/reference/api/methods/layout#layout-equalize), [`layout.zoom`](/docs/reference/api/methods/layout#layout-zoom) |
 | [`pane`](/docs/reference/api/methods/pane) | Panes: terminals with a holder, and their input, scrolling, selection, copy and text. | [`pane.split`](/docs/reference/api/methods/pane#pane-split), [`pane.close`](/docs/reference/api/methods/pane#pane-close), [`pane.focus`](/docs/reference/api/methods/pane#pane-focus), [`pane.claim`](/docs/reference/api/methods/pane#pane-claim), [`pane.move`](/docs/reference/api/methods/pane#pane-move), [`pane.float`](/docs/reference/api/methods/pane#pane-float), [`pane.unfloat`](/docs/reference/api/methods/pane#pane-unfloat), [`pane.set_float_rect`](/docs/reference/api/methods/pane#pane-set-float-rect), [`pane.popout`](/docs/reference/api/methods/pane#pane-popout), [`pane.restart`](/docs/reference/api/methods/pane#pane-restart), [`pane.resize`](/docs/reference/api/methods/pane#pane-resize), [`pane.input`](/docs/reference/api/methods/pane#pane-input), [`pane.paste`](/docs/reference/api/methods/pane#pane-paste), [`pane.send_bytes`](/docs/reference/api/methods/pane#pane-send-bytes), [`pane.drop_files`](/docs/reference/api/methods/pane#pane-drop-files), [`pane.drop_blobs`](/docs/reference/api/methods/pane#pane-drop-blobs), [`pane.insert_paths`](/docs/reference/api/methods/pane#pane-insert-paths), [`pane.scroll`](/docs/reference/api/methods/pane#pane-scroll), [`pane.select`](/docs/reference/api/methods/pane#pane-select), [`pane.select_clear`](/docs/reference/api/methods/pane#pane-select-clear), [`pane.copy`](/docs/reference/api/methods/pane#pane-copy), [`pane.read`](/docs/reference/api/methods/pane#pane-read), [`pane.peek_open`](/docs/reference/api/methods/pane#pane-peek-open), [`pane.peek_close`](/docs/reference/api/methods/pane#pane-peek-close), [`pane.clipboard_allow`](/docs/reference/api/methods/pane#pane-clipboard-allow), [`pane.list`](/docs/reference/api/methods/pane#pane-list), [`pane.show`](/docs/reference/api/methods/pane#pane-show) |
-| [`window`](/docs/reference/api/methods/window) | The windows of the app: which panes they show, focus, metrics, bounds and panels. | [`window.open`](/docs/reference/api/methods/window#window-open), [`window.close`](/docs/reference/api/methods/window#window-close), [`window.set_visible_panes`](/docs/reference/api/methods/window#window-set-visible-panes), [`window.focus_report`](/docs/reference/api/methods/window#window-focus-report), [`window.report_metrics`](/docs/reference/api/methods/window#window-report-metrics), [`window.set_bounds`](/docs/reference/api/methods/window#window-set-bounds), [`window.set_single`](/docs/reference/api/methods/window#window-set-single), [`window.pick_folder`](/docs/reference/api/methods/window#window-pick-folder) |
+| [`window`](/docs/reference/api/methods/window) | The windows of the app: which panes they show, focus, metrics, bounds and panels. | [`window.open`](/docs/reference/api/methods/window#window-open), [`window.close`](/docs/reference/api/methods/window#window-close), [`window.set_visible_panes`](/docs/reference/api/methods/window#window-set-visible-panes), [`window.focus_report`](/docs/reference/api/methods/window#window-focus-report), [`window.report_metrics`](/docs/reference/api/methods/window#window-report-metrics), [`window.set_bounds`](/docs/reference/api/methods/window#window-set-bounds), [`window.set_single`](/docs/reference/api/methods/window#window-set-single) |
 | [`fs`](/docs/reference/api/methods/fs) |  | [`fs.list`](/docs/reference/api/methods/fs#fs-list), [`fs.read`](/docs/reference/api/methods/fs#fs-read), [`fs.open`](/docs/reference/api/methods/fs#fs-open), [`fs.copy_path`](/docs/reference/api/methods/fs#fs-copy-path) |
 | [`askpass`](/docs/reference/api/methods/askpass) |  | [`askpass.ask`](/docs/reference/api/methods/askpass#askpass-ask) |
 | [`render`](/docs/reference/api/methods/render) | Acknowledgements of painted frames, which free the slots of the render pacer. | [`render.ack`](/docs/reference/api/methods/render#render-ack) |

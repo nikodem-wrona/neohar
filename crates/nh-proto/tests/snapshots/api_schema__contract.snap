@@ -2739,18 +2739,6 @@ expression: document()
       ],
       "type": "object"
     },
-    "FolderPicked": {
-      "description": "The folder that the person chose, or `null` when the person cancelled the panel.",
-      "properties": {
-        "path": {
-          "type": [
-            "string",
-            "null"
-          ]
-        }
-      },
-      "type": "object"
-    },
     "FsCopyPath": {
       "description": "`fs.copy_path`: the core writes a path to the clipboard of the device that called.",
       "properties": {
@@ -9026,32 +9014,6 @@ expression: document()
       ],
       "type": "object"
     },
-    "WindowPickFolder": {
-      "description": "The folder panel of the system, attached to the window.",
-      "properties": {
-        "start": {
-          "description": "The folder that the panel shows first. The core ignores a path that is not absolute.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "title": {
-          "description": "The message of the panel.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "window": {
-          "$ref": "#/$defs/WindowId"
-        }
-      },
-      "required": [
-        "window"
-      ],
-      "type": "object"
-    },
     "WindowReportMetrics": {
       "description": "What the page measured.",
       "properties": {
@@ -10953,18 +10915,6 @@ expression: document()
       "scopes": [
         "ui",
         "phone"
-      ]
-    },
-    {
-      "name": "window.pick_folder",
-      "params": {
-        "$ref": "#/$defs/WindowPickFolder"
-      },
-      "result": {
-        "$ref": "#/$defs/FolderPicked"
-      },
-      "scopes": [
-        "ui"
       ]
     },
     {

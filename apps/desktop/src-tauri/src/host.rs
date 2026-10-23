@@ -2,7 +2,7 @@
 //!
 //! The core never touches a window, the clipboard or the system. It asks a [`Host`]. This one
 //! writes to the clipboard, opens addresses with the system, shows notifications with buttons,
-//! sets the badge on the dock, fills the menu of the tray and shows the folder panel. The windows are not here: the app
+//! sets the badge on the dock and fills the menu of the tray. The windows are not here: the app
 //! opens a window for each row of the `windows` projection ([`crate::windows`]), so a window that
 //! the CLI opens appears the same way as one from the menu.
 //!
@@ -21,15 +21,13 @@ use std::{
 use nh_core::{
     Host,
     host::{
-        FolderChosen, FolderPick, HostNotification, NotificationCapabilities,
-        NotificationPermission, OpenRefused, PathOpen, SecretAnswered, SecretQuestion, TrayModel,
-        WindowSpec,
+        HostNotification, NotificationCapabilities, NotificationPermission, OpenRefused, PathOpen,
+        SecretAnswered, SecretQuestion, TrayModel, WindowSpec,
     },
 };
 use nh_proto::api::ids::{InteractionId, NotificationId, PaneId, WindowId};
 use tauri::{AppHandle, Manager};
 use tauri_plugin_clipboard_manager::ClipboardExt;
-use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_opener::OpenerExt;
 
 use crate::{
@@ -486,25 +484,6 @@ impl Host for TauriHost {
         app.opener()
             .open_path(open.path.to_string_lossy(), open.with)
             .map_err(|error| OpenRefused::Failed(error.to_string()))
-    }
-
-    // The plugin opens the panel on the main thread and calls back on a thread of its own. The
-    // panel is a sheet of the window that asked, so it does not hide the other windows.
-    fn pick_folder(&self, pick: FolderPick, done: FolderChosen) {
-        let Some(app) = self.app.get() else {
-            return;
-        };
-        let mut dialog = app.dialog().file().set_can_create_directories(true);
-        if let Some(window) = app.get_webview_window(&pick.window.to_string()) {
-            dialog = dialog.set_parent(&window);
-        }
-        if let Some(start) = &pick.start {
-            dialog = dialog.set_directory(start);
-        }
-        if let Some(title) = pick.title {
-            dialog = dialog.set_title(title);
-        }
-        dialog.pick_folder(move |chosen| done(chosen.and_then(|path| path.into_path().ok())));
     }
 
     /// A question of ssh: a sheet on the main thread. Only macOS has one; on another

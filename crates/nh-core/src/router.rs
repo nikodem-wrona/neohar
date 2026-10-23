@@ -10,8 +10,6 @@
 //! - The badge and the tray go to every host.
 //! - A window request goes to the host of the client that owns the row of `windows`.
 //! - The clipboard and the settings window go to the host of one device, which the caller names.
-//! - The folder panel goes to the host of the window that asked. Only the host in the process
-//!   shows one. A link client answers `unsupported`.
 //! - `sidecar_path` and `open_url` never leave the machine: only the host in the process answers.
 //!
 //! A client that attaches gets the badge, the tray and the notifications of the open interactions
@@ -30,9 +28,8 @@ use ulid::Ulid;
 
 use crate::{
     host::{
-        ClientInfo, FolderChosen, FolderPick, Host, HostNotification, InProcessHost,
-        NotificationCapabilities, OpenRefused, PathOpen, SecretAnswered, SecretQuestion, TrayModel,
-        WindowSpec,
+        ClientInfo, Host, HostNotification, InProcessHost, NotificationCapabilities, OpenRefused,
+        PathOpen, SecretAnswered, SecretQuestion, TrayModel, WindowSpec,
     },
     ids::new_notification_id,
     layout::model::Layout,
@@ -501,14 +498,6 @@ impl Host for HostRouter {
                 local.host.open_path(open)
             }
             _ => Err(OpenRefused::Unsupported),
-        }
-    }
-
-    /// The host of the window that asked. A link client drops `done`, and the core answers
-    /// `unsupported`.
-    fn pick_folder(&self, pick: FolderPick, done: FolderChosen) {
-        if let Some(host) = self.host_of_window(pick.window) {
-            host.pick_folder(pick, done);
         }
     }
 

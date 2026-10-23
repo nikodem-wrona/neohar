@@ -81,17 +81,6 @@ pub struct WindowSpec {
     pub tab: Option<TabId>,
 }
 
-/// A folder panel that the core asks the host to show (`window.pick_folder`).
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct FolderPick {
-    /// The window that the panel attaches to.
-    pub window: WindowId,
-    /// The folder that the panel shows first. It is absolute.
-    pub start: Option<PathBuf>,
-    /// The message of the panel.
-    pub title: Option<String>,
-}
-
 /// A path that the core asks the host to open, or to show in the file manager (`fs.open`).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PathOpen {
@@ -150,10 +139,6 @@ pub struct SecretQuestion {
 /// person cancelled. The answer goes to this function and nowhere else.
 pub type SecretAnswered = Box<dyn FnOnce(Option<String>) + Send>;
 
-/// What the host calls when the person closes a folder panel: the folder that the person chose, or
-/// `None` when the person cancelled.
-pub type FolderChosen = Box<dyn FnOnce(Option<PathBuf>) + Send>;
-
 /// The host. All methods are called from the threads of the core and must not block for long.
 pub trait Host: Send + Sync + std::fmt::Debug + 'static {
     /// Shows a notification. Returns the id for [`Host::update_notification`] and
@@ -186,10 +171,6 @@ pub trait Host: Send + Sync + std::fmt::Debug + 'static {
     fn open_settings_at(&self, _section: &str) {
         self.open_settings();
     }
-    /// Shows the folder panel of the system and returns at once. The host calls `done` when the
-    /// person closes the panel. A host without a panel drops `done`, and the core answers
-    /// `unsupported`.
-    fn pick_folder(&self, pick: FolderPick, done: FolderChosen);
     /// Asks the person a question of ssh and returns at once. The host calls `done` with the
     /// answer. A host without a panel drops `done`, and the core answers `unsupported`.
     fn ask_secret(&self, _question: SecretQuestion, done: SecretAnswered) {
@@ -301,8 +282,6 @@ impl Host for NoopHost {
     fn open_url(&self, _: String) {}
 
     fn open_settings(&self) {}
-
-    fn pick_folder(&self, _: FolderPick, _: FolderChosen) {}
 }
 
 /// What a [`RecordingHost`] was asked to do.
@@ -320,7 +299,6 @@ pub enum HostCall {
     OpenUrl(String),
     OpenSettings,
     OpenSettingsAt(String),
-    PickFolder(FolderPick),
     /// A question of ssh. The answer is not written down.
     AskSecret(SecretQuestion),
     OpenPath(PathOpen),
@@ -332,8 +310,6 @@ pub struct RecordingHost {
     sidecar: PathBuf,
     actions: bool,
     calls: Mutex<Vec<HostCall>>,
-    /// What the folder panel gives. Without it the host has no panel.
-    folder: Mutex<Option<Option<PathBuf>>>,
     /// What the question panel gives. Without it the host has no panel.
     secret: Mutex<Option<Option<String>>>,
     /// The size of each call of [`Host::notify_open`].
@@ -347,7 +323,6 @@ impl RecordingHost {
             sidecar,
             actions,
             calls: Mutex::default(),
-            folder: Mutex::default(),
             secret: Mutex::default(),
             open_batches: Mutex::default(),
         }
@@ -360,12 +335,6 @@ impl RecordingHost {
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
             .clone()
-    }
-
-    /// Gives the host a folder panel that answers `chosen` at once: a folder, or `None` for a
-    /// panel that the person cancelled.
-    pub fn answer_folder(&self, chosen: Option<PathBuf>) {
-        *self.folder.lock().unwrap_or_else(PoisonError::into_inner) = Some(chosen);
     }
 
     /// Gives the host a question panel that answers `answer` at once: text, or `None` for a
@@ -457,18 +426,6 @@ impl Host for RecordingHost {
 
     fn open_settings_at(&self, section: &str) {
         self.record(HostCall::OpenSettingsAt(section.to_owned()));
-    }
-
-    fn pick_folder(&self, pick: FolderPick, done: FolderChosen) {
-        self.record(HostCall::PickFolder(pick));
-        let chosen = self
-            .folder
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner)
-            .clone();
-        if let Some(chosen) = chosen {
-            done(chosen);
-        }
     }
 
     fn ask_secret(&self, question: SecretQuestion, done: SecretAnswered) {

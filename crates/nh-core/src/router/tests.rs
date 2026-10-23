@@ -377,41 +377,6 @@ fn no_host_writes_the_clipboard_of_a_phone() {
 }
 
 #[test]
-fn the_folder_panel_goes_to_the_host_of_the_window_and_a_link_answers_unsupported() {
-    let s = setup();
-    s.local.answer_folder(Some(PathBuf::from("/work")));
-    let layout = Layout {
-        windows: vec![window(10, Some(LOCAL)), window(11, Some(STUDIO))],
-        ..Layout::default()
-    };
-    s.router.set_owners(&layout);
-    let pick = |n: u128| FolderPick {
-        window: WindowId::new(Ulid(n)),
-        start: None,
-        title: None,
-    };
-    let (tx, rx) = std::sync::mpsc::channel();
-    s.router.pick_folder(
-        pick(10),
-        Box::new(move |chosen| {
-            let _ = tx.send(chosen);
-        }),
-    );
-    assert_eq!(rx.recv().ok(), Some(Some(PathBuf::from("/work"))));
-    // The studio has no panel: it drops `done`, so the channel closes with no answer.
-    let (tx, rx) = std::sync::mpsc::channel::<Option<PathBuf>>();
-    s.router.pick_folder(
-        pick(11),
-        Box::new(move |chosen| {
-            let _ = tx.send(chosen);
-        }),
-    );
-    assert!(rx.recv().is_err());
-    assert!(s.studio.calls().contains(&HostCall::PickFolder(pick(11))));
-    assert!(!s.local.calls().contains(&HostCall::PickFolder(pick(11))));
-}
-
-#[test]
 fn only_the_host_in_the_process_opens_a_path_and_only_for_its_windows() {
     let s = setup();
     let layout = Layout {

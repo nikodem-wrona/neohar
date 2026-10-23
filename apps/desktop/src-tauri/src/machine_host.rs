@@ -16,9 +16,7 @@ use std::{path::PathBuf, sync::Arc};
 
 use nh_core::{
     CoreHandle, Host,
-    host::{
-        FolderChosen, FolderPick, HostNotification, NotificationCapabilities, TrayModel, WindowSpec,
-    },
+    host::{HostNotification, NotificationCapabilities, TrayModel, WindowSpec},
 };
 use nh_proto::api::ids::{NotificationId, WindowId};
 
@@ -108,12 +106,6 @@ impl Host for MachineHost {
 
     fn open_settings(&self) {
         self.app.open_settings_of(&self.machine);
-    }
-
-    /// Only the host in the process shows the folder panel. The link drops this request, and the
-    /// core answers `unsupported`.
-    fn pick_folder(&self, _: FolderPick, done: FolderChosen) {
-        drop(done);
     }
 }
 

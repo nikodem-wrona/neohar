@@ -218,7 +218,6 @@ impl Method {
                 | Self::PaneShow
                 | Self::WindowFocusReport
                 | Self::WindowReportMetrics
-                | Self::WindowPickFolder
                 | Self::FsList
                 | Self::FsRead
                 | Self::FsOpen
@@ -293,9 +292,6 @@ impl Method {
                     "A phone has one window, and this method makes or ends a native window.",
                 ))
             }
-            Self::WindowPickFolder => Some(PhoneRefusal::Unsupported(
-                "A phone has no folder panel. The page shows its folder browser.",
-            )),
             Self::FsOpen => Some(PhoneRefusal::Unsupported(
                 "A path opens on the screen of the Mac, not on a phone.",
             )),
@@ -416,7 +412,6 @@ methods! {
     WindowReportMetrics "window.report_metrics" UI (WindowReportMetrics) -> Empty;
     WindowSetBounds "window.set_bounds" UI (WindowSetBounds) -> Empty;
     WindowSetSingle "window.set_single" UI (WindowSetSingle) -> Empty;
-    WindowPickFolder "window.pick_folder" UI (WindowPickFolder) -> FolderPicked;
     FsList "fs.list" BOTH (FsList) -> FsListResult;
     FsRead "fs.read" UI (FsRead) -> FsReadResult;
     FsOpen "fs.open" UI (FsOpen) -> Empty;
@@ -620,7 +615,6 @@ mod tests {
                     "report_metrics",
                     "set_bounds",
                     "set_single",
-                    "pick_folder",
                 ],
             ),
             ("fs", &["list", "read", "open", "copy_path"]),
@@ -792,7 +786,6 @@ mod tests {
                 "pane.popout",
                 "window.open",
                 "window.close",
-                "window.pick_folder",
                 "fs.open",
                 "phone.pair_begin",
                 "phone.pair_cancel",
