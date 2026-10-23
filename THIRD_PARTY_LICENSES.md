@@ -7317,7 +7317,7 @@ SOFTWARE.
 
 ### MIT License (MIT)
 
-Used by: `tokio 1.53.2`.
+Used by: `tokio 1.53.3`.
 
 ```text
 MIT License

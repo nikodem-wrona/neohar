@@ -41,6 +41,9 @@ pub struct Harnesses {
     /// The version of each executable that was probed, so that a probe runs once.
     versions: VersionCache,
     actor: Mutex<Option<ActorHandle>>,
+    /// Held for each load and its events. The watch and `config.reload` load from two threads,
+    /// and two loads that compare with the same manifests give the same events two times.
+    reloading: Mutex<()>,
 }
 
 fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
@@ -72,6 +75,7 @@ impl Harnesses {
             health,
             versions: VersionCache::new(),
             actor: Mutex::new(None),
+            reloading: Mutex::new(()),
         });
         registry.load_first();
         registry
@@ -90,12 +94,14 @@ impl Harnesses {
     /// Gives the registry the state actor, so that it can write its events. It then writes the
     /// event of every manifest in force: the start of a core is a load.
     pub(crate) fn attach(&self, actor: ActorHandle) {
+        let _reloading = lock(&self.reloading);
         *lock(&self.actor) = Some(actor);
         self.emit(self.changes_since(&Loaded::default(), &self.current()));
     }
 
     /// Reads the files again. Gives the manifests that changed.
     pub fn reload(&self) -> Vec<Change> {
+        let _reloading = lock(&self.reloading);
         let before = self.current();
         let after = Arc::new(load(Some(&self.dir)));
         let changes = self.changes_since(&before, &after);
@@ -265,5 +271,43 @@ impl Drop for HarnessWatcher {
     fn drop(&mut self) {
         // The thread ends by itself. Do not wait: it can be inside the setup of the watch.
         let _ = self.stop.send(Message::Stop);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Barrier;
+
+    use super::*;
+    use crate::projection::ProjectionHub;
+
+    #[test]
+    fn loads_at_the_same_time_give_a_new_manifest_one_change() {
+        let dir = std::env::temp_dir().join(format!("nh-harness-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).expect("a directory");
+        let registry = Harnesses::load(dir.clone(), None, Health::new(ProjectionHub::new()));
+        std::fs::write(
+            dir.join("cc.toml"),
+            "schema = 1\nid = \"cc\"\nextends = \"claude\"\n",
+        )
+        .expect("a file");
+        let start = Arc::new(Barrier::new(8));
+        let threads: Vec<_> = (0..8)
+            .map(|_| {
+                let (registry, start) = (Arc::clone(&registry), Arc::clone(&start));
+                std::thread::spawn(move || {
+                    start.wait();
+                    registry.reload()
+                })
+            })
+            .collect();
+        let changes: Vec<Change> = threads
+            .into_iter()
+            .flat_map(|thread| thread.join().expect("a load"))
+            .collect();
+        assert_eq!(changes.len(), 1, "{changes:?}");
+        assert_eq!(changes[0].id, "cc");
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }
