@@ -872,6 +872,8 @@ async fn a_program_that_sets_its_title_all_the_time_reaches_the_projection_four_
         .await;
     let id = created["pane"].as_str().expect("an id").to_owned();
     let mut titles: Vec<String> = Vec::new();
+    // When each title reached the projection.
+    let mut times: Vec<Instant> = Vec::new();
     let deadline = Instant::now() + TIMEOUT;
     while titles.last().map(String::as_str) != Some("last") {
         assert!(Instant::now() < deadline, "the titles so far: {titles:?}");
@@ -896,15 +898,20 @@ async fn a_program_that_sets_its_title_all_the_time_reaches_the_projection_four_
             let title = row["title"].as_str().unwrap_or_default().to_owned();
             if !title.is_empty() && titles.last() != Some(&title) {
                 titles.push(title);
+                times.push(Instant::now());
             }
         }
     }
     // The first title shows at once, and a title follows each quarter of a second. The title
-    // after the pause is the last one. Without the limit there would be 50 changes.
+    // after the pause is the last one. Without the limit there would be 50 changes. A busy
+    // machine runs the 50 titles in more than one second, so the limit uses the time that they
+    // took. One title more is for the delay of the first one.
+    let burst = titles.len() - 1;
+    let span = times[burst.saturating_sub(1)] - times[0];
+    let allowed = 2 + span.as_millis() / 250;
     assert!(
-        titles.len() <= 9,
-        "{} titles reached the projection: {titles:?}",
-        titles.len()
+        burst as u128 <= allowed,
+        "{burst} titles reached the projection in {span:?}: {titles:?}"
     );
 }
 
