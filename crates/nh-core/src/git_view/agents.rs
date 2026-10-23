@@ -46,6 +46,12 @@ pub(crate) fn state_of(agent: &AgentValue) -> GitAgentState {
     }
 }
 
+/// Whether a write in the worktree of the agent asks first: the agent starts, works, waits for
+/// the person, or its state is not known.
+pub(crate) fn busy(state: GitAgentState) -> bool {
+    !matches!(state, GitAgentState::Idle | GitAgentState::Exited)
+}
+
 /// The folders that the core canonicalized, so that a pane that stays in its folder costs no
 /// look at the disk each second.
 #[derive(Default)]

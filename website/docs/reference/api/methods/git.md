@@ -25,6 +25,10 @@ Do not edit it by hand. Change the source and run `bun run gen` in `website/`.
 | [`git.log`](#git-log) | `ui` `cli` `phone` | [`GitLog`](/docs/reference/api/types#gitlog) | [`GitLogResult`](/docs/reference/api/types#gitlogresult) |
 | [`git.show`](#git-show) | `ui` `cli` `phone` | [`GitShow`](/docs/reference/api/types#gitshow) | [`GitShown`](/docs/reference/api/types#gitshown) |
 | [`git.diff`](#git-diff) | `ui` `cli` `phone` | [`GitDiff`](/docs/reference/api/types#gitdiff) | [`FileDiff`](/docs/reference/api/types#filediff) |
+| [`git.switch`](#git-switch) | `ui` `cli` `phone` | [`GitSwitch`](/docs/reference/api/types#gitswitch) | [`Empty`](/docs/reference/api/types#empty) |
+| [`git.unstash`](#git-unstash) | `ui` `cli` `phone` | [`GitUnstash`](/docs/reference/api/types#gitunstash) | [`Empty`](/docs/reference/api/types#empty) |
+| [`git.fetch`](#git-fetch) | `ui` `cli` `phone` | [`GitFetch`](/docs/reference/api/types#gitfetch) | [`JobStarted`](/docs/reference/api/types#jobstarted) |
+| [`git.pull`](#git-pull) | `ui` `cli` `phone` | [`GitPull`](/docs/reference/api/types#gitpull) | [`JobStarted`](/docs/reference/api/types#jobstarted) |
 
 ## `git.follow` {#git-follow}
 
@@ -103,8 +107,8 @@ The worktree of a read: the one that the Git view of `window` follows, or the on
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `path` | string \| `null` |  | An absolute path in the worktree. The CLI gives the current directory. |
-| `window` | [`WindowId`](/docs/reference/api/types#windowid) \| `null` |  |  |
+| `path` | string \| `null` |  | The worktree that holds this absolute path. The CLI gives the current directory. |
+| `window` | [`WindowId`](/docs/reference/api/types#windowid) \| `null` |  | The worktree that the Git view of this window shows. |
 
 ### Result
 
@@ -129,8 +133,8 @@ The worktree of a read: the one that the Git view of `window` follows, or the on
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `path` | string \| `null` |  | An absolute path in the worktree. The CLI gives the current directory. |
-| `window` | [`WindowId`](/docs/reference/api/types#windowid) \| `null` |  |  |
+| `path` | string \| `null` |  | The worktree that holds this absolute path. The CLI gives the current directory. |
+| `window` | [`WindowId`](/docs/reference/api/types#windowid) \| `null` |  | The worktree that the Git view of this window shows. |
 
 ### Result
 
@@ -154,8 +158,8 @@ The worktree of a read: the one that the Git view of `window` follows, or the on
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `path` | string \| `null` |  | An absolute path in the worktree. The CLI gives the current directory. |
-| `window` | [`WindowId`](/docs/reference/api/types#windowid) \| `null` |  |  |
+| `path` | string \| `null` |  | The worktree that holds this absolute path. The CLI gives the current directory. |
+| `window` | [`WindowId`](/docs/reference/api/types#windowid) \| `null` |  | The worktree that the Git view of this window shows. |
 
 ### Result
 
@@ -180,9 +184,9 @@ The worktree of a read: the one that the Git view of `window` follows, or the on
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `limit` | integer (uint32) |  | The most commits of the page, at most 200. Default: `200`. |
-| `path` | string \| `null` |  |  |
+| `path` | string \| `null` |  | The worktree that holds this absolute path. The CLI gives the current directory. |
 | `skip` | integer (uint32) |  | The commits to leave out at the start: the number that the pages before had. Default: `0`. |
-| `window` | [`WindowId`](/docs/reference/api/types#windowid) \| `null` |  |  |
+| `window` | [`WindowId`](/docs/reference/api/types#windowid) \| `null` |  | The worktree that the Git view of this window shows. |
 
 ### Result
 
@@ -209,8 +213,8 @@ The worktree of a read: the one that the Git view of `window` follows, or the on
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `commit` | string | yes | The full or the short hash of the commit. |
-| `path` | string \| `null` |  |  |
-| `window` | [`WindowId`](/docs/reference/api/types#windowid) \| `null` |  |  |
+| `path` | string \| `null` |  | The worktree that holds this absolute path. The CLI gives the current directory. |
+| `window` | [`WindowId`](/docs/reference/api/types#windowid) \| `null` |  | The worktree that the Git view of this window shows. |
 
 ### Result
 
@@ -242,8 +246,8 @@ The worktree of a read: the one that the Git view of `window` follows, or the on
 |---|---|---|---|
 | `commit` | string \| `null` |  |  |
 | `file` | string | yes | The path of the file from the root of the worktree. |
-| `path` | string \| `null` |  |  |
-| `window` | [`WindowId`](/docs/reference/api/types#windowid) \| `null` |  |  |
+| `path` | string \| `null` |  | The worktree that holds this absolute path. The CLI gives the current directory. |
+| `window` | [`WindowId`](/docs/reference/api/types#windowid) \| `null` |  | The worktree that the Git view of this window shows. |
 
 ### Result
 
@@ -256,3 +260,105 @@ The worktree of a read: the one that the Git view of `window` follows, or the on
 | `stats` | [`DiffStats`](/docs/reference/api/types#diffstats) | yes |  |
 | `status` | [`FileStatus`](/docs/reference/api/types#filestatus) | yes |  |
 | `truncated` | boolean |  | The diff of this file was cut at 2,000 lines. The UI offers "open full". Default: `false`. |
+
+## `git.switch` {#git-switch}
+
+**Scopes:** `ui` `cli` `phone` — the UI, over the `rpc` command of the Tauri host or the WebSocket; the CLI and any other client on the API socket; a paired phone, over the listener of the phone.
+
+**Command line:** [`nh git switch`](/docs/reference/cli/commands/git#git-switch)
+
+`git.switch`: the worktree goes to another branch. A worktree with changes needs `changes`, else the answer is `confirm_required` with `{"kind": "changes", "files"}`. A branch that another worktree has out is `conflict` with `{"kind": "worktree", "worktree"}`.
+
+### Params
+
+[`GitSwitch`](/docs/reference/api/types#gitswitch)
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `branch` | string | yes | A branch of `git_branches`: its reference (`refs/heads/main`) or its name (`main`, `origin/topic`). A remote branch with no local branch of the same name gets a local branch that tracks it. |
+| `changes` | [`GitChanges`](/docs/reference/api/types#gitchanges) \| `null` |  | What happens to the changes of the worktree: `bring` or `leave`. A worktree with changes needs it. |
+| `force` | boolean |  | Switch also when an agent works in the worktree. Default: `false`. |
+| `path` | string \| `null` |  | The worktree that holds this absolute path. The CLI gives the current directory. |
+| `window` | [`WindowId`](/docs/reference/api/types#windowid) \| `null` |  | The worktree that the Git view of this window shows. |
+
+### Result
+
+[`Empty`](/docs/reference/api/types#empty)
+
+An object with no fields: `{}`.
+
+## `git.unstash` {#git-unstash}
+
+**Scopes:** `ui` `cli` `phone` — the UI, over the `rpc` command of the Tauri host or the WebSocket; the CLI and any other client on the API socket; a paired phone, over the listener of the phone.
+
+**Command line:** [`nh git unstash`](/docs/reference/cli/commands/git#git-unstash)
+
+`git.unstash`: puts the changes of a stash back into the worktree, and drops the stash.
+
+### Params
+
+[`GitUnstash`](/docs/reference/api/types#gitunstash)
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `force` | boolean |  | Put the changes back also when an agent works in the worktree. Default: `false`. |
+| `path` | string \| `null` |  | The worktree that holds this absolute path. The CLI gives the current directory. |
+| `stash` | string | yes | The commit of the stash, as `stash` of `git_head` gives it. |
+| `window` | [`WindowId`](/docs/reference/api/types#windowid) \| `null` |  | The worktree that the Git view of this window shows. |
+
+### Result
+
+[`Empty`](/docs/reference/api/types#empty)
+
+An object with no fields: `{}`.
+
+## `git.fetch` {#git-fetch}
+
+**Scopes:** `ui` `cli` `phone` — the UI, over the `rpc` command of the Tauri host or the WebSocket; the CLI and any other client on the API socket; a paired phone, over the listener of the phone.
+
+**Command line:** [`nh git fetch`](/docs/reference/cli/commands/git#git-fetch)
+
+`git.fetch`: fetches the remote of the head with `--prune`, as a job. A question of ssh or of a credential helper shows the sheet of the app.
+
+### Params
+
+[`GitFetch`](/docs/reference/api/types#gitfetch)
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `path` | string \| `null` |  | The worktree that holds this absolute path. The CLI gives the current directory. |
+| `window` | [`WindowId`](/docs/reference/api/types#windowid) \| `null` |  | The worktree that the Git view of this window shows. |
+
+### Result
+
+[`JobStarted`](/docs/reference/api/types#jobstarted)
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `job` | [`JobId`](/docs/reference/api/types#jobid) | yes |  |
+
+## `git.pull` {#git-pull}
+
+**Scopes:** `ui` `cli` `phone` — the UI, over the `rpc` command of the Tauri host or the WebSocket; the CLI and any other client on the API socket; a paired phone, over the listener of the phone.
+
+**Command line:** [`nh git pull`](/docs/reference/cli/commands/git#git-pull)
+
+`git.pull`: moves the branch to its upstream with a fast-forward only, as a job. A branch that has commits of its own and is behind is `conflict` with `{"kind": "diverged"}`.
+
+### Params
+
+[`GitPull`](/docs/reference/api/types#gitpull)
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `force` | boolean |  | Pull also when an agent works in the worktree. Default: `false`. |
+| `path` | string \| `null` |  | The worktree that holds this absolute path. The CLI gives the current directory. |
+| `window` | [`WindowId`](/docs/reference/api/types#windowid) \| `null` |  | The worktree that the Git view of this window shows. |
+
+### Result
+
+[`JobStarted`](/docs/reference/api/types#jobstarted)
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `job` | [`JobId`](/docs/reference/api/types#jobid) | yes |  |

@@ -58,13 +58,13 @@ fn the_track_text_gives_ahead_behind_and_gone() {
 }
 
 #[test]
-fn the_recent_branches_are_the_targets_of_the_reflog_each_once() {
+fn the_recent_branches_are_those_of_the_checkouts_of_the_reflog_each_once() {
     let reflog = "checkout: moving from topic to main\n\
 commit: fix the build\n\
 checkout: moving from main to topic\n\
 checkout: moving from feature/a to main\n\
 reset: moving to HEAD~1\n";
-    assert_eq!(parse_recent(reflog), ["main", "topic"]);
+    assert_eq!(parse_recent(reflog), ["main", "topic", "feature/a"]);
 }
 
 #[test]
@@ -199,6 +199,7 @@ fn look() -> Look {
         ],
         dirty: HashMap::from([(PathBuf::from("/w/app-topic"), 2)]),
         fetched_at: None,
+        stashes: Vec::new(),
     }
 }
 
@@ -282,7 +283,7 @@ fn the_head_has_the_branch_its_upstream_and_the_fetch_text() {
         Some(&look),
         &Count::default(),
         None,
-        Vec::new(),
+        Live::default(),
         now,
     );
     assert_eq!(head.branch.as_deref(), Some("main"));
@@ -298,7 +299,7 @@ fn the_head_has_the_branch_its_upstream_and_the_fetch_text() {
         Some(&look),
         &Count::default(),
         None,
-        Vec::new(),
+        Live::default(),
         now,
     );
     assert_eq!(
@@ -312,7 +313,7 @@ fn the_head_has_the_branch_its_upstream_and_the_fetch_text() {
         Some(&look),
         &Count::default(),
         None,
-        Vec::new(),
+        Live::default(),
         now,
     );
     assert_eq!((head.remote, head.fetched_text), (None, None));
@@ -322,7 +323,7 @@ fn the_head_has_the_branch_its_upstream_and_the_fetch_text() {
         None,
         &Count::default(),
         None,
-        Vec::new(),
+        Live::default(),
         now,
     );
     assert!(outside.worktree.is_none() && outside.branch.is_none());
@@ -395,4 +396,114 @@ fn a_file_of_a_commit_is_a_row_without_a_stamp() {
     assert_eq!(row.old_path.as_deref(), Some("src/old.rs"));
     assert_eq!(row.stamp, 0);
     assert_eq!(file_status(&record), rich::FileStatus::Renamed);
+}
+
+#[test]
+fn a_switch_plans_from_the_branches_of_the_look() {
+    use super::write::{Plan, plan};
+    let mut look = look();
+    look.remotes = vec!["origin".to_owned(), "up/stream".to_owned()];
+    look.branches
+        .push(branch("origin/feat/x", Kind::Remote, 10));
+    look.branches
+        .push(branch("up/stream/fix", Kind::Remote, 10));
+    let root = Path::new("/w/app");
+    assert_eq!(plan(&look, root, "main"), Some(Plan::Stay));
+    assert_eq!(
+        plan(&look, root, "refs/heads/newer"),
+        Some(Plan::Local("newer".to_owned()))
+    );
+    assert_eq!(
+        plan(&look, root, "topic"),
+        Some(Plan::Elsewhere {
+            name: "topic".to_owned(),
+            worktree: PathBuf::from("/w/app-topic"),
+        })
+    );
+    // A remote branch with a local branch of the same name goes to the local one.
+    assert_eq!(plan(&look, root, "origin/main"), Some(Plan::Stay));
+    assert_eq!(
+        plan(&look, root, "refs/remotes/origin/feat/x"),
+        Some(Plan::Track {
+            name: "feat/x".to_owned(),
+            remote: "origin/feat/x".to_owned(),
+        })
+    );
+    assert_eq!(
+        plan(&look, root, "up/stream/fix"),
+        Some(Plan::Track {
+            name: "fix".to_owned(),
+            remote: "up/stream/fix".to_owned(),
+        }),
+        "the longest remote that matches"
+    );
+    assert_eq!(plan(&look, root, "nothing"), None);
+}
+
+#[test]
+fn the_guard_names_the_agent_and_what_it_does() {
+    use super::write::guard_text;
+    let working = placed(
+        "/w/app",
+        "01M4F1W7EM2GN3EV6NHXZJEGGB",
+        GitAgentState::Working,
+    )
+    .agent;
+    let waiting = placed(
+        "/w/app",
+        "01M4F1W7EM2GN3EV6NHXZJEGGC",
+        GitAgentState::Waiting,
+    )
+    .agent;
+    assert_eq!(
+        guard_text(&[&working], "app-topic", "switch"),
+        "Claude Code is working in app-topic. A switch changes its files."
+    );
+    assert_eq!(
+        guard_text(&[&waiting], "app", "pull"),
+        "Claude Code waits for you in app. A pull changes its files."
+    );
+    assert_eq!(
+        guard_text(&[&working, &waiting], "app", "switch"),
+        "2 agents work in app. A switch changes their files."
+    );
+    assert!(agents::busy(GitAgentState::Unknown) && agents::busy(GitAgentState::Starting));
+    assert!(!agents::busy(GitAgentState::Idle) && !agents::busy(GitAgentState::Exited));
+}
+
+#[test]
+fn a_fetch_in_the_background_that_needs_a_secret_says_to_click_fetch() {
+    use super::write::fetch_note;
+    let asked =
+        "fatal: could not read Username for 'https://example.com': terminal prompts disabled";
+    assert_eq!(
+        fetch_note(asked, true),
+        "The fetch needs your passphrase or a token. Click Fetch."
+    );
+    assert_eq!(
+        fetch_note(asked, false),
+        format!("The fetch failed: {asked}")
+    );
+    assert_eq!(
+        fetch_note("\nfatal: no route to host\n", true),
+        "The fetch failed: fatal: no route to host"
+    );
+}
+
+#[test]
+fn the_stash_of_a_branch_is_the_newest_with_its_message() {
+    let out = b"aaa\0stash@{0}\x001790000300\0On topic: neohar: topic\n\
+bbb\0stash@{1}\x001790000200\0On main: neohar: main\n\
+ccc\0stash@{2}\x001790000100\0On main: neohar: main\n\
+ddd\0stash@{3}\x001790000000\0WIP on main: 0123456 first\n";
+    let stashes = parse_stashes(out);
+    assert_eq!(stashes.len(), 4);
+    let found = stash_of(&stashes, "main").expect("a stash");
+    assert_eq!(
+        (found.commit.as_str(), found.name.as_str()),
+        ("bbb", "stash@{1}")
+    );
+    assert_eq!(found.time, 1_790_000_200);
+    assert!(stash_of(&stashes, "ma").is_none(), "the whole name");
+    assert!(stash_of(&stashes, "other").is_none());
 }

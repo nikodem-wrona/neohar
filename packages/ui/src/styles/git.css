@@ -97,8 +97,59 @@
   }
 
   .git-fetched {
+    font-size: var(--size-small);
     color: var(--text-dim);
     white-space: nowrap;
+  }
+
+  /* Fetch or pull, with the time of the last fetch under it. A pull is the action that goes. */
+  .git-remote {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    padding: 2px var(--s2);
+    line-height: 16px;
+  }
+
+  .git-remote:hover:not(:disabled) {
+    background: var(--bg-hover);
+  }
+
+  .git-remote-label {
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .git-remote.pull .git-remote-label {
+    color: var(--live);
+  }
+
+  .git-remote:disabled .git-remote-label {
+    color: var(--text-dim);
+  }
+
+  .git-stash {
+    display: flex;
+    align-items: baseline;
+    gap: 1ch;
+    margin: 0;
+    color: var(--caution);
+  }
+
+  .git-stash-restore {
+    padding: 0 var(--s2);
+    border: 1px solid var(--line);
+    color: var(--text);
+  }
+
+  .git-stash-restore:hover {
+    border-color: var(--text);
+  }
+
+  /* The question about changes or another worktree changes no file under an agent, so its
+     border is not red. */
+  .git-confirm.confirm:not(.git-confirm-danger) {
+    border-color: var(--hairline);
   }
 
   /* --- a menu: a popover in the top layer. The page sets `left` and `top`. ---------------------- */

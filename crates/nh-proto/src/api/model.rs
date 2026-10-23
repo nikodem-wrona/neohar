@@ -935,6 +935,29 @@ wire! {
         Unknown,
     }
 
+    /// A long command of git that runs in the worktree of a Git view.
+    #[derive(Copy, Eq, Hash)]
+    #[serde(rename_all = "snake_case")]
+    pub enum GitJobKind {
+        Fetch,
+        Pull,
+    }
+
+    /// The job of `git.fetch` or `git.pull` that runs. The `jobs` projection has its progress.
+    pub struct GitJob {
+        pub kind: GitJobKind,
+        pub job: JobId,
+    }
+
+    /// A stash that a switch with `leave` made for a branch.
+    pub struct GitStash {
+        /// The commit of the stash, for `git.unstash`.
+        pub commit: String,
+        pub branch: String,
+        /// For example "3 hours ago".
+        pub time_text: String,
+    }
+
     /// An agent whose pane folder is in a worktree.
     pub struct GitAgent {
         pub run: RunId,
@@ -990,6 +1013,16 @@ wire! {
         /// For example "Last fetched 18 minutes ago" or "Never fetched". `None` without a remote.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         pub fetched_text: Option<String>,
+        /// Why the last fetch in the background failed, for example "The fetch needs your
+        /// passphrase. Click Fetch.". A fetch that works clears it.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub fetch_note: Option<String>,
+        /// The fetch or the pull that runs in the repository.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub job: Option<GitJob>,
+        /// The stash that a switch left for the branch of `HEAD`, the newest one.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub stash: Option<GitStash>,
         /// The agents whose pane folder is in the worktree.
         #[serde(default, skip_serializing_if = "Vec::is_empty")]
         pub agents: Vec<GitAgent>,

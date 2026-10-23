@@ -28,6 +28,7 @@ Write the keys that you want to change in `~/.config/neohar/config.toml` (or `$N
 | [`[events]`](#events) | `sync_retention`, `audit_retention` |
 | [`[scrollback]`](#scrollback) | `max_bytes_per_pane` |
 | [`[daemon]`](#daemon) | `prevent_sleep` |
+| [`[git]`](#git) | `fetch_minutes` |
 | [`[phone]`](#phone) | `enabled`, `port`, `https_port`, `url`, `contact`, `keep_awake`, `font_size`, `keys` |
 | [`[ui]`](#ui) | `font_family`, `font_size`, `macos_option_as_alt`, `global_hotkey`, `editor`, `show_handles` |
 | [`[theme]`](#theme) | `bg`, `bg_raised`, `bg_hover`, `line`, `text`, `text_dim`, `accent`, `danger` |
@@ -161,6 +162,17 @@ max_bytes_per_pane = 0
 ```toml
 [daemon]
 prevent_sleep = "while_agents_work"
+```
+
+## `[git]` {#git}
+
+| Key | Default | Description |
+|---|---|---|
+| `fetch_minutes` | `10` | How often the Git view fetches the remote of a repository that a window shows, in minutes. 0 turns the fetch in the background off. A fetch in the background never asks for a passphrase or a token: it stops, and the view says so. |
+
+```toml
+[git]
+fetch_minutes = 10
 ```
 
 ## `[phone]` {#phone}
@@ -349,6 +361,12 @@ max_bytes_per_pane = 0
 # or a gate holds a hook), "always" or "never". The app does not use it. A MacBook with a closed
 # lid on battery sleeps in all cases.
 prevent_sleep = "while_agents_work"
+
+[git]
+# How often the Git view fetches the remote of a repository that a window shows, in minutes. 0
+# turns the fetch in the background off. A fetch in the background never asks for a passphrase
+# or a token: it stops, and the view says so.
+fetch_minutes = 10
 
 [phone]
 # The listener of the phone: the app or `nh daemon` serves the phone app on a port of

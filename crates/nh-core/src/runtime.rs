@@ -465,8 +465,18 @@ impl Core {
         let changes =
             crate::changes::ChangesService::new(runtime.handle().clone(), &config.base_env);
         changes.bind_projections(projections.hub());
-        let git_view =
-            crate::git_view::GitViewService::new(runtime.handle().clone(), &config.base_env);
+        // A fetch from a click asks its questions through `nh askpass` and this API socket.
+        let git_view = crate::git_view::GitViewService::new(
+            runtime.handle().clone(),
+            &config.base_env,
+            Arc::clone(&jobs),
+            Arc::clone(&config_store),
+            Some(crate::git_view::Askpass {
+                nh: config.nh_path.clone(),
+                socket: api_socket.path().to_owned(),
+                session: config.session.clone(),
+            }),
+        );
         git_view.bind_projections(projections.hub());
         let render = Arc::new(RenderServer::new(
             runtime.handle().clone(),

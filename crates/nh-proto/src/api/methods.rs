@@ -465,6 +465,10 @@ methods! {
     GitLog "git.log" BOTH (GitLog) -> GitLogResult;
     GitShow "git.show" BOTH (GitShow) -> GitShown;
     GitDiff "git.diff" BOTH (GitDiff) -> crate::api::rich::FileDiff;
+    GitSwitch "git.switch" BOTH (GitSwitch) -> Empty;
+    GitUnstash "git.unstash" BOTH (GitUnstash) -> Empty;
+    GitFetch "git.fetch" BOTH (GitFetch) -> JobStarted;
+    GitPull "git.pull" BOTH (GitPull) -> JobStarted;
 
     // phones
     PhonePairBegin "phone.pair_begin" BOTH (PhonePairBegin) -> PhonePairStarted;
@@ -675,6 +679,10 @@ mod tests {
                     "log",
                     "show",
                     "diff",
+                    "switch",
+                    "unstash",
+                    "fetch",
+                    "pull",
                 ],
             ),
             (

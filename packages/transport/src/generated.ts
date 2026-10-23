@@ -1079,6 +1079,9 @@ export interface GitBranchValue {
   worktree?: string | null;
 }
 
+/** What a switch does with the changes of the worktree. */
+export type GitChanges = 'bring' | 'leave';
+
 /** A commit of the History of the Git view. */
 export interface GitCommit {
   author: string;
@@ -1109,7 +1112,20 @@ export interface GitDiff {
   commit?: string | null;
   /** The path of the file from the root of the worktree. */
   file: string;
+  /** The worktree that holds this absolute path. The CLI gives the current directory. */
   path?: string | null;
+  /** The worktree that the Git view of this window shows. */
+  window?: WindowId | null;
+}
+
+/**
+ * `git.fetch`: fetches the remote of the head with `--prune`, as a job. A question of ssh or
+ * of a credential helper shows the sheet of the app.
+ */
+export interface GitFetch {
+  /** The worktree that holds this absolute path. The CLI gives the current directory. */
+  path?: string | null;
+  /** The worktree that the Git view of this window shows. */
   window?: WindowId | null;
 }
 
@@ -1150,17 +1166,26 @@ export interface GitHead {
    * of the look before.
    */
   error?: string | null;
+  /**
+   * Why the last fetch in the background failed, for example "The fetch needs your
+   * passphrase. Click Fetch.". A fetch that works clears it.
+   */
+  fetch_note?: string | null;
   /** The time of the last fetch, from `FETCH_HEAD`. */
   fetched_at?: Timestamp | null;
   /** For example "Last fetched 18 minutes ago" or "Never fetched". `None` without a remote. */
   fetched_text?: string | null;
   /** The folder that the window named. */
   folder: string;
+  /** The fetch or the pull that runs in the repository. */
+  job?: GitJob | null;
   /** The remote of a fetch: the remote of the upstream, else `origin`, else the first one. */
   remote?: string | null;
   /** The key of the repository in `git_repos`: its common git directory. */
   repo?: string | null;
   repo_name?: string | null;
+  /** The stash that a switch left for the branch of `HEAD`, the newest one. */
+  stash?: GitStash | null;
   /** The upstream of the branch, for example `origin/main`. */
   upstream?: string | null;
   /** The upstream is gone from its remote. */
@@ -1174,13 +1199,24 @@ export interface GitHead {
   worktree_name?: string | null;
 }
 
+/** The job of `git.fetch` or `git.pull` that runs. The `jobs` projection has its progress. */
+export interface GitJob {
+  job: JobId;
+  kind: GitJobKind;
+}
+
+/** A long command of git that runs in the worktree of a Git view. */
+export type GitJobKind = 'fetch' | 'pull';
+
 /** `git.log`: the commits of `HEAD`, the newest first, in pages. */
 export interface GitLog {
   /** The most commits of the page, at most 200. */
   limit?: number;
+  /** The worktree that holds this absolute path. The CLI gives the current directory. */
   path?: string | null;
   /** The commits to leave out at the start: the number that the pages before had. */
   skip?: number;
+  /** The worktree that the Git view of this window shows. */
   window?: WindowId | null;
 }
 
@@ -1200,8 +1236,22 @@ export interface GitLogResult {
  * holds `path`.
  */
 export interface GitPlace {
-  /** An absolute path in the worktree. The CLI gives the current directory. */
+  /** The worktree that holds this absolute path. The CLI gives the current directory. */
   path?: string | null;
+  /** The worktree that the Git view of this window shows. */
+  window?: WindowId | null;
+}
+
+/**
+ * `git.pull`: moves the branch to its upstream with a fast-forward only, as a job. A branch
+ * that has commits of its own and is behind is `conflict` with `{"kind": "diverged"}`.
+ */
+export interface GitPull {
+  /** Pull also when an agent works in the worktree. */
+  force?: boolean;
+  /** The worktree that holds this absolute path. The CLI gives the current directory. */
+  path?: string | null;
+  /** The worktree that the Git view of this window shows. */
   window?: WindowId | null;
 }
 
@@ -1253,7 +1303,9 @@ export interface GitRepoValue {
 export interface GitShow {
   /** The full or the short hash of the commit. */
   commit: string;
+  /** The worktree that holds this absolute path. The CLI gives the current directory. */
   path?: string | null;
+  /** The worktree that the Git view of this window shows. */
   window?: WindowId | null;
 }
 
@@ -1276,6 +1328,15 @@ export interface GitShown {
   truncated?: boolean;
 }
 
+/** A stash that a switch with `leave` made for a branch. */
+export interface GitStash {
+  branch: string;
+  /** The commit of the stash, for `git.unstash`. */
+  commit: string;
+  /** For example "3 hours ago". */
+  time_text: string;
+}
+
 /**
  * `git.status`: the head and the changed files of a worktree, as `git_head:<window>` and
  * `git_changes:<window>` have them.
@@ -1283,6 +1344,43 @@ export interface GitShown {
 export interface GitStatus {
   changes: ChangeRow[];
   head: GitHead;
+}
+
+/**
+ * `git.switch`: the worktree goes to another branch. A worktree with changes needs
+ * `changes`, else the answer is `confirm_required` with `{"kind": "changes", "files"}`. A
+ * branch that another worktree has out is `conflict` with `{"kind": "worktree", "worktree"}`.
+ */
+export interface GitSwitch {
+  /**
+   * A branch of `git_branches`: its reference (`refs/heads/main`) or its name (`main`,
+   * `origin/topic`). A remote branch with no local branch of the same name gets a local
+   * branch that tracks it.
+   */
+  branch: string;
+  /**
+   * What happens to the changes of the worktree: `bring` or `leave`. A worktree with
+   * changes needs it.
+   */
+  changes?: GitChanges | null;
+  /** Switch also when an agent works in the worktree. */
+  force?: boolean;
+  /** The worktree that holds this absolute path. The CLI gives the current directory. */
+  path?: string | null;
+  /** The worktree that the Git view of this window shows. */
+  window?: WindowId | null;
+}
+
+/** `git.unstash`: puts the changes of a stash back into the worktree, and drops the stash. */
+export interface GitUnstash {
+  /** Put the changes back also when an agent works in the worktree. */
+  force?: boolean;
+  /** The worktree that holds this absolute path. The CLI gives the current directory. */
+  path?: string | null;
+  /** The commit of the stash, as `stash` of `git_head` gives it. */
+  stash: string;
+  /** The worktree that the Git view of this window shows. */
+  window?: WindowId | null;
 }
 
 /** The rows of `git_worktrees:<window>` for a worktree, in their order. */
@@ -1312,6 +1410,27 @@ export interface GitWorktreeValue {
   path: string;
   /** The folder of the worktree is gone, and `git worktree prune` would remove it. */
   prunable?: boolean;
+}
+
+/**
+ * The payload of `git.switched`, `git.unstashed`, `git.fetched` and `git.pulled`: a write of
+ * the Git view that worked. A write that failed appends no event.
+ */
+export interface GitWrite {
+  /** The agents in the worktree at that time. */
+  agents?: RunId[];
+  /** The fetch ran in the background, not from a click. */
+  background?: boolean;
+  /** The git command, for example `git switch main`. */
+  command: string;
+  /** The branch before a switch. */
+  from?: string | null;
+  /** The worktree, or the common git directory for a fetch. */
+  path: string;
+  /** The stash that a switch made or that `git.unstash` put back. */
+  stash?: string | null;
+  /** The branch after a switch or a pull. */
+  to?: string | null;
 }
 
 /** Closing a group keeps its workspaces. They have no group afterwards. */
@@ -3509,6 +3628,10 @@ export interface MethodMap {
   'git.log': { params: GitLog; result: GitLogResult };
   'git.show': { params: GitShow; result: GitShown };
   'git.diff': { params: GitDiff; result: FileDiff };
+  'git.switch': { params: GitSwitch; result: Empty };
+  'git.unstash': { params: GitUnstash; result: Empty };
+  'git.fetch': { params: GitFetch; result: JobStarted };
+  'git.pull': { params: GitPull; result: JobStarted };
   'phone.pair_begin': { params: PhonePairBegin; result: PhonePairStarted };
   'phone.pair_cancel': { params: Empty; result: Empty };
   'phone.remove': { params: PhoneRemove; result: Empty };
@@ -3663,6 +3786,10 @@ export type UiMethod =
   | 'git.log'
   | 'git.show'
   | 'git.diff'
+  | 'git.switch'
+  | 'git.unstash'
+  | 'git.fetch'
+  | 'git.pull'
   | 'phone.pair_begin'
   | 'phone.pair_cancel'
   | 'phone.remove'
@@ -3771,6 +3898,10 @@ export type CliMethod =
   | 'git.log'
   | 'git.show'
   | 'git.diff'
+  | 'git.switch'
+  | 'git.unstash'
+  | 'git.fetch'
+  | 'git.pull'
   | 'phone.pair_begin'
   | 'phone.pair_cancel'
   | 'phone.remove'
@@ -3909,6 +4040,10 @@ export const METHOD_SCOPES: { readonly [M in Method]: readonly Scope[] } = {
   'git.log': ['ui', 'cli', 'phone'],
   'git.show': ['ui', 'cli', 'phone'],
   'git.diff': ['ui', 'cli', 'phone'],
+  'git.switch': ['ui', 'cli', 'phone'],
+  'git.unstash': ['ui', 'cli', 'phone'],
+  'git.fetch': ['ui', 'cli', 'phone'],
+  'git.pull': ['ui', 'cli', 'phone'],
   'phone.pair_begin': ['ui', 'cli'],
   'phone.pair_cancel': ['ui', 'cli'],
   'phone.remove': ['ui', 'cli', 'phone'],
@@ -4100,6 +4235,10 @@ export interface EventPayloadMap {
   'policy.added': PolicyEvent;
   'policy.removed': PolicyEvent;
   'git.repo_added': GitRepoAdded;
+  'git.switched': GitWrite;
+  'git.unstashed': GitWrite;
+  'git.fetched': GitWrite;
+  'git.pulled': GitWrite;
 }
 
 export type EventKind = keyof EventPayloadMap;

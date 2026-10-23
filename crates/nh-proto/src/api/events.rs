@@ -276,6 +276,30 @@ wire! {
         pub common_dir: String,
     }
 
+    /// The payload of `git.switched`, `git.unstashed`, `git.fetched` and `git.pulled`: a write of
+    /// the Git view that worked. A write that failed appends no event.
+    pub struct GitWrite {
+        /// The worktree, or the common git directory for a fetch.
+        pub path: String,
+        /// The git command, for example `git switch main`.
+        pub command: String,
+        /// The branch before a switch.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub from: Option<String>,
+        /// The branch after a switch or a pull.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub to: Option<String>,
+        /// The stash that a switch made or that `git.unstash` put back.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub stash: Option<String>,
+        /// The agents in the worktree at that time.
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        pub agents: Vec<RunId>,
+        /// The fetch ran in the background, not from a click.
+        #[serde(default)]
+        pub background: bool,
+    }
+
     /// The payload of `policy.added` and `policy.removed`.
     pub struct PolicyEvent {
         pub id: String,
@@ -411,6 +435,10 @@ events! {
     PolicyAdded = "policy.added" (PolicyEvent);
     PolicyRemoved = "policy.removed" (PolicyEvent);
     GitRepoAdded = "git.repo_added" (GitRepoAdded);
+    GitSwitched = "git.switched" (GitWrite);
+    GitUnstashed = "git.unstashed" (GitWrite);
+    GitFetched = "git.fetched" (GitWrite);
+    GitPulled = "git.pulled" (GitWrite);
 }
 
 impl Event {

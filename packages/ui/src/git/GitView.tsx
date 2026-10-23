@@ -8,13 +8,25 @@
 // `git_worktrees:<window>`, `git_branches:<window>` and `git_changes:<window>`, with `git_repos`
 // for the Repository menu. The panes keep running under the view: the window tells the core that
 // it draws no pane, so the core sends no frame until the view closes.
+//
+// A pick in the Branch menu switches the worktree (`git.switch`), and the button after the menus
+// fetches or pulls (`git.fetch`, `git.pull`). The core decides when a write must ask first: a
+// working agent, changes to bring or to leave, a branch that another worktree has out. The view
+// shows its question and calls again with the answer.
 
-import { type ChangeRow, type GitHead } from '@neohar/transport';
+import {
+  type ChangeRow,
+  type GitHead,
+  type Method,
+  type Params,
+  RpcError,
+} from '@neohar/transport';
 import { createEffect, createMemo, createSignal, on, onCleanup, onMount, Show } from 'solid-js';
 import { useApp } from '../app/context';
 import { showPane } from '../app/show';
 import { windowFolder } from '../files/folder';
 import { createProjectionStore } from '../stores';
+import { type GitAnswer, GitConfirm } from './GitConfirm';
 import { GitChanges } from './GitChanges';
 import { GitHistory } from './GitHistory';
 import { GitMenu, type MenuGroup } from './Menu';
@@ -24,7 +36,10 @@ import {
   branchFacts,
   branchGroups,
   branchTitle,
+  fetchButton,
+  type GitQuestion,
   isAbsolutePath,
+  questionOf,
   repoFacts,
   trackText,
   worktreeFacts,
@@ -44,6 +59,9 @@ export function GitView() {
   });
   const shown = (): GitHead | undefined => head.state.byKey['_'];
   const [side, setSide] = createSignal<Side>('changes');
+  const [asked, setAsked] = createSignal<{ question: GitQuestion; answers: GitAnswer[] } | null>(
+    null,
+  );
   let root: HTMLElement | undefined;
 
   const follow = (path: string): void => {
@@ -93,14 +111,72 @@ export function GitView() {
         title: row.name,
         detail: branchFacts(row),
         current: row.current === true,
-        // A branch that another worktree has out shows that worktree.
-        disabled: !row.current && !row.worktree,
       })),
     }));
 
+  /**
+   * Runs a write. A question of the core shows its dialog, and an answer calls again with the
+   * params of the answer added, so a switch that asked about an agent can ask about the changes
+   * next.
+   */
+  const write = <M extends 'git.switch' | 'git.unstash' | 'git.fetch' | 'git.pull'>(
+    method: M,
+    params: Params<M>,
+  ): void => {
+    setAsked(null);
+    (transport.call as (method: Method, params: unknown) => Promise<unknown>)(method, params).catch(
+      (failure: unknown) => {
+        const question =
+          failure instanceof RpcError
+            ? questionOf(failure.code, failure.message, failure.details)
+            : null;
+        if (!question) {
+          report(failure);
+          return;
+        }
+        const again = (extra: Record<string, unknown>) => () =>
+          write(method, { ...params, ...extra } as Params<M>);
+        const answers: GitAnswer[] =
+          question.kind === 'agents'
+            ? [
+                {
+                  label: method === 'git.pull' ? 'Pull anyway' : 'Switch anyway',
+                  run: again({ force: true }),
+                  danger: true,
+                },
+              ]
+            : question.kind === 'changes'
+              ? [
+                  { label: 'Bring my changes', run: again({ changes: 'bring' }) },
+                  { label: `Leave them on ${question.from}`, run: again({ changes: 'leave' }) },
+                ]
+              : [
+                  {
+                    label: 'Show that worktree',
+                    run: () => {
+                      setAsked(null);
+                      follow(question.worktree);
+                    },
+                  },
+                ];
+        setAsked({ question, answers });
+      },
+    );
+  };
+
   const pickBranch = (reference: string): void => {
-    const row = branches.state.byKey[reference];
-    if (row?.worktree) follow(row.worktree);
+    if (branches.state.byKey[reference]?.current) return;
+    write('git.switch', { window: windowId, branch: reference });
+  };
+
+  const remote = () => {
+    const current = shown();
+    return current ? fetchButton(current) : null;
+  };
+  const onRemote = (): void => {
+    const button = remote();
+    if (button?.kind === 'fetch') write('git.fetch', { window: windowId });
+    if (button?.kind === 'pull') write('git.pull', { window: windowId });
   };
 
   const openPane = (): void => {
@@ -192,8 +268,22 @@ export function GitView() {
           )}
         </Show>
         <span class="git-spacer" />
-        <Show when={shown()?.fetched_text}>
-          {(text) => <span class="git-fetched">{text()}</span>}
+        <Show when={remote()}>
+          {(button) => (
+            <button
+              type="button"
+              class="git-remote"
+              classList={{ pull: button().kind === 'pull' }}
+              disabled={button().kind === 'busy'}
+              title={shown()?.fetch_note ?? shown()?.fetched_text ?? undefined}
+              onClick={onRemote}
+            >
+              <span class="git-remote-label">{button().label}</span>
+              <Show when={shown()?.fetched_text}>
+                {(text) => <span class="git-fetched">{text()}</span>}
+              </Show>
+            </button>
+          )}
         </Show>
         <button
           type="button"
@@ -209,6 +299,36 @@ export function GitView() {
           <p class="git-error git-banner" role="alert">
             {error()}
           </p>
+        )}
+      </Show>
+      <Show when={shown()?.fetch_note}>
+        {(note) => (
+          <p class="git-note git-banner" role="status">
+            {note()}
+          </p>
+        )}
+      </Show>
+      <Show when={shown()?.stash}>
+        {(stash) => (
+          <p class="git-banner git-stash" role="status">
+            Your changes of {stash().branch} from {stash().time_text} are in a stash.
+            <button
+              type="button"
+              class="git-stash-restore"
+              onClick={() => write('git.unstash', { window: windowId, stash: stash().commit })}
+            >
+              Restore them
+            </button>
+          </p>
+        )}
+      </Show>
+      <Show when={asked()} keyed>
+        {(shownAsk) => (
+          <GitConfirm
+            question={shownAsk.question}
+            answers={shownAsk.answers}
+            onCancel={() => setAsked(null)}
+          />
         )}
       </Show>
       <Show

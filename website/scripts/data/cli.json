@@ -687,6 +687,34 @@
   },
   {
     "path": [
+      "git",
+      "switch"
+    ],
+    "about": "Switch the worktree to a branch. It asks first when an agent works in the worktree: --force switches anyway"
+  },
+  {
+    "path": [
+      "git",
+      "unstash"
+    ],
+    "about": "Put the changes of a stash that a switch left back into the worktree"
+  },
+  {
+    "path": [
+      "git",
+      "fetch"
+    ],
+    "about": "Fetch the remote of the branch, as a job"
+  },
+  {
+    "path": [
+      "git",
+      "pull"
+    ],
+    "about": "Move the branch to its upstream with a fast-forward only, as a job"
+  },
+  {
+    "path": [
       "config"
     ],
     "about": "The configuration"

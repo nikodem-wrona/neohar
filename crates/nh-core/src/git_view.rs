@@ -17,6 +17,9 @@ mod agents;
 mod read;
 #[cfg(test)]
 mod tests;
+mod write;
+
+pub(crate) use self::write::Askpass;
 
 use std::{
     collections::{HashMap, HashSet},
@@ -33,13 +36,13 @@ use nh_proto::api::{
         GIT_LOG_LIMIT, GitBranchList, GitLogResult, GitRepoList, GitShown, GitStatus,
         GitWorktreeList,
     },
-    common::Empty,
+    common::{Empty, JobStarted},
     events::{EventPayload, GitRepoAdded},
     ids::WindowId,
     methods::{Call, Method},
     model::{
         ChangeRow, ChangeTotals, GitAgent, GitAgentState, GitBranchValue, GitCommit, GitHead,
-        GitRepoSource, GitRepoValue, GitWorktreeValue, WorkspaceValue,
+        GitJob, GitRepoSource, GitRepoValue, GitStash, GitWorktreeValue, WorkspaceValue,
     },
     projections::{Projection, SINGLETON_KEY},
     rich::{self, DiffStats},
@@ -60,7 +63,9 @@ use crate::{
         self, DIFF_INPUT, MAX_ROWS,
         git::{ChangeKind, ChangedFile, Git, GitError, Record},
     },
+    config::ConfigStore,
     error::RpcError,
+    jobs::Jobs,
     persist::now_ms,
     projection::ProjectionHub,
     runtime::Inner,
@@ -96,6 +101,10 @@ pub(crate) fn handles(method: &str) -> bool {
                 | Method::GitLog
                 | Method::GitShow
                 | Method::GitDiff
+                | Method::GitSwitch
+                | Method::GitUnstash
+                | Method::GitFetch
+                | Method::GitPull
         )
     )
 }
@@ -178,6 +187,28 @@ pub(crate) async fn run(inner: &Arc<Inner>, call: Call, origin: Origin) -> Resul
             };
             json_of(&diff)
         }
+        Call::GitSwitch(p) => {
+            let (_, place) = service.at(inner, &origin, p.window, p.path.clone()).await?;
+            service.switch(place, &p.branch, p.changes, p.force).await?;
+            json_of(&Empty {})
+        }
+        Call::GitUnstash(p) => {
+            let (_, place) = service.at(inner, &origin, p.window, p.path).await?;
+            service.unstash(place, &p.stash, p.force).await?;
+            json_of(&Empty {})
+        }
+        Call::GitFetch(p) => {
+            let (_, place) = service.at(inner, &origin, p.window, p.path).await?;
+            json_of(&JobStarted {
+                job: service.fetch(place, false).await?,
+            })
+        }
+        Call::GitPull(p) => {
+            let (_, place) = service.at(inner, &origin, p.window, p.path).await?;
+            json_of(&JobStarted {
+                job: service.pull(place, p.force).await?,
+            })
+        }
         other => Err(RpcError::internal(format!("not a git call: {other:?}"))),
     }
 }
@@ -200,6 +231,8 @@ pub(crate) struct Look {
     dirty: HashMap<PathBuf, u32>,
     /// Unix milliseconds.
     fetched_at: Option<i64>,
+    /// The stashes of the repository, the newest first.
+    stashes: Vec<read::Stash>,
 }
 
 impl Look {
@@ -297,6 +330,14 @@ struct Repos {
     keys: Vec<String>,
 }
 
+/// The work of git that runs in a repository or a worktree, and the note of the last fetch.
+#[derive(Clone, Debug, Default)]
+struct Work {
+    job: Option<GitJob>,
+    /// Why the last fetch failed.
+    note: Option<String>,
+}
+
 #[derive(Default)]
 struct State {
     /// The folder that each window named last.
@@ -309,6 +350,31 @@ struct State {
     checking: bool,
     repos: Repos,
     folders_seen: Folders,
+    /// The work of each worktree and repository, by the root of the worktree or the common git
+    /// directory.
+    work: HashMap<PathBuf, Work>,
+    /// The worktrees and repositories where a write runs.
+    writing: HashSet<PathBuf>,
+    /// When the core last started a fetch in the background of each repository, in unix
+    /// milliseconds.
+    fetch_tries: HashMap<PathBuf, i64>,
+}
+
+/// The work of a place: a pull of its worktree, else a fetch of its repository, with the note of
+/// the last fetch of the repository.
+fn state_work(work: &HashMap<PathBuf, Work>, place: Option<&Place>) -> Work {
+    let Some(place) = place else {
+        return Work::default();
+    };
+    let repo = work.get(&place.common_dir).cloned().unwrap_or_default();
+    let job = work
+        .get(&place.root)
+        .and_then(|work| work.job.clone())
+        .or(repo.job);
+    Work {
+        job,
+        note: repo.note,
+    }
 }
 
 /// The Git views of the windows, `git_repos`, and the git work behind them.
@@ -319,6 +385,10 @@ pub(crate) struct GitViewService {
     state: Mutex<State>,
     hub: OnceLock<Arc<ProjectionHub>>,
     actor: OnceLock<ActorHandle>,
+    jobs: Arc<Jobs>,
+    config: Arc<ConfigStore>,
+    /// How a fetch from a click asks a question of ssh or git. `None` in the tests.
+    askpass: Option<Askpass>,
 }
 
 /// Whether a window follows one of the projections of its Git view.
@@ -359,6 +429,13 @@ fn keyed<T: Serialize>(rows: Vec<T>, key: impl Fn(&T) -> String) -> Vec<(String,
         .collect()
 }
 
+/// What changes between two looks: the agents of the worktree, and the work of git that runs in it.
+#[derive(Clone, Debug, Default)]
+struct Live {
+    agents: Vec<GitAgent>,
+    work: Work,
+}
+
 /// The head of a Git view.
 fn head_value(
     folder: &Path,
@@ -366,11 +443,19 @@ fn head_value(
     look: Option<&Look>,
     count: &Count,
     error: Option<&str>,
-    agents: Vec<GitAgent>,
+    live: Live,
     now: i64,
 ) -> GitHead {
+    let Live { agents, work } = live;
     let text = |path: &Path| path.to_string_lossy().into_owned();
     let current = look.and_then(Look::current);
+    let stash = look.zip(current).and_then(|(look, branch)| {
+        read::stash_of(&look.stashes, &branch.name).map(|stash| GitStash {
+            commit: stash.commit.clone(),
+            branch: branch.name.clone(),
+            time_text: read::ago(now, stash.time.saturating_mul(1000)),
+        })
+    });
     let remotes = look.map(|look| look.remotes.as_slice()).unwrap_or_default();
     let remote = read::fetch_remote(current.and_then(|b| b.remote.as_deref()), remotes);
     let fetched_at = look.and_then(|look| look.fetched_at);
@@ -393,6 +478,9 @@ fn head_value(
         remote,
         fetched_at: fetched_at.map(Timestamp),
         fetched_text,
+        fetch_note: work.note,
+        job: work.job,
+        stash,
         agents,
         changes: count.totals.clone(),
         diff_stats: count.stats,
@@ -596,7 +684,13 @@ fn repo_rows_of(
 
 impl GitViewService {
     /// `base_env` is the environment of the git commands. It must have a `PATH`.
-    pub(crate) fn new(handle: Handle, base_env: &[(String, String)]) -> Arc<Self> {
+    pub(crate) fn new(
+        handle: Handle,
+        base_env: &[(String, String)],
+        jobs: Arc<Jobs>,
+        config: Arc<ConfigStore>,
+        askpass: Option<Askpass>,
+    ) -> Arc<Self> {
         Arc::new(Self {
             handle,
             git: Git::new(base_env.to_vec()),
@@ -604,6 +698,9 @@ impl GitViewService {
             state: Mutex::new(State::default()),
             hub: OnceLock::new(),
             actor: OnceLock::new(),
+            jobs,
+            config,
+            askpass,
         })
     }
 
@@ -696,8 +793,9 @@ impl GitViewService {
             let repos = hub.subscriber_count(Projection::GitRepos) > 0;
             let placed = self.placed();
             let now = now_ms();
-            {
-                let mut state = lock(&self.state);
+            let due = {
+                let mut guard = lock(&self.state);
+                let state = &mut *guard;
                 state.follows.retain(|window, follow| {
                     let kept = followed(&hub, *window);
                     if !kept {
@@ -707,8 +805,21 @@ impl GitViewService {
                 });
                 for (window, follow) in &mut state.follows {
                     let timed = now - follow.timed_at >= TIME_TEXTS.as_millis() as i64;
-                    publish(&hub, *window, follow, &placed, now, timed);
+                    let work = state_work(&state.work, follow.place.as_ref());
+                    publish(&hub, *window, follow, &placed, now, timed, work);
                 }
+                self.due_fetches(state, now)
+            };
+            for place in due {
+                let this = Arc::clone(&self);
+                self.handle.spawn(async move {
+                    if let Err(error) = this.fetch(place, true).await {
+                        tracing::debug!(%error, "no fetch in the background");
+                    }
+                });
+            }
+            {
+                let mut state = lock(&self.state);
                 if !repos && !state.repos.keys.is_empty() {
                     let mut keys = std::mem::take(&mut state.repos.keys);
                     set_keyed(&hub, Projection::GitRepos, &mut keys, Vec::new());
@@ -752,7 +863,8 @@ impl GitViewService {
         };
         let placed = self.placed();
         {
-            let mut state = lock(&self.state);
+            let mut guard = lock(&self.state);
+            let state = &mut *guard;
             let Some(follow) = state.follows.get_mut(&window) else {
                 return;
             };
@@ -762,7 +874,8 @@ impl GitViewService {
             }
             follow.resolved = true;
             if follow.place == place {
-                publish(hub, window, follow, &placed, now_ms(), true);
+                let work = state_work(&state.work, follow.place.as_ref());
+                publish(hub, window, follow, &placed, now_ms(), true, work);
                 return;
             }
             let rows = changes::keys(&follow.count.rows);
@@ -772,7 +885,8 @@ impl GitViewService {
             follow.count = Count::default();
             follow.watches = Vec::new();
             changes::set_rows(hub, Projection::GitChanges(window), &rows, &[]);
-            publish(hub, window, follow, &placed, now_ms(), true);
+            let work = state_work(&state.work, follow.place.as_ref());
+            publish(hub, window, follow, &placed, now_ms(), true, work);
         }
         let Some(place) = place else {
             return;
@@ -829,7 +943,8 @@ impl GitViewService {
             return;
         };
         let placed = self.placed();
-        let mut state = lock(&self.state);
+        let mut guard = lock(&self.state);
+        let state = &mut *guard;
         let Some(follow) = state.follows.get_mut(&window) else {
             return;
         };
@@ -877,7 +992,8 @@ impl GitViewService {
                 }
             }
         }
-        publish(hub, window, follow, &placed, now_ms(), true);
+        let work = state_work(&state.work, follow.place.as_ref());
+        publish(hub, window, follow, &placed, now_ms(), true, work);
     }
 
     /// Looks at a window in a moment. A burst of causes is one look, as deep as the deepest
@@ -953,12 +1069,13 @@ impl GitViewService {
     /// One look at a worktree and its repository: the commands run at the same time.
     async fn look(&self, place: &Place) -> Result<Look, GitError> {
         let root = &place.root;
-        let (commit, branches, recent, remotes, worktrees) = tokio::join!(
+        let (commit, branches, recent, remotes, worktrees, stashes) = tokio::join!(
             self.git.run(root, &["rev-parse", "--short", "HEAD"]),
             read::branches(&self.git, root),
             read::recent(&self.git, root),
             read::remotes(&self.git, root),
             read::worktrees(&self.git, root),
+            read::stashes(&self.git, root),
         );
         let worktrees = worktrees?;
         let others: Vec<&Worktree> = worktrees
@@ -981,6 +1098,7 @@ impl GitViewService {
             worktrees,
             dirty,
             fetched_at: read::fetched_at(place),
+            stashes: stashes.unwrap_or_default(),
         })
     }
 
@@ -1061,7 +1179,10 @@ impl GitViewService {
                 look.as_ref(),
                 &count,
                 error.as_deref(),
-                agents,
+                Live {
+                    agents,
+                    work: state_work(&lock(&self.state).work, Some(place)),
+                },
                 now_ms(),
             ),
             changes: rows
@@ -1432,6 +1553,7 @@ fn publish(
     placed: &[Placed],
     now: i64,
     timed: bool,
+    work: Work,
 ) {
     let roots = follow.look.as_ref().map(Look::roots).unwrap_or_default();
     let agents = follow
@@ -1445,7 +1567,7 @@ fn publish(
         follow.look.as_ref(),
         &follow.count,
         follow.error.as_deref(),
-        agents,
+        Live { agents, work },
         now,
     );
     if let Ok(json) = serde_json::to_value(head) {

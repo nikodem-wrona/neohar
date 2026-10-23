@@ -8,10 +8,12 @@ import {
   branchGroups,
   branchTitle,
   commitLabels,
+  fetchButton,
   isAbsolutePath,
   lastPart,
   matches,
   moveIndex,
+  questionOf,
   trackText,
   worktreeFacts,
 } from './model';
@@ -133,4 +135,36 @@ test('a path is the last part, and an absolute path is a path to add', () => {
   expect(lastPart('/w/app/')).toBe('app');
   expect(isAbsolutePath(' /w/app')).toBe(true);
   expect(isAbsolutePath('app')).toBe(false);
+});
+
+test('the button of the remote fetches, pulls a branch that is behind, or waits', () => {
+  const head: GitHead = { folder: '/w/app', remote: 'origin', upstream: 'origin/main' };
+  expect(fetchButton(head)).toEqual({ kind: 'fetch', label: 'Fetch origin' });
+  expect(fetchButton({ ...head, behind: 3 })).toEqual({ kind: 'pull', label: 'Pull origin 3↓' });
+  expect(fetchButton({ ...head, behind: 3, ahead: 2 })).toEqual({
+    kind: 'fetch',
+    label: 'Fetch origin',
+  });
+  expect(fetchButton({ ...head, job: { kind: 'pull', job: 'J1' } })).toEqual({
+    kind: 'busy',
+    label: 'Pulling…',
+  });
+  expect(fetchButton({ folder: '/w/app' })).toBeNull();
+});
+
+test('a refusal of the core is a question only for agents, changes and another worktree', () => {
+  expect(questionOf('confirm_required', 'Claude Code is working.', { kind: 'agents' })).toEqual({
+    kind: 'agents',
+    text: 'Claude Code is working.',
+  });
+  expect(
+    questionOf('confirm_required', 'Bring them.', { kind: 'changes', files: 2, from: 'main' }),
+  ).toEqual({ kind: 'changes', text: 'Bring them.', from: 'main' });
+  expect(questionOf('conflict', 'Out.', { kind: 'worktree', worktree: '/w/app-topic' })).toEqual({
+    kind: 'worktree',
+    text: 'Out.',
+    worktree: '/w/app-topic',
+  });
+  expect(questionOf('conflict', 'Diverged.', { kind: 'diverged' })).toBeNull();
+  expect(questionOf('busy', 'Wait.', null)).toBeNull();
 });

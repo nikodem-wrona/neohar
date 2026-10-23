@@ -605,6 +605,38 @@ pub const VERBS: &[Verb] = &[
         &["file"],
         Custom::Here,
     ),
+    special(
+        "git",
+        "switch",
+        "git.switch",
+        "Switch the worktree to a branch. It asks first when an agent works in the worktree: --force switches anyway",
+        &["branch"],
+        Custom::Here,
+    ),
+    special(
+        "git",
+        "unstash",
+        "git.unstash",
+        "Put the changes of a stash that a switch left back into the worktree",
+        &["stash"],
+        Custom::Here,
+    ),
+    special(
+        "git",
+        "fetch",
+        "git.fetch",
+        "Fetch the remote of the branch, as a job",
+        &[],
+        Custom::Here,
+    ),
+    special(
+        "git",
+        "pull",
+        "git.pull",
+        "Move the branch to its upstream with a fast-forward only, as a job",
+        &[],
+        Custom::Here,
+    ),
     // --- configuration and policy
     verb(
         "config",

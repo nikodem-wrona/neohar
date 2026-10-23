@@ -160,3 +160,52 @@ export function moveIndex(count: number, at: number, key: string): number | null
 export function isAbsolutePath(text: string): boolean {
   return text.trim().startsWith('/');
 }
+
+/** What the button after the menus does: fetch, pull, or wait for the job that runs. */
+export interface FetchButton {
+  kind: 'fetch' | 'pull' | 'busy';
+  label: string;
+}
+
+/**
+ * The button of the remote: "Pull origin 3↓" when the branch is behind and has no commit of its
+ * own, "Fetching…" while a job runs, else "Fetch origin". A repository with no remote has none.
+ * A branch that diverged gets Fetch only: this version has no merge.
+ */
+export function fetchButton(head: GitHead): FetchButton | null {
+  if (head.job) return { kind: 'busy', label: head.job.kind === 'pull' ? 'Pulling…' : 'Fetching…' };
+  if (!head.remote) return null;
+  const behind = head.behind ?? 0;
+  if (behind > 0 && !head.ahead && head.upstream) {
+    return { kind: 'pull', label: `Pull ${head.remote} ${behind}↓` };
+  }
+  return { kind: 'fetch', label: `Fetch ${head.remote}` };
+}
+
+/** A question of the core before a write: the reason, from `details.kind`. */
+export type GitQuestion =
+  | { kind: 'agents'; text: string }
+  | { kind: 'changes'; text: string; from: string }
+  | { kind: 'worktree'; text: string; worktree: string };
+
+/**
+ * The question of a write that the core refused with `confirm_required` (busy agents, changes to
+ * bring or leave) or with `conflict` for a branch that another worktree has out. Any other
+ * refusal is no question.
+ */
+export function questionOf(code: string, message: string, details: unknown): GitQuestion | null {
+  const facts = (details ?? {}) as Record<string, unknown>;
+  const text = (key: string): string | null =>
+    typeof facts[key] === 'string' ? (facts[key] as string) : null;
+  if (code === 'confirm_required' && facts['kind'] === 'agents') {
+    return { kind: 'agents', text: message };
+  }
+  if (code === 'confirm_required' && facts['kind'] === 'changes') {
+    return { kind: 'changes', text: message, from: text('from') ?? 'HEAD' };
+  }
+  const worktree = text('worktree');
+  if (code === 'conflict' && facts['kind'] === 'worktree' && worktree) {
+    return { kind: 'worktree', text: message, worktree };
+  }
+  return null;
+}

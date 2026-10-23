@@ -510,12 +510,15 @@ Type: string.
 | `commit` | string \| `null` |  | The short hash of `HEAD`, or `None` before the first commit. |
 | `diff_stats` | [`DiffStats`](/docs/reference/api/types#diffstats) \| `null` |  | The lines of all changed files. |
 | `error` | string \| `null` |  | Why the last look at the branches and the worktrees failed. The other values are those of the look before. |
+| `fetch_note` | string \| `null` |  | Why the last fetch in the background failed, for example "The fetch needs your passphrase. Click Fetch.". A fetch that works clears it. |
 | `fetched_at` | [`Timestamp`](/docs/reference/api/types#timestamp) \| `null` |  | The time of the last fetch, from `FETCH_HEAD`. |
 | `fetched_text` | string \| `null` |  | For example "Last fetched 18 minutes ago" or "Never fetched". `None` without a remote. |
 | `folder` | string | yes | The folder that the window named. |
+| `job` | [`GitJob`](/docs/reference/api/types#gitjob) \| `null` |  | The fetch or the pull that runs in the repository. |
 | `remote` | string \| `null` |  | The remote of a fetch: the remote of the upstream, else `origin`, else the first one. |
 | `repo` | string \| `null` |  | The key of the repository in `git_repos`: its common git directory. |
 | `repo_name` | string \| `null` |  |  |
+| `stash` | [`GitStash`](/docs/reference/api/types#gitstash) \| `null` |  | The stash that a switch left for the branch of `HEAD`, the newest one. |
 | `upstream` | string \| `null` |  | The upstream of the branch, for example `origin/main`. |
 | `upstream_gone` | boolean |  | The upstream is gone from its remote. Default: `false`. |
 | `worktree` | string \| `null` |  | The root of the worktree that holds the folder, or `None` when the folder is not in a git worktree. |

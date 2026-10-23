@@ -3240,6 +3240,21 @@ expression: document()
       ],
       "type": "object"
     },
+    "GitChanges": {
+      "description": "What a switch does with the changes of the worktree.",
+      "oneOf": [
+        {
+          "const": "bring",
+          "description": "The changes go to the other branch, as `git switch` takes them. A change that the\nother branch would overwrite stops the switch (`conflict`).",
+          "type": "string"
+        },
+        {
+          "const": "leave",
+          "description": "The changes go to a stash that names the branch. A switch back to that branch offers\nthem again (`stash` of `git_head`).",
+          "type": "string"
+        }
+      ]
+    },
     "GitCommit": {
       "description": "A commit of the History of the Git view.",
       "properties": {
@@ -3311,6 +3326,7 @@ expression: document()
           "type": "string"
         },
         "path": {
+          "description": "The worktree that holds this absolute path. The CLI gives the current directory.",
           "type": [
             "string",
             "null"
@@ -3324,12 +3340,37 @@ expression: document()
             {
               "type": "null"
             }
-          ]
+          ],
+          "description": "The worktree that the Git view of this window shows."
         }
       },
       "required": [
         "file"
       ],
+      "type": "object"
+    },
+    "GitFetch": {
+      "description": "`git.fetch`: fetches the remote of the head with `--prune`, as a job. A question of ssh or\nof a credential helper shows the sheet of the app.",
+      "properties": {
+        "path": {
+          "description": "The worktree that holds this absolute path. The CLI gives the current directory.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "window": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WindowId"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The worktree that the Git view of this window shows."
+        }
+      },
       "type": "object"
     },
     "GitFollow": {
@@ -3416,6 +3457,13 @@ expression: document()
             "null"
           ]
         },
+        "fetch_note": {
+          "description": "Why the last fetch in the background failed, for example \"The fetch needs your\npassphrase. Click Fetch.\". A fetch that works clears it.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "fetched_at": {
           "anyOf": [
             {
@@ -3438,6 +3486,17 @@ expression: document()
           "description": "The folder that the window named.",
           "type": "string"
         },
+        "job": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GitJob"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The fetch or the pull that runs in the repository."
+        },
         "remote": {
           "description": "The remote of a fetch: the remote of the upstream, else `origin`, else the first one.",
           "type": [
@@ -3457,6 +3516,17 @@ expression: document()
             "string",
             "null"
           ]
+        },
+        "stash": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GitStash"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The stash that a switch left for the branch of `HEAD`, the newest one."
         },
         "upstream": {
           "description": "The upstream of the branch, for example `origin/main`.",
@@ -3490,6 +3560,30 @@ expression: document()
       ],
       "type": "object"
     },
+    "GitJob": {
+      "description": "The job of `git.fetch` or `git.pull` that runs. The `jobs` projection has its progress.",
+      "properties": {
+        "job": {
+          "$ref": "#/$defs/JobId"
+        },
+        "kind": {
+          "$ref": "#/$defs/GitJobKind"
+        }
+      },
+      "required": [
+        "kind",
+        "job"
+      ],
+      "type": "object"
+    },
+    "GitJobKind": {
+      "description": "A long command of git that runs in the worktree of a Git view.",
+      "enum": [
+        "fetch",
+        "pull"
+      ],
+      "type": "string"
+    },
     "GitLog": {
       "description": "`git.log`: the commits of `HEAD`, the newest first, in pages.",
       "properties": {
@@ -3501,6 +3595,7 @@ expression: document()
           "type": "integer"
         },
         "path": {
+          "description": "The worktree that holds this absolute path. The CLI gives the current directory.",
           "type": [
             "string",
             "null"
@@ -3521,7 +3616,8 @@ expression: document()
             {
               "type": "null"
             }
-          ]
+          ],
+          "description": "The worktree that the Git view of this window shows."
         }
       },
       "type": "object"
@@ -3556,7 +3652,7 @@ expression: document()
       "description": "The worktree of a read: the one that the Git view of `window` follows, or the one that\nholds `path`.",
       "properties": {
         "path": {
-          "description": "An absolute path in the worktree. The CLI gives the current directory.",
+          "description": "The worktree that holds this absolute path. The CLI gives the current directory.",
           "type": [
             "string",
             "null"
@@ -3570,7 +3666,37 @@ expression: document()
             {
               "type": "null"
             }
+          ],
+          "description": "The worktree that the Git view of this window shows."
+        }
+      },
+      "type": "object"
+    },
+    "GitPull": {
+      "description": "`git.pull`: moves the branch to its upstream with a fast-forward only, as a job. A branch\nthat has commits of its own and is behind is `conflict` with `{\"kind\": \"diverged\"}`.",
+      "properties": {
+        "force": {
+          "default": false,
+          "description": "Pull also when an agent works in the worktree.",
+          "type": "boolean"
+        },
+        "path": {
+          "description": "The worktree that holds this absolute path. The CLI gives the current directory.",
+          "type": [
+            "string",
+            "null"
           ]
+        },
+        "window": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WindowId"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The worktree that the Git view of this window shows."
         }
       },
       "type": "object"
@@ -3683,6 +3809,7 @@ expression: document()
           "type": "string"
         },
         "path": {
+          "description": "The worktree that holds this absolute path. The CLI gives the current directory.",
           "type": [
             "string",
             "null"
@@ -3696,7 +3823,8 @@ expression: document()
             {
               "type": "null"
             }
-          ]
+          ],
+          "description": "The worktree that the Git view of this window shows."
         }
       },
       "required": [
@@ -3751,6 +3879,28 @@ expression: document()
       ],
       "type": "object"
     },
+    "GitStash": {
+      "description": "A stash that a switch with `leave` made for a branch.",
+      "properties": {
+        "branch": {
+          "type": "string"
+        },
+        "commit": {
+          "description": "The commit of the stash, for `git.unstash`.",
+          "type": "string"
+        },
+        "time_text": {
+          "description": "For example \"3 hours ago\".",
+          "type": "string"
+        }
+      },
+      "required": [
+        "commit",
+        "branch",
+        "time_text"
+      ],
+      "type": "object"
+    },
     "GitStatus": {
       "description": "`git.status`: the head and the changed files of a worktree, as `git_head:<window>` and\n`git_changes:<window>` have them.",
       "properties": {
@@ -3767,6 +3917,89 @@ expression: document()
       "required": [
         "head",
         "changes"
+      ],
+      "type": "object"
+    },
+    "GitSwitch": {
+      "description": "`git.switch`: the worktree goes to another branch. A worktree with changes needs\n`changes`, else the answer is `confirm_required` with `{\"kind\": \"changes\", \"files\"}`. A\nbranch that another worktree has out is `conflict` with `{\"kind\": \"worktree\", \"worktree\"}`.",
+      "properties": {
+        "branch": {
+          "description": "A branch of `git_branches`: its reference (`refs/heads/main`) or its name (`main`,\n`origin/topic`). A remote branch with no local branch of the same name gets a local\nbranch that tracks it.",
+          "type": "string"
+        },
+        "changes": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GitChanges"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "What happens to the changes of the worktree: `bring` or `leave`. A worktree with\nchanges needs it."
+        },
+        "force": {
+          "default": false,
+          "description": "Switch also when an agent works in the worktree.",
+          "type": "boolean"
+        },
+        "path": {
+          "description": "The worktree that holds this absolute path. The CLI gives the current directory.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "window": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WindowId"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The worktree that the Git view of this window shows."
+        }
+      },
+      "required": [
+        "branch"
+      ],
+      "type": "object"
+    },
+    "GitUnstash": {
+      "description": "`git.unstash`: puts the changes of a stash back into the worktree, and drops the stash.",
+      "properties": {
+        "force": {
+          "default": false,
+          "description": "Put the changes back also when an agent works in the worktree.",
+          "type": "boolean"
+        },
+        "path": {
+          "description": "The worktree that holds this absolute path. The CLI gives the current directory.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "stash": {
+          "description": "The commit of the stash, as `stash` of `git_head` gives it.",
+          "type": "string"
+        },
+        "window": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WindowId"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The worktree that the Git view of this window shows."
+        }
+      },
+      "required": [
+        "stash"
       ],
       "type": "object"
     },
@@ -3847,6 +4080,57 @@ expression: document()
       "required": [
         "path",
         "name"
+      ],
+      "type": "object"
+    },
+    "GitWrite": {
+      "description": "The payload of `git.switched`, `git.unstashed`, `git.fetched` and `git.pulled`: a write of\nthe Git view that worked. A write that failed appends no event.",
+      "properties": {
+        "agents": {
+          "description": "The agents in the worktree at that time.",
+          "items": {
+            "$ref": "#/$defs/RunId"
+          },
+          "type": "array"
+        },
+        "background": {
+          "default": false,
+          "description": "The fetch ran in the background, not from a click.",
+          "type": "boolean"
+        },
+        "command": {
+          "description": "The git command, for example `git switch main`.",
+          "type": "string"
+        },
+        "from": {
+          "description": "The branch before a switch.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "path": {
+          "description": "The worktree, or the common git directory for a fetch.",
+          "type": "string"
+        },
+        "stash": {
+          "description": "The stash that a switch made or that `git.unstash` put back.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "to": {
+          "description": "The branch after a switch or a pull.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "path",
+        "command"
       ],
       "type": "object"
     },
@@ -10850,6 +11134,34 @@ expression: document()
         "$ref": "#/$defs/GitRepoAdded"
       },
       "v": 1
+    },
+    {
+      "kind": "git.switched",
+      "payload": {
+        "$ref": "#/$defs/GitWrite"
+      },
+      "v": 1
+    },
+    {
+      "kind": "git.unstashed",
+      "payload": {
+        "$ref": "#/$defs/GitWrite"
+      },
+      "v": 1
+    },
+    {
+      "kind": "git.fetched",
+      "payload": {
+        "$ref": "#/$defs/GitWrite"
+      },
+      "v": 1
+    },
+    {
+      "kind": "git.pulled",
+      "payload": {
+        "$ref": "#/$defs/GitWrite"
+      },
+      "v": 1
     }
   ],
   "methods": [
@@ -12193,6 +12505,62 @@ expression: document()
       },
       "result": {
         "$ref": "#/$defs/FileDiff"
+      },
+      "scopes": [
+        "ui",
+        "cli",
+        "phone"
+      ]
+    },
+    {
+      "name": "git.switch",
+      "params": {
+        "$ref": "#/$defs/GitSwitch"
+      },
+      "result": {
+        "$ref": "#/$defs/Empty"
+      },
+      "scopes": [
+        "ui",
+        "cli",
+        "phone"
+      ]
+    },
+    {
+      "name": "git.unstash",
+      "params": {
+        "$ref": "#/$defs/GitUnstash"
+      },
+      "result": {
+        "$ref": "#/$defs/Empty"
+      },
+      "scopes": [
+        "ui",
+        "cli",
+        "phone"
+      ]
+    },
+    {
+      "name": "git.fetch",
+      "params": {
+        "$ref": "#/$defs/GitFetch"
+      },
+      "result": {
+        "$ref": "#/$defs/JobStarted"
+      },
+      "scopes": [
+        "ui",
+        "cli",
+        "phone"
+      ]
+    },
+    {
+      "name": "git.pull",
+      "params": {
+        "$ref": "#/$defs/GitPull"
+      },
+      "result": {
+        "$ref": "#/$defs/JobStarted"
       },
       "scopes": [
         "ui",

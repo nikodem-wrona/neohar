@@ -221,7 +221,7 @@ pub(crate) fn parse_track(track: &str) -> (u32, u32, bool) {
 /// How many branches the Branch menu shows as recent.
 pub(crate) const RECENT: usize = 5;
 
-/// The branches that `HEAD` of the worktree went to last, the newest first, from its reflog.
+/// The branches that `HEAD` of the worktree was on last, the newest first, from its reflog.
 pub(crate) async fn recent(git: &Git, worktree: &Path) -> Result<Vec<String>, GitError> {
     let out = git
         .run(
@@ -236,14 +236,16 @@ pub(crate) async fn recent(git: &Git, worktree: &Path) -> Result<Vec<String>, Gi
     Ok(parse_recent(&out))
 }
 
-/// The targets of `checkout: moving from <a> to <b>`, the newest first, each once.
+/// The branches of `checkout: moving from <a> to <b>`, the newest first, each once: the branch
+/// that `HEAD` went to, then the one that it left.
 pub(crate) fn parse_recent(reflog: &str) -> Vec<String> {
     let mut seen = HashSet::new();
     reflog
         .lines()
         .filter_map(|line| line.strip_prefix("checkout: moving from "))
-        .filter_map(|rest| rest.rsplit_once(" to ").map(|(_, to)| to.trim().to_owned()))
-        .filter(|to| seen.insert(to.clone()))
+        .filter_map(|rest| rest.rsplit_once(" to "))
+        .flat_map(|(from, to)| [to.trim().to_owned(), from.trim().to_owned()])
+        .filter(|name| seen.insert(name.clone()))
         .collect()
 }
 
@@ -277,6 +279,61 @@ pub(crate) fn fetched_at(place: &Place) -> Option<i64> {
         .filter_map(|time| time.duration_since(std::time::UNIX_EPOCH).ok())
         .map(|since| i64::try_from(since.as_millis()).unwrap_or(i64::MAX))
         .max()
+}
+
+/// A stash of the repository.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub(crate) struct Stash {
+    pub commit: String,
+    /// For example `stash@{0}`.
+    pub name: String,
+    /// For example `On main: neohar: main`.
+    pub subject: String,
+    /// Unix seconds.
+    pub time: i64,
+}
+
+/// The message of the stash that a switch leaves for a branch.
+pub(crate) fn stash_message(branch: &str) -> String {
+    format!("neohar: {branch}")
+}
+
+/// The stashes of the repository, the newest first.
+pub(crate) async fn stashes(git: &Git, worktree: &Path) -> Result<Vec<Stash>, GitError> {
+    let out = git
+        .output(
+            worktree,
+            &["stash", "list", "--format=%H%x00%gd%x00%ct%x00%gs"].map(OsStr::new),
+        )
+        .await?;
+    Ok(parse_stashes(&out))
+}
+
+pub(crate) fn parse_stashes(out: &[u8]) -> Vec<Stash> {
+    String::from_utf8_lossy(out)
+        .lines()
+        .filter_map(|line| {
+            let mut fields = line.splitn(4, '\0');
+            let (commit, name, time, subject) = (
+                fields.next()?,
+                fields.next()?,
+                fields.next()?,
+                fields.next()?,
+            );
+            Some(Stash {
+                commit: commit.to_owned(),
+                name: name.to_owned(),
+                subject: subject.to_owned(),
+                time: time.parse().unwrap_or(0),
+            })
+        })
+        .collect()
+}
+
+/// The newest stash that a switch left for `branch`.
+pub(crate) fn stash_of<'a>(stashes: &'a [Stash], branch: &str) -> Option<&'a Stash> {
+    let end = format!(": {}", stash_message(branch));
+    stashes.iter().find(|stash| stash.subject.ends_with(&end))
 }
 
 // --- worktrees --------------------------------------------------------------------------------

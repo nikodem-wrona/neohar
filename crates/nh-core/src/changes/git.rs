@@ -101,6 +101,14 @@ impl Git {
         Self { env }
     }
 
+    /// A copy that runs git with more variables in its environment. A later variable wins.
+    pub fn with_env(&self, extra: &[(String, String)]) -> Self {
+        let mut env = self.env.clone();
+        env.retain(|(key, _)| !extra.iter().any(|(name, _)| name == key));
+        env.extend(extra.iter().cloned());
+        Self { env }
+    }
+
     pub async fn run(&self, cwd: &Path, args: &[&str]) -> Result<String, GitError> {
         let args: Vec<&OsStr> = args.iter().map(OsStr::new).collect();
         let out = self.output(cwd, &args).await?;

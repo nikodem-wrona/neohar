@@ -452,3 +452,184 @@ async fn the_reads_of_the_cli_take_a_path_and_the_repositories_keep_the_added_on
         assert_eq!(refused.code, code, "{method} {params}: {}", refused.message);
     }
 }
+
+/// Reads `git.status` of a path until `done` holds.
+async fn until_status(core: &Harness, path: &Path, what: &str, done: impl Fn(&Value) -> bool) {
+    let deadline = Instant::now() + WAIT;
+    loop {
+        let status = core.call("git.status", json!({"path": text(path)})).await;
+        if done(&status) {
+            return;
+        }
+        assert!(Instant::now() < deadline, "timeout: {what}: {status}");
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_switch_takes_or_leaves_the_changes_and_refuses_a_branch_of_another_worktree() {
+    let s = start("switch");
+    let at = |branch: &str| json!({"path": text(&s.repo), "branch": branch});
+    git(&s.repo, &["branch", "other"]);
+
+    // The branch of the linked worktree goes to that worktree.
+    let refused = s
+        .core
+        .handle
+        .rpc("git.switch", at("topic"))
+        .await
+        .expect_err("out in another worktree");
+    assert_eq!(refused.code, ErrorCode::Conflict, "{}", refused.message);
+    assert_eq!(refused.details["kind"], "worktree");
+    assert_eq!(refused.details["worktree"], text(&s.topic).as_str());
+
+    // A clean worktree switches at once, by name or by reference.
+    s.core.call("git.switch", at("other")).await;
+    until_status(&s.core, &s.repo, "on other", |st| {
+        st["head"]["branch"] == "other"
+    })
+    .await;
+    s.core.call("git.switch", at("refs/heads/main")).await;
+    until_status(&s.core, &s.repo, "on main", |st| {
+        st["head"]["branch"] == "main"
+    })
+    .await;
+
+    // A worktree with changes asks, then leaves them in a stash of the branch.
+    std::fs::write(s.repo.join("a.txt"), "changed\n").expect("a change");
+    let refused = s
+        .core
+        .handle
+        .rpc("git.switch", at("other"))
+        .await
+        .expect_err("changes");
+    assert_eq!(
+        refused.code,
+        ErrorCode::ConfirmRequired,
+        "{}",
+        refused.message
+    );
+    assert_eq!(refused.details["kind"], "changes");
+    assert_eq!(refused.details["files"], 1);
+    let mut leave = at("other");
+    leave["changes"] = json!("leave");
+    s.core.call("git.switch", leave).await;
+    until_status(&s.core, &s.repo, "on other and clean", |st| {
+        st["head"]["branch"] == "other" && st["changes"] == json!([])
+    })
+    .await;
+
+    // Back on main, the stash of main shows, and it comes back.
+    s.core.call("git.switch", at("main")).await;
+    let status = s
+        .core
+        .call("git.status", json!({"path": text(&s.repo)}))
+        .await;
+    let stash = status["head"]["stash"].clone();
+    assert_eq!(stash["branch"], "main", "{status}");
+    s.core
+        .call(
+            "git.unstash",
+            json!({"path": text(&s.repo), "stash": stash["commit"]}),
+        )
+        .await;
+    until_status(&s.core, &s.repo, "the change is back", |st| {
+        st["changes"][0]["path"] == "a.txt" && st["head"]["stash"].is_null()
+    })
+    .await;
+
+    // "Bring" takes the change to the other branch.
+    let mut bring = at("other");
+    bring["changes"] = json!("bring");
+    s.core.call("git.switch", bring).await;
+    until_status(&s.core, &s.repo, "the change is on other", |st| {
+        st["head"]["branch"] == "other" && st["changes"][0]["path"] == "a.txt"
+    })
+    .await;
+
+    // A remote branch with no local one gets a local branch that tracks it.
+    git(&s.repo, &["stash", "-q"]);
+    git(&s.repo, &["push", "-q", "origin", "other:feature"]);
+    git(&s.repo, &["fetch", "-q", "origin"]);
+    s.core.call("git.switch", at("origin/feature")).await;
+    until_status(&s.core, &s.repo, "on the new feature", |st| {
+        st["head"]["branch"] == "feature" && st["head"]["upstream"] == "origin/feature"
+    })
+    .await;
+    let refused = s
+        .core
+        .handle
+        .rpc("git.switch", at("nothing"))
+        .await
+        .expect_err("no branch");
+    assert_eq!(refused.code, ErrorCode::NotFound, "{}", refused.message);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_fetch_and_a_pull_run_as_jobs_and_a_diverged_branch_is_refused() {
+    let s = start("pull");
+    git(&s.repo, &["push", "-q", "origin", "main"]);
+    // Another clone pushes a commit, so the main worktree is behind after a fetch.
+    let other = s.base.join("other");
+    git(
+        &s.base,
+        &[
+            "clone",
+            "-q",
+            &text(&s.base.join("origin.git")),
+            &text(&other),
+        ],
+    );
+    std::fs::write(other.join("c.txt"), "sea\n").expect("a file");
+    git(&other, &["add", "."]);
+    git(&other, &["commit", "-q", "-m", "third"]);
+    git(&other, &["push", "-q", "origin", "main"]);
+
+    let started = s
+        .core
+        .call("git.fetch", json!({"path": text(&s.repo)}))
+        .await;
+    assert!(started["job"].is_string(), "{started}");
+    until_status(&s.core, &s.repo, "behind after the fetch", |st| {
+        st["head"]["behind"] == 1 && st["head"]["fetched_text"] != "Never fetched"
+    })
+    .await;
+    s.core
+        .call("git.pull", json!({"path": text(&s.repo)}))
+        .await;
+    until_status(&s.core, &s.repo, "even after the pull", |st| {
+        st["head"]["behind"] == 0 && st["head"]["ahead"] == 0
+    })
+    .await;
+    assert!(s.repo.join("c.txt").exists());
+
+    // A commit here and one there: the branch diverged, and a pull is refused.
+    std::fs::write(other.join("d.txt"), "dee\n").expect("a file");
+    git(&other, &["add", "."]);
+    git(&other, &["commit", "-q", "-m", "fourth"]);
+    git(&other, &["push", "-q", "origin", "main"]);
+    std::fs::write(s.repo.join("e.txt"), "ee\n").expect("a file");
+    git(&s.repo, &["add", "."]);
+    git(&s.repo, &["commit", "-q", "-m", "fifth"]);
+    git(&s.repo, &["fetch", "-q", "origin"]);
+    let refused = s
+        .core
+        .handle
+        .rpc("git.pull", json!({"path": text(&s.repo)}))
+        .await
+        .expect_err("diverged");
+    assert_eq!(refused.code, ErrorCode::Conflict, "{}", refused.message);
+    assert_eq!(refused.details["kind"], "diverged");
+
+    // A repository with no remote has nothing to fetch.
+    let lone = s.base.join("lone");
+    std::fs::create_dir_all(&lone).expect("a folder");
+    git(&lone, &["init", "-q", "-b", "main"]);
+    let refused = s
+        .core
+        .handle
+        .rpc("git.fetch", json!({"path": text(&lone)}))
+        .await
+        .expect_err("no remote");
+    assert_eq!(refused.code, ErrorCode::NotFound, "{}", refused.message);
+}

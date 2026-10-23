@@ -26,6 +26,10 @@ Commands:
   log        List the commits of HEAD, the newest first
   show       Show a commit with its message and its files
   diff       Show the diff of a changed file, or of a file of a commit with --commit
+  switch     Switch the worktree to a branch. It asks first when an agent works in the worktree: --force switches anyway
+  unstash    Put the changes of a stash that a switch left back into the worktree
+  fetch      Fetch the remote of the branch, as a job
+  pull       Move the branch to its upstream with a fast-forward only, as a job
 
 Options:
       --session <NAME>     The session to talk to. The default is $NEOHAR_SESSION, or `default`
@@ -89,10 +93,10 @@ Show the branch, its upstream, the agents and the changed files of the worktree 
 Usage: nh git status [OPTIONS]
 
 Options:
-      --path <TEXT>        An absolute path in the worktree. The CLI gives the current directory.
+      --path <TEXT>        The worktree that holds this absolute path. The CLI gives the current directory.
       --session <NAME>     The session to talk to. The default is $NEOHAR_SESSION, or `default`
       --socket <PATH>      The API socket to use. It wins over --session and $NEOHAR_SOCKET
-      --window <TEXT>      
+      --window <TEXT>      The worktree that the Git view of this window shows.
       --machine <LABEL>    Run the command on this machine of config.toml, over ssh. A handle such as studio/w3:p5 does the same
       --json               Print JSON. This is the default when stdout is not a terminal
       --timeout <SECONDS>  How long to wait for the core to answer, in seconds [default: 30]
@@ -111,10 +115,10 @@ List the worktrees of the repository with their branches and agents
 Usage: nh git worktrees [OPTIONS]
 
 Options:
-      --path <TEXT>        An absolute path in the worktree. The CLI gives the current directory.
+      --path <TEXT>        The worktree that holds this absolute path. The CLI gives the current directory.
       --session <NAME>     The session to talk to. The default is $NEOHAR_SESSION, or `default`
       --socket <PATH>      The API socket to use. It wins over --session and $NEOHAR_SOCKET
-      --window <TEXT>      
+      --window <TEXT>      The worktree that the Git view of this window shows.
       --machine <LABEL>    Run the command on this machine of config.toml, over ssh. A handle such as studio/w3:p5 does the same
       --json               Print JSON. This is the default when stdout is not a terminal
       --timeout <SECONDS>  How long to wait for the core to answer, in seconds [default: 30]
@@ -133,10 +137,10 @@ List the local and remote branches: the current one, the recent ones, then the o
 Usage: nh git branches [OPTIONS]
 
 Options:
-      --path <TEXT>        An absolute path in the worktree. The CLI gives the current directory.
+      --path <TEXT>        The worktree that holds this absolute path. The CLI gives the current directory.
       --session <NAME>     The session to talk to. The default is $NEOHAR_SESSION, or `default`
       --socket <PATH>      The API socket to use. It wins over --session and $NEOHAR_SOCKET
-      --window <TEXT>      
+      --window <TEXT>      The worktree that the Git view of this window shows.
       --machine <LABEL>    Run the command on this machine of config.toml, over ssh. A handle such as studio/w3:p5 does the same
       --json               Print JSON. This is the default when stdout is not a terminal
       --timeout <SECONDS>  How long to wait for the core to answer, in seconds [default: 30]
@@ -157,12 +161,12 @@ Usage: nh git log [OPTIONS]
 Options:
       --limit <NUMBER>     The most commits of the page, at most 200.
       --session <NAME>     The session to talk to. The default is $NEOHAR_SESSION, or `default`
-      --path <TEXT>        
+      --path <TEXT>        The worktree that holds this absolute path. The CLI gives the current directory.
       --socket <PATH>      The API socket to use. It wins over --session and $NEOHAR_SOCKET
       --machine <LABEL>    Run the command on this machine of config.toml, over ssh. A handle such as studio/w3:p5 does the same
       --skip <NUMBER>      The commits to leave out at the start: the number that the pages before had.
       --json               Print JSON. This is the default when stdout is not a terminal
-      --window <TEXT>      
+      --window <TEXT>      The worktree that the Git view of this window shows.
       --timeout <SECONDS>  How long to wait for the core to answer, in seconds [default: 30]
   -h, --help               Print help
 ```
@@ -182,10 +186,10 @@ Arguments:
   <COMMIT>  The full or the short hash of the commit.
 
 Options:
-      --path <TEXT>        
+      --path <TEXT>        The worktree that holds this absolute path. The CLI gives the current directory.
       --session <NAME>     The session to talk to. The default is $NEOHAR_SESSION, or `default`
       --socket <PATH>      The API socket to use. It wins over --session and $NEOHAR_SOCKET
-      --window <TEXT>      
+      --window <TEXT>      The worktree that the Git view of this window shows.
       --machine <LABEL>    Run the command on this machine of config.toml, over ssh. A handle such as studio/w3:p5 does the same
       --json               Print JSON. This is the default when stdout is not a terminal
       --timeout <SECONDS>  How long to wait for the core to answer, in seconds [default: 30]
@@ -209,10 +213,108 @@ Arguments:
 Options:
       --commit <TEXT>      
       --session <NAME>     The session to talk to. The default is $NEOHAR_SESSION, or `default`
-      --path <TEXT>        
+      --path <TEXT>        The worktree that holds this absolute path. The CLI gives the current directory.
       --socket <PATH>      The API socket to use. It wins over --session and $NEOHAR_SOCKET
       --machine <LABEL>    Run the command on this machine of config.toml, over ssh. A handle such as studio/w3:p5 does the same
-      --window <TEXT>      
+      --window <TEXT>      The worktree that the Git view of this window shows.
+      --json               Print JSON. This is the default when stdout is not a terminal
+      --timeout <SECONDS>  How long to wait for the core to answer, in seconds [default: 30]
+  -h, --help               Print help
+```
+
+## `nh git switch` {#git-switch}
+
+Switch the worktree to a branch. It asks first when an agent works in the worktree: --force switches anyway
+
+**API method:** [`git.switch`](/docs/reference/api/methods/git#git-switch)
+
+```text
+Switch the worktree to a branch. It asks first when an agent works in the worktree: --force switches anyway
+
+Usage: nh git switch [OPTIONS] <BRANCH>
+
+Arguments:
+  <BRANCH>  A branch of `git_branches`: its reference (`refs/heads/main`) or its name (`main`,
+
+Options:
+      --changes <TEXT>     What happens to the changes of the worktree: `bring` or `leave`. A worktree with
+      --session <NAME>     The session to talk to. The default is $NEOHAR_SESSION, or `default`
+      --force              Switch also when an agent works in the worktree.
+      --socket <PATH>      The API socket to use. It wins over --session and $NEOHAR_SOCKET
+      --machine <LABEL>    Run the command on this machine of config.toml, over ssh. A handle such as studio/w3:p5 does the same
+      --path <TEXT>        The worktree that holds this absolute path. The CLI gives the current directory.
+      --json               Print JSON. This is the default when stdout is not a terminal
+      --window <TEXT>      The worktree that the Git view of this window shows.
+      --timeout <SECONDS>  How long to wait for the core to answer, in seconds [default: 30]
+  -h, --help               Print help
+```
+
+## `nh git unstash` {#git-unstash}
+
+Put the changes of a stash that a switch left back into the worktree
+
+**API method:** [`git.unstash`](/docs/reference/api/methods/git#git-unstash)
+
+```text
+Put the changes of a stash that a switch left back into the worktree
+
+Usage: nh git unstash [OPTIONS] <STASH>
+
+Arguments:
+  <STASH>  The commit of the stash, as `stash` of `git_head` gives it.
+
+Options:
+      --force              Put the changes back also when an agent works in the worktree.
+      --session <NAME>     The session to talk to. The default is $NEOHAR_SESSION, or `default`
+      --path <TEXT>        The worktree that holds this absolute path. The CLI gives the current directory.
+      --socket <PATH>      The API socket to use. It wins over --session and $NEOHAR_SOCKET
+      --machine <LABEL>    Run the command on this machine of config.toml, over ssh. A handle such as studio/w3:p5 does the same
+      --window <TEXT>      The worktree that the Git view of this window shows.
+      --json               Print JSON. This is the default when stdout is not a terminal
+      --timeout <SECONDS>  How long to wait for the core to answer, in seconds [default: 30]
+  -h, --help               Print help
+```
+
+## `nh git fetch` {#git-fetch}
+
+Fetch the remote of the branch, as a job
+
+**API method:** [`git.fetch`](/docs/reference/api/methods/git#git-fetch)
+
+```text
+Fetch the remote of the branch, as a job
+
+Usage: nh git fetch [OPTIONS]
+
+Options:
+      --path <TEXT>        The worktree that holds this absolute path. The CLI gives the current directory.
+      --session <NAME>     The session to talk to. The default is $NEOHAR_SESSION, or `default`
+      --socket <PATH>      The API socket to use. It wins over --session and $NEOHAR_SOCKET
+      --window <TEXT>      The worktree that the Git view of this window shows.
+      --machine <LABEL>    Run the command on this machine of config.toml, over ssh. A handle such as studio/w3:p5 does the same
+      --json               Print JSON. This is the default when stdout is not a terminal
+      --timeout <SECONDS>  How long to wait for the core to answer, in seconds [default: 30]
+  -h, --help               Print help
+```
+
+## `nh git pull` {#git-pull}
+
+Move the branch to its upstream with a fast-forward only, as a job
+
+**API method:** [`git.pull`](/docs/reference/api/methods/git#git-pull)
+
+```text
+Move the branch to its upstream with a fast-forward only, as a job
+
+Usage: nh git pull [OPTIONS]
+
+Options:
+      --force              Pull also when an agent works in the worktree.
+      --session <NAME>     The session to talk to. The default is $NEOHAR_SESSION, or `default`
+      --path <TEXT>        The worktree that holds this absolute path. The CLI gives the current directory.
+      --socket <PATH>      The API socket to use. It wins over --session and $NEOHAR_SOCKET
+      --machine <LABEL>    Run the command on this machine of config.toml, over ssh. A handle such as studio/w3:p5 does the same
+      --window <TEXT>      The worktree that the Git view of this window shows.
       --json               Print JSON. This is the default when stdout is not a terminal
       --timeout <SECONDS>  How long to wait for the core to answer, in seconds [default: 30]
   -h, --help               Print help

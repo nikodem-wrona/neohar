@@ -1,6 +1,6 @@
 ---
 title: "Events"
-description: "The 50 kinds of events in the event outbox."
+description: "The 54 kinds of events in the event outbox."
 sidebar_position: 4
 ---
 
@@ -65,6 +65,10 @@ The core appends an event in the same SQLite transaction as the state change tha
 | [`policy.added`](#policy-added) | 1 | [`PolicyEvent`](/docs/reference/api/types#policyevent) |
 | [`policy.removed`](#policy-removed) | 1 | [`PolicyEvent`](/docs/reference/api/types#policyevent) |
 | [`git.repo_added`](#git-repo-added) | 1 | [`GitRepoAdded`](/docs/reference/api/types#gitrepoadded) |
+| [`git.switched`](#git-switched) | 1 | [`GitWrite`](/docs/reference/api/types#gitwrite) |
+| [`git.unstashed`](#git-unstashed) | 1 | [`GitWrite`](/docs/reference/api/types#gitwrite) |
+| [`git.fetched`](#git-fetched) | 1 | [`GitWrite`](/docs/reference/api/types#gitwrite) |
+| [`git.pulled`](#git-pulled) | 1 | [`GitWrite`](/docs/reference/api/types#gitwrite) |
 
 ## agent events {#group-agent}
 
@@ -683,6 +687,70 @@ The core appends an event in the same SQLite transaction as the state change tha
 |---|---|---|---|
 | `common_dir` | string | yes | The common git directory of the repository. |
 | `path` | string | yes | The path that the person gave. |
+
+### `git.switched` {#git-switched}
+
+**Version:** 1
+
+[`GitWrite`](/docs/reference/api/types#gitwrite)
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `agents` | [`RunId`](/docs/reference/api/types#runid)[] |  | The agents in the worktree at that time. |
+| `background` | boolean |  | The fetch ran in the background, not from a click. Default: `false`. |
+| `command` | string | yes | The git command, for example `git switch main`. |
+| `from` | string \| `null` |  | The branch before a switch. |
+| `path` | string | yes | The worktree, or the common git directory for a fetch. |
+| `stash` | string \| `null` |  | The stash that a switch made or that `git.unstash` put back. |
+| `to` | string \| `null` |  | The branch after a switch or a pull. |
+
+### `git.unstashed` {#git-unstashed}
+
+**Version:** 1
+
+[`GitWrite`](/docs/reference/api/types#gitwrite)
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `agents` | [`RunId`](/docs/reference/api/types#runid)[] |  | The agents in the worktree at that time. |
+| `background` | boolean |  | The fetch ran in the background, not from a click. Default: `false`. |
+| `command` | string | yes | The git command, for example `git switch main`. |
+| `from` | string \| `null` |  | The branch before a switch. |
+| `path` | string | yes | The worktree, or the common git directory for a fetch. |
+| `stash` | string \| `null` |  | The stash that a switch made or that `git.unstash` put back. |
+| `to` | string \| `null` |  | The branch after a switch or a pull. |
+
+### `git.fetched` {#git-fetched}
+
+**Version:** 1
+
+[`GitWrite`](/docs/reference/api/types#gitwrite)
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `agents` | [`RunId`](/docs/reference/api/types#runid)[] |  | The agents in the worktree at that time. |
+| `background` | boolean |  | The fetch ran in the background, not from a click. Default: `false`. |
+| `command` | string | yes | The git command, for example `git switch main`. |
+| `from` | string \| `null` |  | The branch before a switch. |
+| `path` | string | yes | The worktree, or the common git directory for a fetch. |
+| `stash` | string \| `null` |  | The stash that a switch made or that `git.unstash` put back. |
+| `to` | string \| `null` |  | The branch after a switch or a pull. |
+
+### `git.pulled` {#git-pulled}
+
+**Version:** 1
+
+[`GitWrite`](/docs/reference/api/types#gitwrite)
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `agents` | [`RunId`](/docs/reference/api/types#runid)[] |  | The agents in the worktree at that time. |
+| `background` | boolean |  | The fetch ran in the background, not from a click. Default: `false`. |
+| `command` | string | yes | The git command, for example `git switch main`. |
+| `from` | string \| `null` |  | The branch before a switch. |
+| `path` | string | yes | The worktree, or the common git directory for a fetch. |
+| `stash` | string \| `null` |  | The stash that a switch made or that `git.unstash` put back. |
+| `to` | string \| `null` |  | The branch after a switch or a pull. |
 
 ## Notification `events.event` {#notification-events-event}
 

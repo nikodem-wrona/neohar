@@ -3,6 +3,10 @@
 //! A call acts on one git worktree. The UI names it with `window`: the worktree that the Git view
 //! of the window follows (`git.follow`). The CLI names it with `path`: the worktree that holds
 //! that absolute path. A call gives one of the two.
+//!
+//! A write that changes the files of a worktree (`git.switch`, `git.pull`, `git.unstash`) asks
+//! first when an agent works in it: without `force`, it answers `confirm_required` with the
+//! agents in `details`. One write at a time runs in a worktree, and a second one is `busy`.
 
 use crate::api::{
     common::wire,
@@ -39,9 +43,10 @@ wire! {
     /// The worktree of a read: the one that the Git view of `window` follows, or the one that
     /// holds `path`.
     pub struct GitPlace {
+        /// The worktree that the Git view of this window shows.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         pub window: Option<WindowId>,
-        /// An absolute path in the worktree. The CLI gives the current directory.
+        /// The worktree that holds this absolute path. The CLI gives the current directory.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         pub path: Option<String>,
     }
@@ -70,8 +75,10 @@ wire! {
 
     /// `git.log`: the commits of `HEAD`, the newest first, in pages.
     pub struct GitLog {
+        /// The worktree that the Git view of this window shows.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         pub window: Option<WindowId>,
+        /// The worktree that holds this absolute path. The CLI gives the current directory.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         pub path: Option<String>,
         /// The commits to leave out at the start: the number that the pages before had.
@@ -94,8 +101,10 @@ wire! {
 
     /// `git.show`: one commit with its message and its files.
     pub struct GitShow {
+        /// The worktree that the Git view of this window shows.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         pub window: Option<WindowId>,
+        /// The worktree that holds this absolute path. The CLI gives the current directory.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         pub path: Option<String>,
         /// The full or the short hash of the commit.
@@ -120,11 +129,88 @@ wire! {
         pub truncated: bool,
     }
 
+    /// What a switch does with the changes of the worktree.
+    #[derive(Copy, Eq)]
+    #[serde(rename_all = "snake_case")]
+    pub enum GitChanges {
+        /// The changes go to the other branch, as `git switch` takes them. A change that the
+        /// other branch would overwrite stops the switch (`conflict`).
+        Bring,
+        /// The changes go to a stash that names the branch. A switch back to that branch offers
+        /// them again (`stash` of `git_head`).
+        Leave,
+    }
+
+    /// `git.switch`: the worktree goes to another branch. A worktree with changes needs
+    /// `changes`, else the answer is `confirm_required` with `{"kind": "changes", "files"}`. A
+    /// branch that another worktree has out is `conflict` with `{"kind": "worktree", "worktree"}`.
+    pub struct GitSwitch {
+        /// The worktree that the Git view of this window shows.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub window: Option<WindowId>,
+        /// The worktree that holds this absolute path. The CLI gives the current directory.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub path: Option<String>,
+        /// A branch of `git_branches`: its reference (`refs/heads/main`) or its name (`main`,
+        /// `origin/topic`). A remote branch with no local branch of the same name gets a local
+        /// branch that tracks it.
+        pub branch: String,
+        /// What happens to the changes of the worktree: `bring` or `leave`. A worktree with
+        /// changes needs it.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub changes: Option<GitChanges>,
+        /// Switch also when an agent works in the worktree.
+        #[serde(default)]
+        pub force: bool,
+    }
+
+    /// `git.unstash`: puts the changes of a stash back into the worktree, and drops the stash.
+    pub struct GitUnstash {
+        /// The worktree that the Git view of this window shows.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub window: Option<WindowId>,
+        /// The worktree that holds this absolute path. The CLI gives the current directory.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub path: Option<String>,
+        /// The commit of the stash, as `stash` of `git_head` gives it.
+        pub stash: String,
+        /// Put the changes back also when an agent works in the worktree.
+        #[serde(default)]
+        pub force: bool,
+    }
+
+    /// `git.fetch`: fetches the remote of the head with `--prune`, as a job. A question of ssh or
+    /// of a credential helper shows the sheet of the app.
+    pub struct GitFetch {
+        /// The worktree that the Git view of this window shows.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub window: Option<WindowId>,
+        /// The worktree that holds this absolute path. The CLI gives the current directory.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub path: Option<String>,
+    }
+
+    /// `git.pull`: moves the branch to its upstream with a fast-forward only, as a job. A branch
+    /// that has commits of its own and is behind is `conflict` with `{"kind": "diverged"}`.
+    pub struct GitPull {
+        /// The worktree that the Git view of this window shows.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub window: Option<WindowId>,
+        /// The worktree that holds this absolute path. The CLI gives the current directory.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub path: Option<String>,
+        /// Pull also when an agent works in the worktree.
+        #[serde(default)]
+        pub force: bool,
+    }
+
     /// `git.diff`: the diff of one file. Without `commit`, the file is a row of the changes of the
     /// worktree, from `HEAD`. With `commit`, it is a file of that commit, from its first parent.
     pub struct GitDiff {
+        /// The worktree that the Git view of this window shows.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         pub window: Option<WindowId>,
+        /// The worktree that holds this absolute path. The CLI gives the current directory.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         pub path: Option<String>,
         /// The path of the file from the root of the worktree.
