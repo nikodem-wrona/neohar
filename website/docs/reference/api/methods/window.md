@@ -1,6 +1,6 @@
 ---
 title: "window.*"
-description: "The windows of the app: which panes they show, focus, metrics, bounds and panels."
+description: "The windows of the app: which panes they show, focus, metrics, bounds and the single view."
 sidebar_position: 8
 toc_max_heading_level: 2
 ---
@@ -12,7 +12,7 @@ Do not edit it by hand. Change the source and run `bun run gen` in `website/`.
 
 :::
 
-The windows of the app: which panes they show, focus, metrics, bounds and panels.
+The windows of the app: which panes they show, focus, metrics, bounds and the single view.
 
 | Method | Scopes | Params | Result |
 |---|---|---|---|

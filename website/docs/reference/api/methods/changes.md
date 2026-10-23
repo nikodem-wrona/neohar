@@ -1,6 +1,6 @@
 ---
 title: "changes.*"
-description: "The changes methods."
+description: "The Changes tab: the changes of a git worktree from HEAD, and the diff of one file."
 sidebar_position: 15
 toc_max_heading_level: 2
 ---
@@ -12,7 +12,7 @@ Do not edit it by hand. Change the source and run `bun run gen` in `website/`.
 
 :::
 
-
+The Changes tab: the changes of a git worktree from HEAD, and the diff of one file.
 
 | Method | Scopes | Params | Result |
 |---|---|---|---|

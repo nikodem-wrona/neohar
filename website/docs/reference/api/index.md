@@ -96,14 +96,14 @@ Every message is one JSON-RPC 2.0 object.
 | [`tab`](/docs/reference/api/methods/tab) | Tabs: one layout of panes in a workspace. | 5 |
 | [`layout`](/docs/reference/api/methods/layout) | The split tree of a tab: ratios, equal sizes and zoom. | 3 |
 | [`pane`](/docs/reference/api/methods/pane) | Panes: terminals with a holder, and their input, scrolling, selection, copy and text. | 27 |
-| [`window`](/docs/reference/api/methods/window) | The windows of the app: which panes they show, focus, metrics, bounds and panels. | 7 |
-| [`fs`](/docs/reference/api/methods/fs) |  | 4 |
-| [`askpass`](/docs/reference/api/methods/askpass) |  | 1 |
+| [`window`](/docs/reference/api/methods/window) | The windows of the app: which panes they show, focus, metrics, bounds and the single view. | 7 |
+| [`fs`](/docs/reference/api/methods/fs) | The files of the machine for the Files tab: list a folder, read a preview, open a path and copy a path. | 4 |
+| [`askpass`](/docs/reference/api/methods/askpass) | The questions of ssh that `nh askpass` sends. The app asks the person. | 1 |
 | [`render`](/docs/reference/api/methods/render) | Acknowledgements of painted frames, which free the slots of the render pacer. | 1 |
 | [`agent`](/docs/reference/api/methods/agent) | Agent runs of Claude Code and Codex: list, start, resume, prompt, interrupt, stop, wait. | 13 |
 | [`harness`](/docs/reference/api/methods/harness) | Claude Code and Codex on this machine: discovery, version and login state. | 1 |
 | [`interaction`](/docs/reference/api/methods/interaction) | What agents ask a person: approvals, questions, plan reviews and notices. | 6 |
-| [`changes`](/docs/reference/api/methods/changes) |  | 2 |
+| [`changes`](/docs/reference/api/methods/changes) | The Changes tab: the changes of a git worktree from HEAD, and the diff of one file. | 2 |
 | [`phone`](/docs/reference/api/methods/phone) | The phones that supervise this machine: the offer of a pairing, names and removal, and the mapping of tailscale serve. | 11 |
 | [`events`](/docs/reference/api/methods/events) | Subscriptions to the event log, from a cursor. | 2 |
 | [`projection`](/docs/reference/api/methods/projection) | Subscriptions to projections: a snapshot, then keyed patches. | 3 |

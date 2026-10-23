@@ -68,11 +68,15 @@ const namespaces: Record<string, string> = {
   tab: 'Tabs: one layout of panes in a workspace.',
   layout: 'The split tree of a tab: ratios, equal sizes and zoom.',
   pane: 'Panes: terminals with a holder, and their input, scrolling, selection, copy and text.',
-  window: 'The windows of the app: which panes they show, focus, metrics, bounds and panels.',
+  window:
+    'The windows of the app: which panes they show, focus, metrics, bounds and the single view.',
+  fs: 'The files of the machine for the Files tab: list a folder, read a preview, open a path and copy a path.',
+  askpass: 'The questions of ssh that `nh askpass` sends. The app asks the person.',
   render: 'Acknowledgements of painted frames, which free the slots of the render pacer.',
   agent: 'Agent runs of Claude Code and Codex: list, start, resume, prompt, interrupt, stop, wait.',
   interaction: 'What agents ask a person: approvals, questions, plan reviews and notices.',
   harness: 'Claude Code and Codex on this machine: discovery, version and login state.',
+  changes: 'The Changes tab: the changes of a git worktree from HEAD, and the diff of one file.',
   phone:
     'The phones that supervise this machine: the offer of a pairing, names and removal, and the mapping of tailscale serve.',
   events: 'Subscriptions to the event log, from a cursor.',

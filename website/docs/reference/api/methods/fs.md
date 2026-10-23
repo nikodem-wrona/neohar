@@ -1,6 +1,6 @@
 ---
 title: "fs.*"
-description: "The fs methods."
+description: "The files of the machine for the Files tab: list a folder, read a preview, open a path and copy a path."
 sidebar_position: 9
 toc_max_heading_level: 2
 ---
@@ -12,7 +12,7 @@ Do not edit it by hand. Change the source and run `bun run gen` in `website/`.
 
 :::
 
-
+The files of the machine for the Files tab: list a folder, read a preview, open a path and copy a path.
 
 | Method | Scopes | Params | Result |
 |---|---|---|---|
