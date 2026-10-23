@@ -880,7 +880,14 @@ async fn a_child_that_exited_while_no_core_ran_is_found_exited_and_stored() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn the_nudge_resizes_the_pty_twice_and_ends_at_the_old_size() {
-    let mut h = Harness::start();
+    // The program sees the narrow size only if it asks while the size lasts. Each loop of the
+    // program starts processes, and on a busy machine a loop takes more than the usual gap of
+    // 50 ms. The gap of 1 s is shorter than the time in which the pane must settle.
+    let tuning = Tuning {
+        nudge_gap: Duration::from_secs(1),
+        ..Tuning::default()
+    };
+    let mut h = Harness::start_tuned(tuning);
     // A trap would miss a size: bash runs one trap for two signals that come while `sleep` runs.
     // The program asks the terminal for its size all the time and logs each change.
     let log = flag(&h, "sizes");
