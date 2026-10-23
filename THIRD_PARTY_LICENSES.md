@@ -3593,7 +3593,7 @@ DEALINGS IN THE SOFTWARE.
 
 ### MIT License (MIT)
 
-Used by: `ctutils 0.4.3`.
+Used by: `ctutils 0.4.5`.
 
 ```text
 Copyright (c) 2025-2026 The RustCrypto Project Developers
