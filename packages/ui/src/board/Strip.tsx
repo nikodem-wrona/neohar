@@ -14,7 +14,7 @@ import { costText } from '../timeline/model';
 
 export interface StripProps {
   run: AgentValue;
-  /** What the run works on: the title of its task, else of its pane, else the harness. */
+  /** What the run works on: the title of its pane, else the harness. */
   work: string;
   /** The tooltip: the state in words and the usage. */
   tooltip: string;

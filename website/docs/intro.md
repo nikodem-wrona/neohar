@@ -5,7 +5,7 @@ sidebar_position: 1
 slug: /intro
 ---
 
-neohar is a desktop workspace for supervising coding agents. A Rust core owns the terminals, the state of the agents, their approvals and their task workspaces. It keeps every agent process alive when the app quits, crashes or updates. The window is a thin surface: it paints what the core sends and sends back what the person did.
+neohar is a desktop workspace for supervising coding agents. A Rust core owns the terminals, the state of the agents and their approvals. It keeps every agent process alive when the app quits, crashes or updates. The window is a thin surface: it paints what the core sends and sends back what the person did.
 
 neohar supports two harnesses, **Claude Code** and **Codex**, and nothing else.
 
@@ -47,7 +47,7 @@ flowchart LR
 
 ## What works today
 
-- **On one Mac**: workspaces, tabs and panes; Claude Code and Codex in panes, with their state on the board; approvals and questions as cards, notifications or CLI calls; policy rules; tasks with their own git worktree; the Files and Changes tabs; search; and the `nh` command line.
+- **On one Mac**: workspaces, tabs and panes; Claude Code and Codex in panes, with their state on the board; approvals and questions as cards, notifications or CLI calls; policy rules; the Files and Changes tabs; search; and the `nh` command line.
 - **Remote machines**: the app connects over ssh to an `nh daemon` on another Mac and shows its panes ([Remote machines](/docs/guides/remote-machines)).
 - **A phone app**: the core serves it on `127.0.0.1`, and `tailscale serve` puts it on your tailnet. A paired phone shows the desk, answers requests, and gets a push when an agent needs you and no desktop window has the focus ([The phone](/docs/guides/phone)).
 - macOS is the only tested platform. Builds are ad-hoc signed, for local use only, and the app has no updater.

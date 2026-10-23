@@ -26,7 +26,6 @@ fn run(n: u128, harness: &str) -> RunRow {
         yolo: false,
         resume: None,
         model: None,
-        task: None,
         process: None,
         started_at: 1_000,
         ended_at: None,

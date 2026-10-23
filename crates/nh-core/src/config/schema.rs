@@ -182,18 +182,6 @@ impl Agents {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Tasks {
-    pub worktree_root: String,
-    pub branch_prefix: String,
-    pub ports: u8,
-    pub port_range: [u16; 2],
-    /// Commands that run in the worktree before the agent starts, one after the other.
-    pub setup: Vec<String>,
-    /// Variables that every pane of a task gets, over `NEOHAR_TASK_ID`, `PORT` and `NEOHAR_PORTS`.
-    pub env: std::collections::BTreeMap<String, String>,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Events {
     pub sync_retention: Span,
     pub audit_retention: Span,
@@ -354,7 +342,6 @@ pub struct Config {
     pub approvals: Approvals,
     pub policy: PolicyConfig,
     pub agents: Agents,
-    pub tasks: Tasks,
     pub events: Events,
     pub scrollback: Scrollback,
     pub daemon: Daemon,
@@ -404,7 +391,6 @@ default_from_file! {
     Approvals => ["approvals"];
     PolicyConfig => ["policy"];
     Agents => ["agents"];
-    Tasks => ["tasks"];
     Events => ["events"];
     Scrollback => ["scrollback"];
     Daemon => ["daemon"];
@@ -440,9 +426,6 @@ mod tests {
         assert!(config.agents.shims);
         assert_eq!(config.agents.resume_on_launch, ResumeOnLaunch::Ask);
         assert_eq!(config.agents.harness.claude.billing, Billing::Api);
-        assert_eq!(config.tasks.ports, 1);
-        assert_eq!(config.tasks.port_range, [41_000, 41_999]);
-        assert_eq!(config.tasks.branch_prefix, "neohar/");
         assert_eq!(
             config.events.sync_retention.0,
             Duration::from_secs(7 * 86_400)
@@ -463,7 +446,6 @@ mod tests {
     fn the_section_defaults_equal_the_sections_of_the_whole() {
         let config = Config::default();
         assert_eq!(config.approvals, Approvals::default());
-        assert_eq!(config.tasks, Tasks::default());
         assert_eq!(config.events, Events::default());
     }
 

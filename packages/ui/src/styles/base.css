@@ -73,10 +73,6 @@
     .timeline-usage,
     .timeline-limit,
     .palette-shortcut,
-    .task-file-size,
-    .task-facts .port,
-    .folder-path,
-    .diff-stats,
     .setting-input,
     .phone-code
   ) {
@@ -85,12 +81,12 @@
   }
 
   /* The title of a panel, a dialog or a card. */
-  :where(.band, .confirm-title, .task-dialog-title, .settings-title, .card-title) {
+  :where(.band, .confirm-title, .dialog-title, .settings-title, .card-title) {
     font: var(--t-title);
   }
 
   /* Small text: a second line, a hint, a source. */
-  :where(.strip-harness, .task-hint, .setting-source) {
+  :where(.strip-harness, .setting-source) {
     font-size: var(--size-small);
   }
 
@@ -126,7 +122,7 @@
     .board-list,
     .files-menu,
     .confirm,
-    .task-dialog,
+    .dialog,
     .file-modal,
     .floating > .pane-title
   ) {
@@ -144,7 +140,7 @@
       .board-list,
       .files-menu,
       .confirm,
-      .task-dialog,
+      .dialog,
       .file-modal,
       .floating > .pane-title
     ) {

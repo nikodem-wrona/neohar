@@ -1,7 +1,6 @@
 //! The blob store: content-addressed files for screenshots, large tool inputs and card
 //! images. A blob is `<state dir>/blobs/<hash[0..2]>/<hash>`, where the hash is the BLAKE3 digest in
-//! lower-case hex. The `blobs` table has the size, the type and a count of the rows that name the
-//! blob. Only the files of tasks count their references, so the store deletes no blob.
+//! lower-case hex. The `blobs` table has the size and the type. The store deletes no blob.
 //!
 //! A file is written to a temporary name in its directory, synced, and renamed. A crash leaves
 //! either no file or the whole file. The directories have mode 0700 and the files 0600.
@@ -16,7 +15,7 @@ use std::{
 
 use rusqlite::{OptionalExtension, params};
 
-use crate::{Store, StoreError, Tx, degraded};
+use crate::{Store, StoreError, degraded};
 
 /// What the store knows about a blob.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -25,8 +24,6 @@ pub struct BlobInfo {
     pub bytes: u64,
     pub mime: String,
     pub created_at_ms: i64,
-    /// How many rows name the blob.
-    pub refs: u32,
 }
 
 /// A number for the names of temporary files, so that two writers never share one.
@@ -101,7 +98,7 @@ impl Store {
             self.blob_io(dir, synced)?;
         }
         self.exec(
-            "INSERT INTO blobs (hash, bytes, mime, created_at, refs) VALUES (?1, ?2, ?3, ?4, 0)
+            "INSERT INTO blobs (hash, bytes, mime, created_at) VALUES (?1, ?2, ?3, ?4)
              ON CONFLICT (hash) DO NOTHING",
             params![hash, bytes.len() as i64, mime, now_ms],
         )?;
@@ -128,46 +125,11 @@ impl Store {
         Ok(self
             .conn
             .query_row(
-                "SELECT hash, bytes, mime, created_at, refs FROM blobs WHERE hash = ?1",
+                "SELECT hash, bytes, mime, created_at FROM blobs WHERE hash = ?1",
                 [hash],
                 info,
             )
             .optional()?)
-    }
-
-    /// Counts one more reference. Returns `false` when the blob is unknown.
-    pub fn add_blob_ref(&self, hash: &str) -> Result<bool, StoreError> {
-        Ok(self.exec("UPDATE blobs SET refs = refs + 1 WHERE hash = ?1", [hash])? > 0)
-    }
-
-    /// Counts one reference less, but never below 0. Returns `false` when the blob is unknown.
-    pub fn release_blob_ref(&self, hash: &str) -> Result<bool, StoreError> {
-        Ok(self.exec(
-            "UPDATE blobs SET refs = max(refs - 1, 0) WHERE hash = ?1",
-            [hash],
-        )? > 0)
-    }
-}
-
-impl Tx<'_> {
-    /// Counts one more reference, in the transaction of the row that names the blob. Returns
-    /// `false` when the blob is unknown.
-    pub fn add_blob_ref(&self, hash: &str) -> Result<bool, StoreError> {
-        self.writable()?;
-        Ok(self
-            .sql()
-            .execute("UPDATE blobs SET refs = refs + 1 WHERE hash = ?1", [hash])?
-            > 0)
-    }
-
-    /// Counts one reference less, but never below 0, in the transaction of the row that let go of
-    /// the blob.
-    pub fn release_blob_ref(&self, hash: &str) -> Result<bool, StoreError> {
-        self.writable()?;
-        Ok(self.sql().execute(
-            "UPDATE blobs SET refs = max(refs - 1, 0) WHERE hash = ?1",
-            [hash],
-        )? > 0)
     }
 }
 
@@ -177,7 +139,6 @@ fn info(row: &rusqlite::Row<'_>) -> rusqlite::Result<BlobInfo> {
         bytes: u64::try_from(row.get::<_, i64>(1)?).unwrap_or(0),
         mime: row.get(2)?,
         created_at_ms: row.get(3)?,
-        refs: u32::try_from(row.get::<_, i64>(4)?).unwrap_or(0),
     })
 }
 
@@ -231,7 +192,6 @@ mod tests {
                 bytes: 12,
                 mime: "image/png".to_owned(),
                 created_at_ms: 5,
-                refs: 0
             }
         );
         let _ = fs::remove_dir_all(dir);
@@ -355,27 +315,6 @@ mod tests {
             store.get_blob(&hash).expect("a read"),
             Some(b"complete content".to_vec())
         );
-        let _ = fs::remove_dir_all(dir);
-    }
-
-    #[test]
-    fn references_count_up_and_down_and_stop_at_zero() {
-        let (store, dir) = temp_store("refs");
-        let hash = store.put_blob(b"refd", "text/plain", 1).expect("a blob");
-        assert!(store.add_blob_ref(&hash).expect("a ref"));
-        assert!(store.add_blob_ref(&hash).expect("a ref"));
-        assert_eq!(
-            store.blob_info(&hash).expect("a row").expect("known").refs,
-            2
-        );
-        assert!(store.release_blob_ref(&hash).expect("a release"));
-        assert!(store.release_blob_ref(&hash).expect("a release"));
-        assert!(store.release_blob_ref(&hash).expect("a release"));
-        assert_eq!(
-            store.blob_info(&hash).expect("a row").expect("known").refs,
-            0
-        );
-        assert!(!store.add_blob_ref(&"0".repeat(64)).expect("unknown"));
         let _ = fs::remove_dir_all(dir);
     }
 

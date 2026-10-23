@@ -422,12 +422,12 @@ fn the_hook_learns_of_each_subscription_after_its_snapshot() {
             .unwrap_or_else(PoisonError::into_inner)
             .push((projection, count));
     }));
-    let task: nh_proto::api::ids::TaskId = "01M4F1W7EM2GN3EV6NHXZJEGGD".parse().expect("an id");
-    let (_a, _, _) = subscribe(&hub, Projection::Changes(task), None);
-    let (_b, _, _) = subscribe(&hub, Projection::Tasks, None);
+    let window: nh_proto::api::ids::WindowId = "01M4F1W7EM2GN3EV6NHXZJEGGD".parse().expect("an id");
+    let (_a, _, _) = subscribe(&hub, Projection::ChangesFor(window), None);
+    let (_b, _, _) = subscribe(&hub, Projection::Jobs, None);
     let seen = seen.lock().unwrap_or_else(PoisonError::into_inner).clone();
     assert_eq!(
         seen,
-        [(Projection::Changes(task), 1), (Projection::Tasks, 1)]
+        [(Projection::ChangesFor(window), 1), (Projection::Jobs, 1)]
     );
 }

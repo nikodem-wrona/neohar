@@ -76,7 +76,7 @@ export interface AdapterSignal {
   truncated?: boolean;
 }
 
-/** The models and the effort levels that `agent.start` and `task.create` can choose. */
+/** The models and the effort levels that `agent.start` can choose. */
 export interface AgentChoices {
   harness?: Harness | null;
 }
@@ -203,7 +203,6 @@ export interface AgentStart {
   name?: string | null;
   placement: Placement;
   prompt?: string | null;
-  task?: RefTaskId | null;
 }
 
 /** Every change of a facet. */
@@ -244,7 +243,6 @@ export interface AgentValue {
   resumable?: boolean;
   session_id?: string | null;
   started_at: Timestamp;
-  task?: TaskId | null;
   usage: Usage;
   /** The run bypasses the permission prompts of the harness. */
   yolo?: boolean;
@@ -315,19 +313,6 @@ export interface AskpassAsk {
   machine?: string | null;
   /** The question as ssh wrote it: a host key, a passphrase or a password. */
   prompt: string;
-}
-
-/**
- * A file of a task: a screenshot, a markdown file. The core keeps its bytes, and the
- * start copies it into the worktree.
- */
-export interface AttachmentValue {
-  bytes: number;
-  id: string;
-  mime: string;
-  name: string;
-  /** The file in the worktree, after the start. */
-  path?: string | null;
 }
 
 export type AttentionReason =
@@ -402,10 +387,7 @@ export interface CapabilityRow {
   version: string;
 }
 
-/**
- * `changes:<task>` and `changes_for:<window>`: one changed file. The key is
- * `path`.
- */
+/** `changes_for:<window>`: one changed file. The key is `path`. */
 export interface ChangeRow {
   add: number;
   /** Git shows no lines for the file. */
@@ -415,7 +397,7 @@ export interface ChangeRow {
   dir: string;
   /** The last part of the path. */
   name: string;
-  /** The path in the merge base of a renamed file. */
+  /** The path in `HEAD` of a renamed file. */
   old_path?: string | null;
   /** The path from the root of the worktree. */
   path: string;
@@ -425,30 +407,24 @@ export interface ChangeRow {
    */
   stamp: number;
   status: ChangeStatus;
-  /** The file has a change that is not in a commit. */
-  uncommitted?: boolean;
 }
 
-/**
- * What happened to a file of the changes of a task. A change of type counts as
- * `modified`.
- */
+/** What happened to a file since `HEAD`. A change of type counts as `modified`. */
 export type ChangeStatus = ('modified' | 'added' | 'deleted' | 'renamed') | 'untracked';
 
-/** `changes` of a row of `tasks`: the totals of the changes of a task. */
+/** `changes` of `changes_head:<window>`: the totals of the changes of a worktree. */
 export interface ChangeTotals {
-  /** The commits from the merge base to `HEAD`. */
-  commits: number;
   /**
-   * Why the last count failed, for example "the base `main` is gone". The other values
-   * and the rows are those of the count before.
+   * Why the last count failed, for example "the worktree is gone". The other values and
+   * the rows are those of the count before.
    */
   error?: string | null;
   /** The changed files, also those after the first 1,000. */
   files: number;
-  /** The short name of the merge base of the base and `HEAD`. */
-  merge_base?: string | null;
-  /** The task has more than 1,000 changed files, and `changes:<task>` has the first 1,000. */
+  /**
+   * The worktree has more than 1,000 changed files, and `changes_for:<window>` has the
+   * first 1,000.
+   */
   truncated?: boolean;
 }
 
@@ -472,14 +448,9 @@ export interface ChangesFollow {
 /**
  * `changes_head:<window>`: the head of the Changes tab of a window. The window names a
  * folder with `changes.follow`, and the changes are those of the git worktree that holds
- * it. The core makes the row when it knows the worktree.
+ * it, from `HEAD`: what is not committed. The core makes the row when it knows the worktree.
  */
 export interface ChangesHead {
-  /**
-   * The base of that task: the changes go from the merge base of the base and `HEAD`, as
-   * for `changes:<task>`. With `None`, they go from `HEAD`: only what is not committed.
-   */
-  base?: string | null;
   /** The branch of `HEAD`, or `None` for a detached `HEAD`. */
   branch?: string | null;
   /** The totals of the last count, or `None` before the first count. */
@@ -493,8 +464,6 @@ export interface ChangesHead {
    * in a git worktree.
    */
   root?: string | null;
-  /** The task whose worktree is the root. */
-  task?: TaskId | null;
 }
 
 /** How a check of the doctor came out. */
@@ -799,7 +768,6 @@ export type ErrorCode =
   | 'holder_error'
   | 'agent_live'
   | 'agent_gone'
-  | 'agent_failed'
   | 'not_bound'
   | 'name_taken'
   | 'harness_mismatch'
@@ -814,8 +782,6 @@ export type ErrorCode =
   | 'conflict'
   | 'config_rule'
   | 'git_failed'
-  | 'setup_failed'
-  | 'no_free_ports'
   | 'forward_failed'
   | 'proto_unsupported'
   | 'io_error'
@@ -920,53 +886,6 @@ export interface Facets {
   read_state: ReadState;
 }
 
-/**
- * Adds a folder to the favorites. The core keeps the root of its git repository. A favorite
- * that is there already stays as it is.
- */
-export interface FavoriteAdd {
-  /** An absolute path or a path under `~`, or a workspace (`w3`) for its root. */
-  path: string;
-}
-
-export interface FavoriteAdded {
-  /** The root of the repository that the core keeps: the key of its row in `favorites`. */
-  path: string;
-}
-
-/** The payload of `favorite.added` and `favorite.removed`. */
-export interface FavoriteEvent {
-  path: string;
-}
-
-export type FavoriteList = Record<string, never>;
-
-/** The favorites, the one used last first, as the projection `favorites` has them. */
-export interface FavoriteListResult {
-  favorites: FavoriteValue[];
-}
-
-/** Removes a folder from the favorites: the path of a favorite, or a folder in its repository. */
-export interface FavoriteRemove {
-  path: string;
-}
-
-/** A favorite folder, for the form of a new task. */
-export interface FavoriteValue {
-  /**
-   * The name that the form shows: the last part of the path, or the last two parts when
-   * two favorites have the same last part.
-   */
-  name: string;
-  /** The root of a git repository. */
-  path: string;
-  /**
-   * The last task that the person made or changed with this repository, else the time
-   * when the favorite was added.
-   */
-  used_at: Timestamp;
-}
-
 export type FileAction = 'created' | 'modified' | 'removed' | 'unchanged';
 
 export interface FileChange {
@@ -1005,38 +924,6 @@ export interface FsCopyPath {
   relative_to?: string | null;
   /** Return the text, and write no clipboard of a host: a phone writes it in the tap. */
   return_text?: boolean;
-}
-
-export interface FsDirEntry {
-  /** The name that the browser shows. */
-  name: string;
-  /** The absolute path that the browser sends back to open the folder or to choose it. */
-  path: string;
-  /** True for the root of a git repository. */
-  repo: boolean;
-}
-
-/**
- * `fs.dirs`: the folders in a folder of the machine, for the folder browser of the task
- * dialog.
- */
-export interface FsDirs {
-  /** An absolute path or a path under `~`. Without it, the home folder of the machine. */
-  path?: string | null;
-}
-
-/**
- * The folders of a folder, in the order in which the browser shows them. The favorites
- * come first, then the other folders by name, without case. Hidden folders are not there.
- */
-export interface FsDirsResult {
-  entries: FsDirEntry[];
-  /** The folder above it. The root folder has none. */
-  parent?: string | null;
-  /** The folder that the core listed, as an absolute path. */
-  path: string;
-  /** True when the folder has more folders than the core sends (2,000). */
-  truncated: boolean;
 }
 
 export interface FsEntry {
@@ -1208,10 +1095,7 @@ export interface GroupSummary {
 export type Harness = 'claude' | 'codex';
 
 export interface HarnessChoices {
-  /**
-   * A start with this harness can go on: it is installed and not logged out. The form of a
-   * task keeps a draft without it, and its Start button is off.
-   */
+  /** A start with this harness can go on: it is installed and not logged out. */
   available: boolean;
   /**
    * The effort levels for the default model and for a model without its own levels. Empty:
@@ -1254,7 +1138,7 @@ export interface HarnessRefresh {
 export interface HarnessValue {
   /**
    * A start of an agent with this harness can go on: the harness is installed and not
-   * logged out. The form of a task turns its Start button off without it.
+   * logged out.
    */
   available: boolean;
   /** The time of the last check. */
@@ -1556,7 +1440,7 @@ export interface JobValue {
   message?: string | null;
   /** From 0 to 1, when the job knows. */
   progress?: number | null;
-  /** What the job made, when it is done (for example `{"task": "…"}`). */
+  /** What the job made, when it is done (for example `{"run": "…"}`). */
   result?: unknown;
   started_at: Timestamp;
   status: JobStatus;
@@ -2503,7 +2387,7 @@ export interface ProcessSpec {
   env?: Record<string, string>;
 }
 
-/** The name of a projection. timeline:<run>, changes:<task>, pane_text:<pane>, agents_for:<window>, changes_for:<window> and changes_head:<window> take an id. */
+/** The name of a projection. timeline:<run>, pane_text:<pane>, agents_for:<window>, changes_for:<window> and changes_head:<window> take an id. */
 export type Projection = string;
 
 /** The state of a projection: the values by key, and the order of the keys. */
@@ -2646,9 +2530,6 @@ export type RefRunId = string;
 
 /** A reference to a tab: its ULID, or its short handle. */
 export type RefTabId = string;
-
-/** A reference to a task: its ULID, or its short handle. */
-export type RefTaskId = string;
 
 /** A reference to a workspace: its ULID, or its short handle. */
 export type RefWorkspaceId = string;
@@ -2899,177 +2780,6 @@ export interface TailscaleStatus {
   state: TailscaleState;
 }
 
-/** `task.changes` counts the changes of a task that started now. */
-export interface TaskChanges {
-  task: RefTaskId;
-}
-
-/** The totals of the changes, and the rows of `changes:<task>` in their order. */
-export interface TaskChangesResult {
-  changes: ChangeTotals;
-  files: ChangeRow[];
-}
-
-/** The core refuses to remove a dirty worktree without `force`. */
-export interface TaskClose {
-  force?: boolean;
-  remove_worktree?: boolean;
-  task: RefTaskId;
-}
-
-/**
- * `task.create` keeps a draft: the core checks the repository and the words, and stores the
- * task with its files. Nothing happens in git until `task.start`, or until `start`.
- */
-export interface TaskCreate {
-  base?: string | null;
-  branch?: string | null;
-  /** The effort level of the agent. It needs `harness`. */
-  effort?: string | null;
-  /** Files to attach, by path. The core reads them now. */
-  files?: string[];
-  harness?: Harness | null;
-  /** The model of the agent. It needs `harness`. */
-  model?: string | null;
-  /** How many ports to lease. */
-  ports?: number | null;
-  prompt?: string | null;
-  repo: string;
-  /** Start the task at once, as `task.start` does. */
-  start?: boolean;
-  title: string;
-  /** Files to attach with their bytes: what the UI picked or pasted. */
-  uploads?: Upload[];
-}
-
-export interface TaskCreated {
-  /** The short handle, for example `k7`. */
-  handle: string;
-  /** The job of the start, when the call asked for `start`. */
-  job?: JobId | null;
-  task: TaskId;
-}
-
-/** `task.delete` removes a draft or a closed task. */
-export interface TaskDelete {
-  task: RefTaskId;
-}
-
-/** `task.diff` gives the diff of one path of the rows of `changes:<task>`. */
-export interface TaskDiff {
-  path: string;
-  task: RefTaskId;
-}
-
-/** The payload of `task.created` and `task.closed`. */
-export interface TaskEvent {
-  handle: string;
-  task: TaskId;
-  title: string;
-}
-
-/** The ULID of a task, as 26 characters. */
-export type TaskId = string;
-
-export interface TaskList {
-  status?: TaskStatus | null;
-}
-
-export interface TaskListResult {
-  tasks: TaskValue[];
-}
-
-export interface TaskShow {
-  task: RefTaskId;
-}
-
-export interface TaskShown {
-  task: TaskValue;
-}
-
-/**
- * `task.start` returns a job: the worktree, the ports, the setup, the tab and the agent of a
- * draft.
- */
-export interface TaskStart {
-  task: RefTaskId;
-}
-
-/**
- * The status of a task. A `draft` is kept and not started: it has no worktree, no branch,
- * no ports and no tab yet.
- */
-export type TaskStatus =
-  'draft' | 'creating' | 'setup' | 'running' | 'idle' | 'setup_failed' | 'closed';
-
-export interface TaskStatusChanged {
-  from: TaskStatus;
-  task: TaskId;
-  to: TaskStatus;
-}
-
-/**
- * A change of a task. A missing field keeps its value, and `null` clears it. A draft
- * can change everything. A task that started can change only its title.
- */
-export interface TaskUpdate {
-  base?: string | null;
-  branch?: string | null;
-  effort?: string | null;
-  /** Files to attach, by path. */
-  files?: string[];
-  harness?: Harness | null;
-  model?: string | null;
-  ports?: number | null;
-  prompt?: string | null;
-  /** The attachments to remove, by id. */
-  remove?: string[];
-  repo?: string | null;
-  task: RefTaskId;
-  title?: string | null;
-  /** Files to attach with their bytes. */
-  uploads?: Upload[];
-}
-
-/** `tasks`: a task workspace. */
-export interface TaskValue {
-  agents: RunId[];
-  /** The files of the task, in the order that they came. */
-  attachments: AttachmentValue[];
-  /**
-   * The base. A draft has one only when the person asked for it; else the start takes the
-   * current branch of the repository.
-   */
-  base?: string | null;
-  /** The branch. A draft has one only when the person asked for a name. */
-  branch?: string | null;
-  /**
-   * The totals of the last count of the changes. A task that the core has not
-   * counted yet has none.
-   */
-  changes?: ChangeTotals | null;
-  created_at: Timestamp;
-  /** The lines from the merge base of the base and `HEAD` to the worktree. */
-  diff_stats?: DiffStats | null;
-  effort?: string | null;
-  /** The short handle, for example `k7`. */
-  handle: string;
-  /** The agent that the start runs, with its model, effort level and prompt. */
-  harness?: Harness | null;
-  id: TaskId;
-  model?: string | null;
-  ports: number[];
-  prompt?: string | null;
-  repo: string;
-  status: TaskStatus;
-  /** The tab of the task. A window that shows it shows the task in its drawer. */
-  tab?: TabId | null;
-  title: string;
-  workspace?: WorkspaceId | null;
-  /** The worktree. A draft has none yet. */
-  worktree?: string | null;
-}
-
 export type TimelineBody =
   | {
       preview: string;
@@ -3150,13 +2860,6 @@ export type UnconfirmedReason = 'holder_lost' | 'server_restarted' | 'not_writte
 export interface UnvalidatedHarness {
   harness: Harness;
   version: string;
-}
-
-/** A file that the caller sends with its bytes. */
-export interface Upload {
-  data: Bytes;
-  /** The name of the file. The core keeps the last part of a path. */
-  name: string;
 }
 
 /** How loud a notification is. */
@@ -3377,23 +3080,6 @@ export interface WorkspaceValue {
   tabs: TabValue[];
 }
 
-export interface WorktreeList {
-  repo?: string | null;
-}
-
-export interface WorktreeListResult {
-  worktrees: WorktreeValue[];
-}
-
-/** A worktree on disk, for `worktree.list`. */
-export interface WorktreeValue {
-  branch?: string | null;
-  dirty: boolean;
-  path: string;
-  repo: string;
-  task?: TaskId | null;
-}
-
 // --- Errors ------------------------------------------------------------------------
 
 /** Every error code, with the integer of JSON-RPC. */
@@ -3422,7 +3108,6 @@ export const ERROR_CODES = {
   holder_error: -32000,
   agent_live: -32000,
   agent_gone: -32000,
-  agent_failed: -32000,
   not_bound: -32000,
   name_taken: -32000,
   harness_mismatch: -32000,
@@ -3437,8 +3122,6 @@ export const ERROR_CODES = {
   conflict: -32000,
   config_rule: -32000,
   git_failed: -32000,
-  setup_failed: -32000,
-  no_free_ports: -32000,
   forward_failed: -32000,
   proto_unsupported: -32000,
   io_error: -32000,
@@ -3516,7 +3199,6 @@ export interface MethodMap {
   'window.set_bounds': { params: WindowSetBounds; result: Empty };
   'window.set_single': { params: WindowSetSingle; result: Empty };
   'window.pick_folder': { params: WindowPickFolder; result: FolderPicked };
-  'fs.dirs': { params: FsDirs; result: FsDirsResult };
   'fs.list': { params: FsList; result: FsListResult };
   'fs.read': { params: FsRead; result: FsReadResult };
   'fs.open': { params: FsOpen; result: Empty };
@@ -3543,21 +3225,8 @@ export interface MethodMap {
   'interaction.dismiss': { params: InteractionDismiss; result: Empty };
   'interaction.next': { params: InteractionNext; result: InteractionNextResult };
   'interaction.reveal': { params: InteractionReveal; result: InteractionRevealed };
-  'task.create': { params: TaskCreate; result: TaskCreated };
-  'task.update': { params: TaskUpdate; result: Empty };
-  'task.start': { params: TaskStart; result: JobStarted };
-  'task.delete': { params: TaskDelete; result: Empty };
-  'task.list': { params: TaskList; result: TaskListResult };
-  'task.show': { params: TaskShow; result: TaskShown };
-  'task.changes': { params: TaskChanges; result: TaskChangesResult };
-  'task.diff': { params: TaskDiff; result: FileDiff };
   'changes.follow': { params: ChangesFollow; result: Empty };
   'changes.diff': { params: ChangesDiff; result: FileDiff };
-  'task.close': { params: TaskClose; result: Empty };
-  'favorite.list': { params: FavoriteList; result: FavoriteListResult };
-  'favorite.add': { params: FavoriteAdd; result: FavoriteAdded };
-  'favorite.remove': { params: FavoriteRemove; result: Empty };
-  'worktree.list': { params: WorktreeList; result: WorktreeListResult };
   'phone.pair_begin': { params: PhonePairBegin; result: PhonePairStarted };
   'phone.pair_cancel': { params: Empty; result: Empty };
   'phone.remove': { params: PhoneRemove; result: Empty };
@@ -3678,7 +3347,6 @@ export type UiMethod =
   | 'window.set_bounds'
   | 'window.set_single'
   | 'window.pick_folder'
-  | 'fs.dirs'
   | 'fs.list'
   | 'fs.read'
   | 'fs.open'
@@ -3703,21 +3371,8 @@ export type UiMethod =
   | 'interaction.dismiss'
   | 'interaction.next'
   | 'interaction.reveal'
-  | 'task.create'
-  | 'task.update'
-  | 'task.start'
-  | 'task.delete'
-  | 'task.list'
-  | 'task.show'
-  | 'task.changes'
-  | 'task.diff'
   | 'changes.follow'
   | 'changes.diff'
-  | 'task.close'
-  | 'favorite.list'
-  | 'favorite.add'
-  | 'favorite.remove'
-  | 'worktree.list'
   | 'phone.pair_begin'
   | 'phone.pair_cancel'
   | 'phone.remove'
@@ -3796,7 +3451,6 @@ export type CliMethod =
   | 'pane.read'
   | 'pane.list'
   | 'pane.show'
-  | 'fs.dirs'
   | 'fs.list'
   | 'askpass.ask'
   | 'agent.list'
@@ -3819,19 +3473,6 @@ export type CliMethod =
   | 'interaction.dismiss'
   | 'interaction.next'
   | 'interaction.reveal'
-  | 'task.create'
-  | 'task.update'
-  | 'task.start'
-  | 'task.delete'
-  | 'task.list'
-  | 'task.show'
-  | 'task.changes'
-  | 'task.diff'
-  | 'task.close'
-  | 'favorite.list'
-  | 'favorite.add'
-  | 'favorite.remove'
-  | 'worktree.list'
   | 'phone.pair_begin'
   | 'phone.pair_cancel'
   | 'phone.remove'
@@ -3934,7 +3575,6 @@ export const METHOD_SCOPES: { readonly [M in Method]: readonly Scope[] } = {
   'window.set_bounds': ['ui', 'phone'],
   'window.set_single': ['ui', 'phone'],
   'window.pick_folder': ['ui'],
-  'fs.dirs': ['ui', 'cli', 'phone'],
   'fs.list': ['ui', 'cli', 'phone'],
   'fs.read': ['ui', 'phone'],
   'fs.open': ['ui'],
@@ -3961,21 +3601,8 @@ export const METHOD_SCOPES: { readonly [M in Method]: readonly Scope[] } = {
   'interaction.dismiss': ['ui', 'cli', 'phone'],
   'interaction.next': ['ui', 'cli', 'phone'],
   'interaction.reveal': ['ui', 'cli', 'phone'],
-  'task.create': ['ui', 'cli', 'phone'],
-  'task.update': ['ui', 'cli', 'phone'],
-  'task.start': ['ui', 'cli', 'phone'],
-  'task.delete': ['ui', 'cli', 'phone'],
-  'task.list': ['ui', 'cli', 'phone'],
-  'task.show': ['ui', 'cli', 'phone'],
-  'task.changes': ['ui', 'cli', 'phone'],
-  'task.diff': ['ui', 'cli', 'phone'],
   'changes.follow': ['ui', 'phone'],
   'changes.diff': ['ui', 'phone'],
-  'task.close': ['ui', 'cli', 'phone'],
-  'favorite.list': ['ui', 'cli', 'phone'],
-  'favorite.add': ['ui', 'cli', 'phone'],
-  'favorite.remove': ['ui', 'cli', 'phone'],
-  'worktree.list': ['ui', 'cli', 'phone'],
   'phone.pair_begin': ['ui', 'cli'],
   'phone.pair_cancel': ['ui', 'cli'],
   'phone.remove': ['ui', 'cli', 'phone'],
@@ -4045,9 +3672,6 @@ export interface ProjectionValueMap {
   attention: AttentionValue;
   interactions: InteractionValue;
   timeline: TimelineItem;
-  tasks: TaskValue;
-  changes: ChangeRow;
-  favorites: FavoriteValue;
   notifications: NotificationValue;
   machines: MachineValue;
   harnesses: HarnessValue;
@@ -4076,8 +3700,6 @@ export type ProjectionName =
   | 'agents'
   | 'attention'
   | 'interactions'
-  | 'tasks'
-  | 'favorites'
   | 'notifications'
   | 'machines'
   | 'harnesses'
@@ -4091,7 +3713,6 @@ export type ProjectionName =
   | 'phone_pairing'
   | 'phone_status'
   | `timeline:${string}`
-  | `changes:${string}`
   | `pane_text:${string}`
   | `agents_for:${string}`
   | `changes_for:${string}`
@@ -4153,13 +3774,6 @@ export interface EventPayloadMap {
   'layout.changed': LayoutChanged;
   'window.opened': WindowEvent;
   'window.closed': WindowEvent;
-  'task.created': TaskEvent;
-  'task.status_changed': TaskStatusChanged;
-  'task.closed': TaskEvent;
-  'task.changed': TaskEvent;
-  'task.deleted': TaskEvent;
-  'favorite.added': FavoriteEvent;
-  'favorite.removed': FavoriteEvent;
   'phone.paired': PhoneEvent;
   'phone.renamed': PhoneEvent;
   'phone.removed': PhoneEvent;

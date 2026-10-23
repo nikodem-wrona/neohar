@@ -15,6 +15,7 @@ mod agents;
 mod api;
 mod askpass;
 mod authorize;
+mod changes;
 mod clients;
 pub mod config;
 #[cfg(feature = "debug")]
@@ -62,9 +63,9 @@ pub mod shims;
 pub mod sidecar;
 mod subscriptions;
 pub mod supervise;
-mod tasks;
 pub mod tokens;
 mod transcripts;
+mod uploads;
 pub mod watch;
 mod window_calls;
 pub mod ws_rpc;
@@ -83,6 +84,5 @@ pub use render::FrameSink;
 pub use router::HostRouter;
 pub use runtime::{Core, CoreConfig, CoreHandle, QuitReport, StopReport, Tuning};
 
-/// The largest file that a client may put in the blob store: a file of a task or a file
-/// dropped on a pane.
-pub const UPLOAD_MAX_BYTES: u64 = tasks::files::MAX_BYTES;
+/// The largest file that a client may put in the blob store: a file dropped on a pane.
+pub const UPLOAD_MAX_BYTES: u64 = uploads::MAX_BYTES;

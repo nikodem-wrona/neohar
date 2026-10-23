@@ -417,6 +417,57 @@ fn a_database_at_the_baseline_gets_only_the_later_migrations() {
 }
 
 #[test]
+fn version_16_removes_the_tasks_and_keeps_the_runs_and_the_blobs() {
+    // A database of 1.0 with a task that started: its port, a favorite folder, a run of the task,
+    // a blob with a reference, and the handles and the projections of the tasks.
+    let mut conn = memory();
+    run_with(&mut conn, Path::new(MEMORY), BASELINE_SQL, &[]).expect("the baseline");
+    conn.execute_batch(
+        "INSERT INTO tasks (id, handle, title, slug, repo_root, worktree_path, branch, base,
+             status, created_at, updated_at)
+         VALUES ('t1', 'k1', 'Fix', 'fix', '/work/app', '/wt/app/fix', 'neohar/fix', 'main',
+             'running', 1, 1);
+         INSERT INTO port_leases (port, task_id, leased_at) VALUES (41000, 't1', 1);
+         INSERT INTO favorite_folders (path, added_at, used_at) VALUES ('/work/app', 1, 1);
+         INSERT INTO agent_runs (id, harness, binding, launch_mode, task_id, started_at)
+             VALUES ('r1', 'claude', 'bound', 'tui', 't1', 1);
+         INSERT INTO blobs (hash, bytes, mime, created_at, refs)
+             VALUES ('b1', 3, 'text/plain', 1, 1);
+         INSERT INTO handle_counters (scope, next) VALUES ('task', 2), ('workspace', 4);
+         INSERT INTO projection_versions (name, version) VALUES ('tasks', 3), ('favorites', 1),
+             ('changes:01M4F1W7EM2GN3EV6NHXZJEGGD', 2),
+             ('changes_for:01M4F1W7EM2GN3EV6NHXZJEGGE', 1), ('tree', 5);",
+    )
+    .expect("the rows of 1.0");
+    run_with(&mut conn, Path::new(MEMORY), BASELINE_SQL, &MIGRATIONS[..1]).expect("version 16");
+    assert_eq!(version(&conn).expect("a version"), 16);
+    let names = |sql: &str| -> Vec<String> {
+        conn.prepare(sql)
+            .expect("a statement")
+            .query_map([], |row| row.get(0))
+            .expect("a query")
+            .collect::<Result<_, _>>()
+            .expect("names")
+    };
+    assert!(
+        names(
+            "SELECT name FROM sqlite_schema
+             WHERE name IN ('tasks', 'port_leases', 'favorite_folders')"
+        )
+        .is_empty()
+    );
+    assert_eq!((count(&conn, "agent_runs"), count(&conn, "blobs")), (1, 1));
+    assert_eq!(
+        names("SELECT scope FROM handle_counters ORDER BY scope"),
+        ["workspace"]
+    );
+    assert_eq!(
+        names("SELECT name FROM projection_versions ORDER BY name"),
+        ["changes_for:01M4F1W7EM2GN3EV6NHXZJEGGE", "tree"]
+    );
+}
+
+#[test]
 fn a_database_from_before_the_baseline_is_refused_and_left_alone() {
     for found in 1..BASELINE {
         let mut conn = memory();

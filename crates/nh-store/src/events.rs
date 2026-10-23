@@ -47,12 +47,9 @@ impl Default for Retention {
 }
 
 /// Whether the log keeps the kind for the audit period: `interaction.*`,
-/// `agent.state_changed`, `policy.*` and `task.*`.
+/// `agent.state_changed` and `policy.*`.
 pub fn is_audit_kind(kind: &str) -> bool {
-    kind.starts_with("interaction.")
-        || kind.starts_with("policy.")
-        || kind.starts_with("task.")
-        || kind == "agent.state_changed"
+    kind.starts_with("interaction.") || kind.starts_with("policy.") || kind == "agent.state_changed"
 }
 
 /// Why the store cannot continue a cursor.
@@ -194,7 +191,7 @@ impl Tx<'_> {
 
     /// The next number of a handle counter. The first number is 1.
     ///
-    /// The scope is `workspace`, `render`, `interaction`, `task`, `preview`, `tab:<workspace id>` or
+    /// The scope is `workspace`, `render`, `interaction`, `preview`, `tab:<workspace id>` or
     /// `pane:<workspace id>`. `render` numbers the panes for the frames. The number is never used again, also when the object goes away.
     pub fn next_handle(&self, scope: &str) -> Result<u32, StoreError> {
         self.writable()?;
@@ -507,8 +504,8 @@ impl Store {
         };
         let sync_cut = before(retention.sync);
         let audit_cut = before(retention.audit);
-        let audit_sql = "(kind LIKE 'interaction.%' OR kind LIKE 'policy.%' OR kind LIKE 'task.%'
-                          OR kind = 'agent.state_changed')";
+        let audit_sql =
+            "(kind LIKE 'interaction.%' OR kind LIKE 'policy.%' OR kind = 'agent.state_changed')";
         let (swept, _) = self.tx(now_ms, |tx| {
             let sql = tx.sql();
             let mut floor = 0i64;
@@ -848,7 +845,7 @@ mod tests {
             append(&mut store, "pane.created", None, n);
         }
         let filter = EventFilter {
-            kinds: vec!["task.*".to_owned()],
+            kinds: vec!["phone.*".to_owned()],
             subject: None,
         };
         let (seqs, cursor, more) = events(store.events_since(&start, &filter, 10).expect("a read"));
@@ -918,9 +915,9 @@ mod tests {
         append(&mut store, "interaction.opened", None, old); // 2
         append(&mut store, "agent.state_changed", None, old); // 3
         append(&mut store, "policy.added", None, old); // 4
-        append(&mut store, "task.created", None, old); // 5
+        append(&mut store, "interaction.decided", None, old); // 5
         // A hundred days old: past the audit retention.
-        append(&mut store, "task.closed", None, now - 100 * DAY_MS); // 6
+        append(&mut store, "policy.removed", None, now - 100 * DAY_MS); // 6
         // Fresh.
         append(&mut store, "pane.created", None, now - DAY_MS); // 7
 
@@ -961,7 +958,7 @@ mod tests {
                 "interaction.opened",
                 "agent.state_changed",
                 "policy.added",
-                "task.created",
+                "interaction.decided",
                 "pane.created"
             ]
         );
@@ -1042,19 +1039,15 @@ mod tests {
     }
 
     #[test]
-    fn audit_kinds_are_interactions_policies_tasks_and_agent_states() {
-        for kind in [
-            "interaction.opened",
-            "agent.state_changed",
-            "policy.added",
-            "task.closed",
-        ] {
+    fn audit_kinds_are_interactions_policies_and_agent_states() {
+        for kind in ["interaction.opened", "agent.state_changed", "policy.added"] {
             assert!(is_audit_kind(kind), "{kind}");
         }
         for kind in [
             "pane.created",
             "agent.detected",
             "workspace.renamed",
+            "task.closed",
             "interactions.x",
         ] {
             assert!(!is_audit_kind(kind), "{kind}");
@@ -1088,11 +1081,13 @@ mod tests {
     fn a_handle_of_a_failed_transaction_is_not_spent() {
         let mut store = store();
         let failed: Result<(u32, Vec<Event>), StoreError> = store.tx(1, |tx| {
-            tx.next_handle("task")?;
+            tx.next_handle("interaction")?;
             Err(StoreError::BadValue("no".to_owned()))
         });
         assert!(failed.is_err());
-        let (first, _) = store.tx(2, |tx| tx.next_handle("task")).expect("a handle");
+        let (first, _) = store
+            .tx(2, |tx| tx.next_handle("interaction"))
+            .expect("a handle");
         assert_eq!(first, 1, "nothing used number 1");
     }
 

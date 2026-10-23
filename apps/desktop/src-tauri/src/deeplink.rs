@@ -1,6 +1,5 @@
-//! Links of the form `neohar://…`: `neohar://pane/w3:p5`, `neohar://interaction/i42`,
-//! `neohar://task/k7`. A notification on a platform without actions uses them, and so does the
-//! phone app.
+//! Links of the form `neohar://…`: `neohar://pane/w3:p5` and `neohar://interaction/i42`. A
+//! notification on a platform without actions uses them, and so does the phone app.
 //!
 //! A link names something. The core knows what that is, and the host only finds the name and
 //! passes it on. The host does not search, sort or decide here (the thin-presentation rule).
@@ -20,8 +19,6 @@ pub enum Kind {
     Pane,
     /// An interaction, by handle (`i42`) or by id.
     Interaction,
-    /// A task, by handle (`k7`) or by id.
-    Task,
 }
 
 /// What a link names, and the machine it is for. A link with no machine is for
@@ -57,7 +54,6 @@ pub fn parse(text: &str) -> Option<Target> {
     let kind = match url.host_str()? {
         "pane" => Kind::Pane,
         "interaction" => Kind::Interaction,
-        "task" => Kind::Task,
         _ => return None,
     };
     Some(Target {
@@ -100,30 +96,6 @@ pub fn open(app: &AppHandle, target: Target) {
         }
         // A link to an interaction shows its card and never answers it.
         Kind::Interaction => crate::reach::reveal(app, &machine, Some(name)),
-        // A link to a task shows its tab in the window that has the focus.
-        Kind::Task => {
-            let Some(window) = window_of(app, &machine) else {
-                tracing::info!(name, machine, "a link names a task, and no window shows it");
-                return;
-            };
-            tauri::async_runtime::spawn(async move {
-                let shown = match backend.rpc("task.show", json!({ "task": name })).await {
-                    Ok(shown) => shown,
-                    Err(error) => {
-                        tracing::info!(%error, "a link names a task that does not exist");
-                        return;
-                    }
-                };
-                let Some(tab) = shown["task"]["tab"].as_str() else {
-                    tracing::info!(name, "the task has no tab");
-                    return;
-                };
-                let params = json!({ "tab": tab, "window": window.to_string() });
-                if let Err(error) = backend.call(Some(window), "tab.select", params).await {
-                    tracing::info!(%error, "the tab of the task did not open");
-                }
-            });
-        }
     }
 }
 
@@ -149,7 +121,7 @@ mod tests {
     }
 
     #[test]
-    fn a_link_names_a_pane_an_interaction_or_a_task_of_local() {
+    fn a_link_names_a_pane_or_an_interaction_of_local() {
         assert_eq!(
             parse("neohar://pane/w3:p5"),
             target(Kind::Pane, "local", "w3:p5")
@@ -158,7 +130,6 @@ mod tests {
             parse("neohar://interaction/i42"),
             target(Kind::Interaction, "local", "i42")
         );
-        assert_eq!(parse("neohar://task/k7"), target(Kind::Task, "local", "k7"));
         assert_eq!(
             parse("neohar://pane/01ARZ3NDEKTSV4RRFFQ69G5FAV"),
             target(Kind::Pane, "local", "01ARZ3NDEKTSV4RRFFQ69G5FAV")
@@ -175,10 +146,6 @@ mod tests {
             parse("neohar://interaction/studio/i42"),
             target(Kind::Interaction, "studio", "i42")
         );
-        assert_eq!(
-            parse("neohar://task/build-1/k7"),
-            target(Kind::Task, "build-1", "k7")
-        );
     }
 
     #[test]
@@ -191,6 +158,7 @@ mod tests {
             "neohar://pane/studio/",
             "neohar://pane//w3:p5",
             "neohar://other/x",
+            "neohar://task/k7",
             "https://pane/w3:p5",
             "--flag",
             "",

@@ -151,7 +151,6 @@ mod tests {
         for method in [
             "pane.input",
             "config.set",
-            "task.create",
             "interaction.answer",
             "agent.reply",
             "pane.claim",

@@ -1,7 +1,7 @@
 ---
 title: "nh fs"
 description: "The file system of the machine"
-sidebar_position: 19
+sidebar_position: 17
 ---
 
 :::info[Generated page]
@@ -18,31 +18,7 @@ The file system of the machine
 Usage: nh fs [OPTIONS] <COMMAND>
 
 Commands:
-  dirs  List the folders in a folder of the machine, or in its home folder
   list  List the folders and files in a folder of the machine, or in the current directory
-
-Options:
-      --session <NAME>     The session to talk to. The default is $NEOHAR_SESSION, or `default`
-      --socket <PATH>      The API socket to use. It wins over --session and $NEOHAR_SOCKET
-      --machine <LABEL>    Run the command on this machine of config.toml, over ssh. A handle such as studio/w3:p5 does the same
-      --json               Print JSON. This is the default when stdout is not a terminal
-      --timeout <SECONDS>  How long to wait for the core to answer, in seconds [default: 30]
-  -h, --help               Print help
-```
-
-## `nh fs dirs` {#fs-dirs}
-
-List the folders in a folder of the machine, or in its home folder
-
-**API method:** [`fs.dirs`](/docs/reference/api/methods/fs#fs-dirs)
-
-```text
-List the folders in a folder of the machine, or in its home folder
-
-Usage: nh fs dirs [OPTIONS] [PATH]
-
-Arguments:
-  [PATH]  An absolute path or a path under `~`. Without it, the home folder of the machine.
 
 Options:
       --session <NAME>     The session to talk to. The default is $NEOHAR_SESSION, or `default`

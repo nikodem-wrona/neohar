@@ -25,8 +25,6 @@ Write the keys that you want to change in `~/.config/neohar/config.toml` (or `$N
 | [`[agents]`](#agents) | `shims`, `resume_on_launch`, `turn_end_notice` |
 | [`[agents.harness.claude]`](#agents-harness-claude) | `billing` |
 | [`[agents.harness.codex]`](#agents-harness-codex) | `billing` |
-| [`[tasks]`](#tasks) | `worktree_root`, `branch_prefix`, `ports`, `port_range`, `setup` |
-| [`[tasks.env]`](#tasks-env) | — |
 | [`[events]`](#events) | `sync_retention`, `audit_retention` |
 | [`[scrollback]`](#scrollback) | `max_bytes_per_pane` |
 | [`[daemon]`](#daemon) | `prevent_sleep` |
@@ -130,41 +128,12 @@ billing = "api"
 billing = "api"
 ```
 
-## `[tasks]` {#tasks}
-
-| Key | Default | Description |
-|---|---|---|
-| `worktree_root` | `"~/.neohar/worktrees"` | Where the worktrees of tasks go. `~` is the home directory. |
-| `branch_prefix` | `"neohar/"` | The branch of a task is `<branch_prefix><slug>`. |
-| `ports` | `1` | How many ports a task leases, and from which range. |
-| `port_range` | `[41000, 41999]` |  |
-| `setup` | `[]` | Commands that run in the worktree before the agent starts, one after the other. The first one that fails stops the task in the status `setup_failed`. |
-
-```toml
-[tasks]
-worktree_root = "~/.neohar/worktrees"
-branch_prefix = "neohar/"
-ports = 1
-port_range = [41000, 41999]
-setup = []
-```
-
-## `[tasks.env]` {#tasks-env}
-
-Variables that every pane of a task gets, as `NAME = "value"` lines below this header.
-
-This table has no keys by default.
-
-```toml
-[tasks.env]
-```
-
 ## `[events]` {#events}
 
 | Key | Default | Description |
 |---|---|---|
 | `sync_retention` | `"7d"` | How long the event log keeps the events that a client uses to catch up. The core deletes older events when it starts and then once an hour. A client with an older cursor takes a new snapshot. |
-| `audit_retention` | `"90d"` | How long the log keeps the audit kinds: interactions, policy, tasks and the state changes of agents. |
+| `audit_retention` | `"90d"` | How long the log keeps the audit kinds: interactions, policy and the state changes of agents. |
 
 ```toml
 [events]
@@ -361,27 +330,11 @@ billing = "api"
 # The same for Codex.
 billing = "api"
 
-[tasks]
-# Where the worktrees of tasks go. `~` is the home directory.
-worktree_root = "~/.neohar/worktrees"
-# The branch of a task is `<branch_prefix><slug>`.
-branch_prefix = "neohar/"
-# How many ports a task leases, and from which range.
-ports = 1
-port_range = [41000, 41999]
-# Commands that run in the worktree before the agent starts, one after the other. The first one
-# that fails stops the task in the status `setup_failed`.
-setup = []
-
-# Variables that every pane of a task gets, as `NAME = "value"` lines below this header.
-[tasks.env]
-
 [events]
 # How long the event log keeps the events that a client uses to catch up. The core deletes older
 # events when it starts and then once an hour. A client with an older cursor takes a new snapshot.
 sync_retention = "7d"
-# How long the log keeps the audit kinds: interactions, policy, tasks and the state changes of
-# agents.
+# How long the log keeps the audit kinds: interactions, policy and the state changes of agents.
 audit_retention = "90d"
 
 [scrollback]

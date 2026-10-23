@@ -114,7 +114,6 @@ fn the_rows_use_the_words_of_the_schema() {
                 yolo: false,
                 resume: None,
                 model: None,
-                task: None,
                 process: None,
                 started_at: 1,
                 ended_at: None,

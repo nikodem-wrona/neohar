@@ -17,7 +17,7 @@ either place.
 | Board | Under the top row: a strip for each agent, with its state, its work, its harness and its cost. A strip is a card: its glyph is green while the agent works, and its border is amber while it waits for you and red after an error. The agents that do not fit are behind **+N**, which is amber when one of them waits. Drag a strip onto another strip to change the order; the order stays after a restart. The board is always shown |
 | Left column | The workspaces and their tabs. **New workspace** is at the bottom. The arrow at the end of **Workspaces** folds it to a rail, and under 1000 px it starts folded |
 | Middle | The tab bar and the panes of the tab |
-| Right | The drawer: Inbox, Timeline, Tasks, Files and Changes. Its arrow folds it to a rail, and under 1280 px it starts folded |
+| Right | The drawer: Inbox, Timeline, Files and Changes. Its arrow folds it to a rail, and under 1280 px it starts folded |
 | Bottom row | Function keys (a click runs the command), the limits of the harnesses, warnings, the machine, and the **Workspaces** and **Drawer** switches |
 
 Each part is a panel with round corners. Drag the gap beside a side column to change its width,
@@ -44,9 +44,8 @@ strip of each pane, turn on **Show handles** in the settings (`⌘,`, section Ui
 | Move a pane | Drag its strip onto a tab | `nh pane move w3:p5 w3:t1` |
 | Close | The cross of the pane, tab or workspace | `nh pane close w3:p5 --force` |
 
-A workspace with a root starts its panes in that folder, and the tasks of that repository go into
-it. When a program runs in a pane that you close, a dialog asks first, and the close stops every
-process that the pane started. When the program of a pane ends, the pane shows the exit code and a
+A workspace with a root starts its panes in that folder. When a program runs in a pane that you
+close, a dialog asks first, and the close stops every process that the pane started. When the program of a pane ends, the pane shows the exit code and a
 **Restart** button (`nh pane restart w3:p5`).
 
 ## When the app quits

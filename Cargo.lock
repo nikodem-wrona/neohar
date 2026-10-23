@@ -3162,7 +3162,6 @@ dependencies = [
  "nh-redact",
  "nh-rich",
  "nh-store",
- "nh-tasks",
  "nh-term",
  "notify",
  "postcard",
@@ -3342,15 +3341,6 @@ dependencies = [
  "ulid",
  "unicode-segmentation",
  "zstd",
-]
-
-[[package]]
-name = "nh-tasks"
-version = "1.0.0"
-dependencies = [
- "nh-proto",
- "thiserror 2.0.21",
- "tokio",
 ]
 
 [[package]]

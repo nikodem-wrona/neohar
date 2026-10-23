@@ -1,7 +1,7 @@
 ---
 title: "projection.*"
 description: "Subscriptions to projections: a snapshot, then keyed patches."
-sidebar_position: 21
+sidebar_position: 18
 toc_max_heading_level: 2
 ---
 

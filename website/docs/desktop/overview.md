@@ -78,8 +78,8 @@ window itself: on macOS the command line is the title bar, so the capability als
 script of Tauri calls for `data-tauri-drag-region`. `scripts/tauri-commands.ts`
 checks this statically, and `mise run test:host` runs a real window that tries a plugin command, a
 fourth command, an inline script and a network fetch, and requires each to fail. Native work starts
-in the core: the task form needs a folder panel, so the contract has `window.pick_folder` and the
-core asks the host.
+in the core: for a folder panel, the contract has `window.pick_folder` and the core asks the
+host.
 
 **The `Host` trait.** What the core needs from the process that carries it
 ([`crates/nh-core/src/host.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-core/src/host.rs)):
@@ -149,7 +149,7 @@ the host draws it and reports a click as an API call. An answer from any surface
 | Dock badge | The number of runs in `attention` |
 | Menu-bar inbox | Open interactions in the order of `interaction.next`; approvals have Allow, Allow always, Deny and Open. One section for each machine. The two quit items |
 | Global hotkey | `ui.global_hotkey` (default `ctrl+alt+cmd+n`): show the app and the card that waits longest. Changes without a restart |
-| Deep links | `neohar://pane/`, `neohar://interaction/`, `neohar://task/`, with an optional machine before the name (`neohar://pane/studio/w3:p5`). A link shows, it never answers |
+| Deep links | `neohar://pane/` and `neohar://interaction/`, with an optional machine before the name (`neohar://pane/studio/w3:p5`). A link shows, it never answers |
 | Machines menu | For each machine: New window, Connect, Disconnect ([remote machines](/docs/guides/remote-machines)) |
 | Settings window | `⌘,`: edits `config.toml` through `config.set` and shows where each value comes from; one window for each machine. The section Phone shows the phone listener, "Publish with Tailscale", the paired phones with "Send a test notification" when a phone has push, and "Pair a phone"; the palette command "Pair a phone" opens it |
 

@@ -1,7 +1,7 @@
 ---
 title: "changes.*"
 description: "The changes methods."
-sidebar_position: 16
+sidebar_position: 15
 toc_max_heading_level: 2
 ---
 

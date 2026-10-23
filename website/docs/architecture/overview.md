@@ -86,7 +86,6 @@ One module, [crates/nh-proto/src/paths.rs](https://github.com/nikodem-wrona/neoh
 
 - The macOS runtime root is under `/tmp`, because a socket path under `$TMPDIR` is longer than the macOS limit of 103 bytes. The core uses it only if it is a real directory of the user with mode 0700.
 - `NEOHAR_CONFIG_DIR`, `NEOHAR_DATA_DIR` and `NEOHAR_RUNTIME_DIR` replace the roots. Every test sets all three, and a debug build refuses to start without them. `mise run app:dev` sets them under `target/dev-run`.
-- Task worktrees go to `~/.neohar/worktrees/<repo>/<slug>` (`tasks.worktree_root`).
 
 ## Budgets
 

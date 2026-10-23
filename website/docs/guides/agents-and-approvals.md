@@ -24,7 +24,7 @@ runs. Your arguments pass unchanged.
 ## What the window shows
 
 The board under the top row has a strip for each agent. A strip has a badge, the state in four
-letters and the work (the title of its task, else the title of its pane), and under them the
+letters and the work (the title of its pane), and under them the
 harness and the cost. Its left edge is green for `WORK`, amber for `WAIT` and red for `ERR`.
 
 | Badge | Code | Meaning |

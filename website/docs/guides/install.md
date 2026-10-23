@@ -123,5 +123,3 @@ agents, choose **Quit and stop everything…** (`⌘⌥Q`) before you install.
 2. Stop every pane: **Quit and stop everything…** (`⌘⌥Q`). A plain quit leaves them running.
 3. Remove the app and the symlink: `rm -rf ~/Applications/neohar.app` and `rm ~/.local/bin/nh`.
 4. If you want the data gone too, remove the three paths of the table above. This cannot be undone.
-5. Remove the worktrees of your tasks with `git worktree remove` in each repository. They are under
-   `~/.neohar/worktrees/`.

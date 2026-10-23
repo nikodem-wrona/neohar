@@ -1,5 +1,5 @@
-/* The drawer: its tabs, its rail, and the panels Tasks, Timeline, Files and Changes. The
-   Inbox and its cards are in `cards.css`. */
+/* The drawer: its tabs, its rail, and the panels Timeline, Files and Changes. The Inbox and its
+   cards are in `cards.css`. */
 @layer components {
   /* --- the drawer ------------------------------------------------------------------------------ */
 
@@ -138,145 +138,6 @@
     background: var(--caution);
     color: var(--on-signal);
     font-weight: 600;
-  }
-
-  /* --- the tasks: the Tasks tab and the task dialog -------------------------------------- */
-
-  .task-panel {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-  }
-
-  .task-new,
-  .task-start,
-  .task-dialog-buttons button,
-  .task-path button,
-  .task-files-add button {
-    padding: 3px 12px;
-    border: 1px solid var(--line);
-    color: var(--text);
-  }
-
-  .task-new {
-    align-self: flex-start;
-  }
-
-  .task-new:hover,
-  .task-start:hover:not(:disabled),
-  .task-dialog-buttons button:hover:not(:disabled),
-  .task-path button:hover:not(:disabled),
-  .task-files-add button:hover {
-    border-color: var(--text);
-  }
-
-  .task-new::before {
-    content: '+ ';
-    color: var(--text);
-  }
-
-  .task-group {
-    display: flex;
-    flex-direction: column;
-  }
-
-  .task-group-title {
-    margin: 0 0 2px;
-    font-size: inherit;
-    font-weight: 600;
-    color: var(--text-dim);
-    text-transform: uppercase;
-  }
-
-  .task-group-toggle {
-    padding: 0;
-    color: inherit;
-    font: inherit;
-    text-transform: inherit;
-  }
-
-  .task-group-toggle::before {
-    content: '▸ ';
-  }
-
-  .task-group-toggle[aria-expanded='true']::before {
-    content: '▾ ';
-  }
-
-  /* The tasks as rows of a table: the handle, the title, the status, and "Start" for a draft. */
-  .task-list {
-    margin: 0;
-    padding: 0;
-    list-style: none;
-    border-top: 1px solid var(--line);
-  }
-
-  .task-row {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: center;
-    gap: 0 6px;
-    border-bottom: 1px solid var(--line);
-  }
-
-  .task-row.current {
-    box-shadow: inset 2px 0 0 var(--text);
-  }
-
-  .task-open {
-    display: grid;
-    grid-template-columns: 4ch minmax(0, 1fr) auto;
-    gap: 0 1ch;
-    min-width: 0;
-    padding: 0 4px;
-    line-height: var(--row);
-    text-align: left;
-    color: var(--text);
-  }
-
-  .task-open:hover {
-    background: var(--bg-hover);
-  }
-
-  .task-row-title {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .task-row-status {
-    color: var(--text-dim);
-  }
-
-  .task-open.failed .task-row-status {
-    color: var(--danger);
-  }
-
-  .task-start {
-    margin-right: 2px;
-    line-height: 16px;
-    border-color: var(--accent);
-    color: var(--accent);
-  }
-
-  .task-start::before {
-    content: '▶ ';
-  }
-
-  .task-start:disabled {
-    opacity: 0.5;
-  }
-
-  .task-row-note {
-    grid-column: 1 / -1;
-    margin: 0;
-    padding: 0 4px 2px calc(4px + 5ch);
-    color: var(--text-dim);
-    overflow-wrap: anywhere;
-  }
-
-  .task-row-note.failed {
-    color: var(--danger);
   }
 
   /* --- the Timeline tab ------------------------------------------------------------------- */
@@ -711,7 +572,6 @@
     color: var(--text);
   }
 
-  .changes-base,
   .changes-root,
   .changes-facts,
   .changes-note {
@@ -736,7 +596,7 @@
 
   .changes-row {
     display: grid;
-    grid-template-columns: 2ch minmax(0, 1fr) auto auto;
+    grid-template-columns: 2ch minmax(0, 1fr) auto;
     align-items: baseline;
     gap: 0 1ch;
     width: 100%;
@@ -780,10 +640,6 @@
 
   .changes-dir {
     color: var(--text-dim);
-  }
-
-  .changes-uncommitted {
-    color: var(--caution);
   }
 
   .changes-lines .add {

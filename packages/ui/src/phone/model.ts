@@ -11,7 +11,6 @@ export type PhoneRoute =
   | { kind: 'machine'; machine: string }
   | { kind: 'pane'; pane: string }
   | { kind: 'interaction'; interaction: string }
-  | { kind: 'task'; task: string }
   | { kind: 'run'; run: string }
   | { kind: 'settings'; section: string | null };
 
@@ -44,8 +43,6 @@ export function routeOf(hash: string): PhoneRoute {
       return { kind: 'pane', pane: id };
     case 'interaction':
       return { kind: 'interaction', interaction: id };
-    case 'task':
-      return { kind: 'task', task: id };
     case 'run':
       return { kind: 'run', run: id };
     default:
@@ -64,8 +61,6 @@ export function hashOf(route: PhoneRoute): string {
       return `#/pane/${route.pane}`;
     case 'interaction':
       return `#/interaction/${route.interaction}`;
-    case 'task':
-      return `#/task/${route.task}`;
     case 'run':
       return `#/run/${route.run}`;
     case 'settings':

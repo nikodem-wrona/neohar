@@ -71,8 +71,9 @@ const CLAUDE_TOOL: &[&str] = &[
     "NoDefaultCurrentDirectoryInExePath",
 ];
 
-/// The variables of a pane of neohar and of a pane of a task. An app that a pane
-/// started has them. `PORT` is left out only with `NEOHAR_PORTS`, which a pane of a task has too.
+/// The variables of a pane of neohar, and of a pane of a task of an earlier version: its holder
+/// can run on after an update. An app that a pane started has them. `PORT` is left out only with
+/// `NEOHAR_PORTS`, which a pane of a task has too.
 const PANE_OWN: &[&str] = &[
     "NEOHAR",
     "NEOHAR_BIN",
@@ -115,7 +116,8 @@ pub fn capture() -> Vec<(String, String)> {
 
 /// The environment of the process without the variables that a harness or a pane gave to it:
 /// [`HARNESS_OWN`], [`PANE_OWN`], [`CLAUDE_TOOL`] after Claude Code, and `PORT` after a
-/// pane of a task. The login shell sets again what the profile of the person sets.
+/// pane of a task of an earlier version. The login shell sets again what the profile of the
+/// person sets.
 pub fn without_inherited(env: Vec<(String, String)>) -> Vec<(String, String)> {
     let by_claude = env
         .iter()

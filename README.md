@@ -54,7 +54,6 @@ neohar is not a new agent and not a new terminal. You use the real `claude` and 
 **Work**
 
 - **Workspaces, tabs and panes.** Split, float or pop out panes. The Rust core parses the terminal output and the window draws it with WebGL2. The search finds text in the scrollback of all panes.
-- **Tasks with worktrees.** A task gets its own git worktree, branch, port, tab and agent, with your prompt and your files.
 - **Files and Changes.** The Files tab shows the folder of the focused pane. The Changes tab shows its git changes and diffs.
 
 **Reach**
@@ -181,7 +180,7 @@ The documentation site is in [`website/`](website/).
 | To do this | Read |
 |---|---|
 | Use neohar | [Install the app](website/docs/guides/install.md), [Workspaces and panes](website/docs/guides/workspaces-and-panes.md), [Agents and approvals](website/docs/guides/agents-and-approvals.md) |
-| Use more | [Tasks, files and changes](website/docs/guides/tasks-files-changes.md), [Remote machines](website/docs/guides/remote-machines.md), [The phone](website/docs/guides/phone.md), [Troubleshooting](website/docs/guides/troubleshooting.md) |
+| Use more | [Files and changes](website/docs/guides/files-and-changes.md), [Remote machines](website/docs/guides/remote-machines.md), [The phone](website/docs/guides/phone.md), [Troubleshooting](website/docs/guides/troubleshooting.md) |
 | Learn the words | [Introduction](website/docs/intro.md) and [Concepts](website/docs/concepts.md) |
 | Understand the design | [Architecture](website/docs/architecture/overview.md), [Agents](website/docs/agents/overview.md), [Desktop app](website/docs/desktop/overview.md) |
 | Write scripts | [Command line](website/docs/reference/cli/index.md), [API](website/docs/reference/api/index.md), [Configuration](website/docs/reference/configuration/index.md) |

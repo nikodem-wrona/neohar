@@ -184,7 +184,8 @@ fn vars(pairs: &[(&str, &str)]) -> Vec<(String, String)> {
 
 #[test]
 fn an_app_that_the_bash_tool_of_claude_code_started_gives_its_variables_to_no_pane() {
-    // The environment of `open` in the Bash tool of Claude Code 2.1.301, in a pane of a task.
+    // The environment of `open` in the Bash tool of Claude Code 2.1.301, in a pane of a task of
+    // an earlier version.
     let env = without_inherited(vars(&[
         ("PATH", "/usr/bin:/bin"),
         ("HOME", "/Users/me"),

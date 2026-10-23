@@ -253,6 +253,18 @@ const RETIRED: [&str; 3] = [
     "update.manifest_check",
 ];
 
+/// Tables that an older version had, with all their keys: `tasks` held the settings of the task
+/// workspaces, which neohar no longer has. They are ignored as the keys of [`RETIRED`] are.
+const RETIRED_TABLES: [&str; 1] = ["tasks"];
+
+fn is_retired(path: &str) -> bool {
+    RETIRED.contains(&path)
+        || RETIRED_TABLES.iter().any(|table| {
+            path.strip_prefix(table)
+                .is_some_and(|rest| rest.starts_with('.'))
+        })
+}
+
 /// What a file makes: the typed configuration, the effective values, and the keys it has that
 /// this version does not know.
 struct Built {
@@ -260,7 +272,7 @@ struct Built {
     effective: BTreeMap<String, Value>,
     file: BTreeMap<String, Value>,
     unknown: Vec<String>,
-    /// The keys of [`RETIRED`] that the file has.
+    /// The keys of [`RETIRED`] and [`RETIRED_TABLES`] that the file has.
     retired: Vec<String>,
     /// What is wrong with the rules of the policy. The other rules work.
     problems: Vec<String>,
@@ -298,7 +310,7 @@ fn build(file: &toml::Table) -> Result<Built, String> {
         .keys()
         .filter(|path| !default_leaves.contains_key(*path) && !is_machine_leaf(path))
         .cloned()
-        .partition(|path| RETIRED.contains(&path.as_str()));
+        .partition(|path| is_retired(path));
     let mut problems =
         crate::policy::compile_config(&config, crate::policy::calls::home().as_deref()).1;
     problems.extend(machine_problems);

@@ -1,6 +1,6 @@
-// The drawer: five tabs for Inbox, Timeline, Tasks, Files and Changes. The inbox has the cards,
-// the timeline has the turns of the agent in focus, the Tasks tab lists every task, the Files tab
-// has the tree of the folder of the tab, and the Changes tab has the changes of the task of the tab.
+// The drawer: four tabs for Inbox, Timeline, Files and Changes. The inbox has the cards, the
+// timeline has the turns of the agent in focus, the Files tab has the tree of the folder of the
+// tab, and the Changes tab has the changes of the git worktree that holds that folder.
 // Which tab shows is the state of this view only (`app/view.ts`). A folded drawer is a rail with a
 // button for each tab: its icon, with the name as the tooltip. The Inbox button is amber and
 // says how many agents wait. On the desk the drawer never
@@ -13,7 +13,6 @@ import type { DrawerTab } from '../app/view';
 import { ChangesPanel } from '../changes/ChangesPanel';
 import { Inbox } from '../drawer/Inbox';
 import { FilesPanel } from '../files/FilesPanel';
-import { TaskPanel } from '../tasks/TaskPanel';
 import { TimelinePanel } from '../timeline/TimelinePanel';
 import { Icon } from './icons';
 
@@ -21,13 +20,12 @@ import { Icon } from './icons';
 export const TABS: readonly { id: DrawerTab; label: string; empty: string }[] = [
   { id: 'inbox', label: 'Inbox', empty: 'Nothing waits for an answer.' },
   { id: 'timeline', label: 'Timeline', empty: 'No agent is in focus.' },
-  { id: 'tasks', label: 'Tasks', empty: 'No task yet.' },
   { id: 'files', label: 'Files', empty: 'This tab has no folder.' },
-  { id: 'changes', label: 'Changes', empty: 'This tab is not a task.' },
+  { id: 'changes', label: 'Changes', empty: 'This tab has no folder.' },
 ];
 
 /** The tabs whose body is a component of their own. */
-const OWN_BODY: readonly DrawerTab[] = ['inbox', 'timeline', 'tasks', 'files', 'changes'];
+const OWN_BODY: readonly DrawerTab[] = ['inbox', 'timeline', 'files', 'changes'];
 
 /** How many agents wait for a person, as the `attention` projection counts them. */
 function useWaiting(): () => number {
@@ -81,9 +79,6 @@ export function Drawer() {
         </Show>
         <Show when={active() === 'timeline'}>
           <TimelinePanel />
-        </Show>
-        <Show when={active() === 'tasks'}>
-          <TaskPanel />
         </Show>
         <Show when={active() === 'files'}>
           <FilesPanel />

@@ -19,9 +19,8 @@ A **machine** runs a core. The core serves one **session**. A session has **work
 | Workspace | A group of tabs, usually for one repository. | [Workspaces and panes](/docs/guides/workspaces-and-panes) |
 | Tab | One layout of panes: a split tree of tiled panes, plus floating panes. | [Workspaces and panes](/docs/guides/workspaces-and-panes) |
 | Pane | A terminal: a PTY and the program in it. Tiled, floating, or popped out into its own window. | [Workspaces and panes](/docs/guides/workspaces-and-panes) |
-| Task | A unit of work with its own git worktree, branch, ports and agent, in a new tab. A task can start as a draft. | [Tasks, files and changes](/docs/guides/tasks-files-changes) |
-| Handle | The short name of an object that a person can type: `w3` (workspace), `w3:t2` (tab), `w3:p5` (pane), `i42` (interaction), `k7` (task). A handle never changes. | [Command line](/docs/reference/cli) |
-| Drawer | The right column of a window, with the tabs Inbox, Timeline, Tasks, Files and Changes. | [Desktop UI](/docs/desktop/ui) |
+| Handle | The short name of an object that a person can type: `w3` (workspace), `w3:t2` (tab), `w3:p5` (pane), `i42` (interaction). A handle never changes. | [Command line](/docs/reference/cli) |
+| Drawer | The right column of a window, with the tabs Inbox, Timeline, Files and Changes. | [Desktop UI](/docs/desktop/ui) |
 
 ## Processes
 
@@ -57,4 +56,4 @@ A **machine** runs a core. The core serves one **session**. A session has **work
 | Transport | How the UI reaches the core: Tauri IPC in the app, a WebSocket in tests. | [Desktop app](/docs/desktop/overview) |
 | Frame | A binary update of the screen of one pane: a keyframe or a delta of packed cells. | [Rendering and input](/docs/architecture/rendering-and-input) |
 | Peek | A slow render subscription for a pane that is not on screen, for the context of a card. Looking never releases a held approval. | [Rendering and input](/docs/architecture/rendering-and-input) |
-| Job | A long command (`task.start`, `agent.start`) that returns a job id at once. Its progress is in the `jobs` projection. | [API concepts](/docs/reference/api/concepts) |
+| Job | A long command (`agent.start`, `agent.resume`) that returns a job id at once. Its progress is in the `jobs` projection. | [API concepts](/docs/reference/api/concepts) |

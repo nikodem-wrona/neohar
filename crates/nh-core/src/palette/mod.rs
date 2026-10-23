@@ -82,7 +82,6 @@ pub const COMMANDS: &[Spec] = &[
         Needs::Pane,
     ),
     spec("pane.close", "Close pane", "Pane", None, Needs::Pane),
-    spec("task.new", "Create a task", "Task", None, Needs::Page),
     spec(
         "agent.resume_all",
         "Resume the agents that ended with the restart",

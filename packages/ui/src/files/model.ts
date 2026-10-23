@@ -2,24 +2,17 @@
 // in the order of the tree and makes the text of a preview. This module only picks the root,
 // puts the listings of the open folders in one list of rows, and turns a key into a move.
 
-import type {
-  FsEntry,
-  FsListResult,
-  PaneValue,
-  TaskValue,
-  WorkspaceValue,
-} from '@neohar/transport';
+import type { FsEntry, FsListResult, PaneValue, WorkspaceValue } from '@neohar/transport';
 
 /**
- * The root of the tree: the folder where the pane with the focus is now, else the
- * worktree of the task of the tab, else the root of the workspace of the tab.
+ * The root of the tree: the folder where the pane with the focus is now, else the root of the
+ * workspace of the tab.
  */
 export function rootOf(
   pane: PaneValue | undefined,
-  task: TaskValue | undefined,
   workspace: WorkspaceValue | undefined,
 ): string | undefined {
-  return pane?.cwd ?? task?.worktree ?? workspace?.root ?? undefined;
+  return pane?.cwd ?? workspace?.root ?? undefined;
 }
 
 /** What the page holds for a folder that it listed. */

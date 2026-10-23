@@ -554,7 +554,7 @@ async fn config_get_set_and_reload_work_on_the_file_and_the_projection() {
         "default"
     );
     let one = f
-        .call("config.get", json!({"section": "tasks"}))
+        .call("config.get", json!({"section": "events"}))
         .await
         .expect("a result");
     assert_eq!(

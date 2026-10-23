@@ -1,7 +1,7 @@
 // What the Changes tab needs from `changes_for:<window>` and `changes_head:<window>`. The core
-// finds the worktree, and counts, orders and names everything: the files, the lines, the commits
-// and the merge base. This module only turns a status into its letter, says which open rows need
-// their diff again, and moves between rows with the keys.
+// finds the worktree, and counts, orders and names everything: the files and the lines. This
+// module only turns a status into its letter, says which open rows need their diff again, and
+// moves between rows with the keys.
 
 import type { ChangeRow, ChangeStatus, ChangesHead, FileDiff } from '@neohar/transport';
 
@@ -41,29 +41,20 @@ function count(n: number, one: string, many: string): string {
   return `${n} ${n === 1 ? one : many}`;
 }
 
-/**
- * The facts of the head of the tab. Only the worktree of a task has a base, so only it counts
- * commits and names its merge base. The changes of another worktree are what is not committed.
- */
+/** The facts of the head of the tab: the files and the lines that are not committed. */
 export function headFacts(head: ChangesHead): string[] {
   const facts: string[] = [];
-  const totals = head.changes;
-  const ofTask = Boolean(head.base);
-  if (totals) {
-    if (ofTask) facts.push(count(totals.commits, 'commit', 'commits'));
-    facts.push(count(totals.files, 'file', 'files'));
-  }
+  if (head.changes) facts.push(count(head.changes.files, 'file', 'files'));
   if (head.diff_stats) facts.push(`+${head.diff_stats.add} −${head.diff_stats.del}`);
-  if (ofTask && totals?.merge_base) facts.push(`from ${totals.merge_base}`);
   return facts;
 }
 
 /**
- * What the rows compare: the worktree and the base. The open rows and their diffs belong to it,
- * so a new one closes them. A folder in the same worktree keeps them.
+ * What the rows compare: the worktree. The open rows and their diffs belong to it, so a new one
+ * closes them. A folder in the same worktree keeps them.
  */
 export function subjectOf(head: ChangesHead | undefined): string | null {
-  return head?.root ? `${head.root}\n${head.base ?? ''}` : null;
+  return head?.root ?? null;
 }
 
 /** A diff that the page fetched for an open row, with the stamp of the row at that time. */

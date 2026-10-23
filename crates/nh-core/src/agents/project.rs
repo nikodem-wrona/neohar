@@ -34,7 +34,6 @@ pub(crate) fn agent_value(run: &Run, windows: &[WindowId]) -> AgentValue {
         yolo: run.yolo || run.yolo_mode,
         isolation: None,
         resumable: false,
-        task: run.task,
         started_at: run.started_at,
     }
 }

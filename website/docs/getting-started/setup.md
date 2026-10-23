@@ -34,7 +34,7 @@ mise does not install these:
 | Program | Needed for |
 |---|---|
 | Xcode Command Line Tools (a C compiler) | Every Rust build (`rusqlite` and `zstd` compile C) |
-| `git` | Task workspaces and their tests |
+| `git` | The Changes tab and its tests |
 | `node` | The Playwright suites (`test:gpu`, `test:keyboard`, `test:shell`, `test:transport`, `test:phone`). Run `mise run setup:browsers` once for WebKit and Chromium |
 | `less`, `vim`, `htop` | `mise run test:apps` |
 | Claude Code and Codex | Daily use, `mise run test:harness` and `mise run record:golden` |
@@ -107,7 +107,7 @@ In a pane, `NEOHAR_SOCKET` is set, so `nh` finds the core of that pane with no o
 | `NEOHAR_LOG` | A `tracing` filter. Default `warn` in a debug build, `info` in a product build |
 | `NEOHAR_STOP_ON_EXIT` | Any value: every exit of the app stops the panes |
 
-The core sets these in every pane: `NEOHAR=1`, `NEOHAR_SOCKET`, `NEOHAR_SESSION`, `NEOHAR_PANE_ID` (the handle), `NEOHAR_PANE_ULID`, `NEOHAR_WORKSPACE_ID`, `NEOHAR_TAB_ID`, `NEOHAR_BIN`, `NEOHAR_PANE_TOKEN` (binds hook calls to the pane), `TERM=xterm-256color`, `COLORTERM=truecolor` and `TERM_PROGRAM=neohar`. A task pane also gets `NEOHAR_TASK_ID`, `PORT`, `NEOHAR_PORTS` and the entries of `[tasks.env]`.
+The core sets these in every pane: `NEOHAR=1`, `NEOHAR_SOCKET`, `NEOHAR_SESSION`, `NEOHAR_PANE_ID` (the handle), `NEOHAR_PANE_ULID`, `NEOHAR_WORKSPACE_ID`, `NEOHAR_TAB_ID`, `NEOHAR_BIN`, `NEOHAR_PANE_TOKEN` (binds hook calls to the pane), `TERM=xterm-256color`, `COLORTERM=truecolor` and `TERM_PROGRAM=neohar`.
 
 The local suites run only when a gate is set, and their `mise` task sets it: `NEOHAR_GPU=1` (`test:gpu`), `NEOHAR_HARNESS=1` (`test:harness`), `NEOHAR_APPS=1` (`test:apps`). `mise run test:remote` needs `NEOHAR_REMOTE_TARGET`, the ssh target of a second machine. `NEOHAR_BLESS=1` writes the expected files of the golden tests again; read the diff before you commit.
 
@@ -115,7 +115,7 @@ The local suites run only when a gate is set, and their `mise` task sets it: `NE
 
 | Path | What is there |
 |---|---|
-| `crates/` | The Rust crates: `nh-proto` (wire types), `nh-hold` (holder), `nh-term` (VT engine), `nh-store` (SQLite), `nh-rich`, `nh-redact`, `nh-agents`, `nh-tasks`, `nh-remote`, `nh-web`, `nh-core` and the binary `nh`. See [Code](/docs/code) |
+| `crates/` | The Rust crates: `nh-proto` (wire types), `nh-hold` (holder), `nh-term` (VT engine), `nh-store` (SQLite), `nh-rich`, `nh-redact`, `nh-agents`, `nh-remote`, `nh-web`, `nh-core` and the binary `nh`. See [Code](/docs/code) |
 | `apps/desktop/` | The Tauri app: `src-tauri/` is the host, `src/` mounts the UI |
 | `apps/web/` | The entry of the phone app, which `nh-web` serves |
 | `packages/` | `ui` (SolidJS), `transport` (Tauri and WebSocket transports, generated types), `proto-wasm` (the frame decoder) |

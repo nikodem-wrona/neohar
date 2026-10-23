@@ -313,8 +313,8 @@ mod tests {
             assert_eq!(call(method, 10).class(), Class::Control, "{method}");
         }
         assert_eq!(call("pane.resize", 10).class(), Class::Normal);
-        assert_eq!(call("task.create", BULK_CALL).class(), Class::Normal);
-        assert_eq!(call("task.create", BULK_CALL + 1).class(), Class::Bulk);
+        assert_eq!(call("workspace.create", BULK_CALL).class(), Class::Normal);
+        assert_eq!(call("workspace.create", BULK_CALL + 1).class(), Class::Bulk);
         // A large paste stays in the order of the input.
         assert_eq!(call("pane.paste", BULK_CALL + 1).class(), Class::Control);
         let frame = LinkMsg::Frame {

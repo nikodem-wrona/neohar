@@ -98,7 +98,6 @@ Agent runs of Claude Code and Codex: list, start, resume, prompt, interrupt, sto
 | `name` | string \| `null` |  | A unique name for the run. A call can use it instead of the id. |
 | `placement` | [`Placement`](/docs/reference/api/types#placement) | yes |  |
 | `prompt` | string \| `null` |  |  |
-| `task` | [`RefTaskId`](/docs/reference/api/types#reftaskid) \| `null` |  |  |
 
 ### Result
 
@@ -114,7 +113,7 @@ Agent runs of Claude Code and Codex: list, start, resume, prompt, interrupt, sto
 
 **Command line:** [`nh agent choices`](/docs/reference/cli/commands/agent#agent-choices)
 
-The models and the effort levels that `agent.start` and `task.create` can choose.
+The models and the effort levels that `agent.start` can choose.
 
 ### Params
 

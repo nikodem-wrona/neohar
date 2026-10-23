@@ -57,7 +57,7 @@ A caller sees `{code, message, details}`. On the wire, the JSON-RPC protocol err
 
 ## Methods and scopes
 
-A method is `<noun>.<verb>`: `pane.split`, `interaction.answer`, `task.changes`. A method that names a workspace, tab, pane, interaction or task takes the ULID or the short handle (`w3`, `w3:t2`, `w3:p5`, `i42`, `k7`). Each method lists who may call it:
+A method is `<noun>.<verb>`: `pane.split`, `interaction.answer`, `fs.list`. A method that names a workspace, tab, pane or interaction takes the ULID or the short handle (`w3`, `w3:t2`, `w3:p5`, `i42`). Each method lists who may call it:
 
 | Scope | Who | Notes |
 |---|---|---|
@@ -70,7 +70,7 @@ A method that is not for the caller is `permission_denied`. The CLI never sends 
 
 ## Commands and jobs
 
-A method that changes state returns after its transaction committed. The result carries only ids; the client sees the change in a projection patch. The UI makes no optimistic update. A long command returns `{job}` at once (`agent.start`, `agent.resume`, `task.create`, `task.start`, `search.query`, `integration.doctor`), and its progress is in the `jobs` projection. A command that needs the database gets `degraded_storage` while the store is degraded; reads, input and rendering go on.
+A method that changes state returns after its transaction committed. The result carries only ids; the client sees the change in a projection patch. The UI makes no optimistic update. A long command returns `{job}` at once (`agent.start`, `agent.resume`, `search.query`, `integration.doctor`), and its progress is in the `jobs` projection. A command that needs the database gets `degraded_storage` while the store is degraded; reads, input and rendering go on.
 
 ## Projections
 

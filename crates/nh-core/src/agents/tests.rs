@@ -634,7 +634,6 @@ async fn the_open_runs_of_the_last_core_continue_and_a_run_without_a_pane_ends()
         yolo: false,
         resume: None,
         model: None,
-        task: None,
         process: None,
         started_at: 1,
         ended_at: None,

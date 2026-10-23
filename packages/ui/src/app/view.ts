@@ -1,17 +1,14 @@
 // The state of the view that belongs to this window only and that no other client needs: whether
 // the left column and the drawer are open, which tab of the drawer shows, the widths of the side
-// columns, the name that the person edits, the task dialog, and whether the next key passes
-// through to the pane. None of it is business state.
+// columns, the name that the person edits, and whether the next key passes through to the pane.
+// None of it is business state.
 
 import { createSignal } from 'solid-js';
 import type { Sticky } from '../input/soft';
 import type { Closing } from '../shell/close';
 import type { RenameTarget } from '../shell/rename';
 
-export type DrawerTab = 'inbox' | 'timeline' | 'tasks' | 'files' | 'changes';
-
-/** What the task dialog shows: the form of a new task, or a task by its id. */
-export type TaskDialog = { kind: 'new' } | { kind: 'task'; task: string };
+export type DrawerTab = 'inbox' | 'timeline' | 'files' | 'changes';
 
 /**
  * A sheet of the desk on a phone that takes the screen under the command line: More,
@@ -113,8 +110,6 @@ export function createViewState() {
   const [barAlt, setBarAlt] = createSignal<Sticky>('off');
   const [searchOpen, setSearchOpen] = createSignal(false);
   const [focusedCard, setFocusedCard] = createSignal<string | null>(null);
-  const [taskDialog, setTaskDialog] = createSignal<TaskDialog | null>(null);
-  const [startJobs, setStartJobs] = createSignal<Readonly<Record<string, string>>>({});
   const [closing, setClosing] = createSignal<Closing | null>(null);
   const [renaming, setRenaming] = createSignal<RenameTarget | null>(null);
   return {
@@ -136,14 +131,6 @@ export function createViewState() {
     /** The workspace or the tab whose name the person edits, and where. */
     renaming,
     setRenaming,
-    /** The dialog of a task floats over the window while it is open. */
-    taskDialog,
-    setTaskDialog,
-    /** The job of the last start of each task, so that its row shows the progress or the error. */
-    startJobs,
-    noteStart(task: string, job: string): void {
-      setStartJobs((jobs) => ({ ...jobs, [task]: job }));
-    },
     /** The interaction whose card should have the focus, until the card takes it. */
     focusedCard,
     focusCard(interaction: string | null): void {
@@ -170,10 +157,6 @@ export function createViewState() {
         setDrawerOpen(true);
       } else if (id === 'search.open') {
         setSearchOpen(true);
-      } else if (id === 'task.new') {
-        setDrawerTab('tasks');
-        setDrawerOpen(true);
-        setTaskDialog({ kind: 'new' });
       } else if (id === 'settings.open') {
         // A phone has no settings window: the core names this command of the page.
         setSheet({ kind: 'settings', section: null });

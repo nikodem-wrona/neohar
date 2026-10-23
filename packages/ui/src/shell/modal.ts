@@ -1,4 +1,4 @@
-// A modal `<dialog>` of the chrome: the question of a close and the task dialog.
+// A modal `<dialog>` of the chrome: the question of a close and the large view of a file.
 
 /** A press on the backdrop of a modal dialog: the dialog is the target, outside its box. */
 export function outside(event: MouseEvent, dialog: HTMLElement): boolean {

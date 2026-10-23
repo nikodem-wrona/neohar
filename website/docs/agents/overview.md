@@ -95,7 +95,7 @@ Codex manifest withholds `survive_disconnect`, so Codex runs resolve it to `fals
 2. **Binding by hook.** A hook with a valid pane token binds the run of its harness in that pane,
    adds `hooks` as a transport and resolves the capabilities again. A pane without a run gets one
    from the hook.
-3. **A launch by neohar.** `agent.start`, `agent.resume`, a task and a reboot resume type the
+3. **A launch by neohar.** `agent.start`, `agent.resume` and a reboot resume type the
    manifest's command line into the pane's shell, so the shim and the person's `PATH`
    apply. The run that appears adopts the launch: it is `bound`, and Claude Code gets
    `--session-id` in advance.
@@ -131,8 +131,8 @@ version and runs the manifest's `[auth] status` (`claude auth status --json`, `c
 to learn `logged_in`, `logged_out` or `unknown`. It runs at the start, every 30 minutes, on
 `harness.refresh` (`nh harness refresh`) and before a start. The projection `harnesses` has one
 row per manifest. A harness that is not
-installed or not logged in gets a `health` warning, and `agent.start`, `agent.resume` and
-`task.start` fail with `harness_unavailable`. neohar never runs a login and stores no credential.
+installed or not logged in gets a `health` warning, and `agent.start` and `agent.resume` fail
+with `harness_unavailable`. neohar never runs a login and stores no credential.
 
 ## Installing the hooks
 

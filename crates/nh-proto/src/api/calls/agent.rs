@@ -1,13 +1,9 @@
-//! Params and results of `agent.*`, `interaction.*`, `task.*`, `changes.*`, `favorite.*` and
-//! `worktree.*`.
+//! Params and results of `agent.*`, `interaction.*` and `changes.*`.
 
 use crate::api::{
-    common::{Bytes, Harness, SplitDirection, nullable, wire},
-    ids::{InteractionId, JobId, PaneId, Ref, RunId, TaskId, WindowId, WorkspaceId},
-    model::{
-        AgentValue, ChangeRow, ChangeTotals, FavoriteValue, InteractionState, InteractionValue,
-        LoginState, TaskStatus, TaskValue, WorktreeValue,
-    },
+    common::{Harness, SplitDirection, wire},
+    ids::{InteractionId, PaneId, Ref, RunId, WindowId, WorkspaceId},
+    model::{AgentValue, InteractionState, InteractionValue, LoginState},
 };
 
 wire! {
@@ -70,11 +66,9 @@ wire! {
         /// Extra arguments for the harness.
         #[serde(default, skip_serializing_if = "Vec::is_empty")]
         pub args: Vec<String>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        pub task: Option<Ref<TaskId>>,
     }
 
-    /// The models and the effort levels that `agent.start` and `task.create` can choose.
+    /// The models and the effort levels that `agent.start` can choose.
     pub struct AgentChoices {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         pub harness: Option<Harness>,
@@ -100,8 +94,7 @@ wire! {
         /// The program of the harness is on the `PATH` of this machine.
         pub installed: bool,
         pub login: LoginState,
-        /// A start with this harness can go on: it is installed and not logged out. The form of a
-        /// task keeps a draft without it, and its Start button is off.
+        /// A start with this harness can go on: it is installed and not logged out.
         pub available: bool,
         /// What the person can do when the harness is not available.
         #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -337,162 +330,7 @@ wire! {
         pub window: Option<WindowId>,
     }
 
-    // --- tasks and worktrees ---
-
-    /// `task.create` keeps a draft: the core checks the repository and the words, and stores the
-    /// task with its files. Nothing happens in git until `task.start`, or until `start`.
-    pub struct TaskCreate {
-        pub repo: String,
-        pub title: String,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        pub base: Option<String>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        pub branch: Option<String>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        pub harness: Option<Harness>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        pub prompt: Option<String>,
-        /// The model of the agent. It needs `harness`.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        pub model: Option<String>,
-        /// The effort level of the agent. It needs `harness`.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        pub effort: Option<String>,
-        /// How many ports to lease.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        pub ports: Option<u8>,
-        /// Files to attach, by path. The core reads them now.
-        #[serde(default, skip_serializing_if = "Vec::is_empty")]
-        pub files: Vec<String>,
-        /// Files to attach with their bytes: what the UI picked or pasted.
-        #[serde(default, skip_serializing_if = "Vec::is_empty")]
-        pub uploads: Vec<Upload>,
-        /// Start the task at once, as `task.start` does.
-        #[serde(default)]
-        pub start: bool,
-    }
-
-    /// A file that the caller sends with its bytes.
-    pub struct Upload {
-        /// The name of the file. The core keeps the last part of a path.
-        pub name: String,
-        pub data: Bytes,
-    }
-
-    pub struct TaskCreated {
-        pub task: TaskId,
-        /// The short handle, for example `k7`.
-        pub handle: String,
-        /// The job of the start, when the call asked for `start`.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        pub job: Option<JobId>,
-    }
-
-    /// A change of a task. A missing field keeps its value, and `null` clears it. A draft
-    /// can change everything. A task that started can change only its title.
-    pub struct TaskUpdate {
-        pub task: Ref<TaskId>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        pub title: Option<String>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        pub repo: Option<String>,
-        #[serde(
-            default,
-            deserialize_with = "nullable",
-            skip_serializing_if = "Option::is_none"
-        )]
-        pub base: Option<Option<String>>,
-        #[serde(
-            default,
-            deserialize_with = "nullable",
-            skip_serializing_if = "Option::is_none"
-        )]
-        pub branch: Option<Option<String>>,
-        #[serde(
-            default,
-            deserialize_with = "nullable",
-            skip_serializing_if = "Option::is_none"
-        )]
-        pub harness: Option<Option<Harness>>,
-        #[serde(
-            default,
-            deserialize_with = "nullable",
-            skip_serializing_if = "Option::is_none"
-        )]
-        pub prompt: Option<Option<String>>,
-        #[serde(
-            default,
-            deserialize_with = "nullable",
-            skip_serializing_if = "Option::is_none"
-        )]
-        pub model: Option<Option<String>>,
-        #[serde(
-            default,
-            deserialize_with = "nullable",
-            skip_serializing_if = "Option::is_none"
-        )]
-        pub effort: Option<Option<String>>,
-        #[serde(
-            default,
-            deserialize_with = "nullable",
-            skip_serializing_if = "Option::is_none"
-        )]
-        pub ports: Option<Option<u8>>,
-        /// Files to attach, by path.
-        #[serde(default, skip_serializing_if = "Vec::is_empty")]
-        pub files: Vec<String>,
-        /// Files to attach with their bytes.
-        #[serde(default, skip_serializing_if = "Vec::is_empty")]
-        pub uploads: Vec<Upload>,
-        /// The attachments to remove, by id.
-        #[serde(default, skip_serializing_if = "Vec::is_empty")]
-        pub remove: Vec<String>,
-    }
-
-    /// `task.start` returns a job: the worktree, the ports, the setup, the tab and the agent of a
-    /// draft.
-    pub struct TaskStart {
-        pub task: Ref<TaskId>,
-    }
-
-    /// `task.delete` removes a draft or a closed task.
-    pub struct TaskDelete {
-        pub task: Ref<TaskId>,
-    }
-
-    pub struct TaskList {
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        pub status: Option<TaskStatus>,
-    }
-
-    pub struct TaskListResult {
-        pub tasks: Vec<TaskValue>,
-    }
-
-    pub struct TaskShow {
-        pub task: Ref<TaskId>,
-    }
-
-    pub struct TaskShown {
-        pub task: TaskValue,
-    }
-
-    /// `task.changes` counts the changes of a task that started now.
-    pub struct TaskChanges {
-        pub task: Ref<TaskId>,
-    }
-
-    /// The totals of the changes, and the rows of `changes:<task>` in their order.
-    pub struct TaskChangesResult {
-        pub changes: ChangeTotals,
-        pub files: Vec<ChangeRow>,
-    }
-
-    /// `task.diff` gives the diff of one path of the rows of `changes:<task>`.
-    pub struct TaskDiff {
-        pub task: Ref<TaskId>,
-        pub path: String,
-    }
+    // --- changes ---
 
     /// `changes.follow`: the Changes tab of a window shows the changes of the git worktree that
     /// holds `path`. The core fills `changes_head:<window>` and `changes_for:<window>`
@@ -507,49 +345,5 @@ wire! {
     pub struct ChangesDiff {
         pub window: WindowId,
         pub path: String,
-    }
-
-    /// The core refuses to remove a dirty worktree without `force`.
-    pub struct TaskClose {
-        pub task: Ref<TaskId>,
-        #[serde(default)]
-        pub remove_worktree: bool,
-        #[serde(default)]
-        pub force: bool,
-    }
-
-    // --- favorite folders ---
-
-    pub struct FavoriteList {}
-
-    /// The favorites, the one used last first, as the projection `favorites` has them.
-    pub struct FavoriteListResult {
-        pub favorites: Vec<FavoriteValue>,
-    }
-
-    /// Adds a folder to the favorites. The core keeps the root of its git repository. A favorite
-    /// that is there already stays as it is.
-    pub struct FavoriteAdd {
-        /// An absolute path or a path under `~`, or a workspace (`w3`) for its root.
-        pub path: String,
-    }
-
-    pub struct FavoriteAdded {
-        /// The root of the repository that the core keeps: the key of its row in `favorites`.
-        pub path: String,
-    }
-
-    /// Removes a folder from the favorites: the path of a favorite, or a folder in its repository.
-    pub struct FavoriteRemove {
-        pub path: String,
-    }
-
-    pub struct WorktreeList {
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        pub repo: Option<String>,
-    }
-
-    pub struct WorktreeListResult {
-        pub worktrees: Vec<WorktreeValue>,
     }
 }

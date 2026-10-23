@@ -1,6 +1,6 @@
 ---
 title: "Events"
-description: "The 56 kinds of events in the event outbox."
+description: "The 49 kinds of events in the event outbox."
 sidebar_position: 4
 ---
 
@@ -56,13 +56,6 @@ The core appends an event in the same SQLite transaction as the state change tha
 | [`layout.changed`](#layout-changed) | 1 | [`LayoutChanged`](/docs/reference/api/types#layoutchanged) |
 | [`window.opened`](#window-opened) | 1 | [`WindowEvent`](/docs/reference/api/types#windowevent) |
 | [`window.closed`](#window-closed) | 1 | [`WindowEvent`](/docs/reference/api/types#windowevent) |
-| [`task.created`](#task-created) | 1 | [`TaskEvent`](/docs/reference/api/types#taskevent) |
-| [`task.status_changed`](#task-status-changed) | 1 | [`TaskStatusChanged`](/docs/reference/api/types#taskstatuschanged) |
-| [`task.closed`](#task-closed) | 1 | [`TaskEvent`](/docs/reference/api/types#taskevent) |
-| [`task.changed`](#task-changed) | 1 | [`TaskEvent`](/docs/reference/api/types#taskevent) |
-| [`task.deleted`](#task-deleted) | 1 | [`TaskEvent`](/docs/reference/api/types#taskevent) |
-| [`favorite.added`](#favorite-added) | 1 | [`FavoriteEvent`](/docs/reference/api/types#favoriteevent) |
-| [`favorite.removed`](#favorite-removed) | 1 | [`FavoriteEvent`](/docs/reference/api/types#favoriteevent) |
 | [`phone.paired`](#phone-paired) | 1 | [`PhoneEvent`](/docs/reference/api/types#phoneevent) |
 | [`phone.renamed`](#phone-renamed) | 1 | [`PhoneEvent`](/docs/reference/api/types#phoneevent) |
 | [`phone.removed`](#phone-removed) | 1 | [`PhoneEvent`](/docs/reference/api/types#phoneevent) |
@@ -583,90 +576,6 @@ The core appends an event in the same SQLite transaction as the state change tha
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `window` | [`WindowId`](/docs/reference/api/types#windowid) | yes |  |
-
-## task events {#group-task}
-
-### `task.created` {#task-created}
-
-**Version:** 1
-
-[`TaskEvent`](/docs/reference/api/types#taskevent)
-
-| Field | Type | Required | Description |
-|---|---|---|---|
-| `handle` | string | yes |  |
-| `task` | [`TaskId`](/docs/reference/api/types#taskid) | yes |  |
-| `title` | string | yes |  |
-
-### `task.status_changed` {#task-status-changed}
-
-**Version:** 1
-
-[`TaskStatusChanged`](/docs/reference/api/types#taskstatuschanged)
-
-| Field | Type | Required | Description |
-|---|---|---|---|
-| `from` | [`TaskStatus`](/docs/reference/api/types#taskstatus) | yes |  |
-| `task` | [`TaskId`](/docs/reference/api/types#taskid) | yes |  |
-| `to` | [`TaskStatus`](/docs/reference/api/types#taskstatus) | yes |  |
-
-### `task.closed` {#task-closed}
-
-**Version:** 1
-
-[`TaskEvent`](/docs/reference/api/types#taskevent)
-
-| Field | Type | Required | Description |
-|---|---|---|---|
-| `handle` | string | yes |  |
-| `task` | [`TaskId`](/docs/reference/api/types#taskid) | yes |  |
-| `title` | string | yes |  |
-
-### `task.changed` {#task-changed}
-
-**Version:** 1
-
-[`TaskEvent`](/docs/reference/api/types#taskevent)
-
-| Field | Type | Required | Description |
-|---|---|---|---|
-| `handle` | string | yes |  |
-| `task` | [`TaskId`](/docs/reference/api/types#taskid) | yes |  |
-| `title` | string | yes |  |
-
-### `task.deleted` {#task-deleted}
-
-**Version:** 1
-
-[`TaskEvent`](/docs/reference/api/types#taskevent)
-
-| Field | Type | Required | Description |
-|---|---|---|---|
-| `handle` | string | yes |  |
-| `task` | [`TaskId`](/docs/reference/api/types#taskid) | yes |  |
-| `title` | string | yes |  |
-
-## favorite events {#group-favorite}
-
-### `favorite.added` {#favorite-added}
-
-**Version:** 1
-
-[`FavoriteEvent`](/docs/reference/api/types#favoriteevent)
-
-| Field | Type | Required | Description |
-|---|---|---|---|
-| `path` | string | yes |  |
-
-### `favorite.removed` {#favorite-removed}
-
-**Version:** 1
-
-[`FavoriteEvent`](/docs/reference/api/types#favoriteevent)
-
-| Field | Type | Required | Description |
-|---|---|---|---|
-| `path` | string | yes |  |
 
 ## phone events {#group-phone}
 

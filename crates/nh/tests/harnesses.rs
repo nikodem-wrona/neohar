@@ -6,8 +6,7 @@
 mod core_support;
 
 use std::{
-    path::{Path, PathBuf},
-    process::Command,
+    path::PathBuf,
     sync::Arc,
     time::{Duration, Instant},
 };
@@ -105,20 +104,6 @@ async fn first_pane(core: &Harness) -> String {
     made["pane"].as_str().expect("a pane").to_owned()
 }
 
-fn git(dir: &Path, args: &[&str]) {
-    let output = Command::new("git")
-        .args(args)
-        .current_dir(dir)
-        .env("GIT_CONFIG_GLOBAL", "/dev/null")
-        .env("GIT_AUTHOR_NAME", "Ada")
-        .env("GIT_AUTHOR_EMAIL", "ada@example.com")
-        .env("GIT_COMMITTER_NAME", "Ada")
-        .env("GIT_COMMITTER_EMAIL", "ada@example.com")
-        .output()
-        .expect("git runs");
-    assert!(output.status.success(), "git {args:?}");
-}
-
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_machine_with_no_harness_shows_it_and_a_start_fails() {
     let core = Harness::start_without_harnesses();
@@ -166,7 +151,7 @@ async fn a_machine_with_no_harness_shows_it_and_a_start_fails() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn a_harness_that_is_not_logged_in_keeps_its_task_a_draft() {
+async fn a_harness_that_is_not_logged_in_refuses_a_start() {
     let host = Arc::new(RecordingHost::new(env!("CARGO_BIN_EXE_nh").into(), false));
     let core = Harness::start_hosted(Arc::clone(&host) as Arc<dyn nh_core::Host>);
     write_program(&bin(&core).join("codex"), CODEX_OUT);
@@ -208,58 +193,23 @@ async fn a_harness_that_is_not_logged_in_keeps_its_task_a_draft() {
     assert_eq!(menus["harnesses"][0]["login"], "logged_out");
     assert_eq!(menus["harnesses"][0]["available"], false);
 
-    // A draft with that harness is kept, and its start fails before the worktree.
-    let base = std::fs::canonicalize(std::env::temp_dir())
-        .expect("a path")
-        .join(format!("nh-harness-task-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&base);
-    let repo = base.join("app");
-    std::fs::create_dir_all(&repo).expect("a repository");
-    git(&repo, &["init", "-q", "-b", "main"]);
-    std::fs::write(repo.join("a.txt"), "one\n").expect("a file");
-    git(&repo, &["add", "."]);
-    git(&repo, &["commit", "-q", "-m", "first"]);
-    let root = base.join("worktrees");
-    core.call(
-        "config.set",
-        json!({"key": "tasks.worktree_root", "value": root.display().to_string()}),
-    )
-    .await;
-    let created = core
-        .call(
-            "task.create",
-            json!({"repo": repo.display().to_string(), "title": "Fix it", "harness": "codex"}),
-        )
-        .await;
+    // A start with that harness fails, and nothing starts.
+    let pane = first_pane(&core).await;
     let refused = core
         .handle
-        .rpc("task.start", json!({"task": created["handle"]}))
+        .rpc(
+            "agent.start",
+            json!({
+                "harness": "codex",
+                "placement": {"type": "split", "pane": pane, "direction": "right"},
+            }),
+        )
         .await
         .expect_err("codex is logged out");
     assert_eq!(refused.code, ErrorCode::HarnessUnavailable);
     assert_eq!(refused.details["reason"], "logged_out");
-    let task = core
-        .call("task.show", json!({"task": created["handle"]}))
-        .await;
-    assert_eq!(task["task"]["status"], "draft", "{task}");
-    assert!(!root.exists(), "no worktree");
-    // `start: true` keeps the draft too, and says so.
-    let refused = core
-        .handle
-        .rpc(
-            "task.create",
-            json!({"repo": repo.display().to_string(), "title": "Again", "harness": "codex", "start": true}),
-        )
-        .await
-        .expect_err("codex is logged out");
-    assert_eq!(refused.code, ErrorCode::HarnessUnavailable);
-    assert!(
-        refused.message.contains("is a draft"),
-        "{}",
-        refused.message
-    );
-    assert!(!root.exists(), "no worktree");
-    let _ = std::fs::remove_dir_all(&base);
+    let panes = core.call("pane.list", json!({})).await;
+    assert_eq!(panes["panes"].as_array().map(Vec::len), Some(1), "{panes}");
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

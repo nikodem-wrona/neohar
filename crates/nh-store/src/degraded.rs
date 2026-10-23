@@ -402,7 +402,7 @@ mod tests {
             })
             .expect_err("a read transaction cannot append");
         assert!(matches!(error, StoreError::BadValue(m) if m.contains("read transaction")));
-        assert!(store.tx_read(3, |tx| tx.next_handle("task")).is_err());
+        assert!(store.tx_read(3, |tx| tx.next_handle("workspace")).is_err());
         assert!(store.tx_read(4, |tx| tx.bump_projection("tree")).is_err());
     }
 

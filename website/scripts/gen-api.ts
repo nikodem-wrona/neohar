@@ -73,11 +73,8 @@ const namespaces: Record<string, string> = {
   agent: 'Agent runs of Claude Code and Codex: list, start, resume, prompt, interrupt, stop, wait.',
   interaction: 'What agents ask a person: approvals, questions, plan reviews and notices.',
   harness: 'Claude Code and Codex on this machine: discovery, version and login state.',
-  task: 'Task workspaces: a worktree, a branch, ports, an environment and an agent.',
-  favorite: 'The favorite folders that the form of a new task offers.',
   phone:
     'The phones that supervise this machine: the offer of a pairing, names and removal, and the mapping of tailscale serve.',
-  worktree: 'The git worktrees of tasks.',
   events: 'Subscriptions to the event log, from a cursor.',
   projection: 'Subscriptions to projections: a snapshot, then keyed patches.',
   config: 'The configuration: the merged values with provenance, edits and reload.',

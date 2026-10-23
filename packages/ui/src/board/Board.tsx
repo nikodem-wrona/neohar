@@ -68,11 +68,7 @@ export function Board() {
   };
 
   const work = (run: AgentValue): string =>
-    workOf(
-      run,
-      run.task ? stores.tasks.state.byKey[run.task] : undefined,
-      run.pane ? stores.panes.state.byKey[run.pane] : undefined,
-    );
+    workOf(run, run.pane ? stores.panes.state.byKey[run.pane] : undefined);
   const tooltip = (run: AgentValue): string => {
     const usage = hasUsage(run.usage) ? `\n${usageText(run.usage)}` : '';
     return `${badgeOf(run).tooltip}${usage}`;
@@ -96,7 +92,7 @@ export function Board() {
       </span>
       <Show
         when={runs().length > 0}
-        fallback={<p class="board-empty">No agent runs. Start one in a pane or with a task.</p>}
+        fallback={<p class="board-empty">No agent runs. Start one in a pane.</p>}
       >
         <ul class="strips" aria-label="Agents">
           <For each={shown()}>

@@ -1,7 +1,7 @@
-//! The changes of a task: from the merge base of the base and `HEAD` to the files in the
-//! worktree, with the commits of the branch, the changes that are not committed, and the files
-//! that git does not track and does not ignore. The changes of a worktree that is not the worktree
-//! of a task go from `HEAD`.
+//! The git commands of the Changes tab, through the `git` program.
+//!
+//! The program is the one in the PATH of the environment that the caller gives, so the user's
+//! configuration applies to every command.
 //!
 //! The count reads the trees with the plumbing command `git diff-index`, never with `git diff`.
 //! When `git diff` finds a file whose stat changed, it writes the index again, and it takes
@@ -14,16 +14,31 @@ use std::{
     collections::HashSet,
     ffi::OsStr,
     os::unix::{ffi::OsStrExt, fs::MetadataExt},
-    path::Path,
+    path::{Path, PathBuf},
 };
 
 use nh_proto::api::rich::DiffStats;
+use tokio::process::Command;
 
-use super::{Git, GitError};
+/// Why a git command did not give a result.
+#[derive(Debug, thiserror::Error)]
+pub(crate) enum GitError {
+    #[error("cannot run git: {0}")]
+    Io(#[from] std::io::Error),
+    #[error("git {args} failed ({status}): {stderr}")]
+    Failed {
+        args: String,
+        status: String,
+        stderr: String,
+    },
+    /// The worktree is not on the disk.
+    #[error("the worktree is gone")]
+    WorktreeGone,
+}
 
-/// What happened to a file between the merge base and the worktree.
+/// What happened to a file between `HEAD` and the worktree.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum ChangeKind {
+pub(crate) enum ChangeKind {
     /// Also a change of type and a file with a conflict.
     Modified,
     Added,
@@ -35,32 +50,26 @@ pub enum ChangeKind {
 
 /// One file of the changes.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ChangedFile {
+pub(crate) struct ChangedFile {
     /// The path from the root of the worktree, as git gives its bytes.
     pub path: Vec<u8>,
-    /// The path in the merge base of a renamed file.
+    /// The path in `HEAD` of a renamed file.
     pub old_path: Option<Vec<u8>>,
     pub kind: ChangeKind,
     pub add: u32,
     pub del: u32,
     /// Git shows no lines for the file.
     pub binary: bool,
-    /// The file has a change that is not in a commit.
-    pub uncommitted: bool,
     /// Changes when the file in the worktree changes: from its size and its modification time.
     /// A deleted file has 0.
     pub stamp: u64,
 }
 
-/// The changes of a worktree against a base.
+/// The changes of a worktree that are not in a commit.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Changes {
-    /// The merge base of the base and `HEAD`.
-    pub merge_base: String,
-    /// The short name of the merge base.
-    pub short: String,
-    /// The commits from the merge base to `HEAD`.
-    pub commits: u32,
+pub(crate) struct Changes {
+    /// The commit of `HEAD`, or the empty tree in a repository with no commit.
+    pub head: String,
     /// Every changed file, in the byte order of the path.
     pub files: Vec<ChangedFile>,
 }
@@ -80,55 +89,72 @@ impl Changes {
 /// The largest file that does not track whose lines the count reads.
 const COUNT_LIMIT: u64 = 1 << 20;
 
+/// Runs git with an environment.
+#[derive(Clone, Debug, Default)]
+pub(crate) struct Git {
+    env: Vec<(String, String)>,
+}
+
 impl Git {
-    /// The changes of `worktree` against `base`. A base that is gone, or a worktree that
-    /// is gone, is an error with a text for the person.
-    pub async fn changes(&self, worktree: &Path, base: &str) -> Result<Changes, GitError> {
-        if !worktree.is_dir() {
-            return Err(GitError::WorktreeGone);
+    /// `env` is the environment of the process that git runs in. It must have a `PATH`.
+    pub fn new(env: Vec<(String, String)>) -> Self {
+        Self { env }
+    }
+
+    async fn run(&self, cwd: &Path, args: &[&str]) -> Result<String, GitError> {
+        let args: Vec<&OsStr> = args.iter().map(OsStr::new).collect();
+        let out = self.output(cwd, &args).await?;
+        Ok(String::from_utf8_lossy(&out).into_owned())
+    }
+
+    /// The bytes that git writes, for output with `-z` and paths that are not UTF-8.
+    async fn output(&self, cwd: &Path, args: &[&OsStr]) -> Result<Vec<u8>, GitError> {
+        let mut command = Command::new("git");
+        command
+            .args(args)
+            .current_dir(cwd)
+            .env_clear()
+            .envs(self.env.iter().map(|(k, v)| (k, v)))
+            // A prompt for a password would wait for ever.
+            .env("GIT_TERMINAL_PROMPT", "0")
+            // A read must not lock the index: a commit of an agent at the same time would fail.
+            .env("GIT_OPTIONAL_LOCKS", "0")
+            .stdin(std::process::Stdio::null())
+            .kill_on_drop(true);
+        let output = command.output().await?;
+        if output.status.success() {
+            return Ok(output.stdout);
         }
-        let merge_base = self.merge_base(worktree, base).await?;
-        let short = self
-            .run(worktree, &["rev-parse", "--short", &merge_base])
-            .await?
-            .trim()
-            .to_owned();
-        let rows = self.diff_index(worktree, &merge_base).await?;
-        let uncommitted: HashSet<Vec<u8>> = self
-            .diff_index(worktree, "HEAD")
-            .await?
-            .into_iter()
-            .flat_map(|record| std::iter::once(record.path).chain(record.old_path))
-            .collect();
-        let untracked = self.untracked(worktree).await?;
-        let commits = self
-            .run(
-                worktree,
-                &["rev-list", "--count", &format!("{merge_base}..HEAD")],
-            )
-            .await?
-            .trim()
-            .parse()
-            .unwrap_or(0);
-        let files = files(worktree, rows, &untracked, |record| {
-            uncommitted.contains(&record.path)
-                || record
-                    .old_path
-                    .as_ref()
-                    .is_some_and(|old| uncommitted.contains(old))
-        });
-        Ok(Changes {
-            merge_base,
-            short,
-            commits,
-            files,
+        Err(GitError::Failed {
+            args: args
+                .iter()
+                .map(|arg| arg.to_string_lossy())
+                .collect::<Vec<_>>()
+                .join(" "),
+            status: output.status.to_string(),
+            stderr: String::from_utf8_lossy(&output.stderr).trim().to_owned(),
         })
     }
 
+    /// The root of the repository that holds `path`.
+    pub async fn repo_root(&self, path: &Path) -> Result<PathBuf, GitError> {
+        let out = self.run(path, &["rev-parse", "--show-toplevel"]).await?;
+        Ok(PathBuf::from(out.trim()))
+    }
+
+    /// The git directory of a worktree: `.git` of the main worktree, or the directory under
+    /// `.git/worktrees/` of a linked one. A commit changes its files.
+    pub async fn git_dir(&self, worktree: &Path) -> Result<PathBuf, GitError> {
+        let out = self
+            .run(worktree, &["rev-parse", "--absolute-git-dir"])
+            .await?;
+        Ok(PathBuf::from(out.trim()))
+    }
+
     /// The changes of `worktree` that are not in a commit: from `HEAD` to the files, with
-    /// the files that git does not track and does not ignore. Every row is `uncommitted`, and the
-    /// count has no commits. A repository with no commit yet compares with the empty tree, and its
-    /// short name is empty. Also gives the branch of `HEAD`, or `None` for a detached `HEAD`.
+    /// the files that git does not track and does not ignore. A repository with no commit yet
+    /// compares with the empty tree. Also gives the branch of `HEAD`, or `None` for a detached
+    /// `HEAD`.
     pub async fn uncommitted(
         &self,
         worktree: &Path,
@@ -136,7 +162,7 @@ impl Git {
         if !worktree.is_dir() {
             return Err(GitError::WorktreeGone);
         }
-        let (head, short, branch) = match self
+        let (head, branch) = match self
             .run(worktree, &["rev-parse", "HEAD", "--abbrev-ref", "HEAD"])
             .await
         {
@@ -147,12 +173,7 @@ impl Git {
                     .next()
                     .filter(|name| *name != "HEAD")
                     .map(str::to_owned);
-                let short = self
-                    .run(worktree, &["rev-parse", "--short", &head])
-                    .await?
-                    .trim()
-                    .to_owned();
-                (head, short, branch)
+                (head, branch)
             }
             // No commit yet: `HEAD` names a branch that does not exist.
             Err(GitError::Failed { .. }) => {
@@ -166,22 +187,14 @@ impl Git {
                     .await?
                     .trim()
                     .to_owned();
-                (empty, String::new(), branch)
+                (empty, branch)
             }
             Err(error) => return Err(error),
         };
         let rows = self.diff_index(worktree, &head).await?;
         let untracked = self.untracked(worktree).await?;
-        let files = files(worktree, rows, &untracked, |_| true);
-        Ok((
-            Changes {
-                merge_base: head,
-                short,
-                commits: 0,
-                files,
-            },
-            branch,
-        ))
+        let files = files(worktree, rows, &untracked);
+        Ok((Changes { head, files }, branch))
     }
 
     /// The paths that git does not track and does not ignore, each with a NUL at its end.
@@ -193,12 +206,12 @@ impl Git {
         .await
     }
 
-    /// The patch of one file from the merge base to the worktree, with the old path of a rename.
-    /// The paths are literal, not patterns.
+    /// The patch of one file from `head` to the worktree, with the old path of a rename. The
+    /// paths are literal, not patterns.
     pub async fn file_diff(
         &self,
         worktree: &Path,
-        merge_base: &str,
+        head: &str,
         file: &ChangedFile,
     ) -> Result<String, GitError> {
         let mut args: Vec<&OsStr> = [
@@ -208,7 +221,7 @@ impl Git {
             "-M",
             "--no-color",
             "--no-ext-diff",
-            merge_base,
+            head,
             "--",
         ]
         .map(OsStr::new)
@@ -219,25 +232,6 @@ impl Git {
         args.push(OsStr::from_bytes(&file.path));
         let out = self.output(worktree, &args).await?;
         Ok(String::from_utf8_lossy(&out).into_owned())
-    }
-
-    async fn merge_base(&self, worktree: &Path, base: &str) -> Result<String, GitError> {
-        match self.run(worktree, &["merge-base", base, "HEAD"]).await {
-            Ok(out) => Ok(out.trim().to_owned()),
-            Err(GitError::Failed { .. }) => {
-                let commit = format!("{base}^{{commit}}");
-                let known = self
-                    .run(worktree, &["rev-parse", "--verify", "--quiet", &commit])
-                    .await
-                    .is_ok();
-                Err(if known {
-                    GitError::NoMergeBase(base.to_owned())
-                } else {
-                    GitError::BaseGone(base.to_owned())
-                })
-            }
-            Err(error) => Err(error),
-        }
     }
 
     /// The files whose content differs between `tree` and the worktree.
@@ -280,20 +274,12 @@ impl Git {
         Ok(records)
     }
 }
-
 /// The rows of a count: the records of `diff-index` and the files that git does not track, in
-/// the byte order of the path. `uncommitted` tells whether a record has a change that is not in a
-/// commit.
-fn files(
-    worktree: &Path,
-    rows: Vec<Record>,
-    untracked: &[u8],
-    uncommitted: impl Fn(&Record) -> bool,
-) -> Vec<ChangedFile> {
+/// the byte order of the path.
+fn files(worktree: &Path, rows: Vec<Record>, untracked: &[u8]) -> Vec<ChangedFile> {
     let mut files: Vec<ChangedFile> = rows
         .into_iter()
         .map(|record| {
-            let uncommitted = uncommitted(&record);
             let kind = match record.status {
                 b'A' | b'C' => ChangeKind::Added,
                 b'D' => ChangeKind::Deleted,
@@ -313,7 +299,6 @@ fn files(
                 add,
                 del,
                 binary: record.lines.is_none(),
-                uncommitted,
                 stamp,
             }
         })
@@ -332,7 +317,6 @@ fn files(
             add: lines,
             del: 0,
             binary,
-            uncommitted: true,
             stamp: stamp(&full),
         });
     }

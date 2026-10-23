@@ -46,7 +46,6 @@ export const SCOPES: Record<string, string> = {
   remote: 'crates/nh-remote: the links to other machines over ssh',
   rich: 'crates/nh-rich: the rich content of the cards and the plan view',
   store: 'crates/nh-store: the SQLite database and its schema',
-  tasks: 'crates/nh-tasks: task worktrees, ports and setup commands',
   term: 'crates/nh-term: the VT engine, frames and snapshots',
   tools: 'tools/ and scripts/: the test, bench and check tools',
   ui: 'packages/: the webview, the renderer and the transport',

@@ -10,8 +10,8 @@ use super::{
     common::{Axis, Bounds, Harness, Rect, RendererKind, Risk, Source, Urgency, Via, wire},
     envelope::CallError,
     ids::{
-        DeviceId, GroupId, InteractionId, JobId, NotificationId, PaneId, RunId, TabId, TaskId,
-        WindowId, WorkspaceId,
+        DeviceId, GroupId, InteractionId, JobId, NotificationId, PaneId, RunId, TabId, WindowId,
+        WorkspaceId,
     },
     rich::{Command, Diff, DiffStats, Markdown},
     time::Timestamp,
@@ -347,8 +347,6 @@ wire! {
         /// A resume handle exists (`claude --resume`, `codex resume`).
         #[serde(default)]
         pub resumable: bool,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        pub task: Option<TaskId>,
         pub started_at: Timestamp,
     }
 
@@ -527,7 +525,7 @@ wire! {
     }
 }
 
-// --- timeline, tasks, notifications and the rest --------------------------------------------
+// --- timeline, changes, notifications and the rest ----------------------------------------
 
 wire! {
     #[derive(Copy, Eq, Hash)]
@@ -568,86 +566,21 @@ wire! {
         pub body: TimelineBody,
     }
 
-    /// The status of a task. A `draft` is kept and not started: it has no worktree, no branch,
-    /// no ports and no tab yet.
-    #[derive(Copy, Eq, Hash)]
-    #[serde(rename_all = "snake_case")]
-    pub enum TaskStatus {
-        Draft,
-        Creating,
-        Setup,
-        Running,
-        Idle,
-        SetupFailed,
-        Closed,
-    }
-
-    /// `tasks`: a task workspace.
-    pub struct TaskValue {
-        pub id: TaskId,
-        /// The short handle, for example `k7`.
-        pub handle: String,
-        pub title: String,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        pub workspace: Option<WorkspaceId>,
-        /// The tab of the task. A window that shows it shows the task in its drawer.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        pub tab: Option<TabId>,
-        pub repo: String,
-        /// The worktree. A draft has none yet.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        pub worktree: Option<String>,
-        /// The branch. A draft has one only when the person asked for a name.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        pub branch: Option<String>,
-        /// The base. A draft has one only when the person asked for it; else the start takes the
-        /// current branch of the repository.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        pub base: Option<String>,
-        pub status: TaskStatus,
-        pub ports: Vec<u16>,
-        pub agents: Vec<RunId>,
-        /// The lines from the merge base of the base and `HEAD` to the worktree.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        pub diff_stats: Option<DiffStats>,
-        /// The totals of the last count of the changes. A task that the core has not
-        /// counted yet has none.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        pub changes: Option<ChangeTotals>,
-        /// The agent that the start runs, with its model, effort level and prompt.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        pub harness: Option<Harness>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        pub model: Option<String>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        pub effort: Option<String>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        pub prompt: Option<String>,
-        /// The files of the task, in the order that they came.
-        pub attachments: Vec<AttachmentValue>,
-        pub created_at: Timestamp,
-    }
-
-    /// `changes` of a row of `tasks`: the totals of the changes of a task.
+    /// `changes` of `changes_head:<window>`: the totals of the changes of a worktree.
     pub struct ChangeTotals {
         /// The changed files, also those after the first 1,000.
         pub files: u32,
-        /// The commits from the merge base to `HEAD`.
-        pub commits: u32,
-        /// The short name of the merge base of the base and `HEAD`.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        pub merge_base: Option<String>,
-        /// The task has more than 1,000 changed files, and `changes:<task>` has the first 1,000.
+        /// The worktree has more than 1,000 changed files, and `changes_for:<window>` has the
+        /// first 1,000.
         #[serde(default)]
         pub truncated: bool,
-        /// Why the last count failed, for example "the base `main` is gone". The other values
-        /// and the rows are those of the count before.
+        /// Why the last count failed, for example "the worktree is gone". The other values and
+        /// the rows are those of the count before.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         pub error: Option<String>,
     }
 
-    /// What happened to a file of the changes of a task. A change of type counts as
-    /// `modified`.
+    /// What happened to a file since `HEAD`. A change of type counts as `modified`.
     #[derive(Copy, Eq)]
     #[serde(rename_all = "snake_case")]
     pub enum ChangeStatus {
@@ -659,8 +592,7 @@ wire! {
         Untracked,
     }
 
-    /// `changes:<task>` and `changes_for:<window>`: one changed file. The key is
-    /// `path`.
+    /// `changes_for:<window>`: one changed file. The key is `path`.
     pub struct ChangeRow {
         /// The path from the root of the worktree.
         pub path: String,
@@ -668,7 +600,7 @@ wire! {
         pub dir: String,
         /// The last part of the path.
         pub name: String,
-        /// The path in the merge base of a renamed file.
+        /// The path in `HEAD` of a renamed file.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         pub old_path: Option<String>,
         pub status: ChangeStatus,
@@ -677,9 +609,6 @@ wire! {
         /// Git shows no lines for the file.
         #[serde(default)]
         pub binary: bool,
-        /// The file has a change that is not in a commit.
-        #[serde(default)]
-        pub uncommitted: bool,
         /// Changes when the file in the worktree changes, so that an open diff loads again. It is
         /// 0 for a deleted file, and less than 2^53 so that JavaScript holds it exactly.
         pub stamp: u64,
@@ -687,7 +616,7 @@ wire! {
 
     /// `changes_head:<window>`: the head of the Changes tab of a window. The window names a
     /// folder with `changes.follow`, and the changes are those of the git worktree that holds
-    /// it. The core makes the row when it knows the worktree.
+    /// it, from `HEAD`: what is not committed. The core makes the row when it knows the worktree.
     pub struct ChangesHead {
         /// The folder that the window named.
         pub folder: String,
@@ -698,53 +627,12 @@ wire! {
         /// The branch of `HEAD`, or `None` for a detached `HEAD`.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         pub branch: Option<String>,
-        /// The task whose worktree is the root.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        pub task: Option<TaskId>,
-        /// The base of that task: the changes go from the merge base of the base and `HEAD`, as
-        /// for `changes:<task>`. With `None`, they go from `HEAD`: only what is not committed.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        pub base: Option<String>,
         /// The totals of the last count, or `None` before the first count.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         pub changes: Option<ChangeTotals>,
         /// The lines of all changed files.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         pub diff_stats: Option<DiffStats>,
-    }
-
-    /// A file of a task: a screenshot, a markdown file. The core keeps its bytes, and the
-    /// start copies it into the worktree.
-    pub struct AttachmentValue {
-        pub id: String,
-        pub name: String,
-        pub mime: String,
-        pub bytes: u64,
-        /// The file in the worktree, after the start.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        pub path: Option<String>,
-    }
-
-    /// A worktree on disk, for `worktree.list`.
-    pub struct WorktreeValue {
-        pub path: String,
-        pub branch: Option<String>,
-        pub repo: String,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        pub task: Option<TaskId>,
-        pub dirty: bool,
-    }
-
-    /// A favorite folder, for the form of a new task.
-    pub struct FavoriteValue {
-        /// The root of a git repository.
-        pub path: String,
-        /// The name that the form shows: the last part of the path, or the last two parts when
-        /// two favorites have the same last part.
-        pub name: String,
-        /// The last task that the person made or changed with this repository, else the time
-        /// when the favorite was added.
-        pub used_at: Timestamp,
     }
 
     /// The login state of a harness on this machine. `unknown` means that the probe
@@ -797,7 +685,7 @@ wire! {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         pub login_method: Option<LoginMethod>,
         /// A start of an agent with this harness can go on: the harness is installed and not
-        /// logged out. The form of a task turns its Start button off without it.
+        /// logged out.
         pub available: bool,
         /// The time of the last check.
         #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -909,7 +797,7 @@ wire! {
         pub progress: Option<f32>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         pub message: Option<String>,
-        /// What the job made, when it is done (for example `{"task": "…"}`).
+        /// What the job made, when it is done (for example `{"run": "…"}`).
         #[serde(default, skip_serializing_if = "Option::is_none")]
         pub result: Option<Value>,
         #[serde(default, skip_serializing_if = "Option::is_none")]

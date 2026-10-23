@@ -32,7 +32,7 @@ On a terminal `nh` prints text for people; piped, it prints the result of the me
 
 ## Commands follow the contract
 
-Every API method with the `cli` scope has a command `nh <noun> <verb>`, listed in [`crates/nh/src/cli/verbs.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh/src/cli/verbs.rs). The flags come from the schema of the params, so the command line cannot lag behind the API: a boolean is `--name` (or `--no-name` when its default is true), a list is a repeated flag, an object is `--name JSON`, and `_` becomes `-`. References take the ULID or the handle (`w3`, `w3:t2`, `w3:p5`, `i42`, `k7`).
+Every API method with the `cli` scope has a command `nh <noun> <verb>`, listed in [`crates/nh/src/cli/verbs.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh/src/cli/verbs.rs). The flags come from the schema of the params, so the command line cannot lag behind the API: a boolean is `--name` (or `--no-name` when its default is true), a list is a repeated flag, an object is `--name JSON`, and `_` becomes `-`. References take the ULID or the handle (`w3`, `w3:t2`, `w3:p5`, `i42`).
 
 A few commands are built in: `nh api call`, `nh api schema`, `nh session info`, `nh doctor`, `nh debug bundle`, `nh events tail`, `nh config edit` and `nh completions <shell>`. The roles `nh hold`, `nh hook`, `nh daemon` and `nh bridge` are for the app and the harnesses, not for people.
 
@@ -45,6 +45,7 @@ nh pane list --workspace w1
 nh agent list
 nh pane read w1:p2                          # the visible screen as text
 nh search query "panicked at" --pane w1:p2  # the history of the panes
+nh fs list .                                # the files and folders of a folder
 ```
 
 ## Type into a pane
@@ -90,21 +91,6 @@ nh agent interrupt reviewer
 ```
 
 `agent start` takes exactly one of `--pane`, `--split` and `--new-tab`. `agent wait` waits until the run is `idle`, has `exited`, or needs `attention`; give the core limit (`--timeout-ms`) and the CLI limit (`--timeout`).
-
-## Tasks, files and changes
-
-```bash
-nh task create "Fix the login bug" --harness claude --prompt "Fix src/auth" --start
-nh task create "Try the new parser"        # a draft; start it later
-nh task start k2
-nh task changes k1                         # the changed files from the merge base
-nh task diff k1 src/auth.rs
-nh task close k1 --remove-worktree
-nh fs list .
-nh favorite add
-```
-
-`task create` takes the repository from `--repo`, else the current directory. Without `--start` it keeps a draft. See [Tasks, files and changes](/docs/guides/tasks-files-changes).
 
 ## Events, configuration and policy
 

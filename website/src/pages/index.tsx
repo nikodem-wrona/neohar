@@ -145,7 +145,7 @@ export default function Home(): ReactNode {
   return (
     <Layout
       title="A desktop workspace for supervising coding agents"
-      description="neohar: a Rust core owns terminals, agent state, approvals and task workspaces, and keeps agent processes alive across app quit, crash and update."
+      description="neohar: a Rust core owns terminals, agent state and approvals, and keeps agent processes alive across app quit, crash and update."
     >
       <header className={styles.hero}>
         <div className={styles.heroInner}>
@@ -154,8 +154,8 @@ export default function Home(): ReactNode {
             <h1 className={styles.title}>neohar</h1>
             <p className={styles.tagline}>
               A native desktop workspace for supervising coding agents. A Rust core owns the
-              terminals, the agents&apos; state, their approvals and their task workspaces, and
-              keeps every agent process alive through anything short of a reboot. The window paints.
+              terminals, the agents&apos; state and their approvals, and keeps every agent process
+              alive through anything short of a reboot. The window paints.
             </p>
             <p className={styles.harnesses}>
               For <strong>Claude Code</strong> and <strong>Codex</strong>. macOS first. Tauri 2,

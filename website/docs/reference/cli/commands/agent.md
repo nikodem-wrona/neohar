@@ -113,7 +113,6 @@ Options:
       --name <TEXT>            A unique name for the run. A call can use it instead of the id.
       --timeout <SECONDS>      How long to wait for the core to answer, in seconds [default: 30]
       --prompt <TEXT>          
-      --task <TEXT>            
       --pane <pane>            Start in this pane, which must be an idle shell
       --split <split>          Start in a new pane beside this pane
       --direction <direction>  With --split: left, right, up or down (default: right)

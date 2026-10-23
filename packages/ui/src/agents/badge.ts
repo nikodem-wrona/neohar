@@ -3,7 +3,7 @@
 // a `?` when the version of the harness is not validated, and a dot when the run is done (idle,
 // and this window has not seen it).
 
-import type { AgentValue, PaneValue, TaskValue } from '@neohar/transport';
+import type { AgentValue, PaneValue } from '@neohar/transport';
 
 export interface Badge {
   /** The glyph of the execution state. */
@@ -66,15 +66,11 @@ export function harnessName(harness: string): string {
 }
 
 /**
- * What a run works on, in the words that a person knows it by: the title of its task, else
- * the title of its pane, else the name of its harness. The board and the phone app show it.
+ * What a run works on, in the words that a person knows it by: the title of its pane, else the
+ * name of its harness. The board and the phone app show it.
  */
-export function workOf(
-  run: AgentValue,
-  task: Pick<TaskValue, 'title'> | undefined,
-  pane: Pick<PaneValue, 'title'> | undefined,
-): string {
-  return task?.title || pane?.title || harnessName(run.harness);
+export function workOf(run: AgentValue, pane: Pick<PaneValue, 'title'> | undefined): string {
+  return pane?.title || harnessName(run.harness);
 }
 
 export function badgeOf(run: AgentValue): Badge {

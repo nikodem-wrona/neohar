@@ -74,7 +74,6 @@ fn run_row(n: u128) -> nh_store::RunRow {
         yolo: false,
         resume: None,
         model: None,
-        task: None,
         process: None,
         started_at: 1,
         ended_at: None,
@@ -103,7 +102,7 @@ fn a_reference_is_an_id_or_a_handle() {
     assert_eq!(table.resolve(&remote), None);
     let wrong_kind = Ref(RefValue::Handle(Handle {
         machine: None,
-        target: Target::Task(5),
+        target: Target::Preview(5),
     }));
     assert_eq!(table.resolve(&wrong_kind), None);
 }

@@ -124,21 +124,21 @@ fn json_options_and_any_values_are_parsed() {
     assert_eq!(tab["command"], json!({"argv": ["htop"]}));
     assert!(parsed(&["tab", "create", "w1", "--command", "{oops"]).is_err());
     assert_eq!(
-        ok(&["config", "set", "tasks.ports", "2"]).1["value"],
-        json!(2)
+        ok(&["config", "set", "phone.font_size", "14"]).1["value"],
+        json!(14)
     );
     assert_eq!(
         ok(&["config", "set", "approvals.mode", "gate"]).1["value"],
         json!("gate")
     );
     assert_eq!(
-        ok(&["config", "set", "tasks.setup", r#"["a","b"]"#]).1["value"],
+        ok(&["config", "set", "phone.keys", r#"["a","b"]"#]).1["value"],
         json!(["a", "b"])
     );
     assert_eq!(ok(&["config", "get"]).1, json!({}));
     assert_eq!(
-        ok(&["config", "get", "tasks"]).1,
-        json!({"section": "tasks"})
+        ok(&["config", "get", "phone"]).1,
+        json!({"section": "phone"})
     );
 }
 
@@ -276,79 +276,6 @@ fn an_agent_starts_where_the_flags_say() {
 }
 
 #[test]
-fn the_changes_of_a_task_and_the_diff_of_a_file_take_positions() {
-    assert_eq!(
-        ok(&["task", "changes", "k7"]),
-        ("task.changes".to_owned(), json!({"task": "k7"}))
-    );
-    // The path is the key of a row, from the root of the worktree: it stays as it is.
-    assert_eq!(
-        ok(&["task", "diff", "k7", "src/a b.rs"]),
-        (
-            "task.diff".to_owned(),
-            json!({"task": "k7", "path": "src/a b.rs"})
-        )
-    );
-}
-
-#[test]
-fn a_task_takes_the_repository_of_the_current_directory() {
-    let (method, task) = ok(&[
-        "task",
-        "create",
-        "Fix the login bug",
-        "--harness",
-        "claude",
-        "--prompt",
-        "go",
-    ]);
-    assert_eq!(method, "task.create");
-    assert_eq!(
-        task,
-        json!({"title": "Fix the login bug", "repo": "/work/repo", "harness": "claude", "prompt": "go"})
-    );
-    let (_, named) = ok(&["task", "create", "Fix", "--repo", "w3"]);
-    assert_eq!(named["repo"], "w3");
-    // The core reads the files, so a path starts in the current directory of the person.
-    let (_, files) = ok(&[
-        "task",
-        "create",
-        "Fix",
-        "--files",
-        "shot.png",
-        "--files",
-        "/tmp/plan.md",
-        "--start",
-    ]);
-    assert_eq!(
-        files["files"],
-        json!(["/work/repo/shot.png", "/tmp/plan.md"])
-    );
-    assert_eq!(files["start"], true);
-}
-
-#[test]
-fn a_task_changes_with_flags_and_clears_a_value() {
-    let (method, change) = ok(&[
-        "task", "update", "k3", "--title", "Better", "--clear", "prompt", "--clear", "harness",
-        "--files", "notes.md", "--remove", "01J",
-    ]);
-    assert_eq!(method, "task.update");
-    assert_eq!(
-        change,
-        json!({"task": "k3", "title": "Better", "prompt": null, "harness": null,
-               "files": ["/work/repo/notes.md"], "remove": ["01J"]})
-    );
-    let wrong = parsed(&["task", "update", "k3", "--clear", "title"]);
-    assert!(matches!(wrong, Err(CliError::Usage(text)) if text.contains("--clear")));
-    assert_eq!(
-        ok(&["task", "start", "k3"]),
-        ("task.start".into(), json!({"task": "k3"}))
-    );
-    assert_eq!(ok(&["task", "delete", "k3"]).0, "task.delete");
-}
-
-#[test]
 fn the_session_stops_everything_with_or_without_force_and_shuts_down() {
     assert_eq!(
         ok(&["session", "stop-everything"]),
@@ -394,31 +321,6 @@ fn a_refresh_of_the_harnesses_takes_one_harness_or_none() {
 }
 
 #[test]
-fn a_favorite_is_the_current_directory_or_a_folder_of_it() {
-    assert_eq!(
-        ok(&["favorite", "add"]),
-        ("favorite.add".into(), json!({"path": "/work/repo"}))
-    );
-    assert_eq!(
-        ok(&["favorite", "remove", "/work/other"]),
-        ("favorite.remove".into(), json!({"path": "/work/other"}))
-    );
-    assert_eq!(ok(&["favorite", "add", "w3"]).1, json!({"path": "w3"}));
-    assert_eq!(
-        ok(&["favorite", "list"]),
-        ("favorite.list".into(), json!({}))
-    );
-    // A folder of the current directory becomes absolute; another word stays.
-    let here = Path::new(env!("CARGO_MANIFEST_DIR"));
-    assert_eq!(
-        folder_of("src", here),
-        here.join("src").display().to_string()
-    );
-    assert_eq!(folder_of("w3", here), "w3");
-    assert_eq!(folder_of("~/work", here), "~/work");
-}
-
-#[test]
 fn scroll_takes_a_delta_or_a_line() {
     assert_eq!(
         ok(&["pane", "scroll", "w1:p1", "--delta", "-5"]).1,
@@ -438,19 +340,6 @@ fn a_missing_required_option_is_named() {
         panic!("a usage error");
     };
     assert!(message.contains("--ratios"), "{message}");
-}
-
-#[test]
-fn fs_dirs_takes_no_path_for_the_home_folder_or_a_path() {
-    assert_eq!(ok(&["fs", "dirs"]), ("fs.dirs".into(), json!({})));
-    assert_eq!(
-        ok(&["fs", "dirs", "/work"]),
-        ("fs.dirs".into(), json!({"path": "/work"}))
-    );
-    assert_eq!(
-        ok(&["fs", "dirs", "~/work"]),
-        ("fs.dirs".into(), json!({"path": "~/work"}))
-    );
 }
 
 #[test]

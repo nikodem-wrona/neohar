@@ -92,13 +92,13 @@ function PairDialog(props: {
   const state = () => props.pairing?.state ?? 'none';
   return (
     <div
-      class="task-dialog-backdrop"
+      class="dialog-backdrop"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) props.onClose();
       }}
     >
       <div
-        class="task-dialog phone-dialog"
+        class="dialog phone-dialog"
         role="dialog"
         aria-modal="true"
         aria-labelledby="phone-dialog-title"
@@ -111,20 +111,20 @@ function PairDialog(props: {
           }
         }}
       >
-        <h2 id="phone-dialog-title" class="task-dialog-title">
+        <h2 id="phone-dialog-title" class="dialog-title">
           Pair a phone
         </h2>
         <Show
           when={state() === 'waiting' && props.pairing}
           fallback={
-            <p class="task-dialog-text" role="status">
+            <p class="dialog-text" role="status">
               {state() === 'expired' ? 'The offer ended.' : 'Waiting for the core.'}
             </p>
           }
         >
           {(pairing) => (
             <>
-              <p class="task-dialog-text">
+              <p class="dialog-text">
                 Scan the code with the camera of the phone. On the phone, add the page to the home
                 screen and open it from there.
               </p>
@@ -134,22 +134,20 @@ function PairDialog(props: {
               <p class="phone-code-line">
                 Or type this code in the app: <strong class="phone-code">{pairing().code}</strong>
               </p>
-              <Show when={pairing().note}>
-                {(note) => <p class="task-dialog-text">{note()}</p>}
-              </Show>
-              <p class="task-dialog-text" role="status">
+              <Show when={pairing().note}>{(note) => <p class="dialog-text">{note()}</p>}</Show>
+              <p class="dialog-text" role="status">
                 Waiting for the phone.
               </p>
             </>
           )}
         </Show>
-        <div class="task-dialog-buttons">
+        <div class="dialog-buttons">
           <Show when={state() === 'expired'}>
             <button type="button" class="primary" onClick={() => props.onAgain()}>
               New code
             </button>
           </Show>
-          <button type="button" class="task-cancel" onClick={() => props.onClose()}>
+          <button type="button" class="dialog-cancel" onClick={() => props.onClose()}>
             Cancel
           </button>
         </div>

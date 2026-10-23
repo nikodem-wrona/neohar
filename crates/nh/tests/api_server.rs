@@ -27,10 +27,10 @@ async fn a_method_of_the_contract_runs_on_the_state_actor() {
     // `params` may be left out, and `null` counts as an empty object.
     let reply = c.call("machine.info", Value::Null).await;
     assert_eq!(reply["result"]["label"], "local");
-    let reply = c.call("config.get", json!({"section": "tasks"})).await;
+    let reply = c.call("config.get", json!({"section": "events"})).await;
     assert_eq!(
-        reply["result"]["sections"]["tasks"]["entries"]["ports"]["value"],
-        1
+        reply["result"]["sections"]["events"]["entries"]["sync_retention"]["value"],
+        "7d"
     );
 }
 

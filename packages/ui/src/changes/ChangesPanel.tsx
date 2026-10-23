@@ -1,12 +1,11 @@
 // The Changes tab of the drawer: what changed in the git worktree that
-// holds the folder of the window, the folder of the Files tab. The core finds the worktree. For
-// the worktree of a task, the changes go from the merge base of its base and HEAD. For any other
-// worktree, they are what is not committed. The page names the folder (`changes.follow`), and the
-// core counts and orders the rows (`changes_for:<window>`), fills the head
-// (`changes_head:<window>`) and gives the diff of one file (`changes.diff`). The window follows
-// the projections only while this tab shows, and the core watches the worktree only while a window
-// follows them. A diff loads when the person opens its row, and again when the stamp of the row
-// changes. The page has no timer, and the view is read-only.
+// holds the folder of the window, the folder of the Files tab. The core finds the worktree. The
+// changes go from HEAD: they are what is not committed. The page names the folder
+// (`changes.follow`), and the core counts and orders the rows (`changes_for:<window>`), fills
+// the head (`changes_head:<window>`) and gives the diff of one file (`changes.diff`). The window
+// follows the projections only while this tab shows, and the core watches the worktree only while
+// a window follows them. A diff loads when the person opens its row, and again when the stamp of
+// the row changes. The page has no timer, and the view is read-only.
 
 import { type ChangeRow, type ChangesHead, RpcError } from '@neohar/transport';
 import { createEffect, createMemo, createSignal, For, on, onCleanup, Show } from 'solid-js';
@@ -70,7 +69,7 @@ export function ChangesPanel() {
   const [focusPath, setFocusPath] = createSignal<string | null>(null);
   let list: HTMLUListElement | undefined;
 
-  // The open rows belong to the worktree and the base. Another one closes them.
+  // The open rows belong to the worktree. Another one closes them.
   createEffect(
     on(subject, () => {
       setOpen(new Set<string>());
@@ -156,9 +155,6 @@ export function ChangesPanel() {
                       <span class="changes-branch-name">
                         {shown().branch ?? (shown().changes ? 'Detached HEAD' : '')}
                       </span>
-                      <Show when={shown().base}>
-                        <span class="changes-base"> from {shown().base}</span>
-                      </Show>
                     </div>
                     <div class="changes-root" title={root()}>
                       {root()}
@@ -232,12 +228,6 @@ export function ChangesPanel() {
                                       <span class="changes-dir">{shownRow().dir}</span>
                                       <span class="changes-name">{shownRow().name}</span>
                                     </span>
-                                    <Show when={shownRow().uncommitted && shown().base}>
-                                      <span class="changes-uncommitted" title="Not committed">
-                                        <span aria-hidden="true">●</span>
-                                        <span class="visually-hidden">Not committed</span>
-                                      </span>
-                                    </Show>
                                     <span class="changes-lines">
                                       <Show
                                         when={!shownRow().binary}

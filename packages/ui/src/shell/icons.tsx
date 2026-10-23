@@ -4,7 +4,7 @@
 
 import type { JSX } from 'solid-js';
 
-export type RailIcon = 'workspaces' | 'inbox' | 'timeline' | 'tasks' | 'files' | 'changes';
+export type RailIcon = 'workspaces' | 'inbox' | 'timeline' | 'files' | 'changes';
 
 const PATHS: Record<RailIcon, () => JSX.Element> = {
   // A window with a column at its left.
@@ -25,13 +25,6 @@ const PATHS: Record<RailIcon, () => JSX.Element> = {
       <circle cx="4.5" cy="4" r="1.25" fill="currentColor" />
       <circle cx="4.5" cy="8" r="1.25" fill="currentColor" />
       <circle cx="4.5" cy="12" r="1.25" fill="currentColor" />
-    </>
-  ),
-  // A box with a check mark.
-  tasks: () => (
-    <>
-      <rect x="2.5" y="2.5" width="11" height="11" rx="2" />
-      <path d="m5.5 8.2 1.8 1.8 3.4-3.6" />
     </>
   ),
   // A folder.

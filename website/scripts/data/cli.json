@@ -557,102 +557,6 @@
   },
   {
     "path": [
-      "task"
-    ],
-    "about": "Task workspaces"
-  },
-  {
-    "path": [
-      "task",
-      "create"
-    ],
-    "about": "Keep a draft of a task; with --start, make its worktree, ports and tab and start its agent"
-  },
-  {
-    "path": [
-      "task",
-      "update"
-    ],
-    "about": "Change a draft, or the title of a task that started"
-  },
-  {
-    "path": [
-      "task",
-      "start"
-    ],
-    "about": "Start a draft: its worktree, branch, ports, files, tab and agent"
-  },
-  {
-    "path": [
-      "task",
-      "delete"
-    ],
-    "about": "Remove a draft or a closed task"
-  },
-  {
-    "path": [
-      "task",
-      "list"
-    ],
-    "about": "List the tasks"
-  },
-  {
-    "path": [
-      "task",
-      "show"
-    ],
-    "about": "Show a task"
-  },
-  {
-    "path": [
-      "task",
-      "changes"
-    ],
-    "about": "Count the changes of a task now: its files from the merge base to the worktree"
-  },
-  {
-    "path": [
-      "task",
-      "diff"
-    ],
-    "about": "Show the diff of one changed file of a task"
-  },
-  {
-    "path": [
-      "task",
-      "close"
-    ],
-    "about": "Close a task"
-  },
-  {
-    "path": [
-      "favorite"
-    ],
-    "about": "Favorite folders for new tasks"
-  },
-  {
-    "path": [
-      "favorite",
-      "list"
-    ],
-    "about": "List the favorite folders, the one used last first"
-  },
-  {
-    "path": [
-      "favorite",
-      "add"
-    ],
-    "about": "Add the repository of a folder, or of the current directory, to the favorites"
-  },
-  {
-    "path": [
-      "favorite",
-      "remove"
-    ],
-    "about": "Remove a folder, or the current directory, from the favorites"
-  },
-  {
-    "path": [
       "phone"
     ],
     "about": "Phones that supervise this machine"
@@ -715,29 +619,9 @@
   {
     "path": [
       "fs",
-      "dirs"
-    ],
-    "about": "List the folders in a folder of the machine, or in its home folder"
-  },
-  {
-    "path": [
-      "fs",
       "list"
     ],
     "about": "List the folders and files in a folder of the machine, or in the current directory"
-  },
-  {
-    "path": [
-      "worktree"
-    ],
-    "about": "Git worktrees of the tasks"
-  },
-  {
-    "path": [
-      "worktree",
-      "list"
-    ],
-    "about": "List the worktrees"
   },
   {
     "path": [

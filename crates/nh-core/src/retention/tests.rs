@@ -59,7 +59,7 @@ fn a_pass_with_a_short_retention_deletes_old_events_and_truncates_a_cursor_behin
     append(&mut store, "pane.created", now - 5 * HOUR_MS); // 1: past both
     append(&mut store, "interaction.opened", now - 4 * HOUR_MS); // 2: past both
     append(&mut store, "pane.created", now - 2 * HOUR_MS); // 3: past the sync retention
-    append(&mut store, "task.created", now - 2 * HOUR_MS); // 4: inside the audit retention
+    append(&mut store, "policy.added", now - 2 * HOUR_MS); // 4: inside the audit retention
     append(&mut store, "pane.created", now - HOUR_MS / 2); // 5: fresh
 
     let done = pass(&mut store, &limits, now).expect("a pass");
@@ -76,7 +76,7 @@ fn a_pass_with_a_short_retention_deletes_old_events_and_truncates_a_cursor_behin
         .into_iter()
         .map(|event| event.kind)
         .collect();
-    assert_eq!(kept, ["task.created", "pane.created"]);
+    assert_eq!(kept, ["policy.added", "pane.created"]);
     // A client that read nothing yet missed deleted events: it takes a new snapshot.
     let EventsRead::Truncated { reason, cursor } = read(&store, &start) else {
         panic!("the old cursor is not truncated");

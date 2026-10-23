@@ -213,7 +213,6 @@ struct Plan {
     place: Where,
     cwd: Option<String>,
     name: Option<String>,
-    task: Option<nh_proto::api::ids::TaskId>,
     prompt: Option<String>,
     model: Option<String>,
     /// The screen manifest and the rule that says the input box is there, and how long to wait.
@@ -314,16 +313,6 @@ fn plan_start(parts: &Parts<'_>, p: &AgentStart) -> Result<Plan, RpcError> {
         place: place_of(parts, &p.placement)?,
         cwd: p.cwd.clone(),
         name: p.name.clone(),
-        task: match &p.task {
-            Some(reference) => Some(
-                parts
-                    .state
-                    .tasks
-                    .resolve(reference)
-                    .ok_or_else(|| RpcError::new(ErrorCode::NotFound, "no such task"))?,
-            ),
-            None => None,
-        },
         prompt: p.prompt.clone(),
         model: p.model.clone(),
         ready: ready_of(manifest),
@@ -331,7 +320,7 @@ fn plan_start(parts: &Parts<'_>, p: &AgentStart) -> Result<Plan, RpcError> {
 }
 
 /// A model that is not blank and an effort level that a command line can carry. The
-/// harness checks the names. `task.create` makes this check before it makes the worktree.
+/// harness checks the names.
 pub(crate) fn check_words(model: Option<&str>, effort: Option<&str>) -> Result<(), RpcError> {
     if model.is_some_and(|model| model.trim().is_empty()) {
         return Err(RpcError::invalid_params("the model is empty"));
@@ -435,7 +424,6 @@ fn plan_resume(parts: &Parts<'_>, p: &AgentResume) -> Result<Plan, RpcError> {
         place,
         cwd,
         name,
-        task: run.task,
         prompt: None,
         model: run.model.clone(),
         ready: ready_of(manifest),
@@ -764,7 +752,6 @@ impl Control {
             model: None,
             effort: None,
             args: Vec::new(),
-            task: None,
         };
         self.handle.spawn(async move {
             if let Err(error) = this.start(request).await {
@@ -1005,7 +992,6 @@ impl Control {
         let expected = Expected {
             harness: plan.harness,
             name: plan.name.clone(),
-            task: plan.task,
             session: plan.session.clone(),
             model: plan.model.clone(),
         };

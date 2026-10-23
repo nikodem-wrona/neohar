@@ -124,10 +124,9 @@ describe('the code of the board', () => {
 });
 
 describe('workOf', () => {
-  test('the title of the task, else the title of the pane, else the harness', () => {
-    expect(workOf(run({}), { title: 'Fix the login' }, { title: 'zsh' })).toBe('Fix the login');
-    expect(workOf(run({}), { title: '' }, { title: 'zsh' })).toBe('zsh');
-    expect(workOf(run({}), undefined, { title: '' })).toBe('Claude Code');
-    expect(workOf(run({ harness: 'codex' }), undefined, undefined)).toBe('Codex');
+  test('the title of the pane, else the harness', () => {
+    expect(workOf(run({}), { title: 'zsh' })).toBe('zsh');
+    expect(workOf(run({}), { title: '' })).toBe('Claude Code');
+    expect(workOf(run({ harness: 'codex' }), undefined)).toBe('Codex');
   });
 });

@@ -107,7 +107,7 @@ and which capabilities each version range has. The two built-ins are compiled in
 | `[detect]` | `priority` and `[[detect.process]]` rules: `exe_basename`, `interpreter` with `script_regex`, `exe_path_regex`, `argv_regex`, `argv0_basename`, `env` |
 | `[version]` | The command and a regex with a group `v`. The probe is cached by path and modification time |
 | `[auth]` | The login probe, the rules `logged_in` and `logged_out`, the method and a `login_hint` |
-| `[launch]` | `argv`, `argv_with_session`, `model_arg`, `effort_arg`, the `models` and `efforts` of the task form, and the `ready` screen rule. Codex reads its models from `model_catalog = "codex"` |
+| `[launch]` | `argv`, `argv_with_session`, `model_arg`, `effort_arg`, the `models` and `efforts` that `agent.choices` offers, and the `ready` screen rule. Codex reads its models from `model_catalog = "codex"` |
 | `[resume]` | `argv` with `{resume_id}`, `continue_argv`, `needs_cwd` |
 | `[[capabilities]]` | A `semver` range, a mode and the capabilities it grants |
 | `[yolo]`, `[screen]`, `[ui]` | Yolo flags and sequences, the screen manifest id, interrupt and quit keys |

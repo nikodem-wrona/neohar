@@ -10,8 +10,8 @@ use serde_json::Value;
 use super::{
     calls::system::PolicyScope,
     common::{Harness, Risk, Source, Via, wire},
-    ids::{DeviceId, GroupId, InteractionId, PaneId, RunId, TabId, TaskId, WindowId, WorkspaceId},
-    model::{AttentionReason, InteractionKind, TaskStatus},
+    ids::{DeviceId, GroupId, InteractionId, PaneId, RunId, TabId, WindowId, WorkspaceId},
+    model::{AttentionReason, InteractionKind},
     time::Timestamp,
 };
 
@@ -235,25 +235,7 @@ wire! {
         pub window: WindowId,
     }
 
-    // --- payloads: tasks and notifications ---
-
-    /// The payload of `task.created` and `task.closed`.
-    pub struct TaskEvent {
-        pub task: TaskId,
-        pub handle: String,
-        pub title: String,
-    }
-
-    pub struct TaskStatusChanged {
-        pub task: TaskId,
-        pub from: TaskStatus,
-        pub to: TaskStatus,
-    }
-
-    /// The payload of `favorite.added` and `favorite.removed`.
-    pub struct FavoriteEvent {
-        pub path: String,
-    }
+    // --- payloads: phones ---
 
     /// The payload of `phone.paired`, `phone.renamed` and `phone.removed`. The
     /// event never holds a code or a token.
@@ -412,13 +394,6 @@ events! {
     LayoutChanged = "layout.changed" (LayoutChanged);
     WindowOpened = "window.opened" (WindowEvent);
     WindowClosed = "window.closed" (WindowEvent);
-    TaskCreated = "task.created" (TaskEvent);
-    TaskStatusChanged = "task.status_changed" (TaskStatusChanged);
-    TaskClosed = "task.closed" (TaskEvent);
-    TaskChanged = "task.changed" (TaskEvent);
-    TaskDeleted = "task.deleted" (TaskEvent);
-    FavoriteAdded = "favorite.added" (FavoriteEvent);
-    FavoriteRemoved = "favorite.removed" (FavoriteEvent);
     PhonePaired = "phone.paired" (PhoneEvent);
     PhoneRenamed = "phone.renamed" (PhoneEvent);
     PhoneRemoved = "phone.removed" (PhoneEvent);

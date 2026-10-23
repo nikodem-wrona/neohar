@@ -475,19 +475,13 @@ fn turn_ended(state: &State, run: RunId) -> Option<HostNotification> {
     })
 }
 
-/// What a run works on, in the words of the monitor: the title of its task, else the
-/// title of its pane, else the name of its harness.
+/// What a run works on, in the words of the monitor: the title of its pane, else the name of its
+/// harness.
 fn work(state: &State, run: &crate::agents::runs::Run) -> String {
-    let task = run
-        .task
-        .and_then(|task| state.tasks.get(task))
-        .map(|task| task.row.title.clone());
-    let pane = run
-        .pane
+    run.pane
         .and_then(|pane| state.layout.panes.get(&pane))
-        .and_then(|entry| entry.facts.title.clone());
-    task.filter(|title| !title.is_empty())
-        .or(pane.filter(|title| !title.is_empty()))
+        .and_then(|entry| entry.facts.title.clone())
+        .filter(|title| !title.is_empty())
         .unwrap_or_else(|| harness_name(run.harness).to_owned())
 }
 

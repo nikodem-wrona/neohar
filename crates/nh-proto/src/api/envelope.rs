@@ -174,11 +174,9 @@ pub enum ErrorCode {
     AgentLive,
     /// The agent has ended, and the call needs a live agent.
     AgentGone,
-    /// The task exists, but its agent did not start. `details` has `{task}`.
-    AgentFailed,
     /// The run is not linked to its pane, so the core types nothing into it.
     NotBound,
-    /// A live agent or a task has the name already.
+    /// A live agent has the name already.
     NameTaken,
     /// The run in the pane is of another harness than the call names.
     HarnessMismatch,
@@ -204,10 +202,6 @@ pub enum ErrorCode {
     ConfigRule,
     /// A command of git failed.
     GitFailed,
-    /// The setup command of a task failed.
-    SetupFailed,
-    /// The port range of a task does not have sufficient free ports.
-    NoFreePorts,
     /// The core cannot forward the port of a machine.
     ForwardFailed,
     /// The client decodes another version of the frame format.
@@ -271,7 +265,6 @@ impl ErrorCode {
         Self::HolderError,
         Self::AgentLive,
         Self::AgentGone,
-        Self::AgentFailed,
         Self::NotBound,
         Self::NameTaken,
         Self::HarnessMismatch,
@@ -286,8 +279,6 @@ impl ErrorCode {
         Self::Conflict,
         Self::ConfigRule,
         Self::GitFailed,
-        Self::SetupFailed,
-        Self::NoFreePorts,
         Self::ForwardFailed,
         Self::ProtoUnsupported,
         Self::IoError,
@@ -322,7 +313,6 @@ impl ErrorCode {
             Self::HolderError => "holder_error",
             Self::AgentLive => "agent_live",
             Self::AgentGone => "agent_gone",
-            Self::AgentFailed => "agent_failed",
             Self::NotBound => "not_bound",
             Self::NameTaken => "name_taken",
             Self::HarnessMismatch => "harness_mismatch",
@@ -337,8 +327,6 @@ impl ErrorCode {
             Self::Conflict => "conflict",
             Self::ConfigRule => "config_rule",
             Self::GitFailed => "git_failed",
-            Self::SetupFailed => "setup_failed",
-            Self::NoFreePorts => "no_free_ports",
             Self::ForwardFailed => "forward_failed",
             Self::ProtoUnsupported => "proto_unsupported",
             Self::IoError => "io_error",

@@ -2,7 +2,7 @@
 //!
 //! Every object has a ULID inside the core. The API shows a ULID as its 26-character text. A
 //! person types a short **handle**: a workspace `w3`, a tab `w3:t2`, a pane `w3:p5`, an
-//! interaction `i42`, a task `k7`, a preview `v4`. A handle on another machine has the label of the
+//! interaction `i42`, a preview `v4`. A handle on another machine has the label of the
 //! machine in front: `devbox/w3:p5`. A handle is assigned once and never changes. The API
 //! accepts both forms in a [`Ref`]. An agent run can also be addressed by its unique name.
 
@@ -18,7 +18,7 @@ use ulid::Ulid;
 pub enum IdError {
     #[error("not a ULID: \"{0}\"")]
     NotUlid(String),
-    #[error("not a handle: \"{0}\" (examples: w3, w3:t2, w3:p5, i42, k7, v4, devbox/w3:p5)")]
+    #[error("not a handle: \"{0}\" (examples: w3, w3:t2, w3:p5, i42, v4, devbox/w3:p5)")]
     NotHandle(String),
     #[error("\"{given}\" is a {found} handle, and this call needs {wanted}")]
     WrongKind {
@@ -119,10 +119,6 @@ ulid_id!(
     InteractionId, "interaction"
 );
 ulid_id!(
-    /// A task workspace.
-    TaskId, "task"
-);
-ulid_id!(
     /// A window of the app.
     WindowId, "window"
 );
@@ -151,7 +147,6 @@ pub enum Target {
     Tab { workspace: u32, tab: u32 },
     Pane { workspace: u32, pane: u32 },
     Interaction(u32),
-    Task(u32),
     Preview(u32),
 }
 
@@ -163,7 +158,6 @@ impl Target {
             Self::Tab { .. } => "tab",
             Self::Pane { .. } => "pane",
             Self::Interaction(_) => "interaction",
-            Self::Task(_) => "task",
             Self::Preview(_) => "preview",
         }
     }
@@ -220,8 +214,6 @@ impl FromStr for Handle {
             Target::Workspace(n)
         } else if let Some(n) = body_number(body, 'i') {
             Target::Interaction(n)
-        } else if let Some(n) = body_number(body, 'k') {
-            Target::Task(n)
         } else if let Some(n) = body_number(body, 'v') {
             Target::Preview(n)
         } else {
@@ -246,7 +238,6 @@ impl fmt::Display for Handle {
             Target::Tab { workspace, tab } => write!(f, "w{workspace}:t{tab}"),
             Target::Pane { workspace, pane } => write!(f, "w{workspace}:p{pane}"),
             Target::Interaction(n) => write!(f, "i{n}"),
-            Target::Task(n) => write!(f, "k{n}"),
             Target::Preview(n) => write!(f, "v{n}"),
         }
     }
@@ -274,7 +265,7 @@ impl JsonSchema for Handle {
         schemars::json_schema!({
             "type": "string",
             "pattern": "^([a-z0-9][a-z0-9-]{0,31}/)?(w[0-9]+|w[0-9]+:t[0-9]+|w[0-9]+:p[0-9]+|i[0-9]+|k[0-9]+|v[0-9]+)$",
-            "description": "A short handle: w3, w3:t2, w3:p5, i42, k7, v4, with devbox/ in front on another machine."
+            "description": "A short handle: w3, w3:t2, w3:p5, i42, v4, with devbox/ in front on another machine."
         })
     }
 }
@@ -325,7 +316,6 @@ ref_kind!(
     false,
     Target::Interaction(_)
 );
-ref_kind!(TaskId, "a task", false, Target::Task(_));
 ref_kind!(RunId, "an agent run", true);
 ref_kind!(GroupId, "a group", false);
 ref_kind!(WindowId, "a window", false);
@@ -467,7 +457,6 @@ mod tests {
             "w3:t2",
             "w3:p5",
             "i42",
-            "k7",
             "v4",
             "devbox/w3:p5",
             "a1-b/i1",
@@ -542,7 +531,6 @@ mod tests {
             }
         ));
         assert!("i42".parse::<Ref<InteractionId>>().is_ok());
-        assert!("k7".parse::<Ref<TaskId>>().is_ok());
     }
 
     #[test]

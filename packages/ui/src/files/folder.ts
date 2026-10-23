@@ -3,7 +3,6 @@
 // changes of the git worktree that holds it.
 
 import type { Stores } from '../stores';
-import { taskOfTab } from '../tasks/model';
 import { rootOf } from './model';
 
 export function windowFolder(stores: Stores, windowId: string): string | undefined {
@@ -14,5 +13,5 @@ export function windowFolder(stores: Stores, windowId: string): string | undefin
   const focused = win?.focused_pane;
   const pane =
     focused && win.visible_panes.includes(focused) ? stores.panes.state.byKey[focused] : undefined;
-  return rootOf(pane, taskOfTab(stores.tasks.rows(), win?.tab ?? undefined), workspace);
+  return rootOf(pane, workspace);
 }

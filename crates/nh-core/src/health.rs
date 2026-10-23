@@ -9,7 +9,7 @@
 //! - **holder protocols**: the protocol versions that the holders of this session speak;
 //! - **unvalidated harnesses**: harness versions that no recording has covered;
 //! - **warnings**: notes for the doctor, each with an id. A part of the core sets its warnings
-//!   by group (`config`, `task`) and replaces them as a set, so a warning that is gone is gone.
+//!   by group (`config`, `harness`) and replaces them as a set, so a warning that is gone is gone.
 //!
 //! A report that changes nothing makes no patch.
 

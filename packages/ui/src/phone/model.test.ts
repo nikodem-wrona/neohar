@@ -38,7 +38,6 @@ describe('the route of the hash', () => {
     expect(routeOf(`#/run/${RUN}`)).toEqual({ kind: 'run', run: RUN });
     expect(routeOf(`#/pane/${RUN}`)).toEqual({ kind: 'pane', pane: RUN });
     expect(routeOf(`#/interaction/${RUN}`)).toEqual({ kind: 'interaction', interaction: RUN });
-    expect(routeOf(`#/task/${RUN}`)).toEqual({ kind: 'task', task: RUN });
     expect(routeOf('#/settings')).toEqual({ kind: 'settings', section: null });
     expect(routeOf('#/settings/phone')).toEqual({ kind: 'settings', section: 'phone' });
     expect(routeOf('#/machine/studio')).toEqual({ kind: 'machine', machine: 'studio' });
@@ -52,6 +51,7 @@ describe('the route of the hash', () => {
       '#/run/not-a-run',
       `#/run/${RUN}/more`,
       '#/other',
+      `#/task/${RUN}`,
       '#/settings/A!',
       '#/machine/',
       '#/machine/Studio',
@@ -67,7 +67,6 @@ describe('the route of the hash', () => {
       { kind: 'run', run: RUN },
       { kind: 'pane', pane: RUN },
       { kind: 'interaction', interaction: RUN },
-      { kind: 'task', task: RUN },
       { kind: 'settings', section: null },
       { kind: 'settings', section: 'phone' },
       { kind: 'machine', machine: 'build-1' },

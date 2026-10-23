@@ -234,11 +234,11 @@ fn api_call_reads_params_from_stdin_and_defaults_to_an_empty_object() {
     let ran = run_with(
         &["--socket", &socket, "api", "call", "config.get", "-"],
         &env(None, None),
-        r#"{"section":"tasks"}"#,
+        r#"{"section":"events"}"#,
         false,
     );
     assert_eq!(ran.code, 0, "{}", ran.err);
-    assert_eq!(core.requests()[0]["params"], json!({"section": "tasks"}));
+    assert_eq!(core.requests()[0]["params"], json!({"section": "events"}));
 }
 
 #[test]

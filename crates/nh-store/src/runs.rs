@@ -35,7 +35,6 @@ pub struct RunRow {
     pub yolo: bool,
     pub resume: Option<Value>,
     pub model: Option<String>,
-    pub task: Option<Ulid>,
     /// The process that the run is: its pid and its start time.
     pub process: Option<(i32, u64)>,
     pub started_at: i64,
@@ -44,8 +43,7 @@ pub struct RunRow {
 
 const COLUMNS: &str = "id, pane_id, harness, manifest, name, harness_session_id,
     previous_session_ids_json, transcript_path, binding, binding_confidence, launch_mode, version,
-    capabilities_json, facets_json, yolo, resume_json, model, task_id, pid, pid_start, started_at,
-    ended_at";
+    capabilities_json, facets_json, yolo, resume_json, model, pid, pid_start, started_at, ended_at";
 
 fn bad(what: &str, error: impl std::fmt::Display) -> StoreError {
     StoreError::BadValue(format!("{what}: {error}"))
@@ -57,8 +55,8 @@ fn ulid(text: &str, what: &str) -> Result<Ulid, StoreError> {
 
 fn from_row(row: &Row<'_>) -> Result<RunRow, StoreError> {
     let text = |index: usize| row.get::<_, Option<String>>(index);
-    let pid: Option<i64> = row.get(18)?;
-    let start: Option<i64> = row.get(19)?;
+    let pid: Option<i64> = row.get(17)?;
+    let start: Option<i64> = row.get(18)?;
     let json = |index: usize, what: &str| -> Result<Value, StoreError> {
         let text: String = row.get(index)?;
         serde_json::from_str(&text).map_err(|e| bad(what, e))
@@ -84,7 +82,6 @@ fn from_row(row: &Row<'_>) -> Result<RunRow, StoreError> {
             .map(|t| serde_json::from_str(&t).map_err(|e| bad("resume", e)))
             .transpose()?,
         model: text(16)?,
-        task: text(17)?.map(|t| ulid(&t, "run task")).transpose()?,
         process: match (pid, start) {
             (Some(pid), Some(start)) => Some((
                 i32::try_from(pid).map_err(|e| bad("run pid", e))?,
@@ -92,8 +89,8 @@ fn from_row(row: &Row<'_>) -> Result<RunRow, StoreError> {
             )),
             _ => None,
         },
-        started_at: row.get(20)?,
-        ended_at: row.get(21)?,
+        started_at: row.get(19)?,
+        ended_at: row.get(20)?,
     })
 }
 
@@ -107,9 +104,9 @@ impl Tx<'_> {
             "INSERT INTO agent_runs (id, pane_id, harness, manifest, name, harness_session_id,
                  previous_session_ids_json, transcript_path, binding, binding_confidence,
                  launch_mode, version, capabilities_json, facets_json, yolo, resume_json, model,
-                 task_id, pid, pid_start, started_at, ended_at)
+                 pid, pid_start, started_at, ended_at)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17,
-                 ?18, ?19, ?20, ?21, ?22)
+                 ?18, ?19, ?20, ?21)
              ON CONFLICT (id) DO UPDATE SET pane_id = excluded.pane_id,
                  manifest = excluded.manifest, name = excluded.name,
                  harness_session_id = excluded.harness_session_id,
@@ -118,7 +115,7 @@ impl Tx<'_> {
                  binding_confidence = excluded.binding_confidence, version = excluded.version,
                  capabilities_json = excluded.capabilities_json, facets_json = excluded.facets_json,
                  yolo = excluded.yolo, resume_json = excluded.resume_json, model = excluded.model,
-                 task_id = excluded.task_id, pid = excluded.pid, pid_start = excluded.pid_start,
+                 pid = excluded.pid, pid_start = excluded.pid_start,
                  ended_at = excluded.ended_at",
             params![
                 run.id.to_string(),
@@ -138,7 +135,6 @@ impl Tx<'_> {
                 i64::from(run.yolo),
                 run.resume.as_ref().map(Value::to_string),
                 run.model,
-                run.task.map(|t| t.to_string()),
                 run.process.map(|(pid, _)| i64::from(pid)),
                 run.process
                     .map(|(_, start)| i64::try_from(start).unwrap_or(i64::MAX)),

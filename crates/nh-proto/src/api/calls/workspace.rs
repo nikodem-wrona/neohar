@@ -341,36 +341,6 @@ wire! {
         pub path: Option<String>,
     }
 
-    /// `fs.dirs`: the folders in a folder of the machine, for the folder browser of the task
-    /// dialog.
-    pub struct FsDirs {
-        /// An absolute path or a path under `~`. Without it, the home folder of the machine.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        pub path: Option<String>,
-    }
-
-    /// The folders of a folder, in the order in which the browser shows them. The favorites
-    /// come first, then the other folders by name, without case. Hidden folders are not there.
-    pub struct FsDirsResult {
-        /// The folder that the core listed, as an absolute path.
-        pub path: String,
-        /// The folder above it. The root folder has none.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        pub parent: Option<String>,
-        pub entries: Vec<FsDirEntry>,
-        /// True when the folder has more folders than the core sends (2,000).
-        pub truncated: bool,
-    }
-
-    pub struct FsDirEntry {
-        /// The name that the browser shows.
-        pub name: String,
-        /// The absolute path that the browser sends back to open the folder or to choose it.
-        pub path: String,
-        /// True for the root of a git repository.
-        pub repo: bool,
-    }
-
     /// `fs.list`: the entries of a folder of the machine, for the Files tab.
     pub struct FsList {
         /// An absolute path.

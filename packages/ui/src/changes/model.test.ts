@@ -12,7 +12,6 @@ function row(path: string, stamp: number): ChangeRow {
     add: 1,
     del: 0,
     binary: false,
-    uncommitted: false,
     stamp,
   };
 }
@@ -21,9 +20,8 @@ function head(partial: Partial<ChangesHead>): ChangesHead {
   return {
     folder: '/r/src',
     root: '/r',
-    branch: 'neohar/fix-it',
-    base: 'main',
-    changes: { files: 1, commits: 2, merge_base: 'abc1234', truncated: false },
+    branch: 'main',
+    changes: { files: 3, truncated: false },
     diff_stats: { add: 12, del: 3 },
     ...partial,
   };
@@ -37,19 +35,15 @@ describe('the Changes tab', () => {
     expect(letters).toEqual(['M', 'A', 'D', 'R', 'U']);
   });
 
-  test('the head says the commits, the files, the lines and the merge base of the core', () => {
-    expect(headFacts(head({}))).toEqual(['2 commits', '1 file', '+12 −3', 'from abc1234']);
+  test('the head says the files and the lines of the core', () => {
+    expect(headFacts(head({}))).toEqual(['3 files', '+12 −3']);
+    expect(headFacts(head({ changes: { files: 1 }, diff_stats: null }))).toEqual(['1 file']);
     expect(headFacts(head({ changes: null, diff_stats: null }))).toEqual([]);
   });
 
-  test('a worktree that is not of a task has no commits and no merge base', () => {
-    const changes = { files: 3, commits: 0, merge_base: 'def5678', truncated: false };
-    expect(headFacts(head({ base: null, changes }))).toEqual(['3 files', '+12 −3']);
-  });
-
-  test('the subject is the worktree and the base, not the folder', () => {
+  test('the subject is the worktree, not the folder', () => {
     expect(subjectOf(head({}))).toBe(subjectOf(head({ folder: '/r/docs' })));
-    expect(subjectOf(head({}))).not.toBe(subjectOf(head({ base: null })));
+    expect(subjectOf(head({}))).not.toBe(subjectOf(head({ root: '/other' })));
     expect(subjectOf(head({ root: null }))).toBeNull();
     expect(subjectOf(undefined)).toBeNull();
   });

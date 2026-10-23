@@ -11,12 +11,12 @@ use serde_json::Value;
 
 use super::{
     common::wire,
-    ids::{IdError, PaneId, RunId, TaskId, WindowId},
+    ids::{IdError, PaneId, RunId, WindowId},
     model::{
-        AgentValue, AttentionValue, ChangeRow, ChangesHead, FavoriteValue, HarnessValue,
-        HealthValue, InteractionValue, JobValue, LimitValue, LinkValue, MachineValue,
-        NotificationValue, PaletteValue, PaneValue, PhonePairingValue, PhoneStatusValue,
-        PhoneValue, SettingsSection, TaskValue, TimelineItem, WindowValue, WorkspaceValue,
+        AgentValue, AttentionValue, ChangeRow, ChangesHead, HarnessValue, HealthValue,
+        InteractionValue, JobValue, LimitValue, LinkValue, MachineValue, NotificationValue,
+        PaletteValue, PaneValue, PhonePairingValue, PhoneStatusValue, PhoneValue, SettingsSection,
+        TimelineItem, WindowValue, WorkspaceValue,
     },
 };
 
@@ -34,11 +34,6 @@ pub enum Projection {
     Interactions,
     /// The items of one run (`timeline:<run>`).
     Timeline(RunId),
-    Tasks,
-    /// The changed files of one task that started (`changes:<task>`).
-    Changes(TaskId),
-    /// The favorite folders of the form of a new task, the one used last first.
-    Favorites,
     Notifications,
     Machines,
     /// The harnesses of this machine: installed, version, login state.
@@ -71,15 +66,13 @@ pub enum Projection {
 
 impl Projection {
     /// The projections without a parameter, in a fixed order.
-    pub const STATIC: [Self; 18] = [
+    pub const STATIC: [Self; 16] = [
         Self::Windows,
         Self::Tree,
         Self::Panes,
         Self::Agents,
         Self::Attention,
         Self::Interactions,
-        Self::Tasks,
-        Self::Favorites,
         Self::Notifications,
         Self::Machines,
         Self::Harnesses,
@@ -115,9 +108,6 @@ impl Projection {
             Self::Attention => "attention",
             Self::Interactions => "interactions",
             Self::Timeline(_) => "timeline",
-            Self::Tasks => "tasks",
-            Self::Changes(_) => "changes",
-            Self::Favorites => "favorites",
             Self::Notifications => "notifications",
             Self::Machines => "machines",
             Self::Harnesses => "harnesses",
@@ -142,7 +132,6 @@ impl fmt::Display for Projection {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Timeline(run) => write!(f, "timeline:{run}"),
-            Self::Changes(task) => write!(f, "changes:{task}"),
             Self::PaneText(pane) => write!(f, "pane_text:{pane}"),
             Self::AgentsFor(window) => write!(f, "agents_for:{window}"),
             Self::ChangesFor(window) => write!(f, "changes_for:{window}"),
@@ -158,9 +147,6 @@ impl FromStr for Projection {
     fn from_str(text: &str) -> Result<Self, IdError> {
         if let Some(run) = text.strip_prefix("timeline:") {
             return run.parse().map(Self::Timeline);
-        }
-        if let Some(task) = text.strip_prefix("changes:") {
-            return task.parse().map(Self::Changes);
         }
         if let Some(pane) = text.strip_prefix("pane_text:") {
             return pane.parse().map(Self::PaneText);
@@ -204,8 +190,8 @@ impl JsonSchema for Projection {
     fn json_schema(_: &mut SchemaGenerator) -> Schema {
         schemars::json_schema!({
             "type": "string",
-            "pattern": "^(windows|tree|panes|agents|attention|interactions|tasks|favorites|notifications|machines|harnesses|limits|jobs|palette|settings|phones|phone_pairing|phone_status|health|link|timeline:[0-9A-HJKMNP-TV-Z]{26}|changes:[0-9A-HJKMNP-TV-Z]{26}|pane_text:[0-9A-HJKMNP-TV-Z]{26}|agents_for:[0-9A-HJKMNP-TV-Z]{26}|changes_for:[0-9A-HJKMNP-TV-Z]{26}|changes_head:[0-9A-HJKMNP-TV-Z]{26})$",
-            "description": "The name of a projection. timeline:<run>, changes:<task>, pane_text:<pane>, agents_for:<window>, changes_for:<window> and changes_head:<window> take an id."
+            "pattern": "^(windows|tree|panes|agents|attention|interactions|notifications|machines|harnesses|limits|jobs|palette|settings|phones|phone_pairing|phone_status|health|link|timeline:[0-9A-HJKMNP-TV-Z]{26}|pane_text:[0-9A-HJKMNP-TV-Z]{26}|agents_for:[0-9A-HJKMNP-TV-Z]{26}|changes_for:[0-9A-HJKMNP-TV-Z]{26}|changes_head:[0-9A-HJKMNP-TV-Z]{26})$",
+            "description": "The name of a projection. timeline:<run>, pane_text:<pane>, agents_for:<window>, changes_for:<window> and changes_head:<window> take an id."
         })
     }
 }
@@ -299,9 +285,6 @@ pub fn specs() -> Vec<ProjectionSpec> {
         spec!("attention", "run id", AttentionValue),
         spec!("interactions", "interaction id", InteractionValue),
         spec!("timeline", "item id", TimelineItem, param "run id"),
-        spec!("tasks", "task id", TaskValue),
-        spec!("changes", "path", ChangeRow, param "task id"),
-        spec!("favorites", "path", FavoriteValue),
         spec!("notifications", "notification id", NotificationValue),
         spec!("machines", "machine label", MachineValue),
         spec!("harnesses", "harness id", HarnessValue),
@@ -334,9 +317,6 @@ mod tests {
         all.push(Projection::Link);
         all.push(Projection::Timeline(run));
         all.push(Projection::PaneText(pane));
-        all.push(Projection::Changes(
-            "01M4F1W7EM2GN3EV6NHXZJEGGD".parse().expect("an id"),
-        ));
         all.push(Projection::AgentsFor(
             "01M4F1W7EM2GN3EV6NHXZJEGGC".parse().expect("an id"),
         ));

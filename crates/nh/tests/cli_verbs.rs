@@ -113,9 +113,17 @@ async fn send_keys_types_into_a_pane_and_read_prints_its_text() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn config_set_takes_json_or_a_word_and_get_shows_it() {
     let h = Harness::start_layout();
-    assert_eq!(nh(&h, &["config", "set", "tasks.ports", "2"]).await.code, 0);
-    let got = nh(&h, &["config", "get", "tasks"]).await.json();
-    assert_eq!(got["sections"]["tasks"]["entries"]["ports"]["value"], 2);
+    assert_eq!(
+        nh(&h, &["config", "set", "phone.font_size", "14"])
+            .await
+            .code,
+        0
+    );
+    let got = nh(&h, &["config", "get", "phone"]).await.json();
+    assert_eq!(
+        got["sections"]["phone"]["entries"]["font_size"]["value"],
+        14
+    );
     assert_eq!(
         nh(&h, &["config", "set", "approvals.mode", "gate"])
             .await

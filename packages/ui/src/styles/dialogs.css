@@ -1,5 +1,5 @@
 /* What lies over the window: the palette on the command line, the search of the scrollback, the
-   question before a close, and the task dialog. */
+   question before a close, the large view of a file, and the dialog of the settings. */
 @layer components {
   /* --- the palette: the command line, open ------------------------------------------------------ */
 
@@ -233,10 +233,9 @@
   /* --- dialogs and banners ---------------------------------------------------------------------- */
 
   /* The question before a tab or a workspace closes with programs in it. */
-  /* The question and the task dialog are modal `<dialog>` elements in the top layer. The
+  /* The question and the large view of a file are modal `<dialog>` elements in the top layer. The
      backdrop is a literal colour: a custom property does not reach `::backdrop` in every WebKit. */
   .confirm::backdrop,
-  .task-dialog::backdrop,
   .file-modal::backdrop {
     background: rgb(0 0 0 / 0.45);
     -webkit-backdrop-filter: blur(4px);
@@ -301,8 +300,8 @@
     background: var(--danger-hover);
   }
 
-  /* The dialog floats over the window, above the panes and below the question of a close. */
-  .task-dialog {
+  /* A dialog of the settings, for example the pairing of a phone. */
+  .dialog {
     width: min(84ch, calc(100vw - 32px));
     max-width: none;
     max-height: calc(92vh - 16px);
@@ -313,17 +312,12 @@
     color: var(--text);
   }
 
-  .task-dialog[open] {
-    display: flex;
-    flex-direction: column;
-  }
-
   /* The box takes the focus of a click only so that Escape reaches it; its border shows it already. */
-  .task-dialog:focus {
+  .dialog:focus {
     outline: none;
   }
 
-  .task-dialog-title {
+  .dialog-title {
     position: sticky;
     top: 0;
     z-index: 1;
@@ -335,173 +329,42 @@
     overflow-wrap: anywhere;
   }
 
-  .task-dialog-text {
+  .dialog-text {
     margin: 0;
     color: var(--text-dim);
   }
 
-  .task-form {
-    display: flex;
-    flex-direction: column;
-    gap: var(--s3);
-    padding: 0 var(--s4) var(--s4);
-  }
-
-  .task-field,
-  .task-pair label {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    color: var(--text-dim);
-  }
-
-  .task-path {
-    display: flex;
-    gap: 6px;
-  }
-
-  .task-path input {
-    flex: 1;
-    min-width: 0;
-  }
-
-  .task-path button {
-    flex: none;
-  }
-
-  .task-form input,
-  .task-form select,
-  .task-form textarea {
-    padding: 4px 8px;
-    border: 1px solid var(--text-dim);
-    background: var(--bg);
-    color: var(--text);
-    font: inherit;
-  }
-
-  .task-form input::placeholder,
-  .task-form textarea::placeholder {
-    color: var(--text-dim);
-  }
-
-  .task-form textarea {
-    min-height: 7lh;
-    resize: vertical;
-  }
-
-  .task-form input:focus,
-  .task-form select:focus,
-  .task-form textarea:focus {
-    border-color: var(--text);
-    outline: none;
-  }
-
-  /* The agent, the model and the effort level side by side, or one above the other when the
-     window is narrow. The names of the models are longer than the effort levels. */
-  .task-pair {
+  .dialog-buttons {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--line);
   }
 
-  .task-pair .task-agent {
-    flex: 1 1 140px;
-    min-width: 0;
-  }
-
-  .task-pair .task-model {
-    flex: 2 1 180px;
-    min-width: 0;
-  }
-
-  .task-pair .task-effort {
-    flex: 1 1 110px;
-    min-width: 0;
-  }
-
-  .task-files {
-    margin: 0;
-    padding: 0;
-    list-style: none;
-  }
-
-  .task-files:empty {
-    display: none;
-  }
-
-  .task-file {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto auto;
-    gap: 0 1ch;
-    align-items: center;
-    padding: 0 4px;
-    line-height: var(--row);
-    color: var(--text);
-    border-bottom: 1px solid var(--line);
-  }
-
-  .task-file-name {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .task-file-size {
-    color: var(--text-dim);
-  }
-
-  .task-file-remove {
-    padding: 0 4px;
-    color: var(--text-dim);
-  }
-
-  .task-file-remove:hover {
-    color: var(--danger);
-  }
-
-  .task-files-add {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 4px 1ch;
-    margin-top: 4px;
-  }
-
-  /* The favorite folders: the star beside the repository and the row under it. */
-  .task-star[aria-pressed='true'] {
-    color: var(--text);
-  }
-
-  .task-favorites {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 4px 6px;
-    margin-top: 4px;
-  }
-
-  .task-favorite {
-    max-width: 28ch;
-    overflow: hidden;
-    padding: 0 8px;
+  .dialog-buttons button {
+    padding: 3px 12px;
     border: 1px solid var(--line);
-    color: var(--text-dim);
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .task-favorite:hover {
-    border-color: var(--text);
     color: var(--text);
   }
 
-  .task-favorite[aria-pressed='true'] {
+  .dialog-buttons button:hover:not(:disabled) {
     border-color: var(--text);
-    color: var(--text);
   }
 
-  .task-hint {
-    color: var(--text-dim);
+  .dialog-buttons .dialog-cancel {
+    margin-left: auto;
+  }
+
+  .dialog-buttons .primary {
+    border-color: var(--accent);
+    background: var(--accent);
+    color: var(--on-signal);
+    font-weight: 600;
+  }
+
+  .dialog-buttons button:disabled {
+    opacity: 0.5;
   }
 
   /* The large view of a file of the Files tab. It takes most of the window, and the text lies on
@@ -585,150 +448,5 @@
 
   .file-modal .file-image {
     margin: 0 auto;
-  }
-
-  /* The folder browser of the task dialog. */
-  .folder-browser {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    margin-top: 4px;
-    padding: 6px;
-    border: 1px solid var(--line);
-  }
-
-  .folder-path {
-    color: var(--text);
-    overflow-wrap: anywhere;
-  }
-
-  .folder-list {
-    max-height: 12lh;
-    margin: 0;
-    padding: 0;
-    overflow: auto;
-    list-style: none;
-    border: 1px solid var(--line);
-  }
-
-  .folder-row {
-    display: flex;
-    gap: 1ch;
-    align-items: baseline;
-    width: 100%;
-    padding: 0 6px;
-    color: var(--text);
-    line-height: var(--row);
-    text-align: left;
-  }
-
-  .folder-row:hover {
-    background: var(--bg-hover);
-  }
-
-  .folder-name {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .folder-repo {
-    flex: none;
-    color: var(--text);
-  }
-
-  .folder-buttons {
-    display: flex;
-    gap: 6px;
-  }
-
-  .folder-buttons button {
-    padding: 1px 10px;
-    border: 1px solid var(--line);
-    color: var(--text);
-  }
-
-  .folder-buttons button:hover:not(:disabled) {
-    border-color: var(--text);
-  }
-
-  .task-harness {
-    margin: 0;
-    color: var(--danger);
-  }
-
-  .task-prompt {
-    margin: 0;
-    padding: 2px 6px;
-    border: 1px solid var(--line);
-    color: var(--text);
-    white-space: pre-wrap;
-    overflow-wrap: anywhere;
-    max-height: 12lh;
-    overflow: auto;
-  }
-
-  .task-error,
-  .task-status.failed {
-    margin: 0;
-    color: var(--danger);
-  }
-
-  .task-facts {
-    display: grid;
-    grid-template-columns: 11ch minmax(0, 1fr);
-    gap: 0 1ch;
-    margin: 0;
-  }
-
-  .task-facts dt {
-    color: var(--text-dim);
-  }
-
-  .task-facts dd {
-    margin: 0;
-    min-width: 0;
-    overflow-wrap: anywhere;
-  }
-
-  .task-facts .port {
-    margin-right: 1ch;
-  }
-
-  .diff-stats .add {
-    color: var(--live);
-  }
-
-  .diff-stats .del {
-    color: var(--danger);
-  }
-
-  .task-dialog-buttons {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    padding-top: 8px;
-    border-top: 1px solid var(--line);
-  }
-
-  .task-dialog-buttons .task-cancel {
-    margin-left: auto;
-  }
-
-  .task-dialog-buttons .primary {
-    border-color: var(--accent);
-    background: var(--accent);
-    color: var(--on-signal);
-    font-weight: 600;
-  }
-
-  .task-dialog-buttons .danger {
-    border-color: var(--danger);
-    color: var(--danger);
-  }
-
-  .task-dialog-buttons button:disabled {
-    opacity: 0.5;
   }
 }

@@ -32,7 +32,6 @@ import { revealed } from '../app/reveal';
 import { LayoutView } from '../layout/LayoutView';
 import { Palette } from '../palette/Palette';
 import { SearchOverlay } from '../search/SearchOverlay';
-import { TaskDialog } from '../tasks/TaskDialog';
 import { Board } from '../board/Board';
 import { CloseConfirm } from './CloseConfirm';
 import { FailureBanner } from './FailureBanner';
@@ -274,9 +273,6 @@ export function Shell(props: ShellProps = {}) {
       </Show>
       <Show when={view.searchOpen()}>
         <SearchOverlay />
-      </Show>
-      <Show when={view.taskDialog()} keyed>
-        {(dialog) => <TaskDialog dialog={dialog} />}
       </Show>
       <Show when={view.closing()}>{(closing) => <CloseConfirm closing={closing()} />}</Show>
       <StatusBar actions={actions} keymap={keymap} />

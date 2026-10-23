@@ -14,12 +14,12 @@ The UI, the CLI and the hook shim all call the core through one contract. Its ve
 
 | Part | Count | Reference |
 |---|---|---|
-| Methods | 153 | [Methods](/docs/reference/api/methods) |
-| Projections | 26 | [Projections](/docs/reference/api/projections) |
-| Event kinds | 56 | [Events](/docs/reference/api/events) |
+| Methods | 139 | [Methods](/docs/reference/api/methods) |
+| Projections | 23 | [Projections](/docs/reference/api/projections) |
+| Event kinds | 49 | [Events](/docs/reference/api/events) |
 | Streams | 4 | [Streams](/docs/reference/api/streams) |
-| Error codes | 46 | [Errors](/docs/reference/api/errors) |
-| Named types | 438 | [Types](/docs/reference/api/types) |
+| Error codes | 43 | [Errors](/docs/reference/api/errors) |
+| Named types | 404 | [Types](/docs/reference/api/types) |
 
 ## Protocol versions
 
@@ -79,11 +79,11 @@ Every message is one JSON-RPC 2.0 object.
 
 | Scope | Who | Methods |
 |---|---|---|
-| `ui` | the UI, over the `rpc` command of the Tauri host or the WebSocket | 134 |
-| `cli` | the CLI and any other client on the API socket | 107 |
+| `ui` | the UI, over the `rpc` command of the Tauri host or the WebSocket | 120 |
+| `cli` | the CLI and any other client on the API socket | 93 |
 | `pane` | a hook shim, with the token of a pane | 4 |
 | `dev` | development and test builds only | 4 |
-| `phone` | a paired phone, over the listener of the phone | 129 |
+| `phone` | a paired phone, over the listener of the phone | 115 |
 
 ## Namespaces
 
@@ -97,16 +97,13 @@ Every message is one JSON-RPC 2.0 object.
 | [`layout`](/docs/reference/api/methods/layout) | The split tree of a tab: ratios, equal sizes and zoom. | 3 |
 | [`pane`](/docs/reference/api/methods/pane) | Panes: terminals with a holder, and their input, scrolling, selection, copy and text. | 27 |
 | [`window`](/docs/reference/api/methods/window) | The windows of the app: which panes they show, focus, metrics, bounds and panels. | 8 |
-| [`fs`](/docs/reference/api/methods/fs) |  | 5 |
+| [`fs`](/docs/reference/api/methods/fs) |  | 4 |
 | [`askpass`](/docs/reference/api/methods/askpass) |  | 1 |
 | [`render`](/docs/reference/api/methods/render) | Acknowledgements of painted frames, which free the slots of the render pacer. | 1 |
 | [`agent`](/docs/reference/api/methods/agent) | Agent runs of Claude Code and Codex: list, start, resume, prompt, interrupt, stop, wait. | 13 |
 | [`harness`](/docs/reference/api/methods/harness) | Claude Code and Codex on this machine: discovery, version and login state. | 1 |
 | [`interaction`](/docs/reference/api/methods/interaction) | What agents ask a person: approvals, questions, plan reviews and notices. | 6 |
-| [`task`](/docs/reference/api/methods/task) | Task workspaces: a worktree, a branch, ports, an environment and an agent. | 9 |
 | [`changes`](/docs/reference/api/methods/changes) |  | 2 |
-| [`favorite`](/docs/reference/api/methods/favorite) | The favorite folders that the form of a new task offers. | 3 |
-| [`worktree`](/docs/reference/api/methods/worktree) | The git worktrees of tasks. | 1 |
 | [`phone`](/docs/reference/api/methods/phone) | The phones that supervise this machine: the offer of a pairing, names and removal, and the mapping of tailscale serve. | 11 |
 | [`events`](/docs/reference/api/methods/events) | Subscriptions to the event log, from a cursor. | 2 |
 | [`projection`](/docs/reference/api/methods/projection) | Subscriptions to projections: a snapshot, then keyed patches. | 3 |

@@ -78,10 +78,6 @@ pub(crate) struct State {
     pub native: crate::native::Native,
     /// Keys, prompts and launches for the runs.
     pub control: Option<Arc<crate::agents::Control>>,
-    /// The task workspaces.
-    pub tasks: crate::tasks::Tasks,
-    /// The jobs of the tasks and their git work.
-    pub task_service: Option<Arc<crate::tasks::service::TaskService>>,
     /// The rate limits and the usage of today for each harness.
     pub limits: crate::transcripts::Limits,
     /// The panes whose run waits after a turn, shared with the input path of the panes.
@@ -119,8 +115,6 @@ impl State {
             keystrokes: None,
             native: crate::native::Native::default(),
             control: None,
-            tasks: crate::tasks::Tasks::default(),
-            task_service: None,
             limits: crate::transcripts::Limits::default(),
             turn_waits: Arc::default(),
             phones: crate::phones::Phones::default(),
@@ -162,17 +156,6 @@ impl State {
         self.native = crate::native::Native::with_clock(clock, window);
         self.native.set_turn_settle(settle);
         self.native.push = push;
-        self
-    }
-
-    /// The same state with the tasks of the last core and the service that runs their jobs.
-    pub fn with_tasks(
-        mut self,
-        tasks: crate::tasks::Tasks,
-        service: Arc<crate::tasks::service::TaskService>,
-    ) -> Self {
-        self.tasks = tasks;
-        self.task_service = Some(service);
         self
     }
 

@@ -1,6 +1,6 @@
 ---
 title: "Projections"
-description: "The 26 read models that clients subscribe to: a snapshot, then keyed patches."
+description: "The 23 read models that clients subscribe to: a snapshot, then keyed patches."
 sidebar_position: 3
 toc_max_heading_level: 2
 ---
@@ -23,9 +23,6 @@ A projection is a read model that the core keeps in memory. A client calls [`pro
 | [`attention`](#attention) | run id |  | [`AttentionValue`](/docs/reference/api/types#attentionvalue) |
 | [`interactions`](#interactions) | interaction id |  | [`InteractionValue`](/docs/reference/api/types#interactionvalue) |
 | [`timeline`](#timeline) | item id | run id | [`TimelineItem`](/docs/reference/api/types#timelineitem) |
-| [`tasks`](#tasks) | task id |  | [`TaskValue`](/docs/reference/api/types#taskvalue) |
-| [`changes`](#changes) | path | task id | [`ChangeRow`](/docs/reference/api/types#changerow) |
-| [`favorites`](#favorites) | path |  | [`FavoriteValue`](/docs/reference/api/types#favoritevalue) |
 | [`notifications`](#notifications) | notification id |  | [`NotificationValue`](/docs/reference/api/types#notificationvalue) |
 | [`machines`](#machines) | machine label |  | [`MachineValue`](/docs/reference/api/types#machinevalue) |
 | [`harnesses`](#harnesses) | harness id |  | [`HarnessValue`](/docs/reference/api/types#harnessvalue) |
@@ -140,7 +137,6 @@ A projection is a read model that the core keeps in memory. A client calls [`pro
 | `resumable` | boolean |  | A resume handle exists (`claude --resume`, `codex resume`). Default: `false`. |
 | `session_id` | string \| `null` |  |  |
 | `started_at` | [`Timestamp`](/docs/reference/api/types#timestamp) | yes |  |
-| `task` | [`TaskId`](/docs/reference/api/types#taskid) \| `null` |  |  |
 | `usage` | [`Usage`](/docs/reference/api/types#usage) | yes |  |
 | `yolo` | boolean |  | The run bypasses the permission prompts of the harness. Default: `false`. |
 
@@ -201,72 +197,6 @@ A projection is a read model that the core keeps in memory. A client calls [`pro
 | `id` | string | yes |  |
 | `turn` | integer (uint32) | yes |  |
 
-## `tasks` {#tasks}
-
-**Key:** task id
-
-### Value
-
-[`TaskValue`](/docs/reference/api/types#taskvalue)
-
-| Field | Type | Required | Description |
-|---|---|---|---|
-| `agents` | [`RunId`](/docs/reference/api/types#runid)[] | yes |  |
-| `attachments` | [`AttachmentValue`](/docs/reference/api/types#attachmentvalue)[] | yes | The files of the task, in the order that they came. |
-| `base` | string \| `null` |  | The base. A draft has one only when the person asked for it; else the start takes the current branch of the repository. |
-| `branch` | string \| `null` |  | The branch. A draft has one only when the person asked for a name. |
-| `changes` | [`ChangeTotals`](/docs/reference/api/types#changetotals) \| `null` |  | The totals of the last count of the changes. A task that the core has not counted yet has none. |
-| `created_at` | [`Timestamp`](/docs/reference/api/types#timestamp) | yes |  |
-| `diff_stats` | [`DiffStats`](/docs/reference/api/types#diffstats) \| `null` |  | The lines from the merge base of the base and `HEAD` to the worktree. |
-| `effort` | string \| `null` |  |  |
-| `handle` | string | yes | The short handle, for example `k7`. |
-| `harness` | [`Harness`](/docs/reference/api/types#harness) \| `null` |  | The agent that the start runs, with its model, effort level and prompt. |
-| `id` | [`TaskId`](/docs/reference/api/types#taskid) | yes |  |
-| `model` | string \| `null` |  |  |
-| `ports` | integer (uint16)[] | yes |  |
-| `prompt` | string \| `null` |  |  |
-| `repo` | string | yes |  |
-| `status` | [`TaskStatus`](/docs/reference/api/types#taskstatus) | yes |  |
-| `tab` | [`TabId`](/docs/reference/api/types#tabid) \| `null` |  | The tab of the task. A window that shows it shows the task in its drawer. |
-| `title` | string | yes |  |
-| `workspace` | [`WorkspaceId`](/docs/reference/api/types#workspaceid) \| `null` |  |  |
-| `worktree` | string \| `null` |  | The worktree. A draft has none yet. |
-
-## `changes:<task>` {#changes}
-
-**Key:** path · **Parameter:** task id
-
-### Value
-
-[`ChangeRow`](/docs/reference/api/types#changerow)
-
-| Field | Type | Required | Description |
-|---|---|---|---|
-| `add` | integer (uint32) | yes |  |
-| `binary` | boolean |  | Git shows no lines for the file. Default: `false`. |
-| `del` | integer (uint32) | yes |  |
-| `dir` | string | yes | The folder of the path with a `/` at its end, or empty for a file at the root. |
-| `name` | string | yes | The last part of the path. |
-| `old_path` | string \| `null` |  | The path in the merge base of a renamed file. |
-| `path` | string | yes | The path from the root of the worktree. |
-| `stamp` | integer (uint64) | yes | Changes when the file in the worktree changes, so that an open diff loads again. It is 0 for a deleted file, and less than 2^53 so that JavaScript holds it exactly. |
-| `status` | [`ChangeStatus`](/docs/reference/api/types#changestatus) | yes |  |
-| `uncommitted` | boolean |  | The file has a change that is not in a commit. Default: `false`. |
-
-## `favorites` {#favorites}
-
-**Key:** path
-
-### Value
-
-[`FavoriteValue`](/docs/reference/api/types#favoritevalue)
-
-| Field | Type | Required | Description |
-|---|---|---|---|
-| `name` | string | yes | The name that the form shows: the last part of the path, or the last two parts when two favorites have the same last part. |
-| `path` | string | yes | The root of a git repository. |
-| `used_at` | [`Timestamp`](/docs/reference/api/types#timestamp) | yes | The last task that the person made or changed with this repository, else the time when the favorite was added. |
-
 ## `notifications` {#notifications}
 
 **Key:** notification id
@@ -313,7 +243,7 @@ A projection is a read model that the core keeps in memory. A client calls [`pro
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `available` | boolean | yes | A start of an agent with this harness can go on: the harness is installed and not logged out. The form of a task turns its Start button off without it. |
+| `available` | boolean | yes | A start of an agent with this harness can go on: the harness is installed and not logged out. |
 | `checked_at` | [`Timestamp`](/docs/reference/api/types#timestamp) \| `null` |  | The time of the last check. |
 | `hint` | string \| `null` |  | What the person can do: `[auth] login_hint` of the manifest, or why the program was not found. |
 | `id` | string | yes |  |
@@ -356,7 +286,7 @@ A projection is a read model that the core keeps in memory. A client calls [`pro
 | `id` | [`JobId`](/docs/reference/api/types#jobid) | yes |  |
 | `message` | string \| `null` |  |  |
 | `progress` | number (float) \| `null` |  | From 0 to 1, when the job knows. |
-| `result` | any |  | What the job made, when it is done (for example `{"task": "…"}`). |
+| `result` | any |  | What the job made, when it is done (for example `{"run": "…"}`). |
 | `started_at` | [`Timestamp`](/docs/reference/api/types#timestamp) | yes |  |
 | `status` | [`JobStatus`](/docs/reference/api/types#jobstatus) | yes |  |
 | `title` | string | yes |  |
@@ -450,7 +380,6 @@ Type: string.
 | `resumable` | boolean |  | A resume handle exists (`claude --resume`, `codex resume`). Default: `false`. |
 | `session_id` | string \| `null` |  |  |
 | `started_at` | [`Timestamp`](/docs/reference/api/types#timestamp) | yes |  |
-| `task` | [`TaskId`](/docs/reference/api/types#taskid) \| `null` |  |  |
 | `usage` | [`Usage`](/docs/reference/api/types#usage) | yes |  |
 | `yolo` | boolean |  | The run bypasses the permission prompts of the harness. Default: `false`. |
 
@@ -469,11 +398,10 @@ Type: string.
 | `del` | integer (uint32) | yes |  |
 | `dir` | string | yes | The folder of the path with a `/` at its end, or empty for a file at the root. |
 | `name` | string | yes | The last part of the path. |
-| `old_path` | string \| `null` |  | The path in the merge base of a renamed file. |
+| `old_path` | string \| `null` |  | The path in `HEAD` of a renamed file. |
 | `path` | string | yes | The path from the root of the worktree. |
 | `stamp` | integer (uint64) | yes | Changes when the file in the worktree changes, so that an open diff loads again. It is 0 for a deleted file, and less than 2^53 so that JavaScript holds it exactly. |
 | `status` | [`ChangeStatus`](/docs/reference/api/types#changestatus) | yes |  |
-| `uncommitted` | boolean |  | The file has a change that is not in a commit. Default: `false`. |
 
 ## `changes_head:<window>` {#changes-head}
 
@@ -485,13 +413,11 @@ Type: string.
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `base` | string \| `null` |  | The base of that task: the changes go from the merge base of the base and `HEAD`, as for `changes:<task>`. With `None`, they go from `HEAD`: only what is not committed. |
 | `branch` | string \| `null` |  | The branch of `HEAD`, or `None` for a detached `HEAD`. |
 | `changes` | [`ChangeTotals`](/docs/reference/api/types#changetotals) \| `null` |  | The totals of the last count, or `None` before the first count. |
 | `diff_stats` | [`DiffStats`](/docs/reference/api/types#diffstats) \| `null` |  | The lines of all changed files. |
 | `folder` | string | yes | The folder that the window named. |
 | `root` | string \| `null` |  | The root of the git worktree that holds the folder, or `None` when the folder is not in a git worktree. |
-| `task` | [`TaskId`](/docs/reference/api/types#taskid) \| `null` |  | The task whose worktree is the root. |
 
 ## `phones` {#phones}
 

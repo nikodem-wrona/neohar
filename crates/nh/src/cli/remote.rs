@@ -27,7 +27,7 @@ pub const LOCAL: &str = "local";
 
 /// The positionals of the verbs that hold a handle. The other positionals are text, and the
 /// client does not read them.
-const HANDLE_POSITIONALS: &[&str] = &["workspace", "tab", "pane", "agent", "interaction", "task"];
+const HANDLE_POSITIONALS: &[&str] = &["workspace", "tab", "pane", "agent", "interaction"];
 
 /// Where a command line runs, and the arguments that go there.
 #[derive(Debug, PartialEq, Eq)]

@@ -1,7 +1,7 @@
 ---
 title: "integration.*"
 description: "The hooks that neohar installs into Claude Code and Codex."
-sidebar_position: 24
+sidebar_position: 21
 toc_max_heading_level: 2
 ---
 

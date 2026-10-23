@@ -1,6 +1,6 @@
 ---
 title: "Errors"
-description: "The 46 error codes of the API and their JSON-RPC numbers."
+description: "The 43 error codes of the API and their JSON-RPC numbers."
 sidebar_position: 6
 toc_max_heading_level: 2
 ---
@@ -42,9 +42,8 @@ A protocol error has the reserved JSON-RPC number. An application error has `-32
 | [`holder_error`](#holder-error) | -32000 | The holder of a pane failed or sent something that the core does not accept. |
 | [`agent_live`](#agent-live) | -32000 | The agent still runs, and the call needs an agent that has ended. |
 | [`agent_gone`](#agent-gone) | -32000 | The agent has ended, and the call needs a live agent. |
-| [`agent_failed`](#agent-failed) | -32000 | The task exists, but its agent did not start. `details` has `{task}`. |
 | [`not_bound`](#not-bound) | -32000 | The run is not linked to its pane, so the core types nothing into it. |
-| [`name_taken`](#name-taken) | -32000 | A live agent or a task has the name already. |
+| [`name_taken`](#name-taken) | -32000 | A live agent has the name already. |
 | [`harness_mismatch`](#harness-mismatch) | -32000 | The run in the pane is of another harness than the call names. |
 | [`manifest_error`](#manifest-error) | -32000 | The manifest of a start has a value that is not correct. |
 | [`interaction_closed`](#interaction-closed) | -32000 | The interaction has ended. `details` has `{state}`. |
@@ -57,8 +56,6 @@ A protocol error has the reserved JSON-RPC number. An application error has `-32
 | [`conflict`](#conflict) | -32000 | A policy rule with the same id exists. |
 | [`config_rule`](#config-rule) | -32000 | The policy rule is in `config.toml`, so only a change of that file removes it. |
 | [`git_failed`](#git-failed) | -32000 | A command of git failed. |
-| [`setup_failed`](#setup-failed) | -32000 | The setup command of a task failed. |
-| [`no_free_ports`](#no-free-ports) | -32000 | The port range of a task does not have sufficient free ports. |
 | [`forward_failed`](#forward-failed) | -32000 | The core cannot forward the port of a machine. |
 | [`proto_unsupported`](#proto-unsupported) | -32000 | The client decodes another version of the frame format. |
 | [`io_error`](#io-error) | -32000 | The core cannot write a file. |
@@ -209,12 +206,6 @@ The agent still runs, and the call needs an agent that has ended.
 
 The agent has ended, and the call needs a live agent.
 
-## `agent_failed` {#agent-failed}
-
-**JSON-RPC number:** `-32000`
-
-The task exists, but its agent did not start. `details` has `{task}`.
-
 ## `not_bound` {#not-bound}
 
 **JSON-RPC number:** `-32000`
@@ -225,7 +216,7 @@ The run is not linked to its pane, so the core types nothing into it.
 
 **JSON-RPC number:** `-32000`
 
-A live agent or a task has the name already.
+A live agent has the name already.
 
 ## `harness_mismatch` {#harness-mismatch}
 
@@ -298,18 +289,6 @@ The policy rule is in `config.toml`, so only a change of that file removes it.
 **JSON-RPC number:** `-32000`
 
 A command of git failed.
-
-## `setup_failed` {#setup-failed}
-
-**JSON-RPC number:** `-32000`
-
-The setup command of a task failed.
-
-## `no_free_ports` {#no-free-ports}
-
-**JSON-RPC number:** `-32000`
-
-The port range of a task does not have sufficient free ports.
 
 ## `forward_failed` {#forward-failed}
 

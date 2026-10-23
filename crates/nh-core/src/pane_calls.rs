@@ -100,7 +100,7 @@ async fn write_dropped(
                 format!("no blob {} in the store", blob.hash),
             ));
         };
-        let base = crate::tasks::files::clean_name(&blob.name);
+        let base = crate::uploads::clean_name(&blob.name);
         let mut name = base.clone();
         let mut n = 1;
         while used.contains(&name) {

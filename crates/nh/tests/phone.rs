@@ -184,7 +184,7 @@ async fn a_phone_has_full_access_less_the_pairing_and_the_native_windows() {
         (3, "timeline.item"),
         (4, "pane.input"),
         (10, "config.set"),
-        (11, "task.create"),
+        (11, "changes.follow"),
     ] {
         let answer = call(&mut ws, id, method, json!({})).await;
         assert_eq!(

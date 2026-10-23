@@ -14,7 +14,6 @@ mod client_rows;
 mod degraded;
 mod drift_rows;
 mod events;
-mod favorite_rows;
 mod interaction_rows;
 mod layout;
 mod migrate;
@@ -23,7 +22,6 @@ mod phone_rows;
 mod policy_rows;
 mod runs;
 mod scrollback;
-mod task_rows;
 mod usage_rows;
 
 use std::{
@@ -43,7 +41,6 @@ pub use degraded::Fault;
 pub use degraded::PROBE_INTERVAL_MS;
 pub use drift_rows::DriftRow;
 pub use events::{EventsRead, Retention, Swept, TruncatedReason, Tx, is_audit_kind};
-pub use favorite_rows::FavoriteRow;
 pub use interaction_rows::{DeliveryRow, InteractionRow};
 pub use layout::{GroupRow, LayoutRows, LoadedPane, PaneSlot, TabRow, WindowRow, WorkspaceRow};
 pub use migrate::SCHEMA_VERSION;
@@ -55,7 +52,6 @@ pub use scrollback::{
     ArchivedLine, ArchivedRun, FLUSH_INTERVAL_MS, Flushed, PageBuilder, PageError, SEGMENT_BYTES,
     SEGMENT_LINES, ScrollbackHit, ScrollbackWriter, SearchScope, SegmentInfo,
 };
-pub use task_rows::{AttachmentRow, TaskRow};
 pub use usage_rows::{TranscriptState, UsageTotals};
 
 /// How long a statement waits for a lock that another connection holds.

@@ -145,10 +145,6 @@ export function PhoneDesk(props: PhoneDeskProps) {
         view.showDrawer('inbox');
         view.focusCard(route.interaction);
         return;
-      case 'task':
-        handled = current;
-        view.setTaskDialog({ kind: 'task', task: route.task });
-        return;
       case 'run': {
         if (stores.agents.state.status === 'loading') return;
         handled = current;

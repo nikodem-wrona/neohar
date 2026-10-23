@@ -146,9 +146,7 @@ test('the sidebar, the tab bar and the layout follow the projections', async ({
   // Nothing waits, so the attention line is empty.
   await expect(page.locator('.commandbar .badge')).toHaveCount(0);
   // With no agent run, the board says how to start one.
-  await expect(page.locator('.board-empty')).toHaveText(
-    'No agent runs. Start one in a pane or with a task.',
-  );
+  await expect(page.locator('.board-empty')).toHaveText('No agent runs. Start one in a pane.');
 
   // A workspace of the CLI shows in the sidebar, in the tab bar and as a pane.
   const alpha = await api<Made>('workspace.create', { name: 'Alpha' });
@@ -1638,9 +1636,9 @@ test('the runs that do not fit are behind +N, which is amber for a wait and list
     const more = page.locator('.board-more');
     await expect(more).toHaveText(/^\+\d+$/);
     await expect(more).toHaveClass(/waiting/);
-    // The drawer is a rail of five icons, and the Inbox button is amber with the count.
+    // The drawer is a rail of four icons, and the Inbox button is amber with the count.
     const drawerRail = page.getByRole('navigation', { name: 'Folded drawer' });
-    await expect(drawerRail.getByRole('button')).toHaveCount(5);
+    await expect(drawerRail.getByRole('button')).toHaveCount(4);
     await expect(drawerRail.getByRole('button', { name: /^Show Inbox, \d+ waiting$/ })).toHaveClass(
       /hot/,
     );
@@ -1923,7 +1921,7 @@ test('the shell has no serious accessibility violation (axe smoke test)', async 
     return result.filter((v) => v.impact === 'serious' || v.impact === 'critical');
   };
   // The drawer shows its four tabs, one after the other.
-  for (const name of ['Inbox', 'Timeline', 'Task', 'Files']) {
+  for (const name of ['Inbox', 'Timeline', 'Files', 'Changes']) {
     await page.getByRole('tab', { name }).click();
     expect(await violations(), `the ${name} tab`).toEqual([]);
   }
@@ -2287,420 +2285,6 @@ test('the keys 1 to 4 answer an approval at a low risk and select a button at a 
   }
 });
 
-test('the repository of a new task comes from the folder panel or from typing', async ({
-  page,
-  request,
-}) => {
-  const { makeWorkspace, calls, windowId } = await openShell(page, request);
-  const root = tmpdir();
-  await makeWorkspace('Repository', { root });
-  await page.getByRole('tab', { name: 'Tasks' }).click();
-  await page.getByRole('button', { name: 'New task' }).click();
-  const form = page.getByRole('form', { name: 'Create a task' });
-  const field = form.getByLabel('Repository');
-  // The field starts with the root of the workspace.
-  await expect(field).toHaveValue(root);
-
-  // "Choose…" asks the core for the panel, which starts in the folder of the field. The headless
-  // core has no panel: the form shows the folder browser, and the person can type the path.
-  await form.getByRole('button', { name: 'Choose…' }).click();
-  await expect(form.getByRole('group', { name: 'Folders' })).toBeVisible();
-  await expect(form.getByRole('button', { name: 'Choose…' })).toBeEnabled();
-  const picks = await calls('window.pick_folder');
-  expect(picks.map((call) => call.params)).toEqual([
-    { window: windowId, start: root, title: 'Choose the repository' },
-  ]);
-  expect(picks[0]?.error).toContain('unsupported');
-  await field.fill('/tmp/typed repo');
-  await expect(field).toHaveValue('/tmp/typed repo');
-  await expect(field).toHaveAttribute('title', '/tmp/typed repo');
-  // The form is a dialog over the window, and Escape closes it.
-  await page.keyboard.press('Escape');
-  await expect(page.getByRole('dialog')).toHaveCount(0);
-});
-
-// The headless core has no folder panel, so "Choose…" shows the folder browser. In the run
-// through `link.sock` (`NEOHAR_UI_LINK=1`) the link client answers `unsupported` in the same way
-// as a window of another machine does.
-test('the folder browser lists the folders of the core and puts the choice in the field', async ({
-  page,
-  request,
-}) => {
-  const { api, makeWorkspace, calls } = await openShell(page, request);
-  const base = await realpath(await mkdtemp(join(tmpdir(), 'nh-browser-')));
-  const star = join(base, 'zeta');
-  try {
-    // A repository (a favorite), a plain folder, a folder with a capital letter, a hidden folder
-    // and a file. The core sends the favorite first, and then the names without case.
-    await mkdir(star, { recursive: true });
-    await exec('git', ['init', '-q', '-b', 'main'], { cwd: star });
-    await mkdir(join(base, 'Beta', 'inner'), { recursive: true });
-    await mkdir(join(base, 'alpha'));
-    await mkdir(join(base, '.hidden'));
-    await writeFile(join(base, 'notes.txt'), 'text');
-    await makeWorkspace('Browser', { root: base });
-    await page.getByRole('tab', { name: 'Tasks' }).click();
-    await page.getByRole('button', { name: 'New task' }).click();
-    const dialog = page.getByRole('dialog');
-    const form = dialog.getByRole('form', { name: 'Create a task' });
-    const field = form.getByLabel('Repository');
-    const browser = form.getByRole('group', { name: 'Folders' });
-    const rows = browser.locator('.folder-row');
-    await expect(browser).toHaveCount(0);
-
-    // The browser opens in the folder of the field. The first row is the parent, and a repository
-    // has a mark. The page shows the order of the core.
-    await field.fill(base);
-    await form.getByRole('button', { name: 'Choose…', exact: true }).click();
-    await expect(browser).toBeVisible();
-    await expect(browser.locator('.folder-path')).toHaveText(base);
-    await expect(rows.locator('.folder-name')).toHaveText(['..', 'alpha', 'Beta', 'zeta']);
-    await expect(rows.filter({ hasText: 'zeta' }).locator('.folder-repo')).toHaveCount(1);
-    await expect(browser.locator('.folder-repo')).toHaveCount(1);
-    expect((await calls('fs.dirs')).map((call) => call.params)).toEqual([{ path: base }]);
-
-    // A favorite comes first.
-    await api('favorite.add', { path: star });
-    await form.getByRole('button', { name: 'Choose…', exact: true }).click();
-    await expect(rows.locator('.folder-name')).toHaveText(['..', 'zeta', 'alpha', 'Beta']);
-
-    // A click on a folder opens it. The parent row goes back.
-    await rows.filter({ hasText: 'Beta' }).click();
-    await expect(browser.locator('.folder-path')).toHaveText(join(base, 'Beta'));
-    await expect(rows.locator('.folder-name')).toHaveText(['..', 'inner']);
-    await rows.filter({ hasText: 'inner' }).click();
-    await expect(browser.locator('.folder-path')).toHaveText(join(base, 'Beta', 'inner'));
-    await expect(browser.getByText('No folders here.')).toBeVisible();
-    await browser.getByRole('button', { name: 'Parent folder' }).click();
-    await expect(browser.locator('.folder-path')).toHaveText(join(base, 'Beta'));
-
-    // The browser has no serious accessibility violation.
-    await page.addScriptTag({ content: axe.source });
-    const violations = await page.evaluate(async () => {
-      const found = await (
-        window as never as {
-          axe: { run: (context: Element) => Promise<{ violations: AxeViolation[] }> };
-        }
-      ).axe.run(document.querySelector('.task-dialog') as Element);
-      return found.violations
-        .filter((v) => v.impact === 'serious' || v.impact === 'critical')
-        .map((v) => ({ id: v.id, nodes: v.nodes.map((n) => n.target.join(' ')) }));
-    });
-    expect(violations).toEqual([]);
-
-    // "Choose" takes the folder that the browser shows, and the browser goes.
-    await browser.getByRole('button', { name: 'Choose', exact: true }).click();
-    await expect(field).toHaveValue(join(base, 'Beta'));
-    await expect(browser).toHaveCount(0);
-
-    // Escape closes the browser first, and the dialog with the second press.
-    await form.getByRole('button', { name: 'Choose…', exact: true }).click();
-    await expect(browser).toBeVisible();
-    await rows.filter({ hasText: 'inner' }).click();
-    await page.keyboard.press('Escape');
-    await expect(browser).toHaveCount(0);
-    await expect(dialog).toBeVisible();
-    await expect(field).toHaveValue(join(base, 'Beta'));
-
-    // A field that is not a folder opens the home folder of the machine.
-    await field.fill(join(base, 'gone'));
-    await form.getByRole('button', { name: 'Choose…', exact: true }).click();
-    await expect(browser).toBeVisible();
-    await expect(browser.locator('.folder-path')).not.toHaveText(join(base, 'gone'));
-    await expect(browser.getByRole('alert')).toHaveCount(0);
-    await browser.getByRole('button', { name: 'Close' }).click();
-    await expect(browser).toHaveCount(0);
-    await page.keyboard.press('Escape');
-    await expect(dialog).toHaveCount(0);
-  } finally {
-    await api('favorite.remove', { path: star }).catch(() => undefined);
-    await rm(base, { recursive: true, force: true });
-  }
-});
-
-test('a new task with an agent chooses its model and effort level', async ({ page, request }) => {
-  const { makeWorkspace, calls } = await openShell(page, request);
-  const root = tmpdir();
-  await makeWorkspace('Models', { root });
-  await page.getByRole('tab', { name: 'Tasks' }).click();
-  await page.getByRole('button', { name: 'New task' }).click();
-  const form = page.getByRole('form', { name: 'Create a task' });
-  // Without an agent, there is nothing to choose.
-  await expect(form.getByLabel('Model')).toHaveCount(0);
-  await expect(form.getByLabel('Effort')).toHaveCount(0);
-  await form.getByLabel('Title').fill('Pick a model');
-  await form.getByLabel('Agent').selectOption('claude');
-
-  // The menus come from the manifest of Claude Code, and "Default" comes first.
-  const model = form.getByLabel('Model');
-  const effort = form.getByLabel('Effort');
-  await expect(model.locator('option')).toHaveText([
-    'Default',
-    'Fable',
-    'Fable (1M context)',
-    'Opus',
-    'Opus (1M context)',
-    'Sonnet',
-    'Sonnet (1M context)',
-    'Haiku',
-  ]);
-  await expect(effort.locator('option')).toHaveText([
-    'Default',
-    'low',
-    'medium',
-    'high',
-    'xhigh',
-    'max',
-  ]);
-  await expect(model).toHaveValue('');
-  await expect(effort).toHaveValue('');
-  await model.selectOption('opus[1m]');
-  await effort.selectOption('xhigh');
-
-  // The call carries both. The folder is not a repository, so the core refuses the task.
-  await form.getByRole('button', { name: 'Create task' }).click();
-  await expect(form.getByRole('alert')).toContainText('not a git repository');
-  const created = await calls('task.create');
-  expect(created.map((call) => call.params)).toEqual([
-    { repo: root, title: 'Pick a model', harness: 'claude', model: 'opus[1m]', effort: 'xhigh' },
-  ]);
-
-  // Another agent starts again from its defaults.
-  await form.getByLabel('Agent').selectOption('codex');
-  await expect(form.getByLabel('Effort')).toHaveValue('');
-});
-
-test('a task is a draft in a dialog, takes files, changes, and starts with its button', async ({
-  page,
-  request,
-}) => {
-  const { api, makeWorkspace, calls } = await openShell(page, request);
-  const base = await mkdtemp(join(tmpdir(), 'nh-drafts-'));
-  const repo = join(base, 'app');
-  const git = (...args: string[]) =>
-    exec('git', args, {
-      cwd: repo,
-      env: {
-        ...process.env,
-        GIT_CONFIG_GLOBAL: '/dev/null',
-        GIT_AUTHOR_NAME: 'Ada',
-        GIT_AUTHOR_EMAIL: 'ada@example.com',
-        GIT_COMMITTER_NAME: 'Ada',
-        GIT_COMMITTER_EMAIL: 'ada@example.com',
-      },
-    });
-  try {
-    await mkdir(repo, { recursive: true });
-    await git('init', '-q', '-b', 'main');
-    await writeFile(join(repo, 'a.txt'), 'one\n');
-    await git('add', '.');
-    await git('commit', '-q', '-m', 'first');
-    // The worktrees of this test stay in its directory.
-    await api('config.set', { key: 'tasks.worktree_root', value: join(base, 'worktrees') });
-    await makeWorkspace('Drafts', { root: repo });
-    await page.getByRole('tab', { name: 'Tasks' }).click();
-    await page.getByRole('button', { name: 'New task' }).click();
-    const dialog = page.getByRole('dialog');
-    const form = dialog.getByRole('form', { name: 'Create a task' });
-    await expect(form.getByLabel('Title')).toBeFocused();
-    await form.getByLabel('Title').fill('Fix the header');
-    await form.getByLabel('Prompt').fill('Make the header match the screenshot.');
-    // "Add files…" opens the file panel of the page; a paste of an image adds a screenshot.
-    await form.getByLabel('Files of the task').setInputFiles({
-      name: 'plan.md',
-      mimeType: 'text/markdown',
-      buffer: Buffer.from('# Plan\n'),
-    });
-    await form.getByLabel('Prompt').evaluate((field) => {
-      const data = new DataTransfer();
-      data.items.add(
-        new File([new Uint8Array([137, 80, 78, 71])], 'shot.png', { type: 'image/png' }),
-      );
-      field.dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true }));
-    });
-    const files = form.locator('.task-file-name');
-    await expect(files).toHaveText(['plan.md', 'shot.png']);
-    await expect(form.locator('.task-file-size')).toHaveText(['7 B', '4 B']);
-
-    // The dialog keeps a draft. Nothing starts: no job, no worktree, no tab.
-    await form.getByRole('button', { name: 'Create task' }).click();
-    await expect(dialog).toHaveCount(0);
-    const created = await calls('task.create');
-    expect(created.at(-1)?.params).toMatchObject({
-      repo,
-      title: 'Fix the header',
-      prompt: 'Make the header match the screenshot.',
-      uploads: [
-        { name: 'plan.md', data: Buffer.from('# Plan\n').toString('base64') },
-        { name: 'shot.png', data: 'iVBORw==' },
-      ],
-    });
-    const drafts = page.getByRole('region', { name: 'Drafts' });
-    const row = drafts.locator('.task-row').filter({ hasText: 'Fix the header' });
-    await expect(row.locator('.task-row-status')).toHaveText('Draft');
-    expect(await calls('task.start')).toEqual([]);
-
-    // A click on the row opens the draft, where everything changes.
-    await row.locator('.task-open').click();
-    const draft = dialog.getByRole('form', { name: /^Draft k\d+$/ });
-    await expect(draft.getByLabel('Prompt')).toHaveValue('Make the header match the screenshot.');
-    await expect(draft.locator('.task-file-name')).toHaveText(['plan.md', 'shot.png']);
-    await draft.getByLabel('Title').fill('Fix the page header');
-    await draft.getByRole('button', { name: 'Remove plan.md' }).click();
-    await draft.getByRole('button', { name: 'Save' }).click();
-    await expect(dialog).toHaveCount(0);
-    const changed = await calls('task.update');
-    expect(changed.at(-1)?.params).toMatchObject({ title: 'Fix the page header' });
-    expect(changed.at(-1)?.params.remove).toHaveLength(1);
-    const renamed = drafts.locator('.task-row').filter({ hasText: 'Fix the page header' });
-    await expect(renamed).toHaveCount(1);
-
-    // The dialog of the draft has no serious accessibility violation.
-    await renamed.locator('.task-open').click();
-    await expect(draft.locator('.task-file-name')).toHaveText(['shot.png']);
-    await page.addScriptTag({ content: axe.source });
-    const violations = await page.evaluate(async () => {
-      const found = await (
-        window as never as {
-          axe: { run: (context: Element) => Promise<{ violations: AxeViolation[] }> };
-        }
-      ).axe.run(document.querySelector('.task-dialog') as Element);
-      return found.violations
-        .filter((v) => v.impact === 'serious' || v.impact === 'critical')
-        .map((v) => ({ id: v.id, nodes: v.nodes.map((n) => n.target.join(' ')) }));
-    });
-    expect(violations).toEqual([]);
-
-    // The dialog is a modal `<dialog>`. A click beside the box keeps a form with changes,
-    // and closes a form with none.
-    await draft.getByLabel('Title').fill('Fix the page header again');
-    await page.mouse.click(4, 4);
-    await expect(dialog).toBeVisible();
-    await draft.getByRole('button', { name: 'Cancel' }).click();
-    await expect(dialog).toHaveCount(0);
-    await renamed.locator('.task-open').click();
-    await expect(draft.getByLabel('Title')).toHaveValue('Fix the page header');
-    await page.mouse.click(4, 4);
-    await expect(dialog).toHaveCount(0);
-
-    // "Start" on the row makes the worktree, the branch and the tab.
-    await renamed.getByRole('button', { name: /^Start k\d+$/ }).click();
-    const started = page.getByRole('region', { name: 'Started' });
-    const running = started.locator('.task-row').filter({ hasText: 'Fix the page header' });
-    await expect(running.locator('.task-row-status')).toHaveText(/Idle|Running/, {
-      timeout: 20_000,
-    });
-    await expect(drafts).toHaveCount(0);
-    await running.locator('.task-open').click();
-    const shown = dialog.getByRole('form', { name: /^Task k\d+$/ });
-    await expect(shown.locator('.task-facts')).toContainText('neohar/fix-the-page-header');
-    await expect(shown.locator('.task-file-name')).toHaveText(['shot.png']);
-    // A task that started keeps its prompt and changes only its title.
-    await expect(shown.locator('.task-prompt')).toHaveText('Make the header match the screenshot.');
-    await expect(shown.getByLabel('Prompt')).toHaveCount(0);
-    await expect(shown.getByRole('button', { name: 'Show tab' })).toBeVisible();
-    await shown.getByRole('button', { name: 'Close task' }).click();
-    await expect(shown.locator('.task-status')).toHaveText('Closed');
-    await shown.getByRole('button', { name: 'Delete' }).click();
-    await expect(dialog).toHaveCount(0);
-    await expect(page.locator('.task-row').filter({ hasText: 'Fix the page header' })).toHaveCount(
-      0,
-    );
-  } finally {
-    await rm(base, { recursive: true, force: true });
-  }
-});
-
-// The favorites stay in the core for the tests after this one, so it comes last and removes them.
-test('a favorite folder is one click away, and a new task starts with the one used last', async ({
-  page,
-  request,
-}) => {
-  const { api, makeWorkspace, calls } = await openShell(page, request);
-  // git gives the root without links (`/private/var` on macOS), and the core keeps that path.
-  const base = await realpath(await mkdtemp(join(tmpdir(), 'nh-favorites-')));
-  const app = join(base, 'app');
-  const other = join(base, 'api');
-  try {
-    for (const repo of [app, other]) {
-      await mkdir(repo, { recursive: true });
-      await exec('git', ['init', '-q', '-b', 'main'], { cwd: repo });
-    }
-    await makeWorkspace('Favorites', { root: app });
-    await page.getByRole('tab', { name: 'Tasks' }).click();
-    await page.getByRole('button', { name: 'New task' }).click();
-    const dialog = page.getByRole('dialog');
-    const form = dialog.getByRole('form', { name: 'Create a task' });
-    const field = form.getByLabel('Repository');
-    const star = form.getByRole('button', { name: 'Favorite folder' });
-    const favorites = form.getByRole('group', { name: 'Favorites' });
-    // Without favorites, the field has the root of the workspace and no row of favorites.
-    await expect(field).toHaveValue(app);
-    await expect(star).toHaveAttribute('aria-pressed', 'false');
-    await expect(favorites).toHaveCount(0);
-
-    // The star adds the folder in the field. The favorite added last comes first.
-    await star.click();
-    await expect(star).toHaveAttribute('aria-pressed', 'true');
-    await expect(favorites.getByRole('button')).toHaveText(['app']);
-    await field.fill(join(other, '.'));
-    await expect(star).toHaveAttribute('aria-pressed', 'false');
-    await star.click();
-    // The core keeps the root of the repository, and the field shows it.
-    await expect(field).toHaveValue(other);
-    await expect(favorites.getByRole('button')).toHaveText(['api', 'app']);
-    await expect(favorites.getByRole('button', { name: 'api' })).toHaveAttribute(
-      'aria-pressed',
-      'true',
-    );
-
-    // The row of favorites and the star have no serious accessibility violation.
-    await page.addScriptTag({ content: axe.source });
-    const violations = await page.evaluate(async () => {
-      const found = await (
-        window as never as {
-          axe: { run: (context: Element) => Promise<{ violations: AxeViolation[] }> };
-        }
-      ).axe.run(document.querySelector('.task-dialog') as Element);
-      return found.violations
-        .filter((v) => v.impact === 'serious' || v.impact === 'critical')
-        .map((v) => ({ id: v.id, nodes: v.nodes.map((n) => n.target.join(' ')) }));
-    });
-    expect(violations).toEqual([]);
-
-    // A click on a favorite puts it in the field, and the task uses it.
-    await favorites.getByRole('button', { name: 'app' }).click();
-    await expect(field).toHaveValue(app);
-    await expect(star).toHaveAttribute('aria-pressed', 'true');
-    await form.getByLabel('Title').fill('Use a favorite');
-    await form.getByRole('button', { name: 'Create task' }).click();
-    await expect(dialog).toHaveCount(0);
-    expect((await calls('task.create')).at(-1)?.params).toMatchObject({ repo: app });
-
-    // The next new task starts with the favorite used last, also in another workspace.
-    await makeWorkspace('Elsewhere', { root: base });
-    await page.getByRole('button', { name: 'New task' }).click();
-    await expect(field).toHaveValue(app);
-    await expect(favorites.getByRole('button')).toHaveText(['app', 'api']);
-    // The star removes the favorite, and the field keeps its path.
-    await star.click();
-    await expect(star).toHaveAttribute('aria-pressed', 'false');
-    await expect(favorites.getByRole('button')).toHaveText(['api']);
-    await expect(field).toHaveValue(app);
-    await page.keyboard.press('Escape');
-    await expect(dialog).toHaveCount(0);
-  } finally {
-    for (const path of [app, other]) {
-      await api('favorite.remove', { path }).catch(() => undefined);
-    }
-    const listed = await api<{ tasks: { id: string; title: string }[] }>('task.list', {});
-    for (const task of listed.tasks.filter((row) => row.title === 'Use a favorite')) {
-      await api('task.delete', { task: task.id });
-    }
-    await rm(base, { recursive: true, force: true });
-  }
-});
-
 test('the Files tab shows the tree of the folder of the tab, a file, and acts on a path', async ({
   page,
   request,
@@ -2931,7 +2515,7 @@ test('the Changes tab shows the changes of the worktree of the folder, and the d
   page,
   request,
 }) => {
-  const { api, calls, makeWorkspace, windowId } = await openShell(page, request);
+  const { calls, makeWorkspace, windowId } = await openShell(page, request);
   const base = await realpath(await mkdtemp(join(tmpdir(), 'nh-changes-')));
   const repo = join(base, 'app');
   const git = (cwd: string, ...args: string[]) =>
@@ -2946,14 +2530,12 @@ test('the Changes tab shows the changes of the worktree of the folder, and the d
         GIT_COMMITTER_EMAIL: 'ada@example.com',
       },
     });
-  let handle: string | null = null;
   try {
     await mkdir(repo, { recursive: true });
     await git(repo, 'init', '-q', '-b', 'main');
     await writeFile(join(repo, 'a.txt'), 'one\ntwo\n');
     await git(repo, 'add', '.');
     await git(repo, 'commit', '-q', '-m', 'first');
-    await api('config.set', { key: 'tasks.worktree_root', value: join(base, 'worktrees') });
 
     // A tab without a folder says so. The pane with the focus is in another tab, so its folder
     // does not count, as in the Files tab.
@@ -2962,46 +2544,36 @@ test('the Changes tab shows the changes of the worktree of the folder, and the d
     const panel = page.locator('.changes-panel');
     await expect(panel).toHaveText('This tab has no folder.');
 
-    // A task that started, and its tab in this window.
-    const created = await api<{ task: string; handle: string }>('task.create', {
-      repo,
-      title: 'Change the file',
-      start: true,
+    // A workspace whose root is the repository. Its pane goes out of the repository when the
+    // file `go` is there.
+    const checkout = await makeWorkspace('Checkout', {
+      root: repo,
+      command: {
+        argv: [
+          '/bin/sh',
+          '-c',
+          `while [ ! -e '${base}/go' ]; do sleep 0.05; done; cd '${base}' && exec sleep 60`,
+        ],
+      },
     });
-    handle = created.handle;
-    let task: { tab?: string; worktree?: string; status: string } = { status: 'creating' };
-    await expect
-      .poll(
-        async () => {
-          task = (await api<{ task: typeof task }>('task.show', { task: created.handle })).task;
-          return task.tab !== undefined && ['idle', 'running'].includes(task.status);
-        },
-        { timeout: 20_000 },
-      )
-      .toBe(true);
-    const worktree = task.worktree as string;
-    await api('tab.select', { tab: task.tab, window: windowId });
-    await expect(panel.locator('.changes-branch-name')).toHaveText('neohar/change-the-file');
-    await expect(panel.locator('.changes-base')).toHaveText(' from main');
-    await expect(panel.locator('.changes-root')).toHaveText(worktree);
+    await expect(panel.locator('.changes-branch-name')).toHaveText('main');
+    await expect(panel.locator('.changes-root')).toHaveText(repo);
     await expect(panel).toContainText('No changes yet.');
 
     // Files that change while the tab shows: the rows come with no action of the page. The shell
-    // test runs `nh daemon`, which watches only the git directory, so `git add` is the cause.
-    await writeFile(join(worktree, 'b.txt'), 'new\n');
-    await writeFile(join(worktree, 'a.txt'), 'one\ntwo\nthree\n');
-    await git(worktree, 'add', '-A');
+    // test runs `nh daemon`, which watches only the git directory, so `git add` is the cause. The
+    // changes go from HEAD, so a file in the index and a file that git does not track are rows.
+    await writeFile(join(repo, 'b.txt'), 'new\n');
+    await writeFile(join(repo, 'a.txt'), 'one\ntwo\nthree\n');
+    await writeFile(join(repo, 'loose.txt'), 'x\n');
+    await git(repo, 'add', 'a.txt', 'b.txt');
     const rows = panel.locator('.changes-row');
-    await expect(rows).toHaveCount(2, { timeout: 15_000 });
-    // The order of the core, the status as one letter, the lines, and a mark for no commit.
-    await expect(rows.locator('.changes-name')).toHaveText(['a.txt', 'b.txt']);
-    await expect(rows.locator('.changes-status [aria-hidden]')).toHaveText(['M', 'A']);
+    await expect(rows).toHaveCount(3, { timeout: 15_000 });
+    // The order of the core, the status as one letter and the lines.
+    await expect(rows.locator('.changes-name')).toHaveText(['a.txt', 'b.txt', 'loose.txt']);
+    await expect(rows.locator('.changes-status [aria-hidden]')).toHaveText(['M', 'A', 'U']);
     await expect(rows.first().locator('.changes-lines')).toHaveText('+1 −0');
-    await expect(rows.locator('.changes-uncommitted')).toHaveCount(2);
-    await expect(panel.getByTestId('changes-facts')).toHaveText(
-      '0 commits · 2 files · +2 −0 · from ' +
-        (await git(repo, 'rev-parse', '--short', 'main')).stdout.trim(),
-    );
+    await expect(panel.getByTestId('changes-facts')).toHaveText('3 files · +3 −0');
     expect(await calls('changes.diff')).toEqual([]);
 
     // A click opens the diff of the row under it, from the core.
@@ -3026,8 +2598,8 @@ test('the Changes tab shows the changes of the worktree of the folder, and the d
     ).toHaveText(['new']);
 
     // A new stamp of an open row loads its diff again.
-    await writeFile(join(worktree, 'a.txt'), 'one\ntwo\nthree\nfour\n');
-    await git(worktree, 'add', '-A');
+    await writeFile(join(repo, 'a.txt'), 'one\ntwo\nthree\nfour\n');
+    await git(repo, 'add', 'a.txt');
     await expect(diffOfA.locator('.diff-add .diff-text')).toHaveText(['three', 'four'], {
       timeout: 15_000,
     });
@@ -3052,36 +2624,11 @@ test('the Changes tab shows the changes of the worktree of the folder, and the d
     });
     expect(violations).toEqual([]);
 
-    // The main checkout is the root of a workspace, and no task has it: the changes go from HEAD.
-    // A file that is not committed is a row with no mark, and the head counts no commits.
-    await writeFile(join(repo, 'loose.txt'), 'x\n');
-    const checkout = await makeWorkspace('Checkout', {
-      root: repo,
-      command: {
-        argv: [
-          '/bin/sh',
-          '-c',
-          `while [ ! -e '${base}/go' ]; do sleep 0.05; done; cd '${base}' && exec sleep 60`,
-        ],
-      },
-    });
-    await expect(panel.locator('.changes-root')).toHaveText(repo);
-    await expect(panel.locator('.changes-branch-name')).toHaveText('main');
-    await expect(panel.locator('.changes-base')).toHaveCount(0);
-    await expect(rows.locator('.changes-name')).toHaveText(['loose.txt']);
-    await expect(rows.locator('.changes-status [aria-hidden]')).toHaveText(['U']);
-    await expect(rows.locator('.changes-uncommitted')).toHaveCount(0);
-    await expect(panel.getByTestId('changes-facts')).toHaveText('1 file · +1 −0');
-
     // The folder follows the pane with the focus: a `cd` out of the repository says so.
     await page.locator(`[data-pane="${checkout.pane}"] .pane-surface`).click();
     await writeFile(join(base, 'go'), '');
     await expect(panel).toHaveText('This folder is not in a git repository.');
   } finally {
-    if (handle) {
-      await api('task.close', { task: handle, remove_worktree: true, force: true }).catch(() => {});
-      await api('task.delete', { task: handle }).catch(() => {});
-    }
     await rm(base, { recursive: true, force: true });
   }
 });

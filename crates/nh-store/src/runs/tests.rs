@@ -25,7 +25,6 @@ fn run(n: u128) -> RunRow {
         yolo: false,
         resume: None,
         model: None,
-        task: None,
         process: Some((4242, 1_760_000_000_123)),
         started_at: 1_000,
         ended_at: None,

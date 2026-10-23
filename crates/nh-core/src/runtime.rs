@@ -180,8 +180,8 @@ pub(crate) struct Inner {
     pub agents: Arc<Agents>,
     /// What the core does to a run: keys, prompts, launches.
     pub control: Arc<crate::agents::Control>,
-    /// The task workspaces: their jobs and their git work.
-    pub tasks: Arc<crate::tasks::service::TaskService>,
+    /// The Changes tabs of the windows and their git work.
+    pub changes: Arc<crate::changes::ChangesService>,
     /// The harnesses of this machine and their login state.
     pub discovery: Arc<crate::discovery::Discovery>,
     /// What the host does on `session.shutdown`. Empty: the host ends from its menu.
@@ -412,9 +412,6 @@ impl Core {
         )?;
         // The rules of the table. The session rules of the last core end with it.
         let policy = crate::policy::load(&mut store);
-        // The tasks of the last core. A task that was in the middle of its creation ends in
-        // `setup_failed`.
-        let tasks = crate::tasks::Tasks::load(&mut store, crate::persist::now_ms())?;
         // The paired phones, and the slot of the sender of their push.
         let phones = crate::phones::Phones::load(&store)?;
         let push_slot = Arc::new(crate::phones::PushSlot::default());
@@ -463,13 +460,9 @@ impl Core {
             Arc::clone(&router) as Arc<dyn Host>,
         );
         control.set_discovery(Arc::clone(&discovery));
-        let task_service = crate::tasks::service::TaskService::new(
-            runtime.handle().clone(),
-            Arc::clone(&jobs),
-            Arc::clone(&control),
-            &config.base_env,
-        );
-        task_service.bind_projections(projections.hub());
+        let changes =
+            crate::changes::ChangesService::new(runtime.handle().clone(), &config.base_env);
+        changes.bind_projections(projections.hub());
         let render = Arc::new(RenderServer::new(
             runtime.handle().clone(),
             Arc::clone(&panes),
@@ -494,7 +487,6 @@ impl Core {
             .with_turns(Arc::clone(&turn_waits), config.tuning.turn_settle)
             .with_keystrokes(Arc::clone(&keystrokes))
             .with_control(Arc::clone(&control))
-            .with_tasks(tasks, Arc::clone(&task_service))
             .with_phones(phones)
             .with_push(Arc::clone(&push_slot))
             .with_adapters(Arc::clone(&adapters))
@@ -523,7 +515,6 @@ impl Core {
             // focus.
             crate::clients::started(&mut parts);
             crate::native::started(parts.state);
-            crate::tasks::publish_all(&mut parts);
             crate::phones::publish_all(&mut parts);
             crate::agents::drift::started(&mut parts);
         });
@@ -614,7 +605,6 @@ impl Core {
         native_clock.bind(actor.handle());
         keystrokes.bind(actor.handle());
         control.bind(actor.handle());
-        task_service.bind(actor.handle());
         agents.set_discovery(Arc::clone(&discovery));
         discovery.spawn_schedule();
         adapters.set_probe(config.base_env.clone(), Arc::clone(&harnesses));
@@ -666,7 +656,7 @@ impl Core {
             starting,
             agents,
             control: Arc::clone(&control),
-            tasks: Arc::clone(&task_service),
+            changes,
             discovery,
             shutdown: crate::session::ShutdownSlot::default(),
             drop_links: crate::session::DropLinksSlot::default(),
@@ -998,7 +988,7 @@ impl CoreHandle {
                 .map_err(|error| RpcError::internal(error.to_string()));
         }
         let direct = pane_calls::handles(method)
-            || crate::tasks::calls::handles(method)
+            || crate::changes::handles(method)
             || crate::files::handles(method)
             || crate::doctor::handles(method)
             || agent_calls::handles(method)
@@ -1020,8 +1010,8 @@ impl CoreHandle {
             })?;
             return if pane_calls::handles(method) {
                 pane_calls::run(&self.inner, call, origin).await
-            } else if crate::tasks::calls::handles(method) {
-                crate::tasks::calls::run(&self.inner, call, origin).await
+            } else if crate::changes::handles(method) {
+                crate::changes::run(&self.inner, call, origin).await
             } else if crate::files::handles(method) {
                 crate::files::run(&self.inner, call, origin).await
             } else if crate::doctor::handles(method) {
@@ -1265,7 +1255,7 @@ impl CoreHandle {
                 format!("a file has at most {} bytes", crate::UPLOAD_MAX_BYTES),
             ));
         }
-        let mime = crate::tasks::files::mime_of(&crate::tasks::files::clean_name(name));
+        let mime = crate::uploads::mime_of(&crate::uploads::clean_name(name));
         let hash = self
             .inner
             .factory

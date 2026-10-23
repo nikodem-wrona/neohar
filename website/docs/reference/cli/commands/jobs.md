@@ -1,7 +1,7 @@
 ---
 title: "nh jobs"
 description: "Long commands"
-sidebar_position: 25
+sidebar_position: 22
 ---
 
 :::info[Generated page]

@@ -714,8 +714,8 @@
     width: auto;
   }
 
-  /* The task dialog and the large view of a file take the screen. */
-  .shell.phone :is(.task-dialog, .file-modal) {
+  /* A dialog of the settings and the large view of a file take the screen. */
+  .shell.phone :is(.dialog, .file-modal) {
     box-sizing: border-box;
     width: 100vw;
     height: 100dvh;

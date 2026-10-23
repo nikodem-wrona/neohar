@@ -359,3 +359,9 @@ fn sizes_and_counts_read_well() {
     assert_eq!(count_text(1_000), "1,000");
     assert_eq!(count_text(1_234_567), "1,234,567");
 }
+
+#[test]
+fn dots_in_a_path_are_applied() {
+    assert_eq!(normal(Path::new("/a/b/../c/./d")), PathBuf::from("/a/c/d"));
+    assert_eq!(normal(Path::new("/..")), PathBuf::from("/"));
+}

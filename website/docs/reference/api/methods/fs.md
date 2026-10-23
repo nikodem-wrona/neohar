@@ -16,38 +16,10 @@ Do not edit it by hand. Change the source and run `bun run gen` in `website/`.
 
 | Method | Scopes | Params | Result |
 |---|---|---|---|
-| [`fs.dirs`](#fs-dirs) | `ui` `cli` `phone` | [`FsDirs`](/docs/reference/api/types#fsdirs) | [`FsDirsResult`](/docs/reference/api/types#fsdirsresult) |
 | [`fs.list`](#fs-list) | `ui` `cli` `phone` | [`FsList`](/docs/reference/api/types#fslist) | [`FsListResult`](/docs/reference/api/types#fslistresult) |
 | [`fs.read`](#fs-read) | `ui` `phone` | [`FsRead`](/docs/reference/api/types#fsread) | [`FsReadResult`](/docs/reference/api/types#fsreadresult) |
 | [`fs.open`](#fs-open) | `ui` | [`FsOpen`](/docs/reference/api/types#fsopen) | [`Empty`](/docs/reference/api/types#empty) |
 | [`fs.copy_path`](#fs-copy-path) | `ui` `phone` | [`FsCopyPath`](/docs/reference/api/types#fscopypath) | [`CopyResult`](/docs/reference/api/types#copyresult) |
-
-## `fs.dirs` {#fs-dirs}
-
-**Scopes:** `ui` `cli` `phone` — the UI, over the `rpc` command of the Tauri host or the WebSocket; the CLI and any other client on the API socket; a paired phone, over the listener of the phone.
-
-**Command line:** [`nh fs dirs`](/docs/reference/cli/commands/fs#fs-dirs)
-
-`fs.dirs`: the folders in a folder of the machine, for the folder browser of the task dialog.
-
-### Params
-
-[`FsDirs`](/docs/reference/api/types#fsdirs)
-
-| Field | Type | Required | Description |
-|---|---|---|---|
-| `path` | string \| `null` |  | An absolute path or a path under `~`. Without it, the home folder of the machine. |
-
-### Result
-
-[`FsDirsResult`](/docs/reference/api/types#fsdirsresult)
-
-| Field | Type | Required | Description |
-|---|---|---|---|
-| `entries` | [`FsDirEntry`](/docs/reference/api/types#fsdirentry)[] | yes |  |
-| `parent` | string \| `null` |  | The folder above it. The root folder has none. |
-| `path` | string | yes | The folder that the core listed, as an absolute path. |
-| `truncated` | boolean | yes | True when the folder has more folders than the core sends (2,000). |
 
 ## `fs.list` {#fs-list}
 

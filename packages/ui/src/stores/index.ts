@@ -19,13 +19,6 @@ export function createStores(transport: Transport, windowId: string) {
     interactions: createProjectionStore(transport, 'interactions'),
     // The agents with the read state of this window.
     agents: createProjectionStore(transport, `agents_for:${windowId}`),
-    // The task workspaces and the jobs that make them.
-    tasks: createProjectionStore(transport, 'tasks'),
-    // The favorite folders of the form of a new task, the one used last first.
-    favorites: createProjectionStore(transport, 'favorites'),
-    // The harnesses of this machine: installed, version and login state.
-    harnesses: createProjectionStore(transport, 'harnesses'),
-    jobs: createProjectionStore(transport, 'jobs'),
     // The rate limits and the usage of today for each harness.
     limits: createProjectionStore(transport, 'limits'),
     health: createProjectionStore(transport, 'health'),

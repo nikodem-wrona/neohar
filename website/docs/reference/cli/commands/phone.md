@@ -1,7 +1,7 @@
 ---
 title: "nh phone"
 description: "Phones that supervise this machine"
-sidebar_position: 18
+sidebar_position: 16
 ---
 
 :::info[Generated page]

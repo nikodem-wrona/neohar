@@ -45,7 +45,6 @@ fn without_a_file_every_setting_has_its_default_and_no_warning() {
             "phone",
             "policy",
             "scrollback",
-            "tasks",
             "theme",
             "ui"
         ]
@@ -71,23 +70,20 @@ fn without_a_file_every_setting_has_its_default_and_no_warning() {
 fn a_file_is_merged_over_the_defaults_and_marks_its_keys() {
     let (store, dir) = store_with(
         "merge",
-        Some("[approvals]\nmode = \"gate\"\n\n[tasks]\nports = 3\nport_range = [50000, 50099]\n"),
+        Some("[approvals]\nmode = \"gate\"\n\n[phone]\nfont_size = 14\nport = 50000\n"),
     );
     let config = store.config();
     assert_eq!(config.approvals.mode, ApprovalMode::Gate);
-    assert_eq!(config.tasks.ports, 3);
-    assert_eq!(config.tasks.port_range, [50_000, 50_099]);
+    assert_eq!(config.phone.font_size, 14);
+    assert_eq!(config.phone.port, 50_000);
     assert_eq!(
-        config.tasks.branch_prefix, "neohar/",
+        config.phone.contact, "",
         "a key of a section that the file has keeps its default"
     );
     assert_eq!(config.agents, Config::default().agents);
     assert_eq!(source(&store, "approvals", "mode"), SettingSource::File);
-    assert_eq!(source(&store, "tasks", "port_range"), SettingSource::File);
-    assert_eq!(
-        source(&store, "tasks", "branch_prefix"),
-        SettingSource::Default
-    );
+    assert_eq!(source(&store, "phone", "port"), SettingSource::File);
+    assert_eq!(source(&store, "phone", "contact"), SettingSource::Default);
     assert_eq!(source(&store, "agents", "shims"), SettingSource::Default);
     let _ = fs::remove_dir_all(dir);
 }
@@ -110,12 +106,13 @@ fn a_key_that_this_version_does_not_know_is_a_warning_and_nothing_else() {
 fn a_key_of_an_older_version_loads_without_a_warning() {
     let old = "[input]\nconfirm_multiline_paste_to_agents = false\n\n[search]\n\
                index_transcripts = true\n\n[update]\nmanifest_check = false\n\n\
-               [approvals]\nmode = \"observe\"\n";
+               [tasks]\nports = 2\nport_range = [41000, 41999]\nsetup = [\"bun install\"]\n\n\
+               [tasks.env]\nAPP_ENV = \"dev\"\n\n[approvals]\nmode = \"observe\"\n";
     let (store, dir) = store_with("retired", Some(old));
     assert_eq!(store.config().approvals.mode, ApprovalMode::Observe);
     assert!(store.warnings().is_empty(), "{:?}", store.warnings());
     let sections = store.sections();
-    for section in ["input", "search", "update"] {
+    for section in ["input", "search", "update", "tasks"] {
         assert!(!sections.contains_key(section), "{section}");
     }
     // A change of the file with the old keys reloads like any other, and so does a set.
@@ -123,8 +120,8 @@ fn a_key_of_an_older_version_loads_without_a_warning() {
     let report = store.reload();
     assert_eq!(report.changed, ["agents.shims"]);
     assert!(report.errors.is_empty() && store.warnings().is_empty());
-    store.set("tasks.ports", json!(2)).expect("a set");
-    assert_eq!(store.config().tasks.ports, 2);
+    store.set("phone.font_size", json!(14)).expect("a set");
+    assert_eq!(store.config().phone.font_size, 14);
     assert!(store.warnings().is_empty(), "{:?}", store.warnings());
     // The old keys are no settings: a set of one is refused.
     assert_eq!(
@@ -132,6 +129,10 @@ fn a_key_of_an_older_version_loads_without_a_warning() {
         Err(ConfigError::UnknownKey(
             "input.confirm_multiline_paste_to_agents".to_owned()
         ))
+    );
+    assert_eq!(
+        store.set("tasks.ports", json!(1)),
+        Err(ConfigError::UnknownKey("tasks.ports".to_owned()))
     );
     let _ = fs::remove_dir_all(dir);
 }
@@ -224,8 +225,8 @@ const ORIGINAL: &str = "# My neohar config
 mode = \"observe\"   # keep this
 gate_timeout = \"10m\"
 
-[tasks]
-ports = 2 # two ports
+[phone]
+font_size = 14 # larger text
 ";
 
 #[test]
@@ -241,17 +242,17 @@ fn set_keeps_the_comments_and_the_order_of_the_file() {
 mode = \"gate\"   # keep this
 gate_timeout = \"10m\"
 
-[tasks]
-ports = 2 # two ports
+[phone]
+font_size = 14 # larger text
 "
     );
     // A key that the file has not: it goes to the end of its table.
     store
-        .set("tasks.branch_prefix", json!("wip/"))
+        .set("phone.contact", json!("mailto:ada@example.com"))
         .expect("a set");
     let text = fs::read_to_string(store.path()).expect("the file");
     assert!(
-        text.contains("ports = 2 # two ports\nbranch_prefix = \"wip/\"\n"),
+        text.contains("font_size = 14 # larger text\ncontact = \"mailto:ada@example.com\"\n"),
         "{text}"
     );
     // A section that the file has not: a new table at the end.
@@ -270,7 +271,7 @@ ports = 2 # two ports
         store.config().events.sync_retention.0,
         Duration::from_secs(2 * 86_400)
     );
-    assert_eq!(store.config().tasks.branch_prefix, "wip/");
+    assert_eq!(store.config().phone.contact, "mailto:ada@example.com");
     let _ = fs::remove_dir_all(dir);
 }
 
@@ -303,9 +304,9 @@ fn set_checks_the_whole_result_before_it_writes() {
         ("approvals.mode", json!("sometimes")),
         ("approvals.mode", json!(3)),
         ("events.sync_retention", json!("7")),
-        ("tasks.ports", json!("two")),
-        ("tasks.ports", json!(300)),
-        ("tasks.port_range", json!([1])),
+        ("phone.font_size", json!("two")),
+        ("phone.font_size", json!(300)),
+        ("phone.port", json!([1])),
         ("agents.shims", json!({"a": 1})),
     ] {
         let error = store
@@ -347,16 +348,16 @@ fn set_refuses_to_edit_a_file_with_a_syntax_error() {
 fn null_removes_the_key_and_an_empty_table_goes_with_it() {
     let (store, dir) = store_with(
         "reset",
-        Some("[approvals]\nmode = \"gate\"\n\n[tasks]\nports = 2\nbranch_prefix = \"x/\"\n"),
+        Some("[approvals]\nmode = \"gate\"\n\n[phone]\nfont_size = 14\ncontact = \"x\"\n"),
     );
     store.set("approvals.mode", Value::Null).expect("a reset");
     let text = fs::read_to_string(store.path()).expect("the file");
     assert!(!text.contains("approvals"), "{text}");
     assert_eq!(store.config().approvals.mode, ApprovalMode::Auto);
     assert_eq!(source(&store, "approvals", "mode"), SettingSource::Default);
-    store.set("tasks.ports", Value::Null).expect("a reset");
+    store.set("phone.font_size", Value::Null).expect("a reset");
     let text = fs::read_to_string(store.path()).expect("the file");
-    assert_eq!(text, "\n[tasks]\nbranch_prefix = \"x/\"\n");
+    assert_eq!(text, "\n[phone]\ncontact = \"x\"\n");
     // A key that is not in the file is already at its default.
     store
         .set("events.audit_retention", Value::Null)
@@ -396,7 +397,7 @@ fn the_settings_projection_has_a_row_for_each_section() {
     store.publish(&hub);
     hub.flush();
     let published = hub.snapshot(Projection::Settings);
-    assert_eq!(published.order.len(), 11);
+    assert_eq!(published.order.len(), 10);
     let approvals = &published.items["approvals"];
     assert_eq!(
         approvals["entries"]["mode"],
@@ -457,7 +458,7 @@ fn the_watcher_reloads_after_the_file_settles_and_reports_once() {
         fs::write(
             store.path(),
             format!(
-                "[approvals]\nmode = \"{mode}\"\n[tasks]\nports = {}\n",
+                "[approvals]\nmode = \"{mode}\"\n[phone]\nfont_size = {}\n",
                 n + 1
             ),
         )
@@ -477,10 +478,10 @@ fn the_watcher_reloads_after_the_file_settles_and_reports_once() {
         .clone();
     assert_eq!(seen.len(), 1, "{seen:?}");
     assert!(
-        seen[0].changed.contains(&"tasks.ports".to_owned()),
+        seen[0].changed.contains(&"phone.font_size".to_owned()),
         "{seen:?}"
     );
-    assert_eq!(store.config().tasks.ports, 6);
+    assert_eq!(store.config().phone.font_size, 6);
     assert_eq!(store.config().approvals.mode, ApprovalMode::Auto);
 
     // A bad file is reported as an error, and the good state stays.
@@ -488,7 +489,7 @@ fn the_watcher_reloads_after_the_file_settles_and_reports_once() {
     wait_until("the error", || {
         reports.lock().unwrap_or_else(PoisonError::into_inner).len() == 2
     });
-    assert_eq!(store.config().tasks.ports, 6);
+    assert_eq!(store.config().phone.font_size, 6);
     assert!(
         !reports.lock().unwrap_or_else(PoisonError::into_inner)[1]
             .errors
@@ -496,11 +497,11 @@ fn the_watcher_reloads_after_the_file_settles_and_reports_once() {
     );
 
     // The write of `set` does not make a second report: the text is known already.
-    fs::write(store.path(), "[tasks]\nports = 4\n").expect("a file");
+    fs::write(store.path(), "[phone]\nfont_size = 4\n").expect("a file");
     wait_until("the third reload", || {
         reports.lock().unwrap_or_else(PoisonError::into_inner).len() == 3
     });
-    store.set("tasks.ports", json!(5)).expect("a set");
+    store.set("phone.font_size", json!(5)).expect("a set");
     std::thread::sleep(Duration::from_millis(700));
     assert_eq!(
         reports.lock().unwrap_or_else(PoisonError::into_inner).len(),
@@ -570,7 +571,7 @@ fn a_change_made_before_the_watch_is_ready_is_found_after_it() {
 #[test]
 fn a_polling_watch_reloads_a_file_that_changed_in_place() {
     // The watch of `nh`, which has no FSEvents.
-    let (store, dir) = store_with("poll", Some("[tasks]\nports = 1\n"));
+    let (store, dir) = store_with("poll", Some("[phone]\nfont_size = 1\n"));
     let store = Arc::new(store);
     let reports = Arc::new(Mutex::new(Vec::<ReloadReport>::new()));
     let sink = Arc::clone(&reports);
@@ -583,14 +584,14 @@ fn a_polling_watch_reloads_a_file_that_changed_in_place() {
         .expect("the thread starts");
     watcher.wait_ready(READY).expect("the watch is set up");
     std::thread::sleep(START_LAG + Duration::from_millis(300));
-    fs::write(store.path(), "[tasks]\nports = 3\n").expect("a write in place");
-    wait_until("the reload", || store.config().tasks.ports == 3);
+    fs::write(store.path(), "[phone]\nfont_size = 3\n").expect("a write in place");
+    wait_until("the reload", || store.config().phone.font_size == 3);
     assert!(
         reports
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
             .iter()
-            .any(|r| r.changed.contains(&"tasks.ports".to_owned()))
+            .any(|r| r.changed.contains(&"phone.font_size".to_owned()))
     );
     watcher.stop();
     let _ = fs::remove_dir_all(dir);

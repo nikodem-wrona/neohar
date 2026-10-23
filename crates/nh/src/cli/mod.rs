@@ -253,7 +253,7 @@ fn dispatch(
             let cwd = std::env::current_dir().unwrap_or_default();
             let params = verbs::params(doc, found, verb_matches, &cwd)?;
             let result = client.call(found.method, params)?;
-            render::result(output, found, &result)?;
+            render::result(output, &result)?;
             Ok(())
         }
         _ => Err(CliError::Usage(format!("no command {name}"))),

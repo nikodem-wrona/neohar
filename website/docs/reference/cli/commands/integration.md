@@ -1,7 +1,7 @@
 ---
 title: "nh integration"
 description: "The hooks of the harnesses"
-sidebar_position: 23
+sidebar_position: 20
 ---
 
 :::info[Generated page]

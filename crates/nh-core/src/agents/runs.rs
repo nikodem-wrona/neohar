@@ -26,7 +26,7 @@ use nh_proto::api::{
         AdapterDisagreement, AgentDetected, AgentHarnessVersionUnvalidated, AgentIdentified,
         AgentStateChanged, EventPayload,
     },
-    ids::{InteractionId, PaneId, RunId, TaskId, WindowId},
+    ids::{InteractionId, PaneId, RunId, WindowId},
     model::{
         Binding, Capabilities, Execution, Facets, RateLimitWindow, ReadState, UnvalidatedHarness,
         Usage,
@@ -49,8 +49,6 @@ pub(crate) struct Run {
     pub id: RunId,
     /// A name that is unique among the live runs. A call can use it instead of the id.
     pub name: Option<String>,
-    /// The task workspace that the run belongs to.
-    pub task: Option<TaskId>,
     pub pane: Option<PaneId>,
     pub harness: Harness,
     /// The id of the manifest that matched. A wrapper of the user has its own.
@@ -130,7 +128,6 @@ impl Run {
             yolo: self.yolo,
             resume: None,
             model: self.model.clone(),
-            task: self.task.map(TaskId::ulid),
             process: self.process,
             started_at: self.started_at.0,
             ended_at: self.ended_at.map(|at| at.0),
@@ -157,7 +154,6 @@ impl Run {
         Some(Self {
             id: RunId::new(row.id),
             name: row.name.clone(),
-            task: row.task.map(TaskId::new),
             pane: row.pane.map(PaneId::new),
             harness,
             manifest: if row.manifest.is_empty() {
@@ -203,7 +199,6 @@ impl Run {
 pub(crate) struct Expected {
     pub harness: Harness,
     pub name: Option<String>,
-    pub task: Option<TaskId>,
     pub session: Option<String>,
     pub model: Option<String>,
 }
@@ -534,10 +529,6 @@ pub(crate) fn publish(parts: &mut Parts<'_>, id: RunId) {
     if let Some(host) = parts.state.host.clone() {
         crate::native::summary(parts.state, host.as_ref());
     }
-    // The task of the run shows its agents and its status.
-    if let Some(task) = parts.state.runs.by_id.get(&id).and_then(|run| run.task) {
-        crate::tasks::run_changed(parts, task);
-    }
 }
 
 fn publish_rows(parts: &mut Parts<'_>, id: RunId) {
@@ -625,7 +616,6 @@ fn create(parts: &mut Parts<'_>, pane: PaneId, found: Found) -> Option<RunId> {
     let mut run = Run {
         id,
         name: None,
-        task: None,
         pane: Some(pane),
         harness: found.harness,
         manifest: found.manifest,
@@ -701,7 +691,6 @@ fn adopt(run: &mut Run, expected: Option<Expected>) {
     };
     run.binding = promote();
     run.name = expected.name;
-    run.task = expected.task;
     if run.model.is_none() {
         run.model = expected.model;
     }
@@ -1297,15 +1286,6 @@ pub(crate) fn apply_signals(
     }
     if let Some(note) = turn {
         super::turn::follow(parts, id, note);
-    }
-    // A file of the worktree of a task changed: its lines are counted in a moment.
-    if signals
-        .iter()
-        .any(|signal| matches!(signal, AdapterSignal::FileChanged { .. }))
-        && let Some(task) = parts.state.runs.by_id.get(&id).and_then(|run| run.task)
-        && let Some(service) = parts.state.task_service.clone()
-    {
-        service.schedule_diff(task);
     }
 }
 

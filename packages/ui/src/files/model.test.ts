@@ -1,11 +1,5 @@
 import { expect, test } from 'bun:test';
-import type {
-  FsEntry,
-  FsListResult,
-  PaneValue,
-  TaskValue,
-  WorkspaceValue,
-} from '@neohar/transport';
+import type { FsEntry, FsListResult, PaneValue, WorkspaceValue } from '@neohar/transport';
 import {
   clampSplit,
   keyAction,
@@ -45,17 +39,14 @@ function shape(rows: readonly Row[]): string[] {
   );
 }
 
-test('the root is the cwd of the pane with the focus, else the worktree, else the root', () => {
+test('the root is the cwd of the pane with the focus, else the root of the workspace', () => {
   const pane = { cwd: '/Users/me/src' } as PaneValue;
-  const task = { worktree: '/wt/app/fix' } as TaskValue;
   const workspace = { root: '/work/app' } as WorkspaceValue;
-  expect(rootOf(pane, task, workspace)).toBe('/Users/me/src');
-  expect(rootOf({} as PaneValue, task, workspace)).toBe('/wt/app/fix');
-  expect(rootOf(undefined, task, workspace)).toBe('/wt/app/fix');
-  expect(rootOf(undefined, undefined, workspace)).toBe('/work/app');
-  expect(rootOf(undefined, {} as TaskValue, workspace)).toBe('/work/app');
-  expect(rootOf(undefined, undefined, {} as WorkspaceValue)).toBeUndefined();
-  expect(rootOf(undefined, undefined, undefined)).toBeUndefined();
+  expect(rootOf(pane, workspace)).toBe('/Users/me/src');
+  expect(rootOf({} as PaneValue, workspace)).toBe('/work/app');
+  expect(rootOf(undefined, workspace)).toBe('/work/app');
+  expect(rootOf(undefined, {} as WorkspaceValue)).toBeUndefined();
+  expect(rootOf(undefined, undefined)).toBeUndefined();
 });
 
 test('the rows are the entries of the root, with the entries of each open folder under it', () => {

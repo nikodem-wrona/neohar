@@ -38,15 +38,6 @@ pub enum Custom {
     AgentStart,
     /// `pane send-keys w1:p2 "ls" Enter`.
     SendKeys,
-    /// `task create "title"`, with the repository of the current directory.
-    TaskCreate,
-    /// `task update k3 --title …`, with `--clear prompt` for a value that goes.
-    TaskUpdate,
-    /// `favorite add [path]`, with the current directory when the path is not given.
-    Folder,
-    /// `fs dirs [path]`: a relative path becomes absolute. Without a path, the core lists the home
-    /// folder.
-    Dirs,
     /// `fs list [path]`: a relative path and a path under `~` become absolute. Without a path,
     /// the current directory.
     List,
@@ -114,11 +105,8 @@ pub const NOUNS: &[(&str, &str)] = &[
         "interaction",
         "What agents ask: approvals, questions, plans",
     ),
-    ("task", "Task workspaces"),
-    ("favorite", "Favorite folders for new tasks"),
     ("phone", "Phones that supervise this machine"),
     ("fs", "The file system of the machine"),
-    ("worktree", "Git worktrees of the tasks"),
     ("config", "The configuration"),
     ("policy", "Rules that decide approvals"),
     ("integration", "The hooks of the harnesses"),
@@ -489,77 +477,6 @@ pub const VERBS: &[Verb] = &[
         "Show an interaction in a window",
         &["interaction"],
     ),
-    // --- tasks
-    special(
-        "task",
-        "create",
-        "task.create",
-        "Keep a draft of a task; with --start, make its worktree, ports and tab and start its agent",
-        &["title"],
-        Custom::TaskCreate,
-    ),
-    special(
-        "task",
-        "update",
-        "task.update",
-        "Change a draft, or the title of a task that started",
-        &["task"],
-        Custom::TaskUpdate,
-    ),
-    verb(
-        "task",
-        "start",
-        "task.start",
-        "Start a draft: its worktree, branch, ports, files, tab and agent",
-        &["task"],
-    ),
-    verb(
-        "task",
-        "delete",
-        "task.delete",
-        "Remove a draft or a closed task",
-        &["task"],
-    ),
-    verb("task", "list", "task.list", "List the tasks", &[]),
-    verb("task", "show", "task.show", "Show a task", &["task"]),
-    verb(
-        "task",
-        "changes",
-        "task.changes",
-        "Count the changes of a task now: its files from the merge base to the worktree",
-        &["task"],
-    ),
-    verb(
-        "task",
-        "diff",
-        "task.diff",
-        "Show the diff of one changed file of a task",
-        &["task", "path"],
-    ),
-    verb("task", "close", "task.close", "Close a task", &["task"]),
-    verb(
-        "favorite",
-        "list",
-        "favorite.list",
-        "List the favorite folders, the one used last first",
-        &[],
-    ),
-    special(
-        "favorite",
-        "add",
-        "favorite.add",
-        "Add the repository of a folder, or of the current directory, to the favorites",
-        &["path"],
-        Custom::Folder,
-    ),
-    special(
-        "favorite",
-        "remove",
-        "favorite.remove",
-        "Remove a folder, or the current directory, from the favorites",
-        &["path"],
-        Custom::Folder,
-    ),
     verb(
         "phone",
         "pair-begin",
@@ -611,26 +528,11 @@ pub const VERBS: &[Verb] = &[
     ),
     special(
         "fs",
-        "dirs",
-        "fs.dirs",
-        "List the folders in a folder of the machine, or in its home folder",
-        &["path"],
-        Custom::Dirs,
-    ),
-    special(
-        "fs",
         "list",
         "fs.list",
         "List the folders and files in a folder of the machine, or in the current directory",
         &["path"],
         Custom::List,
-    ),
-    verb(
-        "worktree",
-        "list",
-        "worktree.list",
-        "List the worktrees",
-        &[],
     ),
     // --- configuration and policy
     verb(
@@ -908,14 +810,7 @@ fn sugar(custom: Custom) -> Vec<Arg> {
             ),
             text("new-tab", "Start in a new tab of this workspace"),
         ],
-        Custom::TaskCreate | Custom::Folder | Custom::Dirs | Custom::List => Vec::new(),
-        Custom::TaskUpdate => vec![
-            Arg::new("clear")
-                .long("clear")
-                .action(ArgAction::Append)
-                .value_name("FIELD")
-                .help("Clear a value: base, branch, harness, prompt, model, effort or ports"),
-        ],
+        Custom::List => Vec::new(),
     }
 }
 
@@ -936,12 +831,7 @@ fn command_of(doc: &Value, verb: &Verb) -> Command {
         Custom::Answer => sugar_keys.extend(["decision", "via"]),
         Custom::AgentStart => sugar_keys.extend(["placement"]),
         Custom::SendKeys => sugar_keys.extend(["bytes", "input_id"]),
-        Custom::TaskCreate
-        | Custom::TaskUpdate
-        | Custom::Folder
-        | Custom::Dirs
-        | Custom::List
-        | Custom::None => {}
+        Custom::List | Custom::None => {}
     }
     let positional = |key: &str| verb.pos.iter().any(|p| p.trim_end_matches("...") == key);
     // Positionals, in the order of the table.
@@ -961,10 +851,10 @@ fn command_of(doc: &Value, verb: &Verb) -> Command {
         let mut arg = Arg::new(leak(name))
             .value_name(leak(name.to_uppercase()))
             .help(leak(help));
-        if verb.custom == Custom::AgentStart || verb.custom == Custom::TaskCreate {
-            // `harness` and `title` are what the person types; the rest comes from flags.
-            arg = arg.required(required && verb.custom == Custom::TaskCreate || name == "harness");
-        } else if verb.custom == Custom::Folder || verb.custom == Custom::List {
+        if verb.custom == Custom::AgentStart {
+            // `harness` is what the person types; the rest comes from flags.
+            arg = arg.required(name == "harness");
+        } else if verb.custom == Custom::List {
             // Without a path, the current directory.
             arg = arg.required(false);
         } else {
@@ -1188,42 +1078,10 @@ pub fn params(
         Custom::Answer => answer(&mut map, matches)?,
         Custom::AgentStart => agent_start(&mut map, matches)?,
         Custom::SendKeys => send_keys(&mut map, matches)?,
-        Custom::TaskCreate => {
-            if let Some(title) = given("title") {
-                map.insert("title".to_owned(), Value::String(title));
-            }
-            let repo = given("repo").unwrap_or_else(|| cwd.display().to_string());
-            map.insert("repo".to_owned(), Value::String(repo));
-            absolute_files(&mut map, cwd);
-        }
-        Custom::Folder => {
-            let path = given("path")
-                .map_or_else(|| cwd.display().to_string(), |text| folder_of(&text, cwd));
-            map.insert("path".to_owned(), Value::String(path));
-        }
-        Custom::Dirs => {
-            if let Some(text) = given("path") {
-                map.insert("path".to_owned(), Value::String(folder_of(&text, cwd)));
-            }
-        }
         Custom::List => {
             let path =
                 given("path").map_or_else(|| cwd.to_path_buf(), |text| absolute_of(&text, cwd));
             map.insert("path".to_owned(), Value::String(path.display().to_string()));
-        }
-        Custom::TaskUpdate => {
-            absolute_files(&mut map, cwd);
-            if let Ok(Some(fields)) = matches.try_get_many::<String>("clear") {
-                for field in fields {
-                    if !CLEARABLE.contains(&field.as_str()) {
-                        return Err(usage(format!(
-                            "--clear takes one of {}, not {field:?}",
-                            CLEARABLE.join(", ")
-                        )));
-                    }
-                    map.insert(field.clone(), Value::Null);
-                }
-            }
         }
     }
     if all.iter().any(|p| p.key == "input_id") && !map.contains_key("input_id") {
@@ -1241,23 +1099,6 @@ pub fn params(
     Ok(Value::Object(map))
 }
 
-/// The values of `task update` that `--clear` can remove.
-const CLEARABLE: &[&str] = &[
-    "base", "branch", "harness", "prompt", "model", "effort", "ports",
-];
-
-/// A relative path that names a folder of the current directory becomes absolute, because the
-/// directory of the core is not the one of the person. Another word goes to the core as it is, for
-/// example the workspace `w3`.
-fn folder_of(text: &str, cwd: &std::path::Path) -> String {
-    let joined = cwd.join(text);
-    if !text.starts_with('~') && std::path::Path::new(text).is_relative() && joined.is_dir() {
-        joined.display().to_string()
-    } else {
-        text.to_owned()
-    }
-}
-
 /// A path for the core, which needs it absolute: a relative path starts in the current directory,
 /// and `~` is the home folder of the person.
 fn absolute_of(text: &str, cwd: &std::path::Path) -> std::path::PathBuf {
@@ -1269,21 +1110,6 @@ fn absolute_of(text: &str, cwd: &std::path::Path) -> std::path::PathBuf {
         return home.join(rest);
     }
     cwd.join(text)
-}
-
-/// The core reads the files of a task, and its directory is not the one of the person: a relative
-/// path starts in the current directory.
-fn absolute_files(map: &mut Map<String, Value>, cwd: &std::path::Path) {
-    if let Some(Value::Array(files)) = map.get_mut("files") {
-        for file in files {
-            if let Some(text) = file.as_str()
-                && !text.starts_with('~')
-                && std::path::Path::new(text).is_relative()
-            {
-                *file = Value::String(cwd.join(text).display().to_string());
-            }
-        }
-    }
 }
 
 fn answer(map: &mut Map<String, Value>, matches: &ArgMatches) -> Result<(), CliError> {

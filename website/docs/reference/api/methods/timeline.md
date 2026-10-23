@@ -1,7 +1,7 @@
 ---
 title: "timeline.*"
 description: "Older items of the timeline of a run."
-sidebar_position: 30
+sidebar_position: 27
 toc_max_heading_level: 2
 ---
 

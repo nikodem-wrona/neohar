@@ -12,7 +12,7 @@
 
 use std::{
     io::Read,
-    path::{Path, PathBuf},
+    path::{Component, Path, PathBuf},
     sync::Arc,
 };
 
@@ -34,7 +34,6 @@ use crate::{
     error::RpcError,
     host::{Host, OpenRefused, PathOpen},
     runtime::Inner,
-    tasks::dirs::normal,
 };
 
 /// The most entries that one listing has.
@@ -140,6 +139,25 @@ async fn blocking<T: Send + 'static>(
         .spawn_blocking(work)
         .await
         .map_err(|e| RpcError::internal(format!("the file task failed: {e}")))?
+}
+
+/// A path without `.` parts and with its `..` parts applied, so that `/a/b/..` is `/a`.
+fn normal(path: &Path) -> PathBuf {
+    let mut out = PathBuf::new();
+    for part in path.components() {
+        match part {
+            Component::ParentDir => {
+                out.pop();
+            }
+            Component::CurDir => {}
+            other => out.push(other.as_os_str()),
+        }
+    }
+    if out.as_os_str().is_empty() {
+        PathBuf::from("/")
+    } else {
+        out
+    }
 }
 
 /// An absolute path with its `.` and `..` parts applied. Any other path is `invalid_params`.

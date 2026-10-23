@@ -4,7 +4,7 @@ description: How nh-core works inside its host — the one door for every call, 
 sidebar_position: 3
 ---
 
-`nh-core` is the server of neohar. It is a library, not a process: `neohar.app` links it, and `nh daemon` runs it without windows. It owns the layout, the panes and their VT engines, the event log, the agents and their interactions, the tasks, the notifications, the render server and the API server. One core serves one machine and session.
+`nh-core` is the server of neohar. It is a library, not a process: `neohar.app` links it, and `nh daemon` runs it without windows. It owns the layout, the panes and their VT engines, the event log, the agents and their interactions, the notifications, the render server and the API server. One core serves one machine and session.
 
 The core runs on its **own** tokio runtime (threads `nh-core-N`), separate from the runtime of Tauri, so a panic in the host cannot reach it. A host talks to it through a `CoreHandle`, which is cheap to clone and works from any thread.
 
@@ -13,7 +13,7 @@ The core runs on its **own** tokio runtime (threads `nh-core-N`), separate from 
 Every call goes through `CoreHandle::call_as(origin, method, params)`: the webview through the Tauri command `rpc`, the CLI and the hook shim through `api.sock`, a remote client through `link.sock`, and the tests directly.
 
 1. **Authorize.** The scope of the origin (`ui`, `cli`, `pane`, `dev`) is checked against the method in the contract. An unknown name is `method_not_found`; a method that is not for the caller is `permission_denied`.
-2. **Direct handlers.** Calls that act on live processes or do slow work run on the caller's task: input, resize, paste, selection, render acks, files, search, tasks, the doctor and others. When they change state, they still ask the actor.
+2. **Direct handlers.** Calls that act on live processes or do slow work run on the caller's task: input, resize, paste, selection, render acks, files, search, the doctor and others. When they change state, they still ask the actor.
 3. **The state actor** runs everything else that changes state.
 4. A method of the contract that nothing implements answers `unsupported`.
 
@@ -32,14 +32,14 @@ The reply carries only ids. A client sees the change through its projection patc
 
 ## The store and the outbox
 
-Each session has one SQLite database, `state.db`, in WAL mode with `synchronous = NORMAL` and `STRICT` tables ([crates/nh-store](https://github.com/nikodem-wrona/neohar/tree/main/crates/nh-store/src)). Its state tables are the source of truth: layout, panes and their holders, snapshots, agent runs, interactions and deliveries, tasks, policy rules, windows and their clients.
+Each session has one SQLite database, `state.db`, in WAL mode with `synchronous = NORMAL` and `STRICT` tables ([crates/nh-store](https://github.com/nikodem-wrona/neohar/tree/main/crates/nh-store/src)). Its state tables are the source of truth: layout, panes and their holders, snapshots, agent runs, interactions and deliveries, policy rules, windows and their clients.
 
-A new database gets the whole schema from one file, [`0015_schema.sql`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-store/migrations/0015_schema.sql) (schema version 15). Each later migration runs in its own transaction. The store refuses a database from a newer build. It also refuses a database of a development build from before version 15, and it does not change that file. The error tells you to move `state.db` to a different place.
+A new database gets the schema of version 15 from one file, [`0015_schema.sql`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-store/migrations/0015_schema.sql). Each later migration runs in its own transaction. The store refuses a database from a newer build. It also refuses a database of a development build from before version 15, and it does not change that file. The error tells you to move `state.db` to a different place.
 
 - **Transactional outbox.** `Store::tx` inserts the events that a handler appended in the same transaction as the state rows. If the handler fails, no row and no event stays. The events table is a log for subscribers, timelines and audit; it is not used to rebuild state.
 - **Cursors.** A cursor is `{machine_uuid, session_uuid, log_epoch, seq}`. A client with a cursor from another epoch, from the future or below the retention floor gets `truncated` and takes a new snapshot.
 - **Redaction.** Every event payload goes through `nh-redact` before it is stored.
-- **Handles.** Short handles (`w3:p5`, `i42`, `k7`) come from counters in the same transaction, so a handle is never used twice in a session.
+- **Handles.** Short handles (`w3:p5`, `i42`) come from counters in the same transaction, so a handle is never used twice in a session.
 - **Blobs.** Content-addressed files under `blobs/`, named by their BLAKE3 digest, written atomically and checked on read. The webview reads them as `nh://blob/<hash>`.
 - **Crash safety.** A test kills a writer with `SIGKILL` 50 times; the database passes `integrity_check` and no event exists without its row.
 
@@ -79,7 +79,7 @@ The keys are listed in [Configuration](/docs/reference/configuration).
 
 ## Jobs, health and supervision
 
-- **Jobs.** A long command (`agent.start`, `task.create`, `integration.doctor` and others) returns `{job}` at once and reports progress in the `jobs` projection. `jobs.cancel` marks it `cancelled` at once. Jobs live in memory only.
+- **Jobs.** A long command (`agent.start`, `agent.resume`, `integration.doctor` and others) returns `{job}` at once and reports progress in the `jobs` projection. `jobs.cancel` marks it `cancelled` at once. Jobs live in memory only.
 - **Health.** One row, `_`, of the `health` projection: storage state, renderer, holder protocols, unvalidated harnesses and warnings from every part.
 - **Supervision.** A panic never takes the core down, and it is never silent. The actor catches a panic per command and rolls back. Supervised tasks restart with backoff and set a `health` warning when they give up. A pane task that panics marks its pane `failed`. An adapter that panics starts again on the next signal.
 
@@ -99,6 +99,6 @@ The keys are listed in [Configuration](/docs/reference/configuration).
 
 ## Start and stop
 
-`Core::start` ([runtime.rs](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-core/src/runtime.rs)) binds `api.sock`, opens `state.db`, loads the config, the harness manifests, the layout, the open runs, interactions and tasks, starts the actor and the supervised tasks, registers the stored pane tokens, takes a new fencing token, starts the API server, and only then runs the restart flow of the panes, because an agent in a restored pane can send a hook at once.
+`Core::start` ([runtime.rs](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-core/src/runtime.rs)) binds `api.sock`, opens `state.db`, loads the config, the harness manifests, the layout, the open runs and interactions, starts the actor and the supervised tasks, registers the stored pane tokens, takes a new fencing token, starts the API server, and only then runs the restart flow of the panes, because an agent in a restored pane can send a hook at once.
 
 `CoreHandle::quit` checkpoints and detaches every pane; `stop_everything` stops every program; `Core::shutdown` closes the listeners and the database, and to the holders it looks like a crash with a whole database ([Holders](/docs/architecture/holders)).

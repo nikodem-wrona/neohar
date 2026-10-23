@@ -219,7 +219,6 @@ impl Method {
                 | Self::WindowFocusReport
                 | Self::WindowReportMetrics
                 | Self::WindowPickFolder
-                | Self::FsDirs
                 | Self::FsList
                 | Self::FsRead
                 | Self::FsOpen
@@ -237,13 +236,8 @@ impl Method {
                 | Self::InteractionShow
                 | Self::InteractionNext
                 | Self::InteractionReveal
-                | Self::TaskList
-                | Self::TaskShow
-                | Self::TaskChanges
-                | Self::TaskDiff
                 | Self::ChangesFollow
                 | Self::ChangesDiff
-                | Self::WorktreeList
                 | Self::PhonePairBegin
                 | Self::PhonePairCancel
                 | Self::PhonePublish
@@ -423,7 +417,6 @@ methods! {
     WindowSetBounds "window.set_bounds" UI (WindowSetBounds) -> Empty;
     WindowSetSingle "window.set_single" UI (WindowSetSingle) -> Empty;
     WindowPickFolder "window.pick_folder" UI (WindowPickFolder) -> FolderPicked;
-    FsDirs "fs.dirs" BOTH (FsDirs) -> FsDirsResult;
     FsList "fs.list" BOTH (FsList) -> FsListResult;
     FsRead "fs.read" UI (FsRead) -> FsReadResult;
     FsOpen "fs.open" UI (FsOpen) -> Empty;
@@ -455,22 +448,9 @@ methods! {
     InteractionNext "interaction.next" BOTH (InteractionNext) -> InteractionNextResult;
     InteractionReveal "interaction.reveal" BOTH (InteractionReveal) -> InteractionRevealed;
 
-    // tasks, favorite folders and worktrees
-    TaskCreate "task.create" BOTH (TaskCreate) -> TaskCreated;
-    TaskUpdate "task.update" BOTH (TaskUpdate) -> Empty;
-    TaskStart "task.start" BOTH (TaskStart) -> JobStarted;
-    TaskDelete "task.delete" BOTH (TaskDelete) -> Empty;
-    TaskList "task.list" BOTH (TaskList) -> TaskListResult;
-    TaskShow "task.show" BOTH (TaskShow) -> TaskShown;
-    TaskChanges "task.changes" BOTH (TaskChanges) -> TaskChangesResult;
-    TaskDiff "task.diff" BOTH (TaskDiff) -> crate::api::rich::FileDiff;
+    // changes
     ChangesFollow "changes.follow" UI (ChangesFollow) -> Empty;
     ChangesDiff "changes.diff" UI (ChangesDiff) -> crate::api::rich::FileDiff;
-    TaskClose "task.close" BOTH (TaskClose) -> Empty;
-    FavoriteList "favorite.list" BOTH (FavoriteList) -> FavoriteListResult;
-    FavoriteAdd "favorite.add" BOTH (FavoriteAdd) -> FavoriteAdded;
-    FavoriteRemove "favorite.remove" BOTH (FavoriteRemove) -> Empty;
-    WorktreeList "worktree.list" BOTH (WorktreeList) -> WorktreeListResult;
 
     // phones
     PhonePairBegin "phone.pair_begin" BOTH (PhonePairBegin) -> PhonePairStarted;
@@ -643,7 +623,7 @@ mod tests {
                     "pick_folder",
                 ],
             ),
-            ("fs", &["dirs", "list", "read", "open", "copy_path"]),
+            ("fs", &["list", "read", "open", "copy_path"]),
             ("askpass", &["ask"]),
             ("render", &["ack"]),
             (
@@ -669,16 +649,7 @@ mod tests {
                 "interaction",
                 &["list", "show", "answer", "dismiss", "next", "reveal"],
             ),
-            (
-                "task",
-                &[
-                    "create", "update", "start", "delete", "list", "show", "changes", "diff",
-                    "close",
-                ],
-            ),
             ("changes", &["follow", "diff"]),
-            ("favorite", &["list", "add", "remove"]),
-            ("worktree", &["list"]),
             (
                 "phone",
                 &[
@@ -747,7 +718,6 @@ mod tests {
             "pane.split",
             "layout.zoom",
             "interaction.answer",
-            "task.create",
             "policy.add",
             "adapter.gate",
         ] {
@@ -830,13 +800,7 @@ mod tests {
                 "phone.unpublish",
             ]
         );
-        for method in [
-            "pane.input",
-            "config.set",
-            "task.create",
-            "agent.reply",
-            "pane.claim",
-        ] {
+        for method in ["pane.input", "config.set", "agent.reply", "pane.claim"] {
             let method = Method::from_name(method).expect("a method");
             assert!(method.phone_may_call(), "{}", method.name());
         }

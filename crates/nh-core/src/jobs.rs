@@ -1,6 +1,6 @@
 //! Jobs: commands that take long.
 //!
-//! A command that needs more than a moment (`task.create`, a search over the archive) starts a
+//! A command that needs more than a moment (`agent.start`, a search over the archive) starts a
 //! job and returns its id. The worker reports progress through a [`JobHandle`], and the `jobs`
 //! projection shows it. A job ends in one of three states: `done`, `failed` or `cancelled`, and an
 //! end state does not change again.

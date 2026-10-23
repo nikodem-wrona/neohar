@@ -1,5 +1,5 @@
-//! The rows and the totals of a count. The count itself is tested in `nh-tasks`, and the whole
-//! path through a core in `crates/nh/tests/tasks.rs`.
+//! The rows and the totals of a count. The count itself is tested in `git/tests.rs`, and the
+//! whole path through a core in `crates/nh/tests/changes.rs`.
 
 use super::*;
 
@@ -11,16 +11,13 @@ fn file(path: &[u8], kind: ChangeKind) -> ChangedFile {
         add: 2,
         del: 1,
         binary: false,
-        uncommitted: false,
         stamp: 7,
     }
 }
 
 fn changes(files: Vec<ChangedFile>) -> Changes {
     Changes {
-        merge_base: "0123456789abcdef0123456789abcdef01234567".to_owned(),
-        short: "0123456".to_owned(),
-        commits: 3,
+        head: "0123456789abcdef0123456789abcdef01234567".to_owned(),
         files,
     }
 }
@@ -46,15 +43,11 @@ fn a_count_keeps_the_first_thousand_rows_and_counts_every_file() {
     let files: Vec<ChangedFile> = (0..=MAX_ROWS)
         .map(|n| file(format!("f{n:05}").as_bytes(), ChangeKind::Added))
         .collect();
-    let (totals, merge_base, rows) = counted(changes(files));
+    let (totals, head, rows) = counted(changes(files));
     assert_eq!(rows.len(), MAX_ROWS);
     assert_eq!(rows[0].0, "f00000");
-    assert_eq!(
-        (totals.files, totals.commits, totals.truncated),
-        (1_001, 3, true)
-    );
-    assert_eq!(totals.merge_base.as_deref(), Some("0123456"));
-    assert!(merge_base.starts_with("0123456") && merge_base.len() == 40);
+    assert_eq!((totals.files, totals.truncated), (1_001, true));
+    assert!(head.starts_with("0123456") && head.len() == 40);
     let (totals, _, rows) = counted(changes(vec![file(b"a", ChangeKind::Modified)]));
     assert_eq!((rows.len(), totals.files, totals.truncated), (1, 1, false));
 }

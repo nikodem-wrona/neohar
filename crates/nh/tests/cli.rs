@@ -85,15 +85,15 @@ async fn api_call_sends_params_from_the_argument_and_from_stdin() {
             "api",
             "call",
             "config.get",
-            r#"{"section":"tasks"}"#,
+            r#"{"section":"events"}"#,
         ],
         &[],
         "",
     );
     assert_eq!(ran.code, 0, "{}", ran.err);
     assert_eq!(
-        ran.json()["sections"]["tasks"]["entries"]["ports"]["value"],
-        1
+        ran.json()["sections"]["events"]["entries"]["sync_retention"]["value"],
+        "7d"
     );
 
     let ran = nh(

@@ -1,7 +1,7 @@
 ---
 title: "policy.*"
 description: "Rules that decide approvals before a person is asked."
-sidebar_position: 23
+sidebar_position: 20
 toc_max_heading_level: 2
 ---
 

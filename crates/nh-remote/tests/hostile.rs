@@ -268,7 +268,7 @@ async fn a_call_in_flight_fails_with_link_down_when_the_core_says_bye() {
         let client = client.clone();
         tokio::spawn(async move {
             client
-                .call(None, "task.create", serde_json::json!({}))
+                .call(None, "workspace.create", serde_json::json!({}))
                 .await
         })
     };

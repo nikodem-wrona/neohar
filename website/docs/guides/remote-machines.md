@@ -5,14 +5,14 @@ sidebar_position: 5
 ---
 
 neohar can show windows of a core that runs on another Mac. On that Mac, `nh daemon` runs the core
-without windows. Its panes, agents, hooks, worktrees and state stay there. Your app connects to it
+without windows. Its panes, agents, hooks and state stay there. Your app connects to it
 over the system `ssh` and shows its windows next to your local ones. A lost link, a laptop that
 sleeps or a quit of the app stops no agent on the remote Mac.
 
 :::info[Status]
 
 Built: the daemon, the link, `[machines]`, windows of a machine, reconnect, `nh --machine`, the
-client settings, the folder browser, port forwards, dropped files and several clients. Not built
+client settings, port forwards, dropped files and several clients. Not built
 yet: the install and update of `nh` on the remote Mac by the app, the doctor checks of the remote
 Mac and the "Stop everything on …" menu item. Not tested yet: link chaos, a killed daemon, sleep and
 a network change.
@@ -74,7 +74,7 @@ nh integration install all --machine studio
 ## What works in a remote window
 
 Everything of a local window works: panes, splits, scrollback, search, agents, cards, the Inbox,
-tasks, the Files and Changes tabs. Notifications, the badge and the tray show on your Mac, with the
+the Files and Changes tabs. Notifications, the badge and the tray show on your Mac, with the
 label in the title. Also:
 
 - Files that you drop on a remote pane are copied to the remote Mac first.
@@ -82,7 +82,6 @@ label in the title. Also:
 - The font, theme and keys come from your Mac. The other settings belong to the machine.
 - **Open** in the Files tab does not work for a remote file. **Copy path** and **Insert into
   pane** do.
-- In the task dialog, a folder browser of the remote Mac replaces the folder panel.
 
 ## The command line
 

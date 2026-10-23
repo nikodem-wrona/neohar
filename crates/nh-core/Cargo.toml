@@ -36,7 +36,6 @@ nh-proto = { path = "../nh-proto", features = ["api"] }
 nh-redact = { path = "../nh-redact" }
 nh-rich = { path = "../nh-rich" }
 nh-store = { path = "../nh-store" }
-nh-tasks = { path = "../nh-tasks" }
 nh-term = { path = "../nh-term" }
 notify = { workspace = true, optional = true }
 postcard.workspace = true

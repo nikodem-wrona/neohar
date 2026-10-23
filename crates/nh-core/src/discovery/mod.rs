@@ -6,8 +6,8 @@
 //! the login, and never the output of the probe, which can name the account.
 //!
 //! The probes run on the blocking pool of the runtime, never on the state actor. They run at the
-//! start of the core, every 30 minutes, on `harness.refresh`, and before `agent.start`,
-//! `agent.resume` and `task.start` when the last state is not `logged_in`. A run that shows the
+//! start of the core, every 30 minutes, on `harness.refresh`, and before `agent.start` and
+//! `agent.resume` when the last state is not `logged_in`. A run that shows the
 //! screen rule `login_required` makes the state `logged_out` with the source `run`, and the next
 //! probe that gives `logged_in` wins.
 //!
