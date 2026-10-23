@@ -892,6 +892,217 @@ wire! {
     }
 }
 
+// --- git ------------------------------------------------------------------------------------
+
+wire! {
+    /// Where the core found a repository of `git_repos`.
+    #[derive(Copy, Eq, Hash)]
+    #[serde(rename_all = "snake_case")]
+    pub enum GitRepoSource {
+        /// The root of a workspace is in it.
+        Workspace,
+        /// The folder of a pane is in it.
+        Pane,
+        /// The person added it (`git.repo_add`).
+        Added,
+    }
+
+    /// `git_repos`: a git repository of this machine. The key is `common_dir`. The core fills it
+    /// only while a client follows it. The rows with agents come first, then by name.
+    pub struct GitRepoValue {
+        /// The name of the folder of the main worktree.
+        pub name: String,
+        /// The git directory that the worktrees of the repository share.
+        pub common_dir: String,
+        /// The worktree that the Git view opens: the main one, or the one where the core found
+        /// the repository when the main one has no files (a bare repository).
+        pub root: String,
+        pub source: GitRepoSource,
+        /// The live agents whose pane folder is in a worktree of the repository.
+        pub agents: u32,
+    }
+
+    /// The state of an agent in a worktree, as the Git view shows it.
+    #[derive(Copy, Eq, Hash)]
+    #[serde(rename_all = "snake_case")]
+    pub enum GitAgentState {
+        Starting,
+        Working,
+        /// The agent has an open approval, question or plan.
+        Waiting,
+        Idle,
+        Exited,
+        Unknown,
+    }
+
+    /// An agent whose pane folder is in a worktree.
+    pub struct GitAgent {
+        pub run: RunId,
+        pub pane: PaneId,
+        pub harness: Harness,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub name: Option<String>,
+        pub state: GitAgentState,
+    }
+
+    /// `git_head:<window>`: what the Git view of a window shows. The window names a folder with
+    /// `git.follow`, and the head is that of the git worktree that holds it. The core makes the
+    /// row when it knows the worktree.
+    pub struct GitHead {
+        /// The folder that the window named.
+        pub folder: String,
+        /// The root of the worktree that holds the folder, or `None` when the folder is not in a
+        /// git worktree.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub worktree: Option<String>,
+        /// The last part of the root of the worktree.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub worktree_name: Option<String>,
+        /// The key of the repository in `git_repos`: its common git directory.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub repo: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub repo_name: Option<String>,
+        /// The branch of `HEAD`, or `None` for a detached `HEAD`.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub branch: Option<String>,
+        /// The short hash of `HEAD`, or `None` before the first commit.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub commit: Option<String>,
+        /// The upstream of the branch, for example `origin/main`.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub upstream: Option<String>,
+        /// The commits of the branch that its upstream does not have.
+        #[serde(default)]
+        pub ahead: u32,
+        /// The commits of the upstream that the branch does not have.
+        #[serde(default)]
+        pub behind: u32,
+        /// The upstream is gone from its remote.
+        #[serde(default)]
+        pub upstream_gone: bool,
+        /// The remote of a fetch: the remote of the upstream, else `origin`, else the first one.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub remote: Option<String>,
+        /// The time of the last fetch, from `FETCH_HEAD`.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub fetched_at: Option<Timestamp>,
+        /// For example "Last fetched 18 minutes ago" or "Never fetched". `None` without a remote.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub fetched_text: Option<String>,
+        /// The agents whose pane folder is in the worktree.
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        pub agents: Vec<GitAgent>,
+        /// The totals of the last count of the changes, or `None` before the first count.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub changes: Option<ChangeTotals>,
+        /// The lines of all changed files.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub diff_stats: Option<DiffStats>,
+        /// Why the last look at the branches and the worktrees failed. The other values are those
+        /// of the look before.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub error: Option<String>,
+    }
+
+    /// `git_worktrees:<window>`: a worktree of the repository of the Git view. The key is
+    /// `path`. The main worktree comes first, then the others in the order of git.
+    pub struct GitWorktreeValue {
+        pub path: String,
+        /// The last part of the path.
+        pub name: String,
+        /// The branch of the worktree, or `None` for a detached `HEAD`.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub branch: Option<String>,
+        /// The short hash of its `HEAD`.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub commit: Option<String>,
+        /// The main worktree of the repository.
+        #[serde(default)]
+        pub main: bool,
+        /// The worktree that the Git view shows.
+        #[serde(default)]
+        pub current: bool,
+        /// The files that are not committed, or `None` when the core could not count them.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub dirty: Option<u32>,
+        #[serde(default)]
+        pub locked: bool,
+        /// The folder of the worktree is gone, and `git worktree prune` would remove it.
+        #[serde(default)]
+        pub prunable: bool,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        pub agents: Vec<GitAgent>,
+    }
+
+    #[derive(Copy, Eq, Hash)]
+    #[serde(rename_all = "snake_case")]
+    pub enum GitBranchKind {
+        Local,
+        Remote,
+    }
+
+    /// `git_branches:<window>`: a branch of the repository of the Git view. The key is
+    /// `reference`. The branch of `HEAD` comes first, then the recent ones, then the other local
+    /// ones and then the remote ones, each the newest commit first.
+    pub struct GitBranchValue {
+        /// For example `main` or `origin/main`.
+        pub name: String,
+        /// For example `refs/heads/main`.
+        pub reference: String,
+        pub kind: GitBranchKind,
+        /// The worktree of the Git view has it out.
+        #[serde(default)]
+        pub current: bool,
+        /// The worktree had it out a short time ago.
+        #[serde(default)]
+        pub recent: bool,
+        /// The upstream of a local branch, for example `origin/main`.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub upstream: Option<String>,
+        #[serde(default)]
+        pub ahead: u32,
+        #[serde(default)]
+        pub behind: u32,
+        /// The time of its last commit.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub time: Option<Timestamp>,
+        /// For example "3 days ago".
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub time_text: Option<String>,
+        /// The subject of its last commit.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub subject: Option<String>,
+        /// Another worktree has the branch out, so a switch to it goes to that worktree.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub worktree: Option<String>,
+    }
+
+    /// A commit of the History of the Git view.
+    pub struct GitCommit {
+        pub hash: String,
+        pub short: String,
+        pub subject: String,
+        pub author: String,
+        /// The time of the author.
+        pub time: Timestamp,
+        /// For example "3 hours ago".
+        pub time_text: String,
+        /// The branches at the commit, for example `main` and `origin/main`.
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        pub branches: Vec<String>,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        pub tags: Vec<String>,
+        /// `HEAD` is at this commit.
+        #[serde(default)]
+        pub head: bool,
+        /// No remote branch has the commit, so a push would send it. Always false in a repository
+        /// with no remote.
+        #[serde(default)]
+        pub unpushed: bool,
+    }
+}
+
 // --- phones ---------------------------------------------------------------------------------
 
 wire! {

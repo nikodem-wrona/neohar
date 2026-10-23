@@ -98,6 +98,7 @@ Focus and visibility from the OS and the page, for gate mode and pacing.
 | `active_pane` | [`RefPaneId`](/docs/reference/api/types#refpaneid) \| `null` |  | The pane whose surface is the active element of the page. `null` when focus is in chrome such as the palette. |
 | `focused` | boolean | yes |  |
 | `minimized` | boolean |  | Default: `false`. |
+| `panes_hidden` | boolean |  | A view of the page covers the panes, for example the Git view. The window gets no frames, and it gets a keyframe of each pane when the view closes. Default: `false`. |
 | `refresh_hz` | number (float) \| `null` |  |  |
 | `visible` | boolean | yes |  |
 | `window` | [`WindowId`](/docs/reference/api/types#windowid) | yes |  |

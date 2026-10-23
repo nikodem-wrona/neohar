@@ -24,7 +24,7 @@
 use std::{
     collections::{HashMap, VecDeque},
     sync::{
-        Arc, Mutex, MutexGuard, OnceLock, PoisonError,
+        Arc, Mutex, MutexGuard, PoisonError,
         atomic::{AtomicU64, Ordering},
     },
     time::Duration,
@@ -299,7 +299,7 @@ pub type OnSubscribe = Box<dyn Fn(Projection) + Send + Sync>;
 pub struct ProjectionHub {
     cells: Mutex<HashMap<Projection, Arc<Cell>>>,
     next_subscription: AtomicU64,
-    on_subscribe: OnceLock<OnSubscribe>,
+    on_subscribe: Mutex<Vec<Arc<OnSubscribe>>>,
 }
 
 impl ProjectionHub {
@@ -377,19 +377,20 @@ impl ProjectionHub {
     ) -> (SubscriptionId, Start) {
         let id = SubscriptionId(self.next_subscription.fetch_add(1, Ordering::Relaxed) + 1);
         let start = self.cell(projection).subscribe(id, since, sink);
-        if start != Start::Resync
-            && let Some(hook) = self.on_subscribe.get()
-        {
-            hook(projection);
+        if start != Start::Resync {
+            let hooks: Vec<Arc<OnSubscribe>> = lock(&self.on_subscribe).clone();
+            for hook in hooks {
+                hook(projection);
+            }
         }
         (id, start)
     }
 
-    /// Sets the hook that learns of each new subscription, after the sink got its first message.
-    /// A projection that the core fills only while a client follows it (`changes:<task>`)
-    /// starts its work there. The hook must not block. The first hook stays.
+    /// Adds a hook that learns of each new subscription, after the sink got its first message.
+    /// A projection that the core fills only while a client follows it (`changes_for:<window>`,
+    /// `git_head:<window>`) starts its work there. The hook must not block. Each hook stays.
     pub fn on_subscribe(&self, hook: OnSubscribe) {
-        let _ = self.on_subscribe.set(hook);
+        lock(&self.on_subscribe).push(Arc::new(hook));
     }
 
     /// Ends a subscription. Returns whether it existed.

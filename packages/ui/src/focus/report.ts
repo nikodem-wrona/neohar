@@ -1,5 +1,6 @@
 // What the page tells the core about focus: which pane has the DOM focus (`active_pane`),
-// whether the page has focus and is visible, and the refresh rate of the display. The host joins
+// whether the page has focus and is visible, whether a view covers the panes, and the refresh rate
+// of the display. The host joins
 // the page flags with what the window system knows. The page sends a report when something
 // changed.
 
@@ -9,6 +10,8 @@ export interface FocusReport {
   visible: boolean;
   active_pane: string | null;
   refresh_hz?: number;
+  /** A view of the page covers the panes, so the window draws none. */
+  panes_hidden?: boolean;
 }
 
 /** The part of an element that the lookup needs. */
@@ -31,7 +34,8 @@ export function sameReport(a: FocusReport | undefined, b: FocusReport): boolean 
     a.focused === b.focused &&
     a.visible === b.visible &&
     a.active_pane === b.active_pane &&
-    a.refresh_hz === b.refresh_hz
+    a.refresh_hz === b.refresh_hz &&
+    a.panes_hidden === b.panes_hidden
   );
 }
 
@@ -54,9 +58,15 @@ export function startFocusReport(options: {
   };
   page: FocusSource;
   send: (report: FocusReport) => void;
-}): { setRefresh(hz: number): void; resend(): void; stop(): void } {
+}): {
+  setRefresh(hz: number): void;
+  setPanesHidden(hidden: boolean): void;
+  resend(): void;
+  stop(): void;
+} {
   const { document: doc, page } = options;
   let hz: number | undefined;
+  let hidden = false;
   let last: FocusReport | undefined;
   const report = (): void => {
     const next: FocusReport = {
@@ -65,6 +75,7 @@ export function startFocusReport(options: {
       visible: doc.visibilityState === 'visible',
       active_pane: activePane(doc.activeElement),
       ...(hz !== undefined ? { refresh_hz: hz } : {}),
+      ...(hidden ? { panes_hidden: true } : {}),
     };
     if (sameReport(last, next)) return;
     last = next;
@@ -82,6 +93,11 @@ export function startFocusReport(options: {
   return {
     setRefresh(value) {
       hz = value;
+      report();
+    },
+    /** The core sends no frame while a view covers the panes, and keyframes after it. */
+    setPanesHidden(value) {
+      hidden = value;
       report();
     },
     /** Sends the report again, also when nothing changed. A core forgets it when a link ends. */

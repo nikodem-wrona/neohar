@@ -188,6 +188,13 @@ pub const COMMANDS: &[Spec] = &[
         Needs::Page,
     ),
     spec(
+        "git.open",
+        "Git: open the Git view",
+        "Go to",
+        Some("⌘⇧G"),
+        Needs::Page,
+    ),
+    spec(
         "settings.open",
         "Open settings",
         "App",

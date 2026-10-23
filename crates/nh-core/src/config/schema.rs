@@ -277,6 +277,7 @@ pub struct Keys {
     pub interaction_answer_next: String,
     pub peek_sibling: String,
     pub search_open: String,
+    pub git_open: String,
     pub window_new: String,
     pub pass_through: String,
 }

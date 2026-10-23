@@ -1,7 +1,7 @@
 // The state of the view that belongs to this window only and that no other client needs: whether
 // the left column and the drawer are open, which tab of the drawer shows, the widths of the side
-// columns, the name that the person edits, and whether the next key passes through to the pane.
-// None of it is business state.
+// columns, the name that the person edits, whether the next key passes through to the pane, and
+// whether the Git view covers the panes. None of it is business state.
 
 import { createSignal } from 'solid-js';
 import type { Sticky } from '../input/soft';
@@ -50,6 +50,16 @@ export interface PressMenu {
 export interface Shown {
   tab?: string | null;
   workspace?: string | null;
+}
+
+/**
+ * A request to show the Git view. `folder` is the folder whose worktree it shows; without one,
+ * the view shows the folder of the window. `seq` grows with each request, so that the same folder
+ * can be asked for twice.
+ */
+export interface GitTarget {
+  folder: string | null;
+  seq: number;
 }
 
 /** The widths of the side columns, in characters of the chrome font. */
@@ -112,6 +122,28 @@ export function createViewState() {
   const [focusedCard, setFocusedCard] = createSignal<string | null>(null);
   const [closing, setClosing] = createSignal<Closing | null>(null);
   const [renaming, setRenaming] = createSignal<RenameTarget | null>(null);
+  const [gitOpen, setGitOpen] = createSignal(false);
+  const [gitTarget, setGitTarget] = createSignal<GitTarget>({ folder: null, seq: 0 });
+  /** The side columns before the Git view folded them, to open them again when it closes. */
+  let unfolded: { left: boolean; drawer: boolean } | null = null;
+  const openGit = (folder: string | null = null): void => {
+    if (!gitOpen()) {
+      unfolded = { left: leftOpen(), drawer: drawerOpen() };
+      setLeftOpen(false);
+      setDrawerOpen(false);
+      setGitOpen(true);
+    }
+    setGitTarget((before) => ({ folder, seq: before.seq + 1 }));
+  };
+  const closeGit = (): void => {
+    if (!gitOpen()) return;
+    setGitOpen(false);
+    if (unfolded) {
+      setLeftOpen(unfolded.left);
+      setDrawerOpen(unfolded.drawer);
+      unfolded = null;
+    }
+  };
   return {
     /** The widths of the left column and of the drawer. A drag of their rule changes them. */
     columns,
@@ -157,6 +189,9 @@ export function createViewState() {
         setDrawerOpen(true);
       } else if (id === 'search.open') {
         setSearchOpen(true);
+      } else if (id === 'git.open') {
+        if (gitOpen()) closeGit();
+        else openGit();
       } else if (id === 'settings.open') {
         // A phone has no settings window: the core names this command of the page.
         setSheet({ kind: 'settings', section: null });
@@ -194,6 +229,20 @@ export function createViewState() {
     showDrawer(tab: DrawerTab): void {
       setDrawerTab(tab);
       setDrawerOpen(true);
+    },
+    /**
+     * The Git view covers the panes in the middle of the window. While it shows, the left column
+     * and the drawer are folded to their rails, and they open again when it closes.
+     */
+    gitOpen,
+    /** The last request to show the Git view. */
+    gitTarget,
+    /** Shows the Git view on the worktree of `folder`, or of the folder of the window. */
+    openGit,
+    closeGit,
+    toggleGit(): void {
+      if (gitOpen()) closeGit();
+      else openGit();
     },
   };
 }

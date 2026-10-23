@@ -88,7 +88,13 @@ pub fn phone_may_follow(name: &str, window: WindowId) -> bool {
     match name.parse::<Projection>() {
         Ok(Projection::PhonePairing) | Err(_) => false,
         Ok(
-            Projection::AgentsFor(of) | Projection::ChangesFor(of) | Projection::ChangesHead(of),
+            Projection::AgentsFor(of)
+            | Projection::ChangesFor(of)
+            | Projection::ChangesHead(of)
+            | Projection::GitHead(of)
+            | Projection::GitWorktrees(of)
+            | Projection::GitBranches(of)
+            | Projection::GitChanges(of),
         ) => of == window,
         Ok(_) => true,
     }
@@ -1540,6 +1546,9 @@ mod tests {
             format!("agents_for:{window}"),
             format!("changes_for:{window}"),
             format!("changes_head:{window}"),
+            format!("git_head:{window}"),
+            format!("git_changes:{window}"),
+            "git_repos".to_owned(),
         ] {
             assert!(phone_may_follow(&name, window), "{name}");
         }
@@ -1549,6 +1558,10 @@ mod tests {
             format!("agents_for:{other}"),
             format!("changes_for:{other}"),
             format!("changes_head:{other}"),
+            format!("git_head:{other}"),
+            format!("git_worktrees:{other}"),
+            format!("git_branches:{other}"),
+            format!("git_changes:{other}"),
         ] {
             assert!(!phone_may_follow(&name, window), "{name}");
         }

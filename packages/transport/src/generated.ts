@@ -1031,6 +1031,289 @@ export type GateResult =
       reason: string;
     };
 
+/** An agent whose pane folder is in a worktree. */
+export interface GitAgent {
+  harness: Harness;
+  name?: string | null;
+  pane: PaneId;
+  run: RunId;
+  state: GitAgentState;
+}
+
+/** The state of an agent in a worktree, as the Git view shows it. */
+export type GitAgentState = ('starting' | 'working' | 'idle' | 'exited' | 'unknown') | 'waiting';
+
+export type GitBranchKind = 'local' | 'remote';
+
+/** The rows of `git_branches:<window>` for a worktree, in their order. */
+export interface GitBranchList {
+  branches: GitBranchValue[];
+}
+
+/**
+ * `git_branches:<window>`: a branch of the repository of the Git view. The key is
+ * `reference`. The branch of `HEAD` comes first, then the recent ones, then the other local
+ * ones and then the remote ones, each the newest commit first.
+ */
+export interface GitBranchValue {
+  ahead?: number;
+  behind?: number;
+  /** The worktree of the Git view has it out. */
+  current?: boolean;
+  kind: GitBranchKind;
+  /** For example `main` or `origin/main`. */
+  name: string;
+  /** The worktree had it out a short time ago. */
+  recent?: boolean;
+  /** For example `refs/heads/main`. */
+  reference: string;
+  /** The subject of its last commit. */
+  subject?: string | null;
+  /** The time of its last commit. */
+  time?: Timestamp | null;
+  /** For example "3 days ago". */
+  time_text?: string | null;
+  /** The upstream of a local branch, for example `origin/main`. */
+  upstream?: string | null;
+  /** Another worktree has the branch out, so a switch to it goes to that worktree. */
+  worktree?: string | null;
+}
+
+/** A commit of the History of the Git view. */
+export interface GitCommit {
+  author: string;
+  /** The branches at the commit, for example `main` and `origin/main`. */
+  branches?: string[];
+  hash: string;
+  /** `HEAD` is at this commit. */
+  head?: boolean;
+  short: string;
+  subject: string;
+  tags?: string[];
+  /** The time of the author. */
+  time: Timestamp;
+  /** For example "3 hours ago". */
+  time_text: string;
+  /**
+   * No remote branch has the commit, so a push would send it. Always false in a repository
+   * with no remote.
+   */
+  unpushed?: boolean;
+}
+
+/**
+ * `git.diff`: the diff of one file. Without `commit`, the file is a row of the changes of the
+ * worktree, from `HEAD`. With `commit`, it is a file of that commit, from its first parent.
+ */
+export interface GitDiff {
+  commit?: string | null;
+  /** The path of the file from the root of the worktree. */
+  file: string;
+  path?: string | null;
+  window?: WindowId | null;
+}
+
+/**
+ * `git.follow`: the Git view of a window shows the git worktree that holds `path`. The core
+ * fills `git_head:<window>`, `git_worktrees:<window>`, `git_branches:<window>` and
+ * `git_changes:<window>` while the window follows one of them, and looks again when the
+ * worktree or its git directory changes.
+ */
+export interface GitFollow {
+  /** An absolute path in the worktree: the folder of a pane, or a row of `git_worktrees`. */
+  path: string;
+  window: WindowId;
+}
+
+/**
+ * `git_head:<window>`: what the Git view of a window shows. The window names a folder with
+ * `git.follow`, and the head is that of the git worktree that holds it. The core makes the
+ * row when it knows the worktree.
+ */
+export interface GitHead {
+  /** The agents whose pane folder is in the worktree. */
+  agents?: GitAgent[];
+  /** The commits of the branch that its upstream does not have. */
+  ahead?: number;
+  /** The commits of the upstream that the branch does not have. */
+  behind?: number;
+  /** The branch of `HEAD`, or `None` for a detached `HEAD`. */
+  branch?: string | null;
+  /** The totals of the last count of the changes, or `None` before the first count. */
+  changes?: ChangeTotals | null;
+  /** The short hash of `HEAD`, or `None` before the first commit. */
+  commit?: string | null;
+  /** The lines of all changed files. */
+  diff_stats?: DiffStats | null;
+  /**
+   * Why the last look at the branches and the worktrees failed. The other values are those
+   * of the look before.
+   */
+  error?: string | null;
+  /** The time of the last fetch, from `FETCH_HEAD`. */
+  fetched_at?: Timestamp | null;
+  /** For example "Last fetched 18 minutes ago" or "Never fetched". `None` without a remote. */
+  fetched_text?: string | null;
+  /** The folder that the window named. */
+  folder: string;
+  /** The remote of a fetch: the remote of the upstream, else `origin`, else the first one. */
+  remote?: string | null;
+  /** The key of the repository in `git_repos`: its common git directory. */
+  repo?: string | null;
+  repo_name?: string | null;
+  /** The upstream of the branch, for example `origin/main`. */
+  upstream?: string | null;
+  /** The upstream is gone from its remote. */
+  upstream_gone?: boolean;
+  /**
+   * The root of the worktree that holds the folder, or `None` when the folder is not in a
+   * git worktree.
+   */
+  worktree?: string | null;
+  /** The last part of the root of the worktree. */
+  worktree_name?: string | null;
+}
+
+/** `git.log`: the commits of `HEAD`, the newest first, in pages. */
+export interface GitLog {
+  /** The most commits of the page, at most 200. */
+  limit?: number;
+  path?: string | null;
+  /** The commits to leave out at the start: the number that the pages before had. */
+  skip?: number;
+  window?: WindowId | null;
+}
+
+export interface GitLogResult {
+  commits: GitCommit[];
+  /**
+   * The commit of `HEAD` when the page was read. Another value than the page before means
+   * that the history changed: read it again from the start.
+   */
+  head?: string | null;
+  /** More commits follow this page. */
+  more: boolean;
+}
+
+/**
+ * The worktree of a read: the one that the Git view of `window` follows, or the one that
+ * holds `path`.
+ */
+export interface GitPlace {
+  /** An absolute path in the worktree. The CLI gives the current directory. */
+  path?: string | null;
+  window?: WindowId | null;
+}
+
+/**
+ * `git.repo_add`: `git_repos` keeps the repository that holds `path`, also when no workspace
+ * and no pane is in it.
+ */
+export interface GitRepoAdd {
+  /** An absolute path in a git worktree. */
+  path: string;
+}
+
+/** The payload of `git.repo_added`: `git_repos` keeps a repository that the person added. */
+export interface GitRepoAdded {
+  /** The common git directory of the repository. */
+  common_dir: string;
+  /** The path that the person gave. */
+  path: string;
+}
+
+/** The rows of `git_repos`, in their order. */
+export interface GitRepoList {
+  repos: GitRepoValue[];
+}
+
+/** Where the core found a repository of `git_repos`. */
+export type GitRepoSource = 'workspace' | 'pane' | 'added';
+
+/**
+ * `git_repos`: a git repository of this machine. The key is `common_dir`. The core fills it
+ * only while a client follows it. The rows with agents come first, then by name.
+ */
+export interface GitRepoValue {
+  /** The live agents whose pane folder is in a worktree of the repository. */
+  agents: number;
+  /** The git directory that the worktrees of the repository share. */
+  common_dir: string;
+  /** The name of the folder of the main worktree. */
+  name: string;
+  /**
+   * The worktree that the Git view opens: the main one, or the one where the core found
+   * the repository when the main one has no files (a bare repository).
+   */
+  root: string;
+  source: GitRepoSource;
+}
+
+/** `git.show`: one commit with its message and its files. */
+export interface GitShow {
+  /** The full or the short hash of the commit. */
+  commit: string;
+  path?: string | null;
+  window?: WindowId | null;
+}
+
+export interface GitShown {
+  /** The message after the subject, without the blank line between them. */
+  body: string;
+  commit: GitCommit;
+  /** The e-mail address of the author. */
+  email: string;
+  /** The changed files, in the byte order of the path. `stamp` is 0. */
+  files: ChangeRow[];
+  /**
+   * The short hashes of the parents. A merge has two or more. The files are the changes
+   * from the first parent.
+   */
+  parents: string[];
+  /** The lines of all files. */
+  stats: DiffStats;
+  /** The commit has more than 1,000 files, and `files` has the first 1,000. */
+  truncated?: boolean;
+}
+
+/**
+ * `git.status`: the head and the changed files of a worktree, as `git_head:<window>` and
+ * `git_changes:<window>` have them.
+ */
+export interface GitStatus {
+  changes: ChangeRow[];
+  head: GitHead;
+}
+
+/** The rows of `git_worktrees:<window>` for a worktree, in their order. */
+export interface GitWorktreeList {
+  worktrees: GitWorktreeValue[];
+}
+
+/**
+ * `git_worktrees:<window>`: a worktree of the repository of the Git view. The key is
+ * `path`. The main worktree comes first, then the others in the order of git.
+ */
+export interface GitWorktreeValue {
+  agents?: GitAgent[];
+  /** The branch of the worktree, or `None` for a detached `HEAD`. */
+  branch?: string | null;
+  /** The short hash of its `HEAD`. */
+  commit?: string | null;
+  /** The worktree that the Git view shows. */
+  current?: boolean;
+  /** The files that are not committed, or `None` when the core could not count them. */
+  dirty?: number | null;
+  locked?: boolean;
+  /** The main worktree of the repository. */
+  main?: boolean;
+  /** The last part of the path. */
+  name: string;
+  path: string;
+  /** The folder of the worktree is gone, and `git worktree prune` would remove it. */
+  prunable?: boolean;
+}
+
 /** Closing a group keeps its workspaces. They have no group afterwards. */
 export interface GroupClose {
   group: RefGroupId;
@@ -2382,7 +2665,7 @@ export interface ProcessSpec {
   env?: Record<string, string>;
 }
 
-/** The name of a projection. timeline:<run>, pane_text:<pane>, agents_for:<window>, changes_for:<window> and changes_head:<window> take an id. */
+/** The name of a projection. timeline:<run>, pane_text:<pane>, agents_for:<window>, changes_for:<window>, changes_head:<window>, git_head:<window>, git_worktrees:<window>, git_branches:<window> and git_changes:<window> take an id. */
 export type Projection = string;
 
 /** The state of a projection: the values by key, and the order of the keys. */
@@ -2892,6 +3175,11 @@ export interface WindowFocusReport {
   active_pane?: RefPaneId | null;
   focused: boolean;
   minimized?: boolean;
+  /**
+   * A view of the page covers the panes, for example the Git view. The window gets no
+   * frames, and it gets a keyframe of each pane when the view closes.
+   */
+  panes_hidden?: boolean;
   refresh_hz?: number | null;
   visible: boolean;
   window: WindowId;
@@ -3212,6 +3500,15 @@ export interface MethodMap {
   'interaction.reveal': { params: InteractionReveal; result: InteractionRevealed };
   'changes.follow': { params: ChangesFollow; result: Empty };
   'changes.diff': { params: ChangesDiff; result: FileDiff };
+  'git.follow': { params: GitFollow; result: Empty };
+  'git.repo_add': { params: GitRepoAdd; result: Empty };
+  'git.repos': { params: Empty; result: GitRepoList };
+  'git.status': { params: GitPlace; result: GitStatus };
+  'git.worktrees': { params: GitPlace; result: GitWorktreeList };
+  'git.branches': { params: GitPlace; result: GitBranchList };
+  'git.log': { params: GitLog; result: GitLogResult };
+  'git.show': { params: GitShow; result: GitShown };
+  'git.diff': { params: GitDiff; result: FileDiff };
   'phone.pair_begin': { params: PhonePairBegin; result: PhonePairStarted };
   'phone.pair_cancel': { params: Empty; result: Empty };
   'phone.remove': { params: PhoneRemove; result: Empty };
@@ -3357,6 +3654,15 @@ export type UiMethod =
   | 'interaction.reveal'
   | 'changes.follow'
   | 'changes.diff'
+  | 'git.follow'
+  | 'git.repo_add'
+  | 'git.repos'
+  | 'git.status'
+  | 'git.worktrees'
+  | 'git.branches'
+  | 'git.log'
+  | 'git.show'
+  | 'git.diff'
   | 'phone.pair_begin'
   | 'phone.pair_cancel'
   | 'phone.remove'
@@ -3457,6 +3763,14 @@ export type CliMethod =
   | 'interaction.dismiss'
   | 'interaction.next'
   | 'interaction.reveal'
+  | 'git.repo_add'
+  | 'git.repos'
+  | 'git.status'
+  | 'git.worktrees'
+  | 'git.branches'
+  | 'git.log'
+  | 'git.show'
+  | 'git.diff'
   | 'phone.pair_begin'
   | 'phone.pair_cancel'
   | 'phone.remove'
@@ -3586,6 +3900,15 @@ export const METHOD_SCOPES: { readonly [M in Method]: readonly Scope[] } = {
   'interaction.reveal': ['ui', 'cli', 'phone'],
   'changes.follow': ['ui', 'phone'],
   'changes.diff': ['ui', 'phone'],
+  'git.follow': ['ui', 'phone'],
+  'git.repo_add': ['ui', 'cli', 'phone'],
+  'git.repos': ['ui', 'cli', 'phone'],
+  'git.status': ['ui', 'cli', 'phone'],
+  'git.worktrees': ['ui', 'cli', 'phone'],
+  'git.branches': ['ui', 'cli', 'phone'],
+  'git.log': ['ui', 'cli', 'phone'],
+  'git.show': ['ui', 'cli', 'phone'],
+  'git.diff': ['ui', 'cli', 'phone'],
   'phone.pair_begin': ['ui', 'cli'],
   'phone.pair_cancel': ['ui', 'cli'],
   'phone.remove': ['ui', 'cli', 'phone'],
@@ -3671,6 +3994,11 @@ export interface ProjectionValueMap {
   phones: PhoneValue;
   phone_pairing: PhonePairingValue;
   phone_status: PhoneStatusValue;
+  git_repos: GitRepoValue;
+  git_head: GitHead;
+  git_worktrees: GitWorktreeValue;
+  git_branches: GitBranchValue;
+  git_changes: ChangeRow;
 }
 
 export type ProjectionBase = keyof ProjectionValueMap;
@@ -3695,11 +4023,16 @@ export type ProjectionName =
   | 'phones'
   | 'phone_pairing'
   | 'phone_status'
+  | 'git_repos'
   | `timeline:${string}`
   | `pane_text:${string}`
   | `agents_for:${string}`
   | `changes_for:${string}`
-  | `changes_head:${string}`;
+  | `changes_head:${string}`
+  | `git_head:${string}`
+  | `git_worktrees:${string}`
+  | `git_branches:${string}`
+  | `git_changes:${string}`;
 
 /** The projections with one key, `_`. */
 export const SINGLETON_PROJECTIONS = [
@@ -3709,6 +4042,7 @@ export const SINGLETON_PROJECTIONS = [
   'changes_head',
   'phone_pairing',
   'phone_status',
+  'git_head',
 ] as const;
 export const SINGLETON_KEY = '_';
 
@@ -3765,6 +4099,7 @@ export interface EventPayloadMap {
   'phone.replied': PhoneReplied;
   'policy.added': PolicyEvent;
   'policy.removed': PolicyEvent;
+  'git.repo_added': GitRepoAdded;
 }
 
 export type EventKind = keyof EventPayloadMap;

@@ -28,6 +28,7 @@ mod doctor;
 pub mod error;
 mod files;
 mod focus;
+mod git_view;
 pub mod harness;
 pub mod health;
 pub mod holder;

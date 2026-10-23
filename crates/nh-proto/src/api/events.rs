@@ -268,6 +268,14 @@ wire! {
         pub run: RunId,
     }
 
+    /// The payload of `git.repo_added`: `git_repos` keeps a repository that the person added.
+    pub struct GitRepoAdded {
+        /// The path that the person gave.
+        pub path: String,
+        /// The common git directory of the repository.
+        pub common_dir: String,
+    }
+
     /// The payload of `policy.added` and `policy.removed`.
     pub struct PolicyEvent {
         pub id: String,
@@ -402,6 +410,7 @@ events! {
     PhoneReplied = "phone.replied" (PhoneReplied);
     PolicyAdded = "policy.added" (PolicyEvent);
     PolicyRemoved = "policy.removed" (PolicyEvent);
+    GitRepoAdded = "git.repo_added" (GitRepoAdded);
 }
 
 impl Event {

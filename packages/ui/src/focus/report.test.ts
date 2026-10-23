@@ -41,6 +41,7 @@ test('a report is the same only when every field is the same', () => {
   expect(sameReport({ ...report }, report)).toBe(true);
   expect(sameReport({ ...report, active_pane: 'P' }, report)).toBe(false);
   expect(sameReport({ ...report, refresh_hz: 60 }, report)).toBe(false);
+  expect(sameReport({ ...report, panes_hidden: true }, report)).toBe(false);
 });
 
 /** A document and a page that call their listeners when the test says so. */
@@ -103,6 +104,14 @@ test('a report goes out at the start and after each change, and not twice for th
 
   reporting.setRefresh(120);
   expect(sent[3]?.refresh_hz).toBe(120);
+
+  // A view that covers the panes says so, and the next report after it leaves the flag out.
+  reporting.setPanesHidden(true);
+  expect(sent[4]?.panes_hidden).toBe(true);
+  reporting.setPanesHidden(true);
+  expect(sent).toHaveLength(5);
+  reporting.setPanesHidden(false);
+  expect(sent[5]?.panes_hidden).toBeUndefined();
 
   reporting.stop();
   expect(fake.count()).toBe(0);

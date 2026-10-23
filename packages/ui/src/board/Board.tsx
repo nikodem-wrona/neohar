@@ -6,10 +6,11 @@
 // and its PTY: a new agent never changes it. A `ResizeObserver` gives the width of the board to
 // `fitStrips`, and the runs that do not fit go behind the `+N` cell, which opens the list of every
 // agent. The cell is amber when a run behind it waits. The attention line of the command line
-// still counts every run that waits.
+// still counts every run that waits. A right click on a strip opens its menu: show the pane, or show
+// the worktree of its folder in the Git view.
 
 import type { AgentValue } from '@neohar/transport';
-import { createMemo, createSignal, For, onCleanup, onMount, Show } from 'solid-js';
+import { createEffect, createMemo, createSignal, For, onCleanup, onMount, Show } from 'solid-js';
 import { badgeOf, workOf } from '../agents/badge';
 import { useApp } from '../app/context';
 import { dragged, dropTarget, pressToDrag, type Dragged } from '../app/drag';
@@ -23,7 +24,7 @@ import { Strip } from './Strip';
 const PROBE = '0'.repeat(20);
 
 export function Board() {
-  const { stores, transport, run, report, windowId } = useApp();
+  const { stores, transport, run, report, windowId, view, form: shellForm } = useApp();
   const runs = () => stores.agents.rows();
   const [width, setWidth] = createSignal(0);
   let board: HTMLElement | undefined;
@@ -79,6 +80,33 @@ export function Board() {
     showPane(transport, windowId, pane).catch(report);
   };
 
+  // The menu of a strip is a popover in the top layer: a click elsewhere closes it.
+  const [menu, setMenu] = createSignal<{ pane: string; x: number; y: number } | null>(null);
+  let menuBox: HTMLDivElement | undefined;
+  const folderOf = (pane: string): string | undefined =>
+    stores.panes.state.byKey[pane]?.cwd ?? undefined;
+  createEffect(() => {
+    if (!menu() || !menuBox) return;
+    if (!menuBox.matches(':popover-open')) menuBox.showPopover();
+    menuBox.querySelector<HTMLElement>('[role="menuitem"]')?.focus();
+  });
+  const closeMenu = (): void => {
+    if (menuBox?.matches(':popover-open')) menuBox.hidePopover();
+    setMenu(null);
+  };
+  const onMenuKey = (event: KeyboardEvent): void => {
+    const items = [...(menuBox?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? [])];
+    const at = items.indexOf(document.activeElement as HTMLElement);
+    if (event.key === 'Escape' || event.key === 'Tab') {
+      event.preventDefault();
+      closeMenu();
+    } else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault();
+      const step = event.key === 'ArrowDown' ? 1 : -1;
+      items[(at + step + items.length) % items.length]?.focus();
+    }
+  };
+
   return (
     <section
       class="board"
@@ -112,6 +140,11 @@ export function Board() {
                   })
                 }
                 onPointerDown={(event) => pressToDrag(event, { kind: 'agent', id: run.id })}
+                onContextMenu={(event) => {
+                  if (shellForm === 'phone' || !run.pane) return;
+                  event.preventDefault();
+                  setMenu({ pane: run.pane, x: event.clientX, y: event.clientY });
+                }}
               >
                 <Strip
                   run={run}
@@ -139,6 +172,52 @@ export function Board() {
         </Show>
       </Show>
       <BoardList runs={runs()} work={work} tooltip={tooltip} focused={focused} onShow={show} />
+      <Show when={menu()}>
+        {(shownMenu) => (
+          <div
+            class="files-menu"
+            role="menu"
+            popover="auto"
+            aria-label="Actions of the agent"
+            ref={(element) => {
+              menuBox = element;
+              element.addEventListener('toggle', (event) => {
+                if ((event as ToggleEvent).newState === 'closed') setMenu(null);
+              });
+            }}
+            style={{ left: `${shownMenu().x}px`, top: `${shownMenu().y}px` }}
+            onKeyDown={onMenuKey}
+          >
+            <button
+              type="button"
+              role="menuitem"
+              class="files-menu-item"
+              tabIndex={-1}
+              onClick={() => {
+                const pane = shownMenu().pane;
+                closeMenu();
+                show(pane);
+              }}
+            >
+              Show the pane
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              class="files-menu-item"
+              tabIndex={-1}
+              disabled={!folderOf(shownMenu().pane)}
+              onClick={() => {
+                const folder = folderOf(shownMenu().pane);
+                closeMenu();
+                if (folder) view.openGit(folder);
+              }}
+            >
+              Show in Git view
+            </button>
+          </div>
+        )}
+      </Show>
     </section>
   );
 }

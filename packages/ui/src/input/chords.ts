@@ -174,6 +174,7 @@ export const DEFAULT_KEYS: Readonly<Record<string, string>> = {
   interaction_answer_next: 'mod+shift+a',
   peek_sibling: 'mod+shift+p',
   search_open: 'mod+shift+f',
+  git_open: 'mod+shift+g',
   window_new: 'mod+shift+n',
   pass_through: 'mod+alt+v',
 };

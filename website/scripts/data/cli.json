@@ -625,6 +625,68 @@
   },
   {
     "path": [
+      "git"
+    ],
+    "about": "Git repositories, worktrees, branches and history, as the Git view shows them"
+  },
+  {
+    "path": [
+      "git",
+      "repos"
+    ],
+    "about": "List the git repositories that neohar knows: of the workspaces, the panes and the ones you added"
+  },
+  {
+    "path": [
+      "git",
+      "add"
+    ],
+    "about": "Add the repository of a folder, or of the current directory, to the Repository menu"
+  },
+  {
+    "path": [
+      "git",
+      "status"
+    ],
+    "about": "Show the branch, its upstream, the agents and the changed files of the worktree of the current directory"
+  },
+  {
+    "path": [
+      "git",
+      "worktrees"
+    ],
+    "about": "List the worktrees of the repository with their branches and agents"
+  },
+  {
+    "path": [
+      "git",
+      "branches"
+    ],
+    "about": "List the local and remote branches: the current one, the recent ones, then the others"
+  },
+  {
+    "path": [
+      "git",
+      "log"
+    ],
+    "about": "List the commits of HEAD, the newest first"
+  },
+  {
+    "path": [
+      "git",
+      "show"
+    ],
+    "about": "Show a commit with its message and its files"
+  },
+  {
+    "path": [
+      "git",
+      "diff"
+    ],
+    "about": "Show the diff of a changed file, or of a file of a commit with --commit"
+  },
+  {
+    "path": [
       "config"
     ],
     "about": "The configuration"

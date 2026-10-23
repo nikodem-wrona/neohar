@@ -13,10 +13,10 @@ use super::{
     common::wire,
     ids::{IdError, PaneId, RunId, WindowId},
     model::{
-        AgentValue, AttentionValue, ChangeRow, ChangesHead, HarnessValue, HealthValue,
-        InteractionValue, JobValue, LimitValue, LinkValue, MachineValue, NotificationValue,
-        PaletteValue, PaneValue, PhonePairingValue, PhoneStatusValue, PhoneValue, SettingsSection,
-        TimelineItem, WindowValue, WorkspaceValue,
+        AgentValue, AttentionValue, ChangeRow, ChangesHead, GitBranchValue, GitHead, GitRepoValue,
+        GitWorktreeValue, HarnessValue, HealthValue, InteractionValue, JobValue, LimitValue,
+        LinkValue, MachineValue, NotificationValue, PaletteValue, PaneValue, PhonePairingValue,
+        PhoneStatusValue, PhoneValue, SettingsSection, TimelineItem, WindowValue, WorkspaceValue,
     },
 };
 
@@ -62,11 +62,22 @@ pub enum Projection {
     PhonePairing,
     /// The listener of the phone.
     PhoneStatus,
+    /// The git repositories of this machine, for the Repository menu of the Git view.
+    GitRepos,
+    /// The head of the Git view of one window: the repository, the worktree, the branch and the
+    /// agents in the worktree (`git_head:<window>`).
+    GitHead(WindowId),
+    /// The worktrees of the repository of the Git view of one window (`git_worktrees:<window>`).
+    GitWorktrees(WindowId),
+    /// The branches of that repository (`git_branches:<window>`).
+    GitBranches(WindowId),
+    /// The changed files of the worktree of the Git view of one window (`git_changes:<window>`).
+    GitChanges(WindowId),
 }
 
 impl Projection {
     /// The projections without a parameter, in a fixed order.
-    pub const STATIC: [Self; 16] = [
+    pub const STATIC: [Self; 17] = [
         Self::Windows,
         Self::Tree,
         Self::Panes,
@@ -83,6 +94,7 @@ impl Projection {
         Self::Phones,
         Self::PhonePairing,
         Self::PhoneStatus,
+        Self::GitRepos,
     ];
 
     /// Whether the projection has one key, `_`.
@@ -93,6 +105,7 @@ impl Projection {
                 | Self::Health
                 | Self::Link
                 | Self::ChangesHead(_)
+                | Self::GitHead(_)
                 | Self::PhonePairing
                 | Self::PhoneStatus
         )
@@ -124,6 +137,11 @@ impl Projection {
             Self::Phones => "phones",
             Self::PhonePairing => "phone_pairing",
             Self::PhoneStatus => "phone_status",
+            Self::GitRepos => "git_repos",
+            Self::GitHead(_) => "git_head",
+            Self::GitWorktrees(_) => "git_worktrees",
+            Self::GitBranches(_) => "git_branches",
+            Self::GitChanges(_) => "git_changes",
         }
     }
 }
@@ -136,6 +154,10 @@ impl fmt::Display for Projection {
             Self::AgentsFor(window) => write!(f, "agents_for:{window}"),
             Self::ChangesFor(window) => write!(f, "changes_for:{window}"),
             Self::ChangesHead(window) => write!(f, "changes_head:{window}"),
+            Self::GitHead(window) => write!(f, "git_head:{window}"),
+            Self::GitWorktrees(window) => write!(f, "git_worktrees:{window}"),
+            Self::GitBranches(window) => write!(f, "git_branches:{window}"),
+            Self::GitChanges(window) => write!(f, "git_changes:{window}"),
             other => f.write_str(other.base_name()),
         }
     }
@@ -159,6 +181,18 @@ impl FromStr for Projection {
         }
         if let Some(window) = text.strip_prefix("changes_head:") {
             return window.parse().map(Self::ChangesHead);
+        }
+        if let Some(window) = text.strip_prefix("git_head:") {
+            return window.parse().map(Self::GitHead);
+        }
+        if let Some(window) = text.strip_prefix("git_worktrees:") {
+            return window.parse().map(Self::GitWorktrees);
+        }
+        if let Some(window) = text.strip_prefix("git_branches:") {
+            return window.parse().map(Self::GitBranches);
+        }
+        if let Some(window) = text.strip_prefix("git_changes:") {
+            return window.parse().map(Self::GitChanges);
         }
         Self::STATIC
             .iter()
@@ -190,8 +224,8 @@ impl JsonSchema for Projection {
     fn json_schema(_: &mut SchemaGenerator) -> Schema {
         schemars::json_schema!({
             "type": "string",
-            "pattern": "^(windows|tree|panes|agents|attention|interactions|notifications|machines|harnesses|limits|jobs|palette|settings|phones|phone_pairing|phone_status|health|link|timeline:[0-9A-HJKMNP-TV-Z]{26}|pane_text:[0-9A-HJKMNP-TV-Z]{26}|agents_for:[0-9A-HJKMNP-TV-Z]{26}|changes_for:[0-9A-HJKMNP-TV-Z]{26}|changes_head:[0-9A-HJKMNP-TV-Z]{26})$",
-            "description": "The name of a projection. timeline:<run>, pane_text:<pane>, agents_for:<window>, changes_for:<window> and changes_head:<window> take an id."
+            "pattern": "^(windows|tree|panes|agents|attention|interactions|notifications|machines|harnesses|limits|jobs|palette|settings|phones|phone_pairing|phone_status|git_repos|health|link|timeline:[0-9A-HJKMNP-TV-Z]{26}|pane_text:[0-9A-HJKMNP-TV-Z]{26}|agents_for:[0-9A-HJKMNP-TV-Z]{26}|changes_for:[0-9A-HJKMNP-TV-Z]{26}|changes_head:[0-9A-HJKMNP-TV-Z]{26}|git_head:[0-9A-HJKMNP-TV-Z]{26}|git_worktrees:[0-9A-HJKMNP-TV-Z]{26}|git_branches:[0-9A-HJKMNP-TV-Z]{26}|git_changes:[0-9A-HJKMNP-TV-Z]{26})$",
+            "description": "The name of a projection. timeline:<run>, pane_text:<pane>, agents_for:<window>, changes_for:<window>, changes_head:<window>, git_head:<window>, git_worktrees:<window>, git_branches:<window> and git_changes:<window> take an id."
         })
     }
 }
@@ -301,6 +335,11 @@ pub fn specs() -> Vec<ProjectionSpec> {
         spec!("phones", "device id", PhoneValue),
         spec!("phone_pairing", PhonePairingValue, singleton),
         spec!("phone_status", PhoneStatusValue, singleton),
+        spec!("git_repos", "common git directory", GitRepoValue),
+        spec!("git_head", GitHead, singleton, param "window id"),
+        spec!("git_worktrees", "path", GitWorktreeValue, param "window id"),
+        spec!("git_branches", "reference", GitBranchValue, param "window id"),
+        spec!("git_changes", "path", ChangeRow, param "window id"),
     ]
 }
 
@@ -326,6 +365,13 @@ mod tests {
         all.push(Projection::ChangesHead(
             "01M4F1W7EM2GN3EV6NHXZJEGGF".parse().expect("an id"),
         ));
+        let window: WindowId = "01M4F1W7EM2GN3EV6NHXZJEGGG".parse().expect("an id");
+        all.extend([
+            Projection::GitHead(window),
+            Projection::GitWorktrees(window),
+            Projection::GitBranches(window),
+            Projection::GitChanges(window),
+        ]);
         for projection in all {
             let text = projection.to_string();
             assert_eq!(
@@ -351,6 +397,8 @@ mod tests {
             "pane_text:",
             "agents_for:",
             "agents_for:w3",
+            "git_head:",
+            "git_changes:w3",
             "Tree",
             "timeline:x",
         ] {
@@ -395,7 +443,7 @@ mod tests {
     }
 
     #[test]
-    fn six_projections_are_singletons() {
+    fn seven_projections_are_singletons() {
         let singles: Vec<_> = specs()
             .into_iter()
             .filter(|s| s.singleton)
@@ -409,7 +457,8 @@ mod tests {
                 "link",
                 "changes_head",
                 "phone_pairing",
-                "phone_status"
+                "phone_status",
+                "git_head"
             ]
         );
         let window: WindowId = "01M4F1W7EM2GN3EV6NHXZJEGGC".parse().expect("an id");
@@ -420,7 +469,10 @@ mod tests {
                 && Projection::ChangesHead(window).is_singleton()
                 && Projection::PhonePairing.is_singleton()
                 && Projection::PhoneStatus.is_singleton()
+                && Projection::GitHead(window).is_singleton()
         );
+        assert!(!Projection::GitRepos.is_singleton());
+        assert!(!Projection::GitChanges(window).is_singleton());
         assert!(!Projection::Phones.is_singleton());
         assert!(!Projection::Tree.is_singleton());
         assert!(!Projection::ChangesFor(window).is_singleton());

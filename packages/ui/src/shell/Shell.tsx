@@ -4,6 +4,8 @@
 // their rule changes, and each folds to a rail. A window narrower than 1280 px folds the drawer, and
 // one narrower than 1000 px also folds the left column; the person can open them again. The body of
 // the window waits for the first snapshots, and says so when the core does not know the window.
+// The Git view (⌘⇧G) takes the place of the tab bar and the layout, and folds both side columns
+// while it shows.
 //
 // On a phone, portrait has the command line, the board, the tab bar, one pane and the
 // bottom bar. The left column, the drawer, More and the settings open as sheets, and a pane that
@@ -33,6 +35,7 @@ import { LayoutView } from '../layout/LayoutView';
 import { Palette } from '../palette/Palette';
 import { SearchOverlay } from '../search/SearchOverlay';
 import { Board } from '../board/Board';
+import { GitView } from '../git/GitView';
 import { CloseConfirm } from './CloseConfirm';
 import { FailureBanner } from './FailureBanner';
 import { HealthBanner } from './HealthBanner';
@@ -77,6 +80,8 @@ export function Shell(props: ShellProps = {}) {
     return win?.workspace ? stores.tree.state.byKey[win.workspace] : undefined;
   };
   const tab = () => workspace()?.tabs.find((candidate) => candidate.id === shown()?.tab);
+  // A phone has no Git view in this version.
+  const gitShown = () => form !== 'phone' && view.gitOpen();
 
   // What a reserved chord reads in this window.
   const actions: ActionContext = {
@@ -95,6 +100,9 @@ export function Shell(props: ShellProps = {}) {
     showDrawer: view.showDrawer,
     togglePalette: () => view.setPaletteOpen((open) => !open),
     toggleSearch: () => view.setSearchOpen((open) => !open),
+    toggleGit: () => {
+      if (form !== 'phone') view.toggleGit();
+    },
     focusCard: view.focusCard,
   };
 
@@ -163,7 +171,7 @@ export function Shell(props: ShellProps = {}) {
 
   // A core that lost its client forgets that the windows have focus and are visible,
   // so the window reports again when its link comes back.
-  let reporting: { resend(): void } | undefined;
+  let reporting: { resend(): void; setPanesHidden(hidden: boolean): void } | undefined;
   let wasDown = false;
   createEffect(() => {
     const down = linkIsDown(stores.link.state.byKey['_']?.state);
@@ -184,6 +192,8 @@ export function Shell(props: ShellProps = {}) {
       send: (focus) => void transport.call('window.focus_report', focus).catch(() => undefined),
     });
     reporting = reported;
+    // While the Git view covers the panes, the window draws none of them.
+    createEffect(() => reported.setPanesHidden(gitShown()));
     sampleRefresh(pageFrames, () => performance.now())
       .then((hz) => {
         if (hz !== undefined) reported.setRefresh(hz);
@@ -236,32 +246,35 @@ export function Shell(props: ShellProps = {}) {
         <HealthBanner />
         <LinkBanner />
         <FailureBanner />
-        <TabBar />
-        <Switch>
-          <Match when={stores.windows.state.status === 'loading'}>
-            <p class="notice" role="status">
-              Connecting to the core.
-            </p>
-          </Match>
-          <Match when={!shown()}>
-            <p class="notice" role="alert">
-              The core does not know this window.
-            </p>
-          </Match>
-          <Match when={tab()}>
-            {(current) => (
-              // The surfaces take no input while the link is down.
-              <div class="main-body" inert={linkIsDown(stores.link.state.byKey['_']?.state)}>
-                <LayoutView tab={current()} />
-              </div>
-            )}
-          </Match>
-          <Match when={true}>
-            <p class="notice" role="status">
-              This window shows no tab. Make a workspace or pick a tab.
-            </p>
-          </Match>
-        </Switch>
+        {/* The Git view takes the place of the tab bar and the panes. The panes keep running. */}
+        <Show when={!gitShown()} fallback={<GitView />}>
+          <TabBar />
+          <Switch>
+            <Match when={stores.windows.state.status === 'loading'}>
+              <p class="notice" role="status">
+                Connecting to the core.
+              </p>
+            </Match>
+            <Match when={!shown()}>
+              <p class="notice" role="alert">
+                The core does not know this window.
+              </p>
+            </Match>
+            <Match when={tab()}>
+              {(current) => (
+                // The surfaces take no input while the link is down.
+                <div class="main-body" inert={linkIsDown(stores.link.state.byKey['_']?.state)}>
+                  <LayoutView tab={current()} />
+                </div>
+              )}
+            </Match>
+            <Match when={true}>
+              <p class="notice" role="status">
+                This window shows no tab. Make a workspace or pick a tab.
+              </p>
+            </Match>
+          </Switch>
+        </Show>
       </main>
       <Show when={view.drawerOpen()} fallback={<DrawerRail />}>
         <Gutter column="drawer" direction={-1} label="Width of the drawer" />

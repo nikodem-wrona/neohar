@@ -14,12 +14,12 @@ The UI, the CLI and the hook shim all call the core through one contract. Its ve
 
 | Part | Count | Reference |
 |---|---|---|
-| Methods | 138 | [Methods](/docs/reference/api/methods) |
-| Projections | 23 | [Projections](/docs/reference/api/projections) |
-| Event kinds | 49 | [Events](/docs/reference/api/events) |
+| Methods | 147 | [Methods](/docs/reference/api/methods) |
+| Projections | 28 | [Projections](/docs/reference/api/projections) |
+| Event kinds | 50 | [Events](/docs/reference/api/events) |
 | Streams | 4 | [Streams](/docs/reference/api/streams) |
 | Error codes | 43 | [Errors](/docs/reference/api/errors) |
-| Named types | 402 | [Types](/docs/reference/api/types) |
+| Named types | 424 | [Types](/docs/reference/api/types) |
 
 ## Protocol versions
 
@@ -79,11 +79,11 @@ Every message is one JSON-RPC 2.0 object.
 
 | Scope | Who | Methods |
 |---|---|---|
-| `ui` | the UI, over the `rpc` command of the Tauri host or the WebSocket | 119 |
-| `cli` | the CLI and any other client on the API socket | 93 |
+| `ui` | the UI, over the `rpc` command of the Tauri host or the WebSocket | 128 |
+| `cli` | the CLI and any other client on the API socket | 101 |
 | `pane` | a hook shim, with the token of a pane | 4 |
 | `dev` | development and test builds only | 4 |
-| `phone` | a paired phone, over the listener of the phone | 115 |
+| `phone` | a paired phone, over the listener of the phone | 124 |
 
 ## Namespaces
 
@@ -104,6 +104,7 @@ Every message is one JSON-RPC 2.0 object.
 | [`harness`](/docs/reference/api/methods/harness) | Claude Code and Codex on this machine: discovery, version and login state. | 1 |
 | [`interaction`](/docs/reference/api/methods/interaction) | What agents ask a person: approvals, questions, plan reviews and notices. | 6 |
 | [`changes`](/docs/reference/api/methods/changes) |  | 2 |
+| [`git`](/docs/reference/api/methods/git) |  | 9 |
 | [`phone`](/docs/reference/api/methods/phone) | The phones that supervise this machine: the offer of a pairing, names and removal, and the mapping of tailscale serve. | 11 |
 | [`events`](/docs/reference/api/methods/events) | Subscriptions to the event log, from a cursor. | 2 |
 | [`projection`](/docs/reference/api/methods/projection) | Subscriptions to projections: a snapshot, then keyed patches. | 3 |

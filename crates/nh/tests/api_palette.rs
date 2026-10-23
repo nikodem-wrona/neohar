@@ -307,6 +307,7 @@ async fn the_commands_of_the_page_name_their_action_and_a_wrong_call_has_a_code(
     for id in [
         "search.open",
         "inbox.open",
+        "git.open",
         "tab.rename",
         "workspace.rename",
     ] {

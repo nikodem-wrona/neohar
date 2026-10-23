@@ -1,6 +1,6 @@
 ---
 title: "Events"
-description: "The 49 kinds of events in the event outbox."
+description: "The 50 kinds of events in the event outbox."
 sidebar_position: 4
 ---
 
@@ -64,6 +64,7 @@ The core appends an event in the same SQLite transaction as the state change tha
 | [`phone.replied`](#phone-replied) | 1 | [`PhoneReplied`](/docs/reference/api/types#phonereplied) |
 | [`policy.added`](#policy-added) | 1 | [`PolicyEvent`](/docs/reference/api/types#policyevent) |
 | [`policy.removed`](#policy-removed) | 1 | [`PolicyEvent`](/docs/reference/api/types#policyevent) |
+| [`git.repo_added`](#git-repo-added) | 1 | [`GitRepoAdded`](/docs/reference/api/types#gitrepoadded) |
 
 ## agent events {#group-agent}
 
@@ -669,6 +670,19 @@ The core appends an event in the same SQLite transaction as the state change tha
 |---|---|---|---|
 | `id` | string | yes |  |
 | `scope` | [`PolicyScope`](/docs/reference/api/types#policyscope) | yes |  |
+
+## git events {#group-git}
+
+### `git.repo_added` {#git-repo-added}
+
+**Version:** 1
+
+[`GitRepoAdded`](/docs/reference/api/types#gitrepoadded)
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `common_dir` | string | yes | The common git directory of the repository. |
+| `path` | string | yes | The path that the person gave. |
 
 ## Notification `events.event` {#notification-events-event}
 
