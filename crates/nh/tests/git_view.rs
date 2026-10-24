@@ -633,3 +633,153 @@ async fn a_fetch_and_a_pull_run_as_jobs_and_a_diverged_branch_is_refused() {
         .expect_err("no remote");
     assert_eq!(refused.code, ErrorCode::NotFound, "{}", refused.message);
 }
+
+/// A program for a pane: it writes the token of its pane to a file and waits.
+const WAITER: &str = r#"
+import os, sys, time
+open(sys.argv[1], "w").write(os.environ.get("NEOHAR_PANE_TOKEN", ""))
+while True:
+    time.sleep(60)
+"#;
+
+/// Sends a signal of a hook of Claude Code with the token of a pane.
+async fn signal(core: &Harness, token: &str, event: &str, payload: Value) {
+    let socket = core.api_socket();
+    let line = json!({
+        "jsonrpc": "2.0", "id": 1, "method": "adapter.signal",
+        "params": {"token": token, "harness": "claude", "event": event, "payload": payload},
+    })
+    .to_string()
+        + "\n";
+    tokio::task::spawn_blocking(move || {
+        use std::io::{BufRead, BufReader, Write};
+        let mut stream = std::os::unix::net::UnixStream::connect(socket).expect("connect");
+        stream.write_all(line.as_bytes()).expect("write");
+        let mut reply = String::new();
+        BufReader::new(&mut stream)
+            .read_line(&mut reply)
+            .expect("a reply");
+        assert!(reply.contains("\"result\""), "the signal failed: {reply}");
+    })
+    .await
+    .expect("the task");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_write_under_a_working_agent_asks_first_and_force_writes_anyway() {
+    let s = start("guard");
+    git(&s.repo, &["branch", "other"]);
+    let script = s.base.join("waiter.py");
+    let token_file = s.base.join("token");
+    std::fs::write(&script, WAITER).expect("the program");
+    // A pane whose folder is in the main worktree, with a run of Claude Code in it.
+    s.core
+        .call(
+            "workspace.create",
+            json!({"name": "agent", "command": {
+                "argv": ["/usr/bin/python3", text(&script), text(&token_file)],
+                "cwd": text(&s.repo),
+            }}),
+        )
+        .await;
+    let deadline = Instant::now() + WAIT;
+    let token = loop {
+        if let Some(token) = std::fs::read_to_string(&token_file)
+            .ok()
+            .filter(|token| !token.trim().is_empty())
+        {
+            break token.trim().to_owned();
+        }
+        assert!(Instant::now() < deadline, "no token");
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    };
+    let session = json!({"session_id": "s1", "cwd": text(&s.repo), "source": "startup"});
+    signal(&s.core, &token, "SessionStart", session).await;
+    let prompt = json!({"session_id": "s1", "prompt": "go"});
+    signal(&s.core, &token, "UserPromptSubmit", prompt.clone()).await;
+    until_status(&s.core, &s.repo, "the agent works in the worktree", |st| {
+        st["head"]["agents"][0]["state"] == "working"
+    })
+    .await;
+    let worktrees = s
+        .core
+        .call("git.worktrees", json!({"path": text(&s.repo)}))
+        .await;
+    assert_eq!(worktrees["worktrees"][0]["agents"][0]["harness"], "claude");
+    assert!(
+        worktrees["worktrees"][1]["agents"].is_null(),
+        "the linked worktree has no agent: {worktrees}"
+    );
+
+    // A switch and a pull ask first, and name the agent.
+    let switch = json!({"path": text(&s.repo), "branch": "other"});
+    let refused = s
+        .core
+        .handle
+        .rpc("git.switch", switch.clone())
+        .await
+        .expect_err("an agent works");
+    assert_eq!(
+        refused.code,
+        ErrorCode::ConfirmRequired,
+        "{}",
+        refused.message
+    );
+    assert_eq!(refused.details["kind"], "agents");
+    assert_eq!(refused.details["agents"][0]["state"], "working");
+    assert_eq!(
+        refused.message,
+        "Claude Code is working in app. A switch changes its files."
+    );
+    let refused = s
+        .core
+        .handle
+        .rpc("git.pull", json!({"path": text(&s.repo)}))
+        .await
+        .expect_err("an agent works");
+    assert_eq!(
+        refused.code,
+        ErrorCode::ConfirmRequired,
+        "{}",
+        refused.message
+    );
+    // The linked worktree has no agent, so its switch does not ask.
+    s.core
+        .call(
+            "git.switch",
+            json!({"path": text(&s.topic), "branch": "refs/heads/other"}),
+        )
+        .await;
+    s.core
+        .call(
+            "git.switch",
+            json!({"path": text(&s.topic), "branch": "topic"}),
+        )
+        .await;
+
+    // `force` writes anyway.
+    let mut forced = switch.clone();
+    forced["force"] = json!(true);
+    s.core.call("git.switch", forced).await;
+    until_status(&s.core, &s.repo, "on other", |st| {
+        st["head"]["branch"] == "other"
+    })
+    .await;
+
+    // An agent at the end of its turn is idle, and a write does not ask.
+    signal(&s.core, &token, "Stop", json!({"session_id": "s1"})).await;
+    until_status(&s.core, &s.repo, "the agent is idle", |st| {
+        st["head"]["agents"][0]["state"] == "idle"
+    })
+    .await;
+    s.core
+        .call(
+            "git.switch",
+            json!({"path": text(&s.repo), "branch": "main"}),
+        )
+        .await;
+    until_status(&s.core, &s.repo, "on main", |st| {
+        st["head"]["branch"] == "main"
+    })
+    .await;
+}
