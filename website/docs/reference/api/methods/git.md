@@ -1,6 +1,6 @@
 ---
 title: "git.*"
-description: "The git methods."
+description: "The Git view: repositories, worktrees, branches, changes and history, and switch, fetch and pull."
 sidebar_position: 16
 toc_max_heading_level: 2
 ---
@@ -12,7 +12,7 @@ Do not edit it by hand. Change the source and run `bun run gen` in `website/`.
 
 :::
 
-
+The Git view: repositories, worktrees, branches, changes and history, and switch, fetch and pull.
 
 | Method | Scopes | Params | Result |
 |---|---|---|---|

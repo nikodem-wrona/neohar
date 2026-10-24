@@ -1,6 +1,6 @@
 ---
 title: "askpass.*"
-description: "The askpass methods."
+description: "The questions of ssh that `nh askpass` sends. The app asks the person."
 sidebar_position: 10
 toc_max_heading_level: 2
 ---
@@ -12,7 +12,7 @@ Do not edit it by hand. Change the source and run `bun run gen` in `website/`.
 
 :::
 
-
+The questions of ssh that `nh askpass` sends. The app asks the person.
 
 | Method | Scopes | Params | Result |
 |---|---|---|---|
