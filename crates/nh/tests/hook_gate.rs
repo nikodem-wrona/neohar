@@ -9,7 +9,7 @@ mod core_support;
 
 use std::{
     io::Write,
-    path::Path,
+    path::{Path, PathBuf},
     process::{Child, Command, Stdio},
     time::{Duration, Instant},
 };
@@ -28,6 +28,74 @@ fn payload() -> Value {
         "tool_input": {"command": "touch note.txt", "description": "Create a note"},
         "permission_mode": "default",
     })
+}
+
+/// A socket in front of `api.sock` for the first connection of a shim.
+///
+/// The core records the lease of a gate before it writes its first reply, `{"wait": true,
+/// "interaction": …}`. A test that stops the core when it sees the lease can stop it before the
+/// shim has that reply. The shim then has no interaction to resume, and it prints nothing, as it
+/// must. The front tells the test when the reply has reached the shim. When the core ends that
+/// connection, the front closes and its path becomes a link to `api.sock`, so the shim connects
+/// again to the core itself, as it does in the product.
+struct Front {
+    path: PathBuf,
+    named: tokio::sync::watch::Receiver<bool>,
+}
+
+impl Front {
+    fn start(api: &Path) -> Self {
+        use tokio::io::{AsyncBufReadExt, AsyncWriteExt};
+        let path = api.with_file_name("front.sock");
+        let _ = std::fs::remove_file(&path);
+        let listener = tokio::net::UnixListener::bind(&path).expect("the front listens");
+        let (named_tx, named) = tokio::sync::watch::channel(false);
+        let (api, link) = (api.to_owned(), path.clone());
+        tokio::spawn(async move {
+            let Ok((shim, _)) = listener.accept().await else {
+                return;
+            };
+            let core = tokio::net::UnixStream::connect(&api)
+                .await
+                .expect("the core listens");
+            let (mut shim_read, mut shim_write) = shim.into_split();
+            let (core_read, mut core_write) = core.into_split();
+            tokio::spawn(async move {
+                let _ = tokio::io::copy(&mut shim_read, &mut core_write).await;
+            });
+            let mut lines = tokio::io::BufReader::new(core_read);
+            let mut line = Vec::new();
+            loop {
+                line.clear();
+                match lines.read_until(b'\n', &mut line).await {
+                    Ok(0) | Err(_) => break,
+                    Ok(_) => {}
+                }
+                if shim_write.write_all(&line).await.is_err() {
+                    break;
+                }
+                let wait = b"\"wait\":true";
+                if line.windows(wait.len()).any(|part| part == wait) {
+                    let _ = named_tx.send(true);
+                }
+            }
+            // The core ended the connection. The front closes before the shim sees the end, so
+            // the shim connects to the core through the link.
+            drop(listener);
+            let _ = std::fs::remove_file(&link);
+            std::os::unix::fs::symlink(&api, &link).expect("a link to the socket of the core");
+            drop(shim_write);
+        });
+        Self { path, named }
+    }
+
+    /// Waits until the core named the interaction to the shim.
+    async fn named(&mut self) {
+        tokio::time::timeout(Duration::from_secs(30), self.named.wait_for(|named| *named))
+            .await
+            .expect("the core names the interaction in time")
+            .expect("the front runs");
+    }
 }
 
 /// A shim that holds a request.
@@ -262,9 +330,12 @@ async fn a_held_request_gets_the_decision_and_the_tool_signal_confirms_it() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_core_that_is_killed_while_the_shim_waits_delivers_once_after_the_restart() {
     let mut core = core().await;
-    let shim = Shim::start(&core.api_socket(), &[]);
+    let mut front = Front::start(&core.api_socket());
+    let shim = Shim::start(&front.path, &[]);
     let open = wait_for(&core, "open with a lease", open_with_lease).await;
     let id = open["id"].as_str().expect("an id").to_owned();
+    // The shim must know its interaction before the core goes, or it has nothing to resume.
+    front.named().await;
 
     core.crash().await;
     tokio::time::sleep(Duration::from_millis(300)).await;
@@ -287,9 +358,12 @@ async fn a_core_that_is_killed_while_the_shim_waits_delivers_once_after_the_rest
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_decision_given_while_the_core_was_away_is_still_delivered_once() {
     let mut core = core().await;
-    let shim = Shim::start(&core.api_socket(), &[]);
+    let mut front = Front::start(&core.api_socket());
+    let shim = Shim::start(&front.path, &[]);
     let open = wait_for(&core, "open with a lease", open_with_lease).await;
     let id = open["id"].as_str().expect("an id").to_owned();
+    // The shim must know its interaction before the core goes, or it has nothing to resume.
+    front.named().await;
     // The decision is recorded and kept back. Then the core ends.
     core.call(
         "debug.answer",
