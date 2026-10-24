@@ -536,7 +536,8 @@ impl ChangesService {
             }
         };
         let (root, file, head) = found.ok_or_else(not_a_change)?;
-        self.diff_of(&root, path, &file, head).await
+        self.diff_of(&root, path, &file, head, nh_rich::diff::MAX_LINES)
+            .await
     }
 
     /// The row of `path` in the last count of a window, with the root and `HEAD`.
@@ -561,16 +562,17 @@ impl ChangesService {
             .map(|(_, file)| (root.clone(), file.clone(), follow.counted.head.clone())))
     }
 
-    /// The diff of one row of a count, from `HEAD` to the worktree.
+    /// The diff of one row of a count, from `HEAD` to the worktree, with at most `limit` lines.
     pub(crate) async fn diff_of(
         &self,
         worktree: &Path,
         path: String,
         file: &ChangedFile,
         head: Option<String>,
+        limit: usize,
     ) -> Result<rich::FileDiff, RpcError> {
         let mut diff = if file.kind == ChangeKind::Untracked {
-            self.new_file_diff(worktree, &path, file).await?
+            self.new_file_diff(worktree, &path, file, limit).await?
         } else {
             let head = head.ok_or_else(not_a_change)?;
             let patch = self
@@ -583,11 +585,14 @@ impl ChangesService {
             let mut diff = self
                 .rich(move || {
                     let patch = nh_rich::cap(&patch, DIFF_INPUT);
-                    nh_rich::diff::diff(&[nh_rich::diff::Change::Patch {
-                        path: Some(&name),
-                        status: None,
-                        text: patch.text,
-                    }])
+                    nh_rich::diff::diff_capped(
+                        &[nh_rich::diff::Change::Patch {
+                            path: Some(&name),
+                            status: None,
+                            text: patch.text,
+                        }],
+                        limit,
+                    )
                 })
                 .await?;
             diff.truncated |= cut;
@@ -612,6 +617,7 @@ impl ChangesService {
         worktree: &Path,
         path: &str,
         file: &ChangedFile,
+        limit: usize,
     ) -> Result<rich::FileDiff, RpcError> {
         let empty = || rich::FileDiff {
             path: path.to_owned(),
@@ -648,7 +654,7 @@ impl ChangesService {
                     }
                     _ => String::new(),
                 };
-                nh_rich::diff::between("", &text, Some(&name), None)
+                nh_rich::diff::between_capped("", &text, Some(&name), None, limit)
             })
             .await?;
         diff.truncated |= cut;

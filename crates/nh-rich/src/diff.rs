@@ -18,7 +18,8 @@ use crate::{
     text::{Utf16Map, cap},
 };
 
-/// The most lines of one file that a diff holds. The rest is `truncated`.
+/// The most lines of one file that a diff holds. The rest is `truncated`. [`diff_capped`] and
+/// [`between_capped`] take another limit.
 pub const MAX_LINES: usize = 2000;
 /// The lines of context around a change.
 pub const CONTEXT: usize = 3;
@@ -126,10 +127,17 @@ pub enum Change<'a> {
 
 /// The diff of the changes, one entry per file in the order given.
 pub fn diff(changes: &[Change<'_>]) -> Diff {
+    diff_capped(changes, MAX_LINES)
+}
+
+/// [`diff`] with another limit of the lines of one file.
+pub fn diff_capped(changes: &[Change<'_>], limit: usize) -> Diff {
     let mut files = Vec::new();
     for change in changes {
         match *change {
-            Change::Edits { path, edits, file } => files.push(edits_diff(path, edits, file)),
+            Change::Edits { path, edits, file } => {
+                files.push(edits_diff(path, edits, file, limit));
+            }
             Change::Write {
                 path,
                 before,
@@ -146,6 +154,7 @@ pub fn diff(changes: &[Change<'_>]) -> Diff {
                     before.unwrap_or(""),
                     after,
                     Some(0),
+                    limit,
                 ));
             }
             Change::Remove { path, before } => {
@@ -155,9 +164,12 @@ pub fn diff(changes: &[Change<'_>]) -> Diff {
                     before.unwrap_or(""),
                     "",
                     Some(0),
+                    limit,
                 ));
             }
-            Change::Patch { path, status, text } => files.extend(patch_diff(path, status, text)),
+            Change::Patch { path, status, text } => {
+                files.extend(patch_diff(path, status, text, limit));
+            }
         }
     }
     Diff { files }
@@ -166,6 +178,17 @@ pub fn diff(changes: &[Change<'_>]) -> Diff {
 /// The diff of two texts, for `rich.diff`. `lang` is the name of a language; `path` gives the
 /// language when `lang` does not.
 pub fn between(old: &str, new: &str, path: Option<&str>, lang: Option<&str>) -> Diff {
+    between_capped(old, new, path, lang, MAX_LINES)
+}
+
+/// [`between`] with another limit of the lines of the file.
+pub fn between_capped(
+    old: &str,
+    new: &str,
+    path: Option<&str>,
+    lang: Option<&str>,
+    limit: usize,
+) -> Diff {
     let language = lang
         .and_then(highlight::language)
         .or_else(|| path.and_then(highlight::language_of_path));
@@ -177,6 +200,7 @@ pub fn between(old: &str, new: &str, path: Option<&str>, lang: Option<&str>) -> 
             new,
             Some(0),
             language,
+            limit,
         )],
     }
 }
@@ -228,11 +252,11 @@ fn language_for(path: &str) -> Option<Language> {
     highlight::language_of_path(path)
 }
 
-fn edits_diff(path: &str, edits: &[Edit<'_>], file: Option<&str>) -> FileDiff {
+fn edits_diff(path: &str, edits: &[Edit<'_>], file: Option<&str>, limit: usize) -> FileDiff {
     if let Some(file) = file
         && let Some(after) = apply_edits(file, edits)
     {
-        return texts_diff(path, FileStatus::Modified, file, &after, Some(0));
+        return texts_diff(path, FileStatus::Modified, file, &after, Some(0), limit);
     }
     let language = language_for(path);
     let mut out = FileDiff {
@@ -242,7 +266,7 @@ fn edits_diff(path: &str, edits: &[Edit<'_>], file: Option<&str>) -> FileDiff {
         stats: Stats::default(),
         truncated: false,
     };
-    let mut lines_left = MAX_LINES;
+    let mut lines_left = limit;
     for edit in edits {
         let part = build(
             path,
@@ -251,6 +275,7 @@ fn edits_diff(path: &str, edits: &[Edit<'_>], file: Option<&str>) -> FileDiff {
             edit.new,
             None,
             language,
+            limit,
         );
         out.stats.add += part.stats.add;
         out.stats.del += part.stats.del;
@@ -298,8 +323,9 @@ fn texts_diff(
     old: &str,
     new: &str,
     offset: Option<u32>,
+    limit: usize,
 ) -> FileDiff {
-    build(path, status, old, new, offset, language_for(path))
+    build(path, status, old, new, offset, language_for(path), limit)
 }
 
 fn has_nul(text: &str) -> bool {
@@ -315,6 +341,7 @@ fn build(
     new: &str,
     offset: Option<u32>,
     language: Option<Language>,
+    limit: usize,
 ) -> FileDiff {
     let mut out = FileDiff {
         path: path.to_owned(),
@@ -361,7 +388,7 @@ fn build(
         };
         for op in group {
             // One line more than the room left shows that lines were cut.
-            let room = MAX_LINES - shown + 1;
+            let room = limit - shown + 1;
             let lines = op_lines(
                 op,
                 &old_lines,
@@ -371,7 +398,7 @@ fn build(
                 &mut old_hl,
                 &mut new_hl,
             );
-            let take = lines.len().min(MAX_LINES - shown);
+            let take = lines.len().min(limit - shown);
             if take < lines.len() {
                 out.truncated = true;
             }
@@ -570,14 +597,24 @@ fn mark_intra(del: &mut DiffLine, add: &mut DiffLine) {
 }
 
 /// The files of a patch as [`FileDiff`]s.
-fn patch_diff(path: Option<&str>, status: Option<FileStatus>, text: &str) -> Vec<FileDiff> {
+fn patch_diff(
+    path: Option<&str>,
+    status: Option<FileStatus>,
+    text: &str,
+    limit: usize,
+) -> Vec<FileDiff> {
     patch::parse(text)
         .into_iter()
-        .map(|file| patch_file(path, status, file))
+        .map(|file| patch_file(path, status, file, limit))
         .collect()
 }
 
-fn patch_file(path: Option<&str>, status: Option<FileStatus>, file: patch::PatchFile) -> FileDiff {
+fn patch_file(
+    path: Option<&str>,
+    status: Option<FileStatus>,
+    file: patch::PatchFile,
+    limit: usize,
+) -> FileDiff {
     let name = file
         .new_path
         .clone()
@@ -610,11 +647,11 @@ fn patch_file(path: Option<&str>, status: Option<FileStatus>, file: patch::Patch
                 LineKind::Ctx => {}
             }
         }
-        if shown >= MAX_LINES {
+        if shown >= limit {
             out.truncated = true;
             continue;
         }
-        let room = MAX_LINES - shown;
+        let room = limit - shown;
         if hunk.lines.len() > room {
             out.truncated = true;
         }

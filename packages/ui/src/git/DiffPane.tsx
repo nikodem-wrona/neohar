@@ -1,9 +1,10 @@
 // The right side of the Git view: the diff of one file, with its path and its lines, as the core
-// makes it (`git.diff`). The view loads it; this part only paints what it has.
+// makes it (`git.diff`, at most 20,000 lines). The view loads it; this part only paints what it
+// has, and the box of the lines paints only the rows on screen.
 
 import type { FileDiff } from '@neohar/transport';
 import { Show } from 'solid-js';
-import { DiffHunks } from '../rich/Diff';
+import { VirtualDiff } from './VirtualDiff';
 
 /** A diff that the view loaded, or the reason that it did not load. */
 export interface Loaded {
@@ -48,13 +49,10 @@ export function DiffPane(props: { loaded: Loaded | null; binary?: boolean; empty
                   </p>
                 }
               >
-                <div
-                  class="git-diff-body diff"
-                  role="group"
-                  aria-label={`Diff of ${loaded().file}`}
-                >
-                  <DiffHunks file={diff()} />
-                </div>
+                <Show when={diff().truncated}>
+                  <p class="git-note">The diff of this file is cut at 20,000 lines.</p>
+                </Show>
+                <VirtualDiff file={diff()} label={`Diff of ${loaded().file}`} />
               </Show>
             )}
           </Show>

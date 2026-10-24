@@ -8,6 +8,7 @@ import {
   branchGroups,
   branchTitle,
   commitLabels,
+  diffRows,
   fetchButton,
   isAbsolutePath,
   lastPart,
@@ -15,6 +16,7 @@ import {
   moveIndex,
   questionOf,
   trackText,
+  visibleRows,
   worktreeFacts,
 } from './model';
 
@@ -167,4 +169,37 @@ test('a refusal of the core is a question only for agents, changes and another w
   });
   expect(questionOf('conflict', 'Diverged.', { kind: 'diverged' })).toBeNull();
   expect(questionOf('busy', 'Wait.', null)).toBeNull();
+});
+
+test('the rows of a diff are each hunk header and then its lines', () => {
+  const line = (n: number) => ({
+    kind: 'ctx' as const,
+    old: n,
+    new: n,
+    text: { text: `line ${n}`, spans: [] },
+  });
+  const rows = diffRows({
+    path: 'a.rs',
+    status: 'modified',
+    stats: { add: 0, del: 0 },
+    truncated: false,
+    hunks: [
+      { header: '@@ -1,2 +1,2 @@', lines: [line(1), line(2)] },
+      { header: '@@ -9 +9 @@', lines: [line(9)] },
+    ],
+  });
+  expect(rows.map((row) => (row.kind === 'hunk' ? row.header : row.line.old))).toEqual([
+    '@@ -1,2 +1,2 @@',
+    1,
+    2,
+    '@@ -9 +9 @@',
+    9,
+  ]);
+});
+
+test('a list paints the rows on screen and a few more on each side, within the list', () => {
+  expect(visibleRows(20_000, 0, 360, 18, 20)).toEqual({ start: 0, end: 41 });
+  expect(visibleRows(20_000, 18_000, 360, 18, 20)).toEqual({ start: 980, end: 1041 });
+  expect(visibleRows(30, 18_000, 360, 18, 20)).toEqual({ start: 30, end: 30 });
+  expect(visibleRows(0, 0, 360, 18, 20)).toEqual({ start: 0, end: 0 });
 });

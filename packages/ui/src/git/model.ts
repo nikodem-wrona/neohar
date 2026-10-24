@@ -5,6 +5,8 @@
 // of the core, and moves between items with the keys.
 
 import type {
+  DiffLine,
+  FileDiff,
   GitAgent,
   GitAgentState,
   GitBranchValue,
@@ -208,4 +210,34 @@ export function questionOf(code: string, message: string, details: unknown): Git
     return { kind: 'worktree', text: message, worktree };
   }
   return null;
+}
+
+/** A row of a diff in the Git view: the header of a hunk, or one line. */
+export type DiffRow = { kind: 'hunk'; header: string } | { kind: 'line'; line: DiffLine };
+
+/** The hunks of a file as one list of rows, in their order, for a list that paints only some. */
+export function diffRows(file: FileDiff): DiffRow[] {
+  return file.hunks.flatMap((hunk): DiffRow[] => [
+    { kind: 'hunk', header: hunk.header },
+    ...hunk.lines.map((line): DiffRow => ({ kind: 'line', line })),
+  ]);
+}
+
+/**
+ * The rows that a list of rows of one height paints: the ones on screen and `extra` more on each
+ * side. `end` is past the last one.
+ */
+export function visibleRows(
+  count: number,
+  scrollTop: number,
+  viewHeight: number,
+  rowHeight: number,
+  extra: number,
+): { start: number; end: number } {
+  const first = Math.floor(Math.max(0, scrollTop) / rowHeight);
+  const shown = Math.ceil(Math.max(0, viewHeight) / rowHeight) + 1;
+  return {
+    start: Math.max(0, Math.min(count, first - extra)),
+    end: Math.max(0, Math.min(count, first + shown + extra)),
+  };
 }

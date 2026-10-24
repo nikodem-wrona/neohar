@@ -620,41 +620,38 @@ pub(crate) fn is_hash(text: &str) -> bool {
     (4..=64).contains(&text.len()) && text.bytes().all(|b| b.is_ascii_hexdigit())
 }
 
-/// The full hash of a commit that a person names by its hash.
-pub(crate) async fn resolve_commit(
-    git: &Git,
-    worktree: &Path,
-    hash: &str,
-) -> Result<Option<String>, GitError> {
-    if !is_hash(hash) {
-        return Ok(None);
-    }
-    let name = format!("{hash}^{{commit}}");
-    match git
-        .run(worktree, &["rev-parse", "--verify", "--quiet", &name])
-        .await
-    {
-        Ok(out) => Ok(Some(out.trim().to_owned()).filter(|full| !full.is_empty())),
-        Err(GitError::Failed { .. }) => Ok(None),
-        Err(error) => Err(error),
-    }
+/// The name that git reads a commit by: a hash, as a commit. A hash of another object fails.
+pub(crate) fn commit_rev(hash: &str) -> String {
+    format!("{hash}^{{commit}}")
 }
 
-/// The arguments of `git diff-tree` from the first parent of a commit, or from the empty tree for
-/// a commit with no parent.
-fn tree_args<'a>(commit: &'a str, parent: Option<&'a str>) -> Vec<&'a str> {
-    match parent {
-        Some(parent) => vec![parent, commit],
-        None => vec!["--root", commit],
-    }
+/// Whether git refused a commit because the repository does not have it.
+pub(crate) fn no_such_commit(error: &GitError) -> bool {
+    let GitError::Failed { stderr, .. } = error else {
+        return false;
+    };
+    [
+        "unknown revision",
+        "bad object",
+        "bad revision",
+        "ambiguous argument",
+        "not a commit",
+        "invalid object",
+    ]
+    .iter()
+    .any(|text| stderr.contains(text))
 }
 
-/// The files of a commit, from its first parent.
+/// The options of `git diff-tree` with one commit: the changes from its first parent, and from
+/// the empty tree for a commit with no parent. A merge shows the changes that it brought to the
+/// branch.
+const ONE_COMMIT: [&str; 2] = ["--root", "--diff-merges=first-parent"];
+
+/// The files of a commit, from its first parent. `rev` is a [`commit_rev`].
 pub(crate) async fn commit_files(
     git: &Git,
     worktree: &Path,
-    commit: &str,
-    parent: Option<&str>,
+    rev: &str,
 ) -> Result<Vec<Record>, GitError> {
     let mut args: Vec<&str> = vec![
         "diff-tree",
@@ -665,7 +662,8 @@ pub(crate) async fn commit_files(
         "--raw",
         "--numstat",
     ];
-    args.extend(tree_args(commit, parent));
+    args.extend(ONE_COMMIT);
+    args.push(rev);
     let out = git
         .output(worktree, &args.iter().map(OsStr::new).collect::<Vec<_>>())
         .await?;
@@ -674,13 +672,14 @@ pub(crate) async fn commit_files(
     Ok(records)
 }
 
-/// The patch of one file of a commit, from its first parent. The paths are literal.
+/// The patch of one file of a commit, from its first parent, with the old path of a rename. The
+/// paths are literal, not patterns.
 pub(crate) async fn commit_patch(
     git: &Git,
     worktree: &Path,
-    commit: &str,
-    parent: Option<&str>,
-    record: &Record,
+    rev: &str,
+    old: Option<&[u8]>,
+    path: &[u8],
 ) -> Result<String, GitError> {
     let mut args: Vec<&OsStr> = [
         "--literal-pathspecs",
@@ -693,12 +692,13 @@ pub(crate) async fn commit_patch(
     ]
     .map(OsStr::new)
     .to_vec();
-    args.extend(tree_args(commit, parent).into_iter().map(OsStr::new));
+    args.extend(ONE_COMMIT.map(OsStr::new));
+    args.push(OsStr::new(rev));
     args.push(OsStr::new("--"));
-    if let Some(old) = &record.old_path {
+    if let Some(old) = old {
         args.push(OsStr::from_bytes(old));
     }
-    args.push(OsStr::from_bytes(&record.path));
+    args.push(OsStr::from_bytes(path));
     let out = git.output(worktree, &args).await?;
     Ok(String::from_utf8_lossy(&out).into_owned())
 }

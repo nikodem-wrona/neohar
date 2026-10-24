@@ -84,6 +84,10 @@ const LOOK_DEBOUNCE: Duration = Duration::from_millis(500);
 /// How often the texts of the times ("3 days ago") of the branches are made again.
 const TIME_TEXTS: Duration = Duration::from_secs(30);
 
+/// The most lines of the diff of one file in the Git view. The Changes tab of the drawer and the
+/// cards stop at [`nh_rich::diff::MAX_LINES`].
+pub(crate) const DIFF_LINES: usize = 20_000;
+
 /// The most commits of `HEAD` that the core checks for a push.
 const UNPUSHED_LIMIT: u32 = 2_000;
 
@@ -115,6 +119,10 @@ fn json_of<T: Serialize>(value: &T) -> Result<Value, RpcError> {
 
 fn git_failed(error: &GitError) -> RpcError {
     RpcError::new(ErrorCode::GitFailed, error.to_string())
+}
+
+fn no_commit(commit: &str) -> RpcError {
+    RpcError::new(ErrorCode::NotFound, format!("no commit {commit}"))
 }
 
 fn absolute(path: &str) -> Result<PathBuf, RpcError> {
@@ -1222,27 +1230,33 @@ impl GitViewService {
         })
     }
 
-    /// The full hash of a commit that a call names, or `not_found`.
-    async fn commit_of(&self, root: &Path, commit: &str) -> Result<String, RpcError> {
-        read::resolve_commit(&self.git, root, commit)
-            .await
-            .map_err(|e| git_failed(&e))?
-            .ok_or_else(|| RpcError::new(ErrorCode::NotFound, format!("no commit {commit}")))
+    /// The name of a commit that a call gives, or `not_found`. Only hex digits reach git.
+    fn commit_rev(commit: &str) -> Result<String, RpcError> {
+        if read::is_hash(commit) {
+            Ok(read::commit_rev(commit))
+        } else {
+            Err(no_commit(commit))
+        }
     }
 
-    /// `git.show`: one commit with its message and its files.
+    /// `git.show`: one commit with its message and its files. The commands run at the same time.
     async fn show(&self, root: &Path, commit: &str) -> Result<GitShown, RpcError> {
-        let hash = self.commit_of(root, commit).await?;
-        let shown = read::show(&self.git, root, &hash)
-            .await
-            .map_err(|e| git_failed(&e))?;
-        let parent = shown.parents.first().map(String::as_str);
-        let (records, unpushed, remotes) = tokio::join!(
-            read::commit_files(&self.git, root, &hash, parent),
+        let rev = Self::commit_rev(commit)?;
+        let (shown, records, unpushed, remotes) = tokio::join!(
+            read::show(&self.git, root, &rev),
+            read::commit_files(&self.git, root, &rev),
             read::unpushed(&self.git, root, UNPUSHED_LIMIT),
             read::remotes(&self.git, root),
         );
-        let records = records.map_err(|e| git_failed(&e))?;
+        let refused = |error: GitError| {
+            if read::no_such_commit(&error) {
+                no_commit(commit)
+            } else {
+                git_failed(&error)
+            }
+        };
+        let shown = shown.map_err(refused)?;
+        let records = records.map_err(refused)?;
         let unpushed = match remotes {
             Ok(remotes) if !remotes.is_empty() => unpushed.unwrap_or_default(),
             _ => HashSet::new(),
@@ -1270,7 +1284,9 @@ impl GitViewService {
         })
     }
 
-    /// `git.diff` with a commit: the patch of one file of the commit, from its first parent.
+    /// `git.diff` with a commit: the patch of one file of the commit, from its first parent. The
+    /// files of the commit and the patch of the path come at the same time; only a rename needs
+    /// its patch again, with the old path.
     async fn commit_diff(
         &self,
         inner: &Inner,
@@ -1278,34 +1294,46 @@ impl GitViewService {
         commit: &str,
         file: String,
     ) -> Result<rich::FileDiff, RpcError> {
-        let hash = self.commit_of(root, commit).await?;
-        let shown = read::show(&self.git, root, &hash)
-            .await
-            .map_err(|e| git_failed(&e))?;
-        let parent = shown.parents.first().map(String::as_str);
-        let records = read::commit_files(&self.git, root, &hash, parent)
-            .await
-            .map_err(|e| git_failed(&e))?;
+        let rev = Self::commit_rev(commit)?;
+        let refused = |error: GitError| {
+            if read::no_such_commit(&error) {
+                no_commit(commit)
+            } else {
+                git_failed(&error)
+            }
+        };
+        let (records, patch) = tokio::join!(
+            read::commit_files(&self.git, root, &rev),
+            read::commit_patch(&self.git, root, &rev, None, file.as_bytes()),
+        );
+        let records = records.map_err(refused)?;
         let record = records
             .iter()
             .find(|record| changes::lossy(&record.path) == file)
             .ok_or_else(|| {
                 RpcError::new(ErrorCode::NotFound, "the path is not a file of the commit")
             })?;
-        let patch = read::commit_patch(&self.git, root, &hash, parent, record)
-            .await
-            .map_err(|e| git_failed(&e))?;
+        let patch = match &record.old_path {
+            Some(old) => read::commit_patch(&self.git, root, &rev, Some(old), &record.path).await,
+            None if record.path == file.as_bytes() => patch,
+            // A path that is not UTF-8 matched by its text: read it by its bytes.
+            None => read::commit_patch(&self.git, root, &rev, None, &record.path).await,
+        }
+        .map_err(refused)?;
         let name = file.clone();
         let cut = patch.len() > DIFF_INPUT;
         let mut diff = inner
             .changes
             .rich(move || {
                 let patch = nh_rich::cap(&patch, DIFF_INPUT);
-                nh_rich::diff::diff(&[nh_rich::diff::Change::Patch {
-                    path: Some(&name),
-                    status: None,
-                    text: patch.text,
-                }])
+                nh_rich::diff::diff_capped(
+                    &[nh_rich::diff::Change::Patch {
+                        path: Some(&name),
+                        status: None,
+                        text: patch.text,
+                    }],
+                    DIFF_LINES,
+                )
             })
             .await?;
         diff.truncated |= cut;
@@ -1355,7 +1383,10 @@ impl GitViewService {
                     })?
             }
         };
-        inner.changes.diff_of(root, file, &changed, head).await
+        inner
+            .changes
+            .diff_of(root, file, &changed, head, DIFF_LINES)
+            .await
     }
 
     // --- repositories ------------------------------------------------------------------------

@@ -332,11 +332,14 @@
     overflow-y: auto;
   }
 
+  /* The diff has a box of its own that scrolls, so the detail does not scroll. */
   .git-detail {
     grid-area: detail;
+    display: flex;
+    flex-direction: column;
     min-width: 0;
     min-height: 0;
-    overflow: auto;
+    overflow: hidden;
     padding: var(--s2) var(--s3);
   }
 
@@ -440,8 +443,16 @@
 
   .git-commit-detail {
     display: flex;
+    flex: 1;
     flex-direction: column;
     gap: var(--s2);
+    min-height: 0;
+  }
+
+  .git-commit-head {
+    flex: none;
+    max-height: 30vh;
+    overflow-y: auto;
   }
 
   .git-commit-title {
@@ -456,14 +467,17 @@
   }
 
   .git-commit-files {
-    max-height: 30vh;
+    flex: none;
+    max-height: 25vh;
     overflow-y: auto;
   }
 
   .git-diff {
     display: flex;
+    flex: 1;
     flex-direction: column;
     gap: var(--s1);
+    min-height: 0;
   }
 
   .git-diff-head {
@@ -475,12 +489,35 @@
   /* The diff of a card stops at 240 px. The diff of the view takes the whole side, and its line
      numbers have room for long files. */
   .git-diff-body {
+    display: block;
+    flex: 1;
+    min-height: 0;
     max-height: none;
-    overflow: visible;
+    overflow: auto;
+  }
+
+  .git-vspace {
+    position: relative;
+    min-width: 100%;
+    width: max-content;
+  }
+
+  .git-vrows {
+    position: absolute;
+    top: 0;
+    left: 0;
+    min-width: 100%;
+  }
+
+  /* Each row has one height and keeps its line on one line. */
+  .git-vrow {
+    height: 18px;
+    line-height: 18px;
+    white-space: pre;
   }
 
   .git-diff-body .diff-line {
-    grid-template-columns: 5ch 5ch 1ch 1fr;
+    grid-template-columns: 5ch 5ch 1ch max-content;
   }
 
   .git-diff-path {
