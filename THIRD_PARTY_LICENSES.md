@@ -3452,7 +3452,7 @@ SOFTWARE.
 
 ### MIT License (MIT)
 
-Used by: `crypto-bigint 0.7.5`, `sec1 0.8.1`, `spki 0.8.1`.
+Used by: `crypto-bigint 0.7.6`, `sec1 0.8.1`, `spki 0.8.1`.
 
 ```text
 Copyright (c) 2021-2026 The RustCrypto Project Developers
