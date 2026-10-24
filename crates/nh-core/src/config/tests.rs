@@ -41,6 +41,7 @@ fn without_a_file_every_setting_has_its_default_and_no_warning() {
             "approvals",
             "daemon",
             "events",
+            "git",
             "keys",
             "phone",
             "policy",
@@ -397,7 +398,7 @@ fn the_settings_projection_has_a_row_for_each_section() {
     store.publish(&hub);
     hub.flush();
     let published = hub.snapshot(Projection::Settings);
-    assert_eq!(published.order.len(), 10);
+    assert_eq!(published.order.len(), 11);
     let approvals = &published.items["approvals"];
     assert_eq!(
         approvals["entries"]["mode"],

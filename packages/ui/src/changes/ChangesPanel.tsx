@@ -5,7 +5,8 @@
 // the head (`changes_head:<window>`) and gives the diff of one file (`changes.diff`). The window
 // follows the projections only while this tab shows, and the core watches the worktree only while
 // a window follows them. A diff loads when the person opens its row, and again when the stamp of
-// the row changes. The page has no timer, and the view is read-only.
+// the row changes. The page has no timer, and the view is read-only. "Open in Git view" shows the
+// same worktree in the Git view, with its branches and its history.
 
 import { type ChangeRow, type ChangesHead, RpcError } from '@neohar/transport';
 import { createEffect, createMemo, createSignal, For, on, onCleanup, Show } from 'solid-js';
@@ -29,7 +30,7 @@ function errorText(failure: unknown): string {
 }
 
 export function ChangesPanel() {
-  const { stores, transport, run, report, windowId } = useApp();
+  const { stores, transport, run, report, windowId, view, form } = useApp();
   const folder = createMemo(() => windowFolder(stores, windowId));
 
   // The subscriptions live while this tab shows and the window has a folder. Without a folder,
@@ -155,6 +156,15 @@ export function ChangesPanel() {
                       <span class="changes-branch-name">
                         {shown().branch ?? (shown().changes ? 'Detached HEAD' : '')}
                       </span>
+                      <Show when={form !== 'phone'}>
+                        <button
+                          type="button"
+                          class="changes-open-git"
+                          onClick={() => view.openGit(folder() ?? null)}
+                        >
+                          Open in Git view
+                        </button>
+                      </Show>
                     </div>
                     <div class="changes-root" title={root()}>
                       {root()}

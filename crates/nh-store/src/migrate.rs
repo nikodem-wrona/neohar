@@ -31,11 +31,18 @@ const BASELINE_SQL: &str = include_str!("../migrations/0015_schema.sql");
 /// version and a file `migrations/NNNN_name.sql`. It also adds the snapshot of the schema of the
 /// new version (`INSTA_UPDATE=always`, see `migrate/tests.rs`). It never changes a row that
 /// shipped.
-const MIGRATIONS: &[Migration] = &[Migration {
-    version: 16,
-    sql: include_str!("../migrations/0016_drop_tasks.sql"),
-    rebuilds_tables: false,
-}];
+const MIGRATIONS: &[Migration] = &[
+    Migration {
+        version: 16,
+        sql: include_str!("../migrations/0016_drop_tasks.sql"),
+        rebuilds_tables: false,
+    },
+    Migration {
+        version: 17,
+        sql: include_str!("../migrations/0017_git_repos.sql"),
+        rebuilds_tables: false,
+    },
+];
 
 /// The schema version that this build writes.
 pub const SCHEMA_VERSION: u32 = match MIGRATIONS.last() {

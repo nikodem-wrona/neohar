@@ -101,14 +101,22 @@ impl Git {
         Self { env }
     }
 
-    async fn run(&self, cwd: &Path, args: &[&str]) -> Result<String, GitError> {
+    /// A copy that runs git with more variables in its environment. A later variable wins.
+    pub fn with_env(&self, extra: &[(String, String)]) -> Self {
+        let mut env = self.env.clone();
+        env.retain(|(key, _)| !extra.iter().any(|(name, _)| name == key));
+        env.extend(extra.iter().cloned());
+        Self { env }
+    }
+
+    pub async fn run(&self, cwd: &Path, args: &[&str]) -> Result<String, GitError> {
         let args: Vec<&OsStr> = args.iter().map(OsStr::new).collect();
         let out = self.output(cwd, &args).await?;
         Ok(String::from_utf8_lossy(&out).into_owned())
     }
 
     /// The bytes that git writes, for output with `-z` and paths that are not UTF-8.
-    async fn output(&self, cwd: &Path, args: &[&OsStr]) -> Result<Vec<u8>, GitError> {
+    pub async fn output(&self, cwd: &Path, args: &[&OsStr]) -> Result<Vec<u8>, GitError> {
         let mut command = Command::new("git");
         command
             .args(args)
@@ -326,17 +334,17 @@ fn files(worktree: &Path, rows: Vec<Record>, untracked: &[u8]) -> Vec<ChangedFil
 
 /// One file of `git diff-index --raw --numstat -z`.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
-struct Record {
-    path: Vec<u8>,
-    old_path: Option<Vec<u8>>,
+pub(crate) struct Record {
+    pub path: Vec<u8>,
+    pub old_path: Option<Vec<u8>>,
     /// The first letter of the status: `A`, `C`, `D`, `M`, `R`, `T`, `U` or `X`.
-    status: u8,
-    old_mode: Vec<u8>,
-    new_mode: Vec<u8>,
+    pub status: u8,
+    pub old_mode: Vec<u8>,
+    pub new_mode: Vec<u8>,
     /// The blob in the tree.
-    old_blob: Vec<u8>,
+    pub old_blob: Vec<u8>,
     /// The lines added and removed, or `None` for a binary file.
-    lines: Option<(u32, u32)>,
+    pub lines: Option<(u32, u32)>,
 }
 
 impl Record {
@@ -347,8 +355,9 @@ impl Record {
 
 /// The files of `git diff-index --raw --numstat -z`: the raw records come first, then the numstat
 /// records, in the same order. A file has a numstat record only when its content or its mode
-/// changed, so a file without one is left out. A rename has two paths in both parts.
-fn parse_diff_index(out: &[u8]) -> Vec<Record> {
+/// changed, so a file without one is left out. A rename has two paths in both parts. `git
+/// diff-tree --raw --numstat -z` has the same form.
+pub(crate) fn parse_diff_index(out: &[u8]) -> Vec<Record> {
     let mut tokens = out.split(|b| *b == 0).peekable();
     let mut raw: Vec<Record> = Vec::new();
     while let Some(token) = tokens.next_if(|t| t.starts_with(b":")) {

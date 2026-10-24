@@ -300,6 +300,10 @@ wire! {
         /// chrome such as the palette.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         pub active_pane: Option<Ref<PaneId>>,
+        /// A view of the page covers the panes, for example the Git view. The window gets no
+        /// frames, and it gets a keyframe of each pane when the view closes.
+        #[serde(default)]
+        pub panes_hidden: bool,
     }
 
     /// What the page measured.

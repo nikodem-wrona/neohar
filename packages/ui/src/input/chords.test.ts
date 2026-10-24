@@ -86,6 +86,7 @@ test('the default keys make the default keymap', () => {
     'interaction.answer_next',
     'peek.sibling',
     'search.open',
+    'git.open',
     'window.new',
   ]);
   expect(keymap.passThrough?.code).toBe('KeyV');

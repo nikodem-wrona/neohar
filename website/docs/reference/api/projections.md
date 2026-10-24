@@ -1,6 +1,6 @@
 ---
 title: "Projections"
-description: "The 23 read models that clients subscribe to: a snapshot, then keyed patches."
+description: "The 28 read models that clients subscribe to: a snapshot, then keyed patches."
 sidebar_position: 3
 toc_max_heading_level: 2
 ---
@@ -39,6 +39,11 @@ A projection is a read model that the core keeps in memory. A client calls [`pro
 | [`phones`](#phones) | device id |  | [`PhoneValue`](/docs/reference/api/types#phonevalue) |
 | [`phone_pairing`](#phone-pairing) | singleton (`_`) |  | [`PhonePairingValue`](/docs/reference/api/types#phonepairingvalue) |
 | [`phone_status`](#phone-status) | singleton (`_`) |  | [`PhoneStatusValue`](/docs/reference/api/types#phonestatusvalue) |
+| [`git_repos`](#git-repos) | common git directory |  | [`GitRepoValue`](/docs/reference/api/types#gitrepovalue) |
+| [`git_head`](#git-head) | singleton (`_`) | window id | [`GitHead`](/docs/reference/api/types#githead) |
+| [`git_worktrees`](#git-worktrees) | path | window id | [`GitWorktreeValue`](/docs/reference/api/types#gitworktreevalue) |
+| [`git_branches`](#git-branches) | reference | window id | [`GitBranchValue`](/docs/reference/api/types#gitbranchvalue) |
+| [`git_changes`](#git-changes) | path | window id | [`ChangeRow`](/docs/reference/api/types#changerow) |
 
 ## `windows` {#windows}
 
@@ -470,6 +475,118 @@ Type: string.
 | `summary` | string |  | One line about the listener, for the settings window and the doctor, for example "Published with Tailscale at https://studio.example.ts.net:8443.". Default: `""`. |
 | `tailscale` | [`TailscaleStatus`](/docs/reference/api/types#tailscalestatus) \| `null` |  | Tailscale. `null` when the listener does not use it: the listener is off, `phone.url` names the origin, or the run is a development run. |
 | `vapid_key` | string \| `null` |  | The public VAPID key of this core: the uncompressed P-256 point, base64url. The phone app subscribes to push with it. `null` while the listener does not run. |
+
+## `git_repos` {#git-repos}
+
+**Key:** common git directory
+
+### Value
+
+[`GitRepoValue`](/docs/reference/api/types#gitrepovalue)
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `agents` | integer (uint32) | yes | The live agents whose pane folder is in a worktree of the repository. |
+| `common_dir` | string | yes | The git directory that the worktrees of the repository share. |
+| `name` | string | yes | The name of the folder of the main worktree. |
+| `root` | string | yes | The worktree that the Git view opens: the main one, or the one where the core found the repository when the main one has no files (a bare repository). |
+| `source` | [`GitRepoSource`](/docs/reference/api/types#gitreposource) | yes |  |
+
+## `git_head:<window>` {#git-head}
+
+**Key:** singleton, the one key is `_` · **Parameter:** window id
+
+### Value
+
+[`GitHead`](/docs/reference/api/types#githead)
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `agents` | [`GitAgent`](/docs/reference/api/types#gitagent)[] |  | The agents whose pane folder is in the worktree. |
+| `ahead` | integer (uint32) |  | The commits of the branch that its upstream does not have. Default: `0`. |
+| `behind` | integer (uint32) |  | The commits of the upstream that the branch does not have. Default: `0`. |
+| `branch` | string \| `null` |  | The branch of `HEAD`, or `None` for a detached `HEAD`. |
+| `changes` | [`ChangeTotals`](/docs/reference/api/types#changetotals) \| `null` |  | The totals of the last count of the changes, or `None` before the first count. |
+| `commit` | string \| `null` |  | The short hash of `HEAD`, or `None` before the first commit. |
+| `diff_stats` | [`DiffStats`](/docs/reference/api/types#diffstats) \| `null` |  | The lines of all changed files. |
+| `error` | string \| `null` |  | Why the last look at the branches and the worktrees failed. The other values are those of the look before. |
+| `fetch_note` | string \| `null` |  | Why the last fetch in the background failed, for example "The fetch needs your passphrase. Click Fetch.". A fetch that works clears it. |
+| `fetched_at` | [`Timestamp`](/docs/reference/api/types#timestamp) \| `null` |  | The time of the last fetch, from `FETCH_HEAD`. |
+| `fetched_text` | string \| `null` |  | For example "Last fetched 18 minutes ago" or "Never fetched". `None` without a remote. |
+| `folder` | string | yes | The folder that the window named. |
+| `job` | [`GitJob`](/docs/reference/api/types#gitjob) \| `null` |  | The fetch or the pull that runs in the repository. |
+| `remote` | string \| `null` |  | The remote of a fetch: the remote of the upstream, else `origin`, else the first one. |
+| `repo` | string \| `null` |  | The key of the repository in `git_repos`: its common git directory. |
+| `repo_name` | string \| `null` |  |  |
+| `stash` | [`GitStash`](/docs/reference/api/types#gitstash) \| `null` |  | The stash that a switch left for the branch of `HEAD`, the newest one. |
+| `upstream` | string \| `null` |  | The upstream of the branch, for example `origin/main`. |
+| `upstream_gone` | boolean |  | The upstream is gone from its remote. Default: `false`. |
+| `worktree` | string \| `null` |  | The root of the worktree that holds the folder, or `None` when the folder is not in a git worktree. |
+| `worktree_name` | string \| `null` |  | The last part of the root of the worktree. |
+
+## `git_worktrees:<window>` {#git-worktrees}
+
+**Key:** path · **Parameter:** window id
+
+### Value
+
+[`GitWorktreeValue`](/docs/reference/api/types#gitworktreevalue)
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `agents` | [`GitAgent`](/docs/reference/api/types#gitagent)[] |  |  |
+| `branch` | string \| `null` |  | The branch of the worktree, or `None` for a detached `HEAD`. |
+| `commit` | string \| `null` |  | The short hash of its `HEAD`. |
+| `current` | boolean |  | The worktree that the Git view shows. Default: `false`. |
+| `dirty` | integer (uint32) \| `null` |  | The files that are not committed, or `None` when the core could not count them. |
+| `locked` | boolean |  | Default: `false`. |
+| `main` | boolean |  | The main worktree of the repository. Default: `false`. |
+| `name` | string | yes | The last part of the path. |
+| `path` | string | yes |  |
+| `prunable` | boolean |  | The folder of the worktree is gone, and `git worktree prune` would remove it. Default: `false`. |
+
+## `git_branches:<window>` {#git-branches}
+
+**Key:** reference · **Parameter:** window id
+
+### Value
+
+[`GitBranchValue`](/docs/reference/api/types#gitbranchvalue)
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `ahead` | integer (uint32) |  | Default: `0`. |
+| `behind` | integer (uint32) |  | Default: `0`. |
+| `current` | boolean |  | The worktree of the Git view has it out. Default: `false`. |
+| `kind` | [`GitBranchKind`](/docs/reference/api/types#gitbranchkind) | yes |  |
+| `name` | string | yes | For example `main` or `origin/main`. |
+| `recent` | boolean |  | The worktree had it out a short time ago. Default: `false`. |
+| `reference` | string | yes | For example `refs/heads/main`. |
+| `subject` | string \| `null` |  | The subject of its last commit. |
+| `time` | [`Timestamp`](/docs/reference/api/types#timestamp) \| `null` |  | The time of its last commit. |
+| `time_text` | string \| `null` |  | For example "3 days ago". |
+| `upstream` | string \| `null` |  | The upstream of a local branch, for example `origin/main`. |
+| `worktree` | string \| `null` |  | Another worktree has the branch out, so a switch to it goes to that worktree. |
+
+## `git_changes:<window>` {#git-changes}
+
+**Key:** path · **Parameter:** window id
+
+### Value
+
+[`ChangeRow`](/docs/reference/api/types#changerow)
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `add` | integer (uint32) | yes |  |
+| `binary` | boolean |  | Git shows no lines for the file. Default: `false`. |
+| `del` | integer (uint32) | yes |  |
+| `dir` | string | yes | The folder of the path with a `/` at its end, or empty for a file at the root. |
+| `name` | string | yes | The last part of the path. |
+| `old_path` | string \| `null` |  | The path in `HEAD` of a renamed file. |
+| `path` | string | yes | The path from the root of the worktree. |
+| `stamp` | integer (uint64) | yes | Changes when the file in the worktree changes, so that an open diff loads again. It is 0 for a deleted file, and less than 2^53 so that JavaScript holds it exactly. |
+| `status` | [`ChangeStatus`](/docs/reference/api/types#changestatus) | yes |  |
 
 ## Notification `projection.message` {#notification-projection-message}
 

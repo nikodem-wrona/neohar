@@ -28,10 +28,11 @@ Write the keys that you want to change in `~/.config/neohar/config.toml` (or `$N
 | [`[events]`](#events) | `sync_retention`, `audit_retention` |
 | [`[scrollback]`](#scrollback) | `max_bytes_per_pane` |
 | [`[daemon]`](#daemon) | `prevent_sleep` |
+| [`[git]`](#git) | `fetch_minutes` |
 | [`[phone]`](#phone) | `enabled`, `port`, `https_port`, `url`, `contact`, `keep_awake`, `font_size`, `keys` |
 | [`[ui]`](#ui) | `font_family`, `font_size`, `macos_option_as_alt`, `global_hotkey`, `editor`, `show_handles` |
 | [`[theme]`](#theme) | `bg`, `bg_raised`, `bg_hover`, `line`, `text`, `text_dim`, `accent`, `danger` |
-| [`[keys]`](#keys) | `palette_open`, `tab_next`, `tab_previous`, `pane_focus_left`, `pane_focus_right`, `pane_focus_up`, `pane_focus_down`, `pane_split_right`, `pane_split_down`, `inbox_open`, `interaction_answer_next`, `peek_sibling`, `search_open`, `window_new`, `pass_through` |
+| [`[keys]`](#keys) | `palette_open`, `tab_next`, `tab_previous`, `pane_focus_left`, `pane_focus_right`, `pane_focus_up`, `pane_focus_down`, `pane_split_right`, `pane_split_down`, `inbox_open`, `interaction_answer_next`, `peek_sibling`, `search_open`, `git_open`, `window_new`, `pass_through` |
 
 ## `[machines]` {#machines}
 
@@ -163,6 +164,17 @@ max_bytes_per_pane = 0
 prevent_sleep = "while_agents_work"
 ```
 
+## `[git]` {#git}
+
+| Key | Default | Description |
+|---|---|---|
+| `fetch_minutes` | `10` | How often the Git view fetches the remote of a repository that a window shows, in minutes. 0 turns the fetch in the background off. A fetch in the background never asks for a passphrase or a token: it stops, and the view says so. |
+
+```toml
+[git]
+fetch_minutes = 10
+```
+
 ## `[phone]` {#phone}
 
 | Key | Default | Description |
@@ -251,6 +263,7 @@ danger = "#ff5251"
 | `interaction_answer_next` | `"mod+shift+a"` |  |
 | `peek_sibling` | `"mod+shift+p"` |  |
 | `search_open` | `"mod+shift+f"` |  |
+| `git_open` | `"mod+shift+g"` |  |
 | `window_new` | `"mod+shift+n"` |  |
 | `pass_through` | `"mod+alt+v"` | The chord that lets the next key reach the pane, also when it is reserved. |
 
@@ -269,6 +282,7 @@ inbox_open = "mod+shift+i"
 interaction_answer_next = "mod+shift+a"
 peek_sibling = "mod+shift+p"
 search_open = "mod+shift+f"
+git_open = "mod+shift+g"
 window_new = "mod+shift+n"
 pass_through = "mod+alt+v"
 ```
@@ -348,6 +362,12 @@ max_bytes_per_pane = 0
 # lid on battery sleeps in all cases.
 prevent_sleep = "while_agents_work"
 
+[git]
+# How often the Git view fetches the remote of a repository that a window shows, in minutes. 0
+# turns the fetch in the background off. A fetch in the background never asks for a passphrase
+# or a token: it stops, and the view says so.
+fetch_minutes = 10
+
 [phone]
 # The listener of the phone: the app or `nh daemon` serves the phone app on a port of
 # 127.0.0.1, and `tailscale serve` puts it on the tailnet with HTTPS.
@@ -424,6 +444,7 @@ inbox_open = "mod+shift+i"
 interaction_answer_next = "mod+shift+a"
 peek_sibling = "mod+shift+p"
 search_open = "mod+shift+f"
+git_open = "mod+shift+g"
 window_new = "mod+shift+n"
 # The chord that lets the next key reach the pane, also when it is reserved.
 pass_through = "mod+alt+v"

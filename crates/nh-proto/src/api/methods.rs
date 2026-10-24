@@ -9,7 +9,7 @@ use schemars::{Schema, SchemaGenerator};
 use serde_json::Value;
 
 use super::{
-    calls::{agent::*, internal::*, pane::*, phone::*, system::*, workspace::*},
+    calls::{agent::*, git::*, internal::*, pane::*, phone::*, system::*, workspace::*},
     common::{Empty, JobStarted},
     envelope::{ErrorCode, RpcError},
     model::PhoneStatusValue,
@@ -237,6 +237,14 @@ impl Method {
                 | Self::InteractionReveal
                 | Self::ChangesFollow
                 | Self::ChangesDiff
+                | Self::GitFollow
+                | Self::GitRepos
+                | Self::GitStatus
+                | Self::GitWorktrees
+                | Self::GitBranches
+                | Self::GitLog
+                | Self::GitShow
+                | Self::GitDiff
                 | Self::PhonePairBegin
                 | Self::PhonePairCancel
                 | Self::PhonePublish
@@ -447,6 +455,21 @@ methods! {
     ChangesFollow "changes.follow" UI (ChangesFollow) -> Empty;
     ChangesDiff "changes.diff" UI (ChangesDiff) -> crate::api::rich::FileDiff;
 
+    // git
+    GitFollow "git.follow" UI (GitFollow) -> Empty;
+    GitRepoAdd "git.repo_add" BOTH (GitRepoAdd) -> Empty;
+    GitRepos "git.repos" BOTH (Empty) -> GitRepoList;
+    GitStatus "git.status" BOTH (GitPlace) -> GitStatus;
+    GitWorktrees "git.worktrees" BOTH (GitPlace) -> GitWorktreeList;
+    GitBranches "git.branches" BOTH (GitPlace) -> GitBranchList;
+    GitLog "git.log" BOTH (GitLog) -> GitLogResult;
+    GitShow "git.show" BOTH (GitShow) -> GitShown;
+    GitDiff "git.diff" BOTH (GitDiff) -> crate::api::rich::FileDiff;
+    GitSwitch "git.switch" BOTH (GitSwitch) -> Empty;
+    GitUnstash "git.unstash" BOTH (GitUnstash) -> Empty;
+    GitFetch "git.fetch" BOTH (GitFetch) -> JobStarted;
+    GitPull "git.pull" BOTH (GitPull) -> JobStarted;
+
     // phones
     PhonePairBegin "phone.pair_begin" BOTH (PhonePairBegin) -> PhonePairStarted;
     PhonePairCancel "phone.pair_cancel" BOTH (Empty) -> Empty;
@@ -644,6 +667,24 @@ mod tests {
                 &["list", "show", "answer", "dismiss", "next", "reveal"],
             ),
             ("changes", &["follow", "diff"]),
+            (
+                "git",
+                &[
+                    "follow",
+                    "repo_add",
+                    "repos",
+                    "status",
+                    "worktrees",
+                    "branches",
+                    "log",
+                    "show",
+                    "diff",
+                    "switch",
+                    "unstash",
+                    "fetch",
+                    "pull",
+                ],
+            ),
             (
                 "phone",
                 &[

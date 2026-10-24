@@ -319,6 +319,41 @@ fn a_file_just_under_the_cap_is_not_cut() {
 }
 
 #[test]
+fn another_limit_cuts_a_patch_and_two_texts_at_its_own_line() {
+    let after: String = (0..5000).map(|n| format!("line {n}\n")).collect();
+    let mut patch = String::from("--- a/big.txt\n+++ b/big.txt\n@@ -0,0 +1,5000 @@\n");
+    for n in 0..5000 {
+        patch.push_str(&format!("+line {n}\n"));
+    }
+    let shown = |file: &FileDiff| -> usize { file.hunks.iter().map(|hunk| hunk.lines.len()).sum() };
+    let patched = diff_capped(
+        &[Change::Patch {
+            path: Some("big.txt"),
+            status: None,
+            text: &patch,
+        }],
+        4000,
+    );
+    assert_eq!(shown(&patched.files[0]), 4000);
+    assert!(patched.files[0].truncated);
+    assert_eq!(patched.files[0].stats.add, 5000);
+    let whole = between_capped("", &after, Some("big.txt"), None, 20_000);
+    assert_eq!(shown(&whole.files[0]), 5000);
+    assert!(!whole.files[0].truncated);
+    assert_eq!(
+        shown(
+            &diff(&[Change::Patch {
+                path: None,
+                status: None,
+                text: &patch
+            }])
+            .files[0]
+        ),
+        MAX_LINES
+    );
+}
+
+#[test]
 fn text_with_a_nul_byte_is_a_binary_file() {
     let result = diff(&[Change::Write {
         path: "a.bin",

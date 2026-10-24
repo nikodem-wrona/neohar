@@ -41,6 +41,9 @@ pub enum Custom {
     /// `fs list [path]`: a relative path and a path under `~` become absolute. Without a path,
     /// the current directory.
     List,
+    /// `git status`: the worktree of `--path`, made absolute, or of the current directory. With
+    /// `--window`, the worktree of the Git view of that window.
+    Here,
 }
 
 pub struct Verb {
@@ -107,6 +110,10 @@ pub const NOUNS: &[(&str, &str)] = &[
     ),
     ("phone", "Phones that supervise this machine"),
     ("fs", "The file system of the machine"),
+    (
+        "git",
+        "Git repositories, worktrees, branches and history, as the Git view shows them",
+    ),
     ("config", "The configuration"),
     ("policy", "Rules that decide approvals"),
     ("integration", "The hooks of the harnesses"),
@@ -534,6 +541,102 @@ pub const VERBS: &[Verb] = &[
         &["path"],
         Custom::List,
     ),
+    // --- git
+    verb(
+        "git",
+        "repos",
+        "git.repos",
+        "List the git repositories that neohar knows: of the workspaces, the panes and the ones you added",
+        &[],
+    ),
+    special(
+        "git",
+        "add",
+        "git.repo_add",
+        "Add the repository of a folder, or of the current directory, to the Repository menu",
+        &["path"],
+        Custom::List,
+    ),
+    special(
+        "git",
+        "status",
+        "git.status",
+        "Show the branch, its upstream, the agents and the changed files of the worktree of the current directory",
+        &[],
+        Custom::Here,
+    ),
+    special(
+        "git",
+        "worktrees",
+        "git.worktrees",
+        "List the worktrees of the repository with their branches and agents",
+        &[],
+        Custom::Here,
+    ),
+    special(
+        "git",
+        "branches",
+        "git.branches",
+        "List the local and remote branches: the current one, the recent ones, then the others",
+        &[],
+        Custom::Here,
+    ),
+    special(
+        "git",
+        "log",
+        "git.log",
+        "List the commits of HEAD, the newest first",
+        &[],
+        Custom::Here,
+    ),
+    special(
+        "git",
+        "show",
+        "git.show",
+        "Show a commit with its message and its files",
+        &["commit"],
+        Custom::Here,
+    ),
+    special(
+        "git",
+        "diff",
+        "git.diff",
+        "Show the diff of a changed file, or of a file of a commit with --commit",
+        &["file"],
+        Custom::Here,
+    ),
+    special(
+        "git",
+        "switch",
+        "git.switch",
+        "Switch the worktree to a branch. It asks first when an agent works in the worktree: --force switches anyway",
+        &["branch"],
+        Custom::Here,
+    ),
+    special(
+        "git",
+        "unstash",
+        "git.unstash",
+        "Put the changes of a stash that a switch left back into the worktree",
+        &["stash"],
+        Custom::Here,
+    ),
+    special(
+        "git",
+        "fetch",
+        "git.fetch",
+        "Fetch the remote of the branch, as a job",
+        &[],
+        Custom::Here,
+    ),
+    special(
+        "git",
+        "pull",
+        "git.pull",
+        "Move the branch to its upstream with a fast-forward only, as a job",
+        &[],
+        Custom::Here,
+    ),
     // --- configuration and policy
     verb(
         "config",
@@ -810,7 +913,7 @@ fn sugar(custom: Custom) -> Vec<Arg> {
             ),
             text("new-tab", "Start in a new tab of this workspace"),
         ],
-        Custom::List => Vec::new(),
+        Custom::List | Custom::Here => Vec::new(),
     }
 }
 
@@ -831,7 +934,7 @@ fn command_of(doc: &Value, verb: &Verb) -> Command {
         Custom::Answer => sugar_keys.extend(["decision", "via"]),
         Custom::AgentStart => sugar_keys.extend(["placement"]),
         Custom::SendKeys => sugar_keys.extend(["bytes", "input_id"]),
-        Custom::List | Custom::None => {}
+        Custom::List | Custom::Here | Custom::None => {}
     }
     let positional = |key: &str| verb.pos.iter().any(|p| p.trim_end_matches("...") == key);
     // Positionals, in the order of the table.
@@ -1082,6 +1185,13 @@ pub fn params(
             let path =
                 given("path").map_or_else(|| cwd.to_path_buf(), |text| absolute_of(&text, cwd));
             map.insert("path".to_owned(), Value::String(path.display().to_string()));
+        }
+        Custom::Here => {
+            if !map.contains_key("window") {
+                let path =
+                    given("path").map_or_else(|| cwd.to_path_buf(), |text| absolute_of(&text, cwd));
+                map.insert("path".to_owned(), Value::String(path.display().to_string()));
+            }
         }
     }
     if all.iter().any(|p| p.key == "input_id") && !map.contains_key("input_id") {

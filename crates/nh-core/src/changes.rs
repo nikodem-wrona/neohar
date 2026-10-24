@@ -10,7 +10,7 @@
 //! and its first [`MAX_ROWS`] files go into `changes_for:<window>`. A count that fails keeps the
 //! values of the count before and sets `error`.
 
-mod git;
+pub(crate) mod git;
 
 use std::{
     collections::{HashMap, HashSet},
@@ -47,7 +47,7 @@ use crate::{
 pub(crate) const MAX_ROWS: usize = 1_000;
 
 /// The most bytes of a patch or of a new file that a diff reads, as `nh-rich` caps its input.
-const DIFF_INPUT: usize = 2 << 20;
+pub(crate) const DIFF_INPUT: usize = 2 << 20;
 
 /// How often the core looks whether a window still follows its changes, while one does.
 const FOLLOW_CHECK: Duration = Duration::from_secs(1);
@@ -187,19 +187,19 @@ fn followed(hub: &ProjectionHub, window: WindowId) -> bool {
         || hub.subscriber_count(Projection::ChangesHead(window)) > 0
 }
 
-fn keys(rows: &[(String, ChangedFile)]) -> Vec<String> {
+pub(crate) fn keys(rows: &[(String, ChangedFile)]) -> Vec<String> {
     rows.iter().map(|(key, _)| key.clone()).collect()
 }
 
-fn text(path: &Path) -> String {
+pub(crate) fn text(path: &Path) -> String {
     path.to_string_lossy().into_owned()
 }
 
-fn lossy(bytes: &[u8]) -> String {
+pub(crate) fn lossy(bytes: &[u8]) -> String {
     String::from_utf8_lossy(bytes).into_owned()
 }
 
-fn status(kind: ChangeKind) -> ChangeStatus {
+pub(crate) fn status(kind: ChangeKind) -> ChangeStatus {
     match kind {
         ChangeKind::Modified => ChangeStatus::Modified,
         ChangeKind::Added => ChangeStatus::Added,
@@ -210,7 +210,7 @@ fn status(kind: ChangeKind) -> ChangeStatus {
 }
 
 /// The value of a row of `changes_for:<window>`.
-fn row_value(path: &str, file: &ChangedFile) -> ChangeRow {
+pub(crate) fn row_value(path: &str, file: &ChangedFile) -> ChangeRow {
     let (dir, name) = match path.rfind('/') {
         Some(at) => (path[..=at].to_owned(), path[at + 1..].to_owned()),
         None => (String::new(), path.to_owned()),
@@ -230,7 +230,7 @@ fn row_value(path: &str, file: &ChangedFile) -> ChangeRow {
 
 /// The totals and the rows of a count that worked, with the full name of `HEAD`. Two paths that
 /// are the same text after the change of bytes that are not UTF-8 are one row.
-fn counted(changes: Changes) -> (ChangeTotals, String, Vec<(String, ChangedFile)>) {
+pub(crate) fn counted(changes: Changes) -> (ChangeTotals, String, Vec<(String, ChangedFile)>) {
     let files = changes.files.len();
     let mut seen = HashSet::new();
     let rows: Vec<(String, ChangedFile)> = changes
@@ -250,7 +250,7 @@ fn counted(changes: Changes) -> (ChangeTotals, String, Vec<(String, ChangedFile)
 
 /// Sets the rows of a projection of changes, and removes the keys of `before` that are gone. A
 /// row that did not change makes no patch.
-fn set_rows(
+pub(crate) fn set_rows(
     hub: &ProjectionHub,
     projection: Projection,
     before: &[String],
@@ -536,7 +536,8 @@ impl ChangesService {
             }
         };
         let (root, file, head) = found.ok_or_else(not_a_change)?;
-        self.diff_of(&root, path, &file, head).await
+        self.diff_of(&root, path, &file, head, nh_rich::diff::MAX_LINES)
+            .await
     }
 
     /// The row of `path` in the last count of a window, with the root and `HEAD`.
@@ -561,16 +562,17 @@ impl ChangesService {
             .map(|(_, file)| (root.clone(), file.clone(), follow.counted.head.clone())))
     }
 
-    /// The diff of one row of a count, from `HEAD` to the worktree.
-    async fn diff_of(
+    /// The diff of one row of a count, from `HEAD` to the worktree, with at most `limit` lines.
+    pub(crate) async fn diff_of(
         &self,
         worktree: &Path,
         path: String,
         file: &ChangedFile,
         head: Option<String>,
+        limit: usize,
     ) -> Result<rich::FileDiff, RpcError> {
         let mut diff = if file.kind == ChangeKind::Untracked {
-            self.new_file_diff(worktree, &path, file).await?
+            self.new_file_diff(worktree, &path, file, limit).await?
         } else {
             let head = head.ok_or_else(not_a_change)?;
             let patch = self
@@ -583,11 +585,14 @@ impl ChangesService {
             let mut diff = self
                 .rich(move || {
                     let patch = nh_rich::cap(&patch, DIFF_INPUT);
-                    nh_rich::diff::diff(&[nh_rich::diff::Change::Patch {
-                        path: Some(&name),
-                        status: None,
-                        text: patch.text,
-                    }])
+                    nh_rich::diff::diff_capped(
+                        &[nh_rich::diff::Change::Patch {
+                            path: Some(&name),
+                            status: None,
+                            text: patch.text,
+                        }],
+                        limit,
+                    )
                 })
                 .await?;
             diff.truncated |= cut;
@@ -612,6 +617,7 @@ impl ChangesService {
         worktree: &Path,
         path: &str,
         file: &ChangedFile,
+        limit: usize,
     ) -> Result<rich::FileDiff, RpcError> {
         let empty = || rich::FileDiff {
             path: path.to_owned(),
@@ -648,7 +654,7 @@ impl ChangesService {
                     }
                     _ => String::new(),
                 };
-                nh_rich::diff::between("", &text, Some(&name), None)
+                nh_rich::diff::between_capped("", &text, Some(&name), None, limit)
             })
             .await?;
         diff.truncated |= cut;
@@ -656,7 +662,7 @@ impl ChangesService {
     }
 
     /// Runs the work of `nh-rich` on the blocking pool, and gives its one file.
-    async fn rich(
+    pub(crate) async fn rich(
         &self,
         work: impl FnOnce() -> nh_rich::diff::Diff + Send + 'static,
     ) -> Result<rich::FileDiff, RpcError> {

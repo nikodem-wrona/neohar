@@ -182,6 +182,8 @@ pub(crate) struct Inner {
     pub control: Arc<crate::agents::Control>,
     /// The Changes tabs of the windows and their git work.
     pub changes: Arc<crate::changes::ChangesService>,
+    /// The Git views of the windows and `git_repos`.
+    pub git_view: Arc<crate::git_view::GitViewService>,
     /// The harnesses of this machine and their login state.
     pub discovery: Arc<crate::discovery::Discovery>,
     /// What the host does on `session.shutdown`. Empty: the host ends from its menu.
@@ -463,6 +465,19 @@ impl Core {
         let changes =
             crate::changes::ChangesService::new(runtime.handle().clone(), &config.base_env);
         changes.bind_projections(projections.hub());
+        // A fetch from a click asks its questions through `nh askpass` and this API socket.
+        let git_view = crate::git_view::GitViewService::new(
+            runtime.handle().clone(),
+            &config.base_env,
+            Arc::clone(&jobs),
+            Arc::clone(&config_store),
+            Some(crate::git_view::Askpass {
+                nh: config.nh_path.clone(),
+                socket: api_socket.path().to_owned(),
+                session: config.session.clone(),
+            }),
+        );
+        git_view.bind_projections(projections.hub());
         let render = Arc::new(RenderServer::new(
             runtime.handle().clone(),
             Arc::clone(&panes),
@@ -502,6 +517,7 @@ impl Core {
         .map_err(CoreError::Runtime)?;
         // The first load of the manifests is an event for each manifest.
         harnesses.attach(actor.handle());
+        git_view.bind_actor(actor.handle());
         adapters.attach(actor.handle());
         // The runs and the interactions of the last core are in the projections before the first
         // client asks.
@@ -657,6 +673,7 @@ impl Core {
             agents,
             control: Arc::clone(&control),
             changes,
+            git_view,
             discovery,
             shutdown: crate::session::ShutdownSlot::default(),
             drop_links: crate::session::DropLinksSlot::default(),
@@ -989,6 +1006,7 @@ impl CoreHandle {
         }
         let direct = pane_calls::handles(method)
             || crate::changes::handles(method)
+            || crate::git_view::handles(method)
             || crate::files::handles(method)
             || crate::doctor::handles(method)
             || agent_calls::handles(method)
@@ -1012,6 +1030,8 @@ impl CoreHandle {
                 pane_calls::run(&self.inner, call, origin).await
             } else if crate::changes::handles(method) {
                 crate::changes::run(&self.inner, call, origin).await
+            } else if crate::git_view::handles(method) {
+                crate::git_view::run(&self.inner, call, origin).await
             } else if crate::files::handles(method) {
                 crate::files::run(&self.inner, call, origin).await
             } else if crate::doctor::handles(method) {

@@ -1,6 +1,6 @@
 // The status bar: the function keys on the left, then the limits of the harnesses, the warnings of
 // the core, the renderer when it fell back to `canvas2d`, the machine, and, after a rule, the
-// switches of the left column and of the drawer as one group. A key cap shows the chord of the settings and runs
+// switches of the left column, of the drawer and of the Git view as one group. A key cap shows the chord of the settings and runs
 // the same command when it is clicked. The caps are gray, and the cap of Answer is amber while an
 // agent waits.
 // The bar shows what the projections say and decides nothing.
@@ -14,7 +14,7 @@ import { hasUsage, limitText, usageText } from '../timeline/model';
 import { chordText, FUNCTION_KEYS } from './keys';
 
 export function StatusBar(props: { actions: ActionContext; keymap: () => Keymap }) {
-  const { stores, view, platform } = useApp();
+  const { stores, view, platform, form } = useApp();
   // The host serves `link` to each window. Without a host (the dev WebSocket) the window is local.
   const machine = () => stores.link.state.byKey['_']?.text ?? 'local';
   const health = () => stores.health.state.byKey['_'];
@@ -99,6 +99,17 @@ export function StatusBar(props: { actions: ActionContext; keymap: () => Keymap 
         >
           Drawer
         </button>
+        <Show when={form !== 'phone'}>
+          <button
+            type="button"
+            class="drawer-toggle"
+            aria-pressed={view.gitOpen()}
+            title="The Git view of the folder of this window"
+            onClick={() => props.actions.toggleGit()}
+          >
+            Git
+          </button>
+        </Show>
       </div>
     </footer>
   );

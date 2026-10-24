@@ -37,6 +37,7 @@ function context(overrides: Partial<ActionContext> = {}) {
     showDrawer: (tab) => drawer.push(tab),
     togglePalette: () => drawer.push('palette'),
     toggleSearch: () => drawer.push('search'),
+    toggleGit: () => drawer.push('git'),
     focusCard: (id) => drawer.push(`card:${id}`),
     ...overrides,
   };
@@ -84,6 +85,8 @@ test('a new window, the inbox, the search, and the commands of later packages', 
   expect(drawer).toEqual(['inbox', 'palette']);
   expect(runCommand('search.open', ctx)).toBe(true);
   expect(drawer).toEqual(['inbox', 'palette', 'search']);
+  expect(runCommand('git.open', ctx)).toBe(true);
+  expect(drawer).toEqual(['inbox', 'palette', 'search', 'git']);
   // The key of the peek is reserved, and nothing happens.
   expect(runCommand('peek.sibling', ctx)).toBe(true);
   expect(calls).toHaveLength(1);

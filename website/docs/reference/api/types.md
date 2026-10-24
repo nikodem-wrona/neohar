@@ -1,6 +1,6 @@
 ---
 title: "Types"
-description: "Every one of the 402 named types of the API contract, with fields and the places that use it."
+description: "Every one of the 433 named types of the API contract, with fields and the places that use it."
 sidebar_position: 7
 toc_max_heading_level: 2
 ---
@@ -12,7 +12,7 @@ Do not edit it by hand. Change the source and run `bun run gen` in `website/`.
 
 :::
 
-The contract names 402 types. They are Rust types in `nh-proto` (behind its `api` feature) with `serde` and `schemars::JsonSchema`, and `mise run gen:api` turns the same schema into TypeScript in [`packages/transport/src/generated.ts`](https://github.com/nikodem-wrona/neohar/blob/main/packages/transport/src/generated.ts).
+The contract names 433 types. They are Rust types in `nh-proto` (behind its `api` feature) with `serde` and `schemars::JsonSchema`, and `mise run gen:api` turns the same schema into TypeScript in [`packages/transport/src/generated.ts`](https://github.com/nikodem-wrona/neohar/blob/main/packages/transport/src/generated.ts).
 
 Jump to a letter: [A](#letter-a) · [B](#letter-b) · [C](#letter-c) · [D](#letter-d) · [E](#letter-e) · [F](#letter-f) · [G](#letter-g) · [H](#letter-h) · [I](#letter-i) · [J](#letter-j) · [K](#letter-k) · [L](#letter-l) · [M](#letter-m) · [N](#letter-n) · [P](#letter-p) · [Q](#letter-q) · [R](#letter-r) · [S](#letter-s) · [T](#letter-t) · [U](#letter-u) · [V](#letter-v) · [W](#letter-w)
 
@@ -432,7 +432,7 @@ The answer of the person, or `null` when the person cancelled. The core keeps it
 |---|---|---|---|
 | `answer` | string \| `null` |  |  |
 
-**Rust:** [`crates/nh-proto/src/api/calls/workspace.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workspace.rs#L453) · **Used by:** [`askpass.ask`](/docs/reference/api/methods/askpass#askpass-ask)
+**Rust:** [`crates/nh-proto/src/api/calls/workspace.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workspace.rs#L457) · **Used by:** [`askpass.ask`](/docs/reference/api/methods/askpass#askpass-ask)
 
 ### `AskpassAsk` {#askpassask}
 
@@ -443,7 +443,7 @@ The answer of the person, or `null` when the person cancelled. The core keeps it
 | `machine` | string \| `null` |  | The label of the machine that the link is for, when the core knows it. |
 | `prompt` | string | yes | The question as ssh wrote it: a host key, a passphrase or a password. |
 
-**Rust:** [`crates/nh-proto/src/api/calls/workspace.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workspace.rs#L443) · **Used by:** [`askpass.ask`](/docs/reference/api/methods/askpass#askpass-ask)
+**Rust:** [`crates/nh-proto/src/api/calls/workspace.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workspace.rs#L447) · **Used by:** [`askpass.ask`](/docs/reference/api/methods/askpass#askpass-ask)
 
 ### `AttentionReason` {#attentionreason}
 
@@ -600,7 +600,7 @@ One row of the capability matrix.
 | `stamp` | integer (uint64) | yes | Changes when the file in the worktree changes, so that an open diff loads again. It is 0 for a deleted file, and less than 2^53 so that JavaScript holds it exactly. |
 | `status` | [`ChangeStatus`](/docs/reference/api/types#changestatus) | yes |  |
 
-**Rust:** [`crates/nh-proto/src/api/model.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/model.rs#L596) · **Used by:** [projection `changes_for`](/docs/reference/api/projections#changes-for)
+**Rust:** [`crates/nh-proto/src/api/model.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/model.rs#L596) · **Used by:** [projection `changes_for`](/docs/reference/api/projections#changes-for), [projection `git_changes`](/docs/reference/api/projections#git-changes), [`GitShown`](/docs/reference/api/types#gitshown), [`GitStatus`](/docs/reference/api/types#gitstatus)
 
 ### `ChangeStatus` {#changestatus}
 
@@ -624,7 +624,7 @@ One of these forms:
 | `files` | integer (uint32) | yes | The changed files, also those after the first 1,000. |
 | `truncated` | boolean |  | The worktree has more than 1,000 changed files, and `changes_for:<window>` has the first 1,000. Default: `false`. |
 
-**Rust:** [`crates/nh-proto/src/api/model.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/model.rs#L570) · **Used by:** [`ChangesHead`](/docs/reference/api/types#changeshead)
+**Rust:** [`crates/nh-proto/src/api/model.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/model.rs#L570) · **Used by:** [`ChangesHead`](/docs/reference/api/types#changeshead), [`GitHead`](/docs/reference/api/types#githead)
 
 ### `ChangesDiff` {#changesdiff}
 
@@ -969,7 +969,7 @@ Type: string. Pattern: `^[0-9A-HJKMNP-TV-Z]{26}$`.
 | `add` | integer (uint32) | yes |  |
 | `del` | integer (uint32) | yes |  |
 
-**Rust:** [`crates/nh-proto/src/api/rich.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/rich.rs#L51) · **Used by:** [`ChangesHead`](/docs/reference/api/types#changeshead), [`FileDiff`](/docs/reference/api/types#filediff)
+**Rust:** [`crates/nh-proto/src/api/rich.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/rich.rs#L51) · **Used by:** [`ChangesHead`](/docs/reference/api/types#changeshead), [`FileDiff`](/docs/reference/api/types#filediff), [`GitHead`](/docs/reference/api/types#githead), [`GitShown`](/docs/reference/api/types#gitshown)
 
 ### `DoctorCheck` {#doctorcheck}
 
@@ -1275,7 +1275,7 @@ Values: `"created"`, `"modified"`, `"removed"`, `"unchanged"`.
 | `status` | [`FileStatus`](/docs/reference/api/types#filestatus) | yes |  |
 | `truncated` | boolean |  | The diff of this file was cut at 2,000 lines. The UI offers "open full". Default: `false`. |
 
-**Rust:** [`crates/nh-proto/src/api/rich.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/rich.rs#L56) · **Used by:** [`changes.diff`](/docs/reference/api/methods/changes#changes-diff), [`Diff`](/docs/reference/api/types#diff)
+**Rust:** [`crates/nh-proto/src/api/rich.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/rich.rs#L56) · **Used by:** [`changes.diff`](/docs/reference/api/methods/changes#changes-diff), [`git.diff`](/docs/reference/api/methods/git#git-diff), [`Diff`](/docs/reference/api/types#diff)
 
 ### `FileStatus` {#filestatus}
 
@@ -1302,7 +1302,7 @@ Values: `"modified"`, `"added"`, `"deleted"`, `"renamed"`.
 | `relative_to` | string \| `null` |  | A folder that holds `path`. The clipboard gets the path from this folder. |
 | `return_text` | boolean |  | Return the text, and write no clipboard of a host: a phone writes it in the tap. Default: `false`. |
 
-**Rust:** [`crates/nh-proto/src/api/calls/workspace.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workspace.rs#L419) · **Used by:** [`fs.copy_path`](/docs/reference/api/methods/fs#fs-copy-path)
+**Rust:** [`crates/nh-proto/src/api/calls/workspace.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workspace.rs#L423) · **Used by:** [`fs.copy_path`](/docs/reference/api/methods/fs#fs-copy-path)
 
 ### `FsEntry` {#fsentry}
 
@@ -1315,7 +1315,7 @@ Values: `"modified"`, `"added"`, `"deleted"`, `"renamed"`.
 | `name` | string | yes |  |
 | `path` | string | yes | The absolute path, for `fs.list`, `fs.read` and the actions of a row. |
 
-**Rust:** [`crates/nh-proto/src/api/calls/workspace.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workspace.rs#L344) · **Used by:** [`FsListResult`](/docs/reference/api/types#fslistresult)
+**Rust:** [`crates/nh-proto/src/api/calls/workspace.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workspace.rs#L348) · **Used by:** [`FsListResult`](/docs/reference/api/types#fslistresult)
 
 ### `FsEntryKind` {#fsentrykind}
 
@@ -1325,7 +1325,7 @@ Values: `"modified"`, `"added"`, `"deleted"`, `"renamed"`.
 | `"file"` | A regular file, or a symlink to one. It opens in the file view. |
 | `"other"` | A socket, a pipe, a device or a broken link. The tree shows it and opens nothing. |
 
-**Rust:** [`crates/nh-proto/src/api/calls/workspace.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workspace.rs#L360) · **Used by:** [`FsEntry`](/docs/reference/api/types#fsentry)
+**Rust:** [`crates/nh-proto/src/api/calls/workspace.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workspace.rs#L364) · **Used by:** [`FsEntry`](/docs/reference/api/types#fsentry)
 
 ### `FsList` {#fslist}
 
@@ -1335,7 +1335,7 @@ Values: `"modified"`, `"added"`, `"deleted"`, `"renamed"`.
 |---|---|---|---|
 | `path` | string | yes | An absolute path. |
 
-**Rust:** [`crates/nh-proto/src/api/calls/workspace.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workspace.rs#L329) · **Used by:** [`fs.list`](/docs/reference/api/methods/fs#fs-list)
+**Rust:** [`crates/nh-proto/src/api/calls/workspace.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workspace.rs#L333) · **Used by:** [`fs.list`](/docs/reference/api/methods/fs#fs-list)
 
 ### `FsListResult` {#fslistresult}
 
@@ -1347,7 +1347,7 @@ The entries of a folder in the order of the tree: the folders first, then the ot
 | `path` | string | yes | The folder that the core listed, as an absolute path. |
 | `truncated` | boolean | yes | True when the folder has more entries than the core sends (2,000). |
 
-**Rust:** [`crates/nh-proto/src/api/calls/workspace.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workspace.rs#L336) · **Used by:** [`fs.list`](/docs/reference/api/methods/fs#fs-list)
+**Rust:** [`crates/nh-proto/src/api/calls/workspace.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workspace.rs#L340) · **Used by:** [`fs.list`](/docs/reference/api/methods/fs#fs-list)
 
 ### `FsOpen` {#fsopen}
 
@@ -1359,7 +1359,7 @@ The entries of a folder in the order of the tree: the folders first, then the ot
 | `reveal` | boolean |  | Show the path in the Finder, and do not open it. Default: `false`. |
 | `window` | [`WindowId`](/docs/reference/api/types#windowid) | yes |  |
 
-**Rust:** [`crates/nh-proto/src/api/calls/workspace.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workspace.rs#L409) · **Used by:** [`fs.open`](/docs/reference/api/methods/fs#fs-open)
+**Rust:** [`crates/nh-proto/src/api/calls/workspace.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workspace.rs#L413) · **Used by:** [`fs.open`](/docs/reference/api/methods/fs#fs-open)
 
 ### `FsPreviewKind` {#fspreviewkind}
 
@@ -1369,7 +1369,7 @@ The entries of a folder in the order of the tree: the folders first, then the ot
 | `"image"` | An image that the page shows from `image`. |
 | `"binary"` | Bytes that are not text. The view shows only `info`. |
 
-**Rust:** [`crates/nh-proto/src/api/calls/workspace.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workspace.rs#L377) · **Used by:** [`FsReadResult`](/docs/reference/api/types#fsreadresult)
+**Rust:** [`crates/nh-proto/src/api/calls/workspace.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workspace.rs#L381) · **Used by:** [`FsReadResult`](/docs/reference/api/types#fsreadresult)
 
 ### `FsRead` {#fsread}
 
@@ -1379,7 +1379,7 @@ The entries of a folder in the order of the tree: the folders first, then the ot
 |---|---|---|---|
 | `path` | string | yes | An absolute path. |
 
-**Rust:** [`crates/nh-proto/src/api/calls/workspace.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workspace.rs#L370) · **Used by:** [`fs.read`](/docs/reference/api/methods/fs#fs-read)
+**Rust:** [`crates/nh-proto/src/api/calls/workspace.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workspace.rs#L374) · **Used by:** [`fs.read`](/docs/reference/api/methods/fs#fs-read)
 
 ### `FsReadResult` {#fsreadresult}
 
@@ -1395,7 +1395,7 @@ The entries of a folder in the order of the tree: the folders first, then the ot
 | `path` | string | yes |  |
 | `truncated` | boolean | yes | The file has more than the core sends: 1 MiB or 10,000 lines. |
 
-**Rust:** [`crates/nh-proto/src/api/calls/workspace.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workspace.rs#L386) · **Used by:** [`fs.read`](/docs/reference/api/methods/fs#fs-read)
+**Rust:** [`crates/nh-proto/src/api/calls/workspace.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workspace.rs#L390) · **Used by:** [`fs.read`](/docs/reference/api/methods/fs#fs-read)
 
 ## G {#letter-g}
 
@@ -1467,6 +1467,407 @@ One of these forms:
 | `reason` | string | yes |  |
 
 **Rust:** [`crates/nh-proto/src/api/calls/internal.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/internal.rs#L73)
+
+### `GitAgent` {#gitagent}
+
+An agent whose pane folder is in a worktree.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `harness` | [`Harness`](/docs/reference/api/types#harness) | yes |  |
+| `name` | string \| `null` |  |  |
+| `pane` | [`PaneId`](/docs/reference/api/types#paneid) | yes |  |
+| `run` | [`RunId`](/docs/reference/api/types#runid) | yes |  |
+| `state` | [`GitAgentState`](/docs/reference/api/types#gitagentstate) | yes |  |
+
+**Rust:** [`crates/nh-proto/src/api/model.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/model.rs#L962) · **Used by:** [`GitHead`](/docs/reference/api/types#githead), [`GitWorktreeValue`](/docs/reference/api/types#gitworktreevalue)
+
+### `GitAgentState` {#gitagentstate}
+
+The state of an agent in a worktree, as the Git view shows it.
+
+One of these forms:
+
+- `"starting"` | `"working"` | `"idle"` | `"exited"` | `"unknown"`
+
+- `"waiting"` — The agent has an open approval, question or plan.
+
+**Rust:** [`crates/nh-proto/src/api/model.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/model.rs#L928) · **Used by:** [`GitAgent`](/docs/reference/api/types#gitagent)
+
+### `GitBranchKind` {#gitbranchkind}
+
+Values: `"local"`, `"remote"`.
+
+**Rust:** [`crates/nh-proto/src/api/model.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/model.rs#L1073) · **Used by:** [`GitBranchValue`](/docs/reference/api/types#gitbranchvalue)
+
+### `GitBranchList` {#gitbranchlist}
+
+The rows of `git_branches:<window>` for a worktree, in their order.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `branches` | [`GitBranchValue`](/docs/reference/api/types#gitbranchvalue)[] | yes |  |
+
+**Rust:** [`crates/nh-proto/src/api/calls/git.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/git.rs#L72) · **Used by:** [`git.branches`](/docs/reference/api/methods/git#git-branches)
+
+### `GitBranchValue` {#gitbranchvalue}
+
+`git_branches:<window>`: a branch of the repository of the Git view. The key is `reference`. The branch of `HEAD` comes first, then the recent ones, then the other local ones and then the remote ones, each the newest commit first.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `ahead` | integer (uint32) |  | Default: `0`. |
+| `behind` | integer (uint32) |  | Default: `0`. |
+| `current` | boolean |  | The worktree of the Git view has it out. Default: `false`. |
+| `kind` | [`GitBranchKind`](/docs/reference/api/types#gitbranchkind) | yes |  |
+| `name` | string | yes | For example `main` or `origin/main`. |
+| `recent` | boolean |  | The worktree had it out a short time ago. Default: `false`. |
+| `reference` | string | yes | For example `refs/heads/main`. |
+| `subject` | string \| `null` |  | The subject of its last commit. |
+| `time` | [`Timestamp`](/docs/reference/api/types#timestamp) \| `null` |  | The time of its last commit. |
+| `time_text` | string \| `null` |  | For example "3 days ago". |
+| `upstream` | string \| `null` |  | The upstream of a local branch, for example `origin/main`. |
+| `worktree` | string \| `null` |  | Another worktree has the branch out, so a switch to it goes to that worktree. |
+
+**Rust:** [`crates/nh-proto/src/api/model.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/model.rs#L1081) · **Used by:** [projection `git_branches`](/docs/reference/api/projections#git-branches), [`GitBranchList`](/docs/reference/api/types#gitbranchlist)
+
+### `GitChanges` {#gitchanges}
+
+What a switch does with the changes of the worktree.
+
+| Value | Meaning |
+|---|---|
+| `"bring"` | The changes go to the other branch, as `git switch` takes them. A change that the other branch would overwrite stops the switch (`conflict`). |
+| `"leave"` | The changes go to a stash that names the branch. A switch back to that branch offers them again (`stash` of `git_head`). |
+
+**Rust:** [`crates/nh-proto/src/api/calls/git.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/git.rs#L135) · **Used by:** [`GitSwitch`](/docs/reference/api/types#gitswitch)
+
+### `GitCommit` {#gitcommit}
+
+A commit of the History of the Git view.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `author` | string | yes |  |
+| `branches` | string[] |  | The branches at the commit, for example `main` and `origin/main`. |
+| `hash` | string | yes |  |
+| `head` | boolean |  | `HEAD` is at this commit. Default: `false`. |
+| `short` | string | yes |  |
+| `subject` | string | yes |  |
+| `tags` | string[] |  |  |
+| `time` | [`Timestamp`](/docs/reference/api/types#timestamp) | yes | The time of the author. |
+| `time_text` | string | yes | For example "3 hours ago". |
+| `unpushed` | boolean |  | No remote branch has the commit, so a push would send it. Always false in a repository with no remote. Default: `false`. |
+
+**Rust:** [`crates/nh-proto/src/api/model.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/model.rs#L1115) · **Used by:** [`GitLogResult`](/docs/reference/api/types#gitlogresult), [`GitShown`](/docs/reference/api/types#gitshown)
+
+### `GitDiff` {#gitdiff}
+
+`git.diff`: the diff of one file. Without `commit`, the file is a row of the changes of the worktree, from `HEAD`. With `commit`, it is a file of that commit, from its first parent.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `commit` | string \| `null` |  |  |
+| `file` | string | yes | The path of the file from the root of the worktree. |
+| `path` | string \| `null` |  | The worktree that holds this absolute path. The CLI gives the current directory. |
+| `window` | [`WindowId`](/docs/reference/api/types#windowid) \| `null` |  | The worktree that the Git view of this window shows. |
+
+**Rust:** [`crates/nh-proto/src/api/calls/git.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/git.rs#L209) · **Used by:** [`git.diff`](/docs/reference/api/methods/git#git-diff)
+
+### `GitFetch` {#gitfetch}
+
+`git.fetch`: fetches the remote of the head with `--prune`, as a job. A question of ssh or of a credential helper shows the sheet of the app.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `path` | string \| `null` |  | The worktree that holds this absolute path. The CLI gives the current directory. |
+| `window` | [`WindowId`](/docs/reference/api/types#windowid) \| `null` |  | The worktree that the Git view of this window shows. |
+
+**Rust:** [`crates/nh-proto/src/api/calls/git.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/git.rs#L184) · **Used by:** [`git.fetch`](/docs/reference/api/methods/git#git-fetch)
+
+### `GitFollow` {#gitfollow}
+
+`git.follow`: the Git view of a window shows the git worktree that holds `path`. The core fills `git_head:<window>`, `git_worktrees:<window>`, `git_branches:<window>` and `git_changes:<window>` while the window follows one of them, and looks again when the worktree or its git directory changes.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `path` | string | yes | An absolute path in the worktree: the folder of a pane, or a row of `git_worktrees`. |
+| `window` | [`WindowId`](/docs/reference/api/types#windowid) | yes |  |
+
+**Rust:** [`crates/nh-proto/src/api/calls/git.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/git.rs#L30) · **Used by:** [`git.follow`](/docs/reference/api/methods/git#git-follow)
+
+### `GitHead` {#githead}
+
+`git_head:<window>`: what the Git view of a window shows. The window names a folder with `git.follow`, and the head is that of the git worktree that holds it. The core makes the row when it knows the worktree.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `agents` | [`GitAgent`](/docs/reference/api/types#gitagent)[] |  | The agents whose pane folder is in the worktree. |
+| `ahead` | integer (uint32) |  | The commits of the branch that its upstream does not have. Default: `0`. |
+| `behind` | integer (uint32) |  | The commits of the upstream that the branch does not have. Default: `0`. |
+| `branch` | string \| `null` |  | The branch of `HEAD`, or `None` for a detached `HEAD`. |
+| `changes` | [`ChangeTotals`](/docs/reference/api/types#changetotals) \| `null` |  | The totals of the last count of the changes, or `None` before the first count. |
+| `commit` | string \| `null` |  | The short hash of `HEAD`, or `None` before the first commit. |
+| `diff_stats` | [`DiffStats`](/docs/reference/api/types#diffstats) \| `null` |  | The lines of all changed files. |
+| `error` | string \| `null` |  | Why the last look at the branches and the worktrees failed. The other values are those of the look before. |
+| `fetch_note` | string \| `null` |  | Why the last fetch in the background failed, for example "The fetch needs your passphrase. Click Fetch.". A fetch that works clears it. |
+| `fetched_at` | [`Timestamp`](/docs/reference/api/types#timestamp) \| `null` |  | The time of the last fetch, from `FETCH_HEAD`. |
+| `fetched_text` | string \| `null` |  | For example "Last fetched 18 minutes ago" or "Never fetched". `None` without a remote. |
+| `folder` | string | yes | The folder that the window named. |
+| `job` | [`GitJob`](/docs/reference/api/types#gitjob) \| `null` |  | The fetch or the pull that runs in the repository. |
+| `remote` | string \| `null` |  | The remote of a fetch: the remote of the upstream, else `origin`, else the first one. |
+| `repo` | string \| `null` |  | The key of the repository in `git_repos`: its common git directory. |
+| `repo_name` | string \| `null` |  |  |
+| `stash` | [`GitStash`](/docs/reference/api/types#gitstash) \| `null` |  | The stash that a switch left for the branch of `HEAD`, the newest one. |
+| `upstream` | string \| `null` |  | The upstream of the branch, for example `origin/main`. |
+| `upstream_gone` | boolean |  | The upstream is gone from its remote. Default: `false`. |
+| `worktree` | string \| `null` |  | The root of the worktree that holds the folder, or `None` when the folder is not in a git worktree. |
+| `worktree_name` | string \| `null` |  | The last part of the root of the worktree. |
+
+**Rust:** [`crates/nh-proto/src/api/model.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/model.rs#L974) · **Used by:** [projection `git_head`](/docs/reference/api/projections#git-head), [`GitStatus`](/docs/reference/api/types#gitstatus)
+
+### `GitJob` {#gitjob}
+
+The job of `git.fetch` or `git.pull` that runs. The `jobs` projection has its progress.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `job` | [`JobId`](/docs/reference/api/types#jobid) | yes |  |
+| `kind` | [`GitJobKind`](/docs/reference/api/types#gitjobkind) | yes |  |
+
+**Rust:** [`crates/nh-proto/src/api/model.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/model.rs#L947) · **Used by:** [`GitHead`](/docs/reference/api/types#githead)
+
+### `GitJobKind` {#gitjobkind}
+
+A long command of git that runs in the worktree of a Git view.
+
+Values: `"fetch"`, `"pull"`.
+
+**Rust:** [`crates/nh-proto/src/api/model.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/model.rs#L941) · **Used by:** [`GitJob`](/docs/reference/api/types#gitjob)
+
+### `GitLog` {#gitlog}
+
+`git.log`: the commits of `HEAD`, the newest first, in pages.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `limit` | integer (uint32) |  | The most commits of the page, at most 200. Default: `200`. |
+| `path` | string \| `null` |  | The worktree that holds this absolute path. The CLI gives the current directory. |
+| `skip` | integer (uint32) |  | The commits to leave out at the start: the number that the pages before had. Default: `0`. |
+| `window` | [`WindowId`](/docs/reference/api/types#windowid) \| `null` |  | The worktree that the Git view of this window shows. |
+
+**Rust:** [`crates/nh-proto/src/api/calls/git.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/git.rs#L77) · **Used by:** [`git.log`](/docs/reference/api/methods/git#git-log)
+
+### `GitLogResult` {#gitlogresult}
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `commits` | [`GitCommit`](/docs/reference/api/types#gitcommit)[] | yes |  |
+| `head` | string \| `null` |  | The commit of `HEAD` when the page was read. Another value than the page before means that the history changed: read it again from the start. |
+| `more` | boolean | yes | More commits follow this page. |
+
+**Rust:** [`crates/nh-proto/src/api/calls/git.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/git.rs#L92) · **Used by:** [`git.log`](/docs/reference/api/methods/git#git-log)
+
+### `GitPlace` {#gitplace}
+
+The worktree of a read: the one that the Git view of `window` follows, or the one that holds `path`.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `path` | string \| `null` |  | The worktree that holds this absolute path. The CLI gives the current directory. |
+| `window` | [`WindowId`](/docs/reference/api/types#windowid) \| `null` |  | The worktree that the Git view of this window shows. |
+
+**Rust:** [`crates/nh-proto/src/api/calls/git.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/git.rs#L45) · **Used by:** [`git.status`](/docs/reference/api/methods/git#git-status), [`git.worktrees`](/docs/reference/api/methods/git#git-worktrees), [`git.branches`](/docs/reference/api/methods/git#git-branches)
+
+### `GitPull` {#gitpull}
+
+`git.pull`: moves the branch to its upstream with a fast-forward only, as a job. A branch that has commits of its own and is behind is `conflict` with `{"kind": "diverged"}`.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `force` | boolean |  | Pull also when an agent works in the worktree. Default: `false`. |
+| `path` | string \| `null` |  | The worktree that holds this absolute path. The CLI gives the current directory. |
+| `window` | [`WindowId`](/docs/reference/api/types#windowid) \| `null` |  | The worktree that the Git view of this window shows. |
+
+**Rust:** [`crates/nh-proto/src/api/calls/git.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/git.rs#L195) · **Used by:** [`git.pull`](/docs/reference/api/methods/git#git-pull)
+
+### `GitRepoAdd` {#gitrepoadd}
+
+`git.repo_add`: `git_repos` keeps the repository that holds `path`, also when no workspace and no pane is in it.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `path` | string | yes | An absolute path in a git worktree. |
+
+**Rust:** [`crates/nh-proto/src/api/calls/git.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/git.rs#L38) · **Used by:** [`git.repo_add`](/docs/reference/api/methods/git#git-repo-add)
+
+### `GitRepoAdded` {#gitrepoadded}
+
+The payload of `git.repo_added`: `git_repos` keeps a repository that the person added.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `common_dir` | string | yes | The common git directory of the repository. |
+| `path` | string | yes | The path that the person gave. |
+
+**Rust:** [`crates/nh-proto/src/api/events.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/events.rs#L272) · **Used by:** [event `git.repo_added`](/docs/reference/api/events#git-repo-added)
+
+### `GitRepoList` {#gitrepolist}
+
+The rows of `git_repos`, in their order.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `repos` | [`GitRepoValue`](/docs/reference/api/types#gitrepovalue)[] | yes |  |
+
+**Rust:** [`crates/nh-proto/src/api/calls/git.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/git.rs#L55) · **Used by:** [`git.repos`](/docs/reference/api/methods/git#git-repos)
+
+### `GitRepoSource` {#gitreposource}
+
+Where the core found a repository of `git_repos`.
+
+| Value | Meaning |
+|---|---|
+| `"workspace"` | The root of a workspace is in it. |
+| `"pane"` | The folder of a pane is in it. |
+| `"added"` | The person added it (`git.repo_add`). |
+
+**Rust:** [`crates/nh-proto/src/api/model.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/model.rs#L901) · **Used by:** [`GitRepoValue`](/docs/reference/api/types#gitrepovalue)
+
+### `GitRepoValue` {#gitrepovalue}
+
+`git_repos`: a git repository of this machine. The key is `common_dir`. The core fills it only while a client follows it. The rows with agents come first, then by name.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `agents` | integer (uint32) | yes | The live agents whose pane folder is in a worktree of the repository. |
+| `common_dir` | string | yes | The git directory that the worktrees of the repository share. |
+| `name` | string | yes | The name of the folder of the main worktree. |
+| `root` | string | yes | The worktree that the Git view opens: the main one, or the one where the core found the repository when the main one has no files (a bare repository). |
+| `source` | [`GitRepoSource`](/docs/reference/api/types#gitreposource) | yes |  |
+
+**Rust:** [`crates/nh-proto/src/api/model.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/model.rs#L912) · **Used by:** [projection `git_repos`](/docs/reference/api/projections#git-repos), [`GitRepoList`](/docs/reference/api/types#gitrepolist)
+
+### `GitShow` {#gitshow}
+
+`git.show`: one commit with its message and its files.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `commit` | string | yes | The full or the short hash of the commit. |
+| `path` | string \| `null` |  | The worktree that holds this absolute path. The CLI gives the current directory. |
+| `window` | [`WindowId`](/docs/reference/api/types#windowid) \| `null` |  | The worktree that the Git view of this window shows. |
+
+**Rust:** [`crates/nh-proto/src/api/calls/git.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/git.rs#L103) · **Used by:** [`git.show`](/docs/reference/api/methods/git#git-show)
+
+### `GitShown` {#gitshown}
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `body` | string | yes | The message after the subject, without the blank line between them. |
+| `commit` | [`GitCommit`](/docs/reference/api/types#gitcommit) | yes |  |
+| `email` | string | yes | The e-mail address of the author. |
+| `files` | [`ChangeRow`](/docs/reference/api/types#changerow)[] | yes | The changed files, in the byte order of the path. `stamp` is 0. |
+| `parents` | string[] | yes | The short hashes of the parents. A merge has two or more. The files are the changes from the first parent. |
+| `stats` | [`DiffStats`](/docs/reference/api/types#diffstats) | yes | The lines of all files. |
+| `truncated` | boolean |  | The commit has more than 1,000 files, and `files` has the first 1,000. Default: `false`. |
+
+**Rust:** [`crates/nh-proto/src/api/calls/git.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/git.rs#L114) · **Used by:** [`git.show`](/docs/reference/api/methods/git#git-show)
+
+### `GitStash` {#gitstash}
+
+A stash that a switch with `leave` made for a branch.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `branch` | string | yes |  |
+| `commit` | string | yes | The commit of the stash, for `git.unstash`. |
+| `time_text` | string | yes | For example "3 hours ago". |
+
+**Rust:** [`crates/nh-proto/src/api/model.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/model.rs#L953) · **Used by:** [`GitHead`](/docs/reference/api/types#githead)
+
+### `GitStatus` {#gitstatus}
+
+`git.status`: the head and the changed files of a worktree, as `git_head:<window>` and `git_changes:<window>` have them.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `changes` | [`ChangeRow`](/docs/reference/api/types#changerow)[] | yes |  |
+| `head` | [`GitHead`](/docs/reference/api/types#githead) | yes |  |
+
+**Rust:** [`crates/nh-proto/src/api/calls/git.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/git.rs#L61) · **Used by:** [`git.status`](/docs/reference/api/methods/git#git-status)
+
+### `GitSwitch` {#gitswitch}
+
+`git.switch`: the worktree goes to another branch. A worktree with changes needs `changes`, else the answer is `confirm_required` with `{"kind": "changes", "files"}`. A branch that another worktree has out is `conflict` with `{"kind": "worktree", "worktree"}`.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `branch` | string | yes | A branch of `git_branches`: its reference (`refs/heads/main`) or its name (`main`, `origin/topic`). A remote branch with no local branch of the same name gets a local branch that tracks it. |
+| `changes` | [`GitChanges`](/docs/reference/api/types#gitchanges) \| `null` |  | What happens to the changes of the worktree: `bring` or `leave`. A worktree with changes needs it. |
+| `force` | boolean |  | Switch also when an agent works in the worktree. Default: `false`. |
+| `path` | string \| `null` |  | The worktree that holds this absolute path. The CLI gives the current directory. |
+| `window` | [`WindowId`](/docs/reference/api/types#windowid) \| `null` |  | The worktree that the Git view of this window shows. |
+
+**Rust:** [`crates/nh-proto/src/api/calls/git.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/git.rs#L147) · **Used by:** [`git.switch`](/docs/reference/api/methods/git#git-switch)
+
+### `GitUnstash` {#gitunstash}
+
+`git.unstash`: puts the changes of a stash back into the worktree, and drops the stash.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `force` | boolean |  | Put the changes back also when an agent works in the worktree. Default: `false`. |
+| `path` | string \| `null` |  | The worktree that holds this absolute path. The CLI gives the current directory. |
+| `stash` | string | yes | The commit of the stash, as `stash` of `git_head` gives it. |
+| `window` | [`WindowId`](/docs/reference/api/types#windowid) \| `null` |  | The worktree that the Git view of this window shows. |
+
+**Rust:** [`crates/nh-proto/src/api/calls/git.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/git.rs#L168) · **Used by:** [`git.unstash`](/docs/reference/api/methods/git#git-unstash)
+
+### `GitWorktreeList` {#gitworktreelist}
+
+The rows of `git_worktrees:<window>` for a worktree, in their order.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `worktrees` | [`GitWorktreeValue`](/docs/reference/api/types#gitworktreevalue)[] | yes |  |
+
+**Rust:** [`crates/nh-proto/src/api/calls/git.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/git.rs#L67) · **Used by:** [`git.worktrees`](/docs/reference/api/methods/git#git-worktrees)
+
+### `GitWorktreeValue` {#gitworktreevalue}
+
+`git_worktrees:<window>`: a worktree of the repository of the Git view. The key is `path`. The main worktree comes first, then the others in the order of git.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `agents` | [`GitAgent`](/docs/reference/api/types#gitagent)[] |  |  |
+| `branch` | string \| `null` |  | The branch of the worktree, or `None` for a detached `HEAD`. |
+| `commit` | string \| `null` |  | The short hash of its `HEAD`. |
+| `current` | boolean |  | The worktree that the Git view shows. Default: `false`. |
+| `dirty` | integer (uint32) \| `null` |  | The files that are not committed, or `None` when the core could not count them. |
+| `locked` | boolean |  | Default: `false`. |
+| `main` | boolean |  | The main worktree of the repository. Default: `false`. |
+| `name` | string | yes | The last part of the path. |
+| `path` | string | yes |  |
+| `prunable` | boolean |  | The folder of the worktree is gone, and `git worktree prune` would remove it. Default: `false`. |
+
+**Rust:** [`crates/nh-proto/src/api/model.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/model.rs#L1043) · **Used by:** [projection `git_worktrees`](/docs/reference/api/projections#git-worktrees), [`GitWorktreeList`](/docs/reference/api/types#gitworktreelist)
+
+### `GitWrite` {#gitwrite}
+
+The payload of `git.switched`, `git.unstashed`, `git.fetched` and `git.pulled`: a write of the Git view that worked. A write that failed appends no event.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `agents` | [`RunId`](/docs/reference/api/types#runid)[] |  | The agents in the worktree at that time. |
+| `background` | boolean |  | The fetch ran in the background, not from a click. Default: `false`. |
+| `command` | string | yes | The git command, for example `git switch main`. |
+| `from` | string \| `null` |  | The branch before a switch. |
+| `path` | string | yes | The worktree, or the common git directory for a fetch. |
+| `stash` | string \| `null` |  | The stash that a switch made or that `git.unstash` put back. |
+| `to` | string \| `null` |  | The branch after a switch or a pull. |
+
+**Rust:** [`crates/nh-proto/src/api/events.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/events.rs#L281) · **Used by:** [event `git.switched`](/docs/reference/api/events#git-switched), [event `git.unstashed`](/docs/reference/api/events#git-unstashed), [event `git.fetched`](/docs/reference/api/events#git-fetched), [event `git.pulled`](/docs/reference/api/events#git-pulled)
 
 ### `GroupClose` {#groupclose}
 
@@ -1582,7 +1983,7 @@ The two harnesses of v1.
 
 Values: `"claude"`, `"codex"`.
 
-**Rust:** [`crates/nh-proto/src/api/common.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/common.rs#L128) · **Used by:** [`AdapterGate`](/docs/reference/api/types#adaptergate), [`AdapterSignal`](/docs/reference/api/types#adaptersignal), [`AgentChoices`](/docs/reference/api/types#agentchoices), [`AgentDetected`](/docs/reference/api/types#agentdetected), [`AgentDriftDetected`](/docs/reference/api/types#agentdriftdetected), [`AgentHarnessVersionUnvalidated`](/docs/reference/api/types#agentharnessversionunvalidated), [`AgentIdentified`](/docs/reference/api/types#agentidentified), [`AgentLink`](/docs/reference/api/types#agentlink), [`AgentList`](/docs/reference/api/types#agentlist), [`AgentStart`](/docs/reference/api/types#agentstart), [`AgentValue`](/docs/reference/api/types#agentvalue), [`CapabilityRow`](/docs/reference/api/types#capabilityrow), [`HarnessChoices`](/docs/reference/api/types#harnesschoices), [`IntegrationInfo`](/docs/reference/api/types#integrationinfo), [`IntegrationStatusEntry`](/docs/reference/api/types#integrationstatusentry), [`LimitValue`](/docs/reference/api/types#limitvalue), [`PolicyRule`](/docs/reference/api/types#policyrule), [`UnvalidatedHarness`](/docs/reference/api/types#unvalidatedharness)
+**Rust:** [`crates/nh-proto/src/api/common.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/common.rs#L128) · **Used by:** [`AdapterGate`](/docs/reference/api/types#adaptergate), [`AdapterSignal`](/docs/reference/api/types#adaptersignal), [`AgentChoices`](/docs/reference/api/types#agentchoices), [`AgentDetected`](/docs/reference/api/types#agentdetected), [`AgentDriftDetected`](/docs/reference/api/types#agentdriftdetected), [`AgentHarnessVersionUnvalidated`](/docs/reference/api/types#agentharnessversionunvalidated), [`AgentIdentified`](/docs/reference/api/types#agentidentified), [`AgentLink`](/docs/reference/api/types#agentlink), [`AgentList`](/docs/reference/api/types#agentlist), [`AgentStart`](/docs/reference/api/types#agentstart), [`AgentValue`](/docs/reference/api/types#agentvalue), [`CapabilityRow`](/docs/reference/api/types#capabilityrow), [`GitAgent`](/docs/reference/api/types#gitagent), [`HarnessChoices`](/docs/reference/api/types#harnesschoices), [`IntegrationInfo`](/docs/reference/api/types#integrationinfo), [`IntegrationStatusEntry`](/docs/reference/api/types#integrationstatusentry), [`LimitValue`](/docs/reference/api/types#limitvalue), [`PolicyRule`](/docs/reference/api/types#policyrule), [`UnvalidatedHarness`](/docs/reference/api/types#unvalidatedharness)
 
 ### `HarnessChoices` {#harnesschoices}
 
@@ -2057,7 +2458,7 @@ The ULID of a job, as 26 characters.
 
 Type: string. Pattern: `^[0-9A-HJKMNP-TV-Z]{26}$`.
 
-**Used by:** [`JobStarted`](/docs/reference/api/types#jobstarted), [`JobValue`](/docs/reference/api/types#jobvalue), [`JobsCancel`](/docs/reference/api/types#jobscancel), [`SearchResults`](/docs/reference/api/types#searchresults)
+**Used by:** [`GitJob`](/docs/reference/api/types#gitjob), [`JobStarted`](/docs/reference/api/types#jobstarted), [`JobValue`](/docs/reference/api/types#jobvalue), [`JobsCancel`](/docs/reference/api/types#jobscancel), [`SearchResults`](/docs/reference/api/types#searchresults)
 
 ### `JobStarted` {#jobstarted}
 
@@ -2067,7 +2468,7 @@ The result of a command that runs as a job. Progress is in the `jobs` projection
 |---|---|---|---|
 | `job` | [`JobId`](/docs/reference/api/types#jobid) | yes |  |
 
-**Rust:** [`crates/nh-proto/src/api/common.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/common.rs#L37) · **Used by:** [`agent.start`](/docs/reference/api/methods/agent#agent-start), [`agent.resume`](/docs/reference/api/methods/agent#agent-resume), [`integration.doctor`](/docs/reference/api/methods/integration#integration-doctor)
+**Rust:** [`crates/nh-proto/src/api/common.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/common.rs#L37) · **Used by:** [`agent.start`](/docs/reference/api/methods/agent#agent-start), [`agent.resume`](/docs/reference/api/methods/agent#agent-resume), [`git.fetch`](/docs/reference/api/methods/git#git-fetch), [`git.pull`](/docs/reference/api/methods/git#git-pull), [`integration.doctor`](/docs/reference/api/methods/integration#integration-doctor)
 
 ### `JobStatus` {#jobstatus}
 
@@ -2399,7 +2800,7 @@ The login state of one harness on a machine, as the row of that machine says it.
 |---|---|---|---|
 | `machines` | [`MachineValue`](/docs/reference/api/types#machinevalue)[] | yes |  |
 
-**Rust:** [`crates/nh-proto/src/api/calls/workspace.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workspace.rs#L437) · **Used by:** [`machine.list`](/docs/reference/api/methods/machine#machine-list)
+**Rust:** [`crates/nh-proto/src/api/calls/workspace.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workspace.rs#L441) · **Used by:** [`machine.list`](/docs/reference/api/methods/machine#machine-list)
 
 ### `MachineState` {#machinestate}
 
@@ -2415,7 +2816,7 @@ Values: `"local"`, `"connecting"`, `"connected"`, `"disconnected"`.
 |---|---|---|---|
 | `machine` | string | yes |  |
 
-**Rust:** [`crates/nh-proto/src/api/calls/workspace.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workspace.rs#L432) · **Used by:** [`machine.connect`](/docs/reference/api/methods/machine#machine-connect), [`machine.disconnect`](/docs/reference/api/methods/machine#machine-disconnect), [`machine.open_window`](/docs/reference/api/methods/machine#machine-open-window)
+**Rust:** [`crates/nh-proto/src/api/calls/workspace.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workspace.rs#L436) · **Used by:** [`machine.connect`](/docs/reference/api/methods/machine#machine-connect), [`machine.disconnect`](/docs/reference/api/methods/machine#machine-disconnect), [`machine.open_window`](/docs/reference/api/methods/machine#machine-open-window)
 
 ### `MachineUpdate` {#machineupdate}
 
@@ -2573,7 +2974,7 @@ The state of the offer of a pairing.
 | `"paired"` | A phone paired with the offer. |
 | `"expired"` | The offer ended: its time ran out, or five codes were wrong. |
 
-**Rust:** [`crates/nh-proto/src/api/model.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/model.rs#L916) · **Used by:** [`PhonePairingValue`](/docs/reference/api/types#phonepairingvalue)
+**Rust:** [`crates/nh-proto/src/api/model.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/model.rs#L1160) · **Used by:** [`PhonePairingValue`](/docs/reference/api/types#phonepairingvalue)
 
 ### `PaletteCommand` {#palettecommand}
 
@@ -2655,7 +3056,7 @@ One painted frame. `pane` is the render id that the frames carry.
 | `pane` | integer (uint32) | yes |  |
 | `rev` | integer (uint64) | yes |  |
 
-**Rust:** [`crates/nh-proto/src/api/calls/workspace.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workspace.rs#L460) · **Used by:** [`RenderAck`](/docs/reference/api/types#renderack)
+**Rust:** [`crates/nh-proto/src/api/calls/workspace.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workspace.rs#L464) · **Used by:** [`RenderAck`](/docs/reference/api/types#renderack)
 
 ### `PaneBell` {#panebell}
 
@@ -2794,7 +3195,7 @@ The ULID of a pane, as 26 characters.
 
 Type: string. Pattern: `^[0-9A-HJKMNP-TV-Z]{26}$`.
 
-**Used by:** [`AgentIdentified`](/docs/reference/api/types#agentidentified), [`AgentValue`](/docs/reference/api/types#agentvalue), [`DebugScreen`](/docs/reference/api/types#debugscreen), [`DebugScreenResult`](/docs/reference/api/types#debugscreenresult), [`DebugSpawnedPane`](/docs/reference/api/types#debugspawnedpane), [`FloatingPane`](/docs/reference/api/types#floatingpane), [`InteractionOpened`](/docs/reference/api/types#interactionopened), [`InteractionValue`](/docs/reference/api/types#interactionvalue), [`LayoutNode`](/docs/reference/api/types#layoutnode), [`PaneBell`](/docs/reference/api/types#panebell), [`PaneCreated`](/docs/reference/api/types#panecreated), [`PaneEvent`](/docs/reference/api/types#paneevent), [`PaneExited`](/docs/reference/api/types#paneexited), [`PaneInputUnconfirmed`](/docs/reference/api/types#paneinputunconfirmed), [`PaneValue`](/docs/reference/api/types#panevalue), [`SearchHit`](/docs/reference/api/types#searchhit), [`TabCreated`](/docs/reference/api/types#tabcreated), [`TabValue`](/docs/reference/api/types#tabvalue), [`WindowValue`](/docs/reference/api/types#windowvalue), [`WorkspaceCreated`](/docs/reference/api/types#workspacecreated)
+**Used by:** [`AgentIdentified`](/docs/reference/api/types#agentidentified), [`AgentValue`](/docs/reference/api/types#agentvalue), [`DebugScreen`](/docs/reference/api/types#debugscreen), [`DebugScreenResult`](/docs/reference/api/types#debugscreenresult), [`DebugSpawnedPane`](/docs/reference/api/types#debugspawnedpane), [`FloatingPane`](/docs/reference/api/types#floatingpane), [`GitAgent`](/docs/reference/api/types#gitagent), [`InteractionOpened`](/docs/reference/api/types#interactionopened), [`InteractionValue`](/docs/reference/api/types#interactionvalue), [`LayoutNode`](/docs/reference/api/types#layoutnode), [`PaneBell`](/docs/reference/api/types#panebell), [`PaneCreated`](/docs/reference/api/types#panecreated), [`PaneEvent`](/docs/reference/api/types#paneevent), [`PaneExited`](/docs/reference/api/types#paneexited), [`PaneInputUnconfirmed`](/docs/reference/api/types#paneinputunconfirmed), [`PaneValue`](/docs/reference/api/types#panevalue), [`SearchHit`](/docs/reference/api/types#searchhit), [`TabCreated`](/docs/reference/api/types#tabcreated), [`TabValue`](/docs/reference/api/types#tabvalue), [`WindowValue`](/docs/reference/api/types#windowvalue), [`WorkspaceCreated`](/docs/reference/api/types#workspacecreated)
 
 ### `PaneInput` {#paneinput}
 
@@ -3138,7 +3539,7 @@ Sets the order of all keys.
 | `keys` | string[] | yes |  |
 | `op` | `"order"` | yes |  |
 
-**Rust:** [`crates/nh-proto/src/api/projections.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/projections.rs#L209) · **Used by:** [`ProjectionMessage`](/docs/reference/api/types#projectionmessage)
+**Rust:** [`crates/nh-proto/src/api/projections.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/projections.rs#L243) · **Used by:** [`ProjectionMessage`](/docs/reference/api/types#projectionmessage)
 
 ### `PeekParams` {#peekparams}
 
@@ -3198,7 +3599,7 @@ The offer, also in the projection `phone_pairing`. The result has data so that t
 | `state` | [`PairingState`](/docs/reference/api/types#pairingstate) | yes |  |
 | `url` | string \| `null` |  | The URL of the QR code: the public origin, `/pair?code=` and the long code. |
 
-**Rust:** [`crates/nh-proto/src/api/model.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/model.rs#L929) · **Used by:** [projection `phone_pairing`](/docs/reference/api/projections#phone-pairing)
+**Rust:** [`crates/nh-proto/src/api/model.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/model.rs#L1173) · **Used by:** [projection `phone_pairing`](/docs/reference/api/projections#phone-pairing)
 
 ### `PhonePushFailed` {#phonepushfailed}
 
@@ -3291,7 +3692,7 @@ The payload of `phone.replied`: a phone sent `agent.reply` to a run. The event d
 | `tailscale` | [`TailscaleStatus`](/docs/reference/api/types#tailscalestatus) \| `null` |  | Tailscale. `null` when the listener does not use it: the listener is off, `phone.url` names the origin, or the run is a development run. |
 | `vapid_key` | string \| `null` |  | The public VAPID key of this core: the uncompressed P-256 point, base64url. The phone app subscribes to push with it. `null` while the listener does not run. |
 
-**Rust:** [`crates/nh-proto/src/api/model.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/model.rs#L953) · **Used by:** [`phone.publish`](/docs/reference/api/methods/phone#phone-publish), [`phone.unpublish`](/docs/reference/api/methods/phone#phone-unpublish), [projection `phone_status`](/docs/reference/api/projections#phone-status)
+**Rust:** [`crates/nh-proto/src/api/model.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/model.rs#L1197) · **Used by:** [`phone.publish`](/docs/reference/api/methods/phone#phone-publish), [`phone.unpublish`](/docs/reference/api/methods/phone#phone-unpublish), [projection `phone_status`](/docs/reference/api/projections#phone-status)
 
 ### `PhoneValue` {#phonevalue}
 
@@ -3305,7 +3706,7 @@ The payload of `phone.replied`: a phone sent `agent.reply` to a run. The event d
 | `push` | boolean |  | Whether the phone has a push subscription. Default: `false`. |
 | `seen_at` | [`Timestamp`](/docs/reference/api/types#timestamp) \| `null` |  | The time of the last connection of the phone, or `null` before the first one. |
 
-**Rust:** [`crates/nh-proto/src/api/model.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/model.rs#L900) · **Used by:** [projection `phones`](/docs/reference/api/projections#phones)
+**Rust:** [`crates/nh-proto/src/api/model.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/model.rs#L1144) · **Used by:** [projection `phones`](/docs/reference/api/projections#phones)
 
 ### `PhoneVisible` {#phonevisible}
 
@@ -3412,7 +3813,7 @@ The payload of `policy.added` and `policy.removed`.
 | `id` | string | yes |  |
 | `scope` | [`PolicyScope`](/docs/reference/api/types#policyscope) | yes |  |
 
-**Rust:** [`crates/nh-proto/src/api/events.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/events.rs#L272) · **Used by:** [event `policy.added`](/docs/reference/api/events#policy-added), [event `policy.removed`](/docs/reference/api/events#policy-removed)
+**Rust:** [`crates/nh-proto/src/api/events.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/events.rs#L304) · **Used by:** [event `policy.added`](/docs/reference/api/events#policy-added), [event `policy.removed`](/docs/reference/api/events#policy-removed)
 
 ### `PolicyList` {#policylist}
 
@@ -3526,9 +3927,9 @@ What to run in a new pane. Without it the pane runs the login shell of the user.
 
 ### `Projection` {#projection}
 
-The name of a projection. timeline:&lt;run>, pane_text:&lt;pane>, agents_for:&lt;window>, changes_for:&lt;window> and changes_head:&lt;window> take an id.
+The name of a projection. timeline:&lt;run>, pane_text:&lt;pane>, agents_for:&lt;window>, changes_for:&lt;window>, changes_head:&lt;window>, git_head:&lt;window>, git_worktrees:&lt;window>, git_branches:&lt;window> and git_changes:&lt;window> take an id.
 
-Type: string. Pattern: `^(windows|tree|panes|agents|attention|interactions|notifications|machines|harnesses|limits|jobs|palette|settings|phones|phone_pairing|phone_status|health|link|timeline:[0-9A-HJKMNP-TV-Z]{26}|pane_text:[0-9A-HJKMNP-TV-Z]{26}|agents_for:[0-9A-HJKMNP-TV-Z]{26}|changes_for:[0-9A-HJKMNP-TV-Z]{26}|changes_head:[0-9A-HJKMNP-TV-Z]{26})$`.
+Type: string. Pattern: `^(windows|tree|panes|agents|attention|interactions|notifications|machines|harnesses|limits|jobs|palette|settings|phones|phone_pairing|phone_status|git_repos|health|link|timeline:[0-9A-HJKMNP-TV-Z]{26}|pane_text:[0-9A-HJKMNP-TV-Z]{26}|agents_for:[0-9A-HJKMNP-TV-Z]{26}|changes_for:[0-9A-HJKMNP-TV-Z]{26}|changes_head:[0-9A-HJKMNP-TV-Z]{26}|git_head:[0-9A-HJKMNP-TV-Z]{26}|git_worktrees:[0-9A-HJKMNP-TV-Z]{26}|git_branches:[0-9A-HJKMNP-TV-Z]{26}|git_changes:[0-9A-HJKMNP-TV-Z]{26})$`.
 
 **Rust:** [`crates/nh-proto/src/api/projections.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/projections.rs#L28) · **Used by:** [`ProjectionSubscribe`](/docs/reference/api/types#projectionsubscribe), [`ProjectionVersions`](/docs/reference/api/types#projectionversions)
 
@@ -3541,7 +3942,7 @@ The state of a projection: the values by key, and the order of the keys.
 | `items` | map of string to any | yes |  |
 | `order` | string[] | yes |  |
 
-**Rust:** [`crates/nh-proto/src/api/projections.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/projections.rs#L202) · **Used by:** [`ProjectionMessage`](/docs/reference/api/types#projectionmessage)
+**Rust:** [`crates/nh-proto/src/api/projections.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/projections.rs#L236) · **Used by:** [`ProjectionMessage`](/docs/reference/api/types#projectionmessage)
 
 ### `ProjectionMessage` {#projectionmessage}
 
@@ -3571,7 +3972,7 @@ One of these forms:
 |---|---|---|---|
 | `type` | `"resync"` | yes |  |
 
-**Rust:** [`crates/nh-proto/src/api/projections.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/projections.rs#L220) · **Used by:** [`ProjectionNotification`](/docs/reference/api/types#projectionnotification)
+**Rust:** [`crates/nh-proto/src/api/projections.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/projections.rs#L254) · **Used by:** [`ProjectionNotification`](/docs/reference/api/types#projectionnotification)
 
 ### `ProjectionNotification` {#projectionnotification}
 
@@ -3792,7 +4193,7 @@ Type: string.
 | `need_keyframe` | integer (uint32)[] |  | The panes whose frames the UI discarded. The core sends a keyframe for each. Default: `[]`. |
 | `window` | [`WindowId`](/docs/reference/api/types#windowid) | yes |  |
 
-**Rust:** [`crates/nh-proto/src/api/calls/workspace.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workspace.rs#L467) · **Used by:** [`render.ack`](/docs/reference/api/methods/render#render-ack)
+**Rust:** [`crates/nh-proto/src/api/calls/workspace.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workspace.rs#L471) · **Used by:** [`render.ack`](/docs/reference/api/methods/render#render-ack)
 
 ### `RenderParams` {#renderparams}
 
@@ -3917,7 +4318,7 @@ The ULID of a run of an agent, as 26 characters.
 
 Type: string. Pattern: `^[0-9A-HJKMNP-TV-Z]{26}$`.
 
-**Used by:** [`AdapterDisagreement`](/docs/reference/api/types#adapterdisagreement), [`AgentDetected`](/docs/reference/api/types#agentdetected), [`AgentIdentified`](/docs/reference/api/types#agentidentified), [`AgentLinked`](/docs/reference/api/types#agentlinked), [`AgentStateChanged`](/docs/reference/api/types#agentstatechanged), [`AgentValue`](/docs/reference/api/types#agentvalue), [`AttentionValue`](/docs/reference/api/types#attentionvalue), [`InteractionOpened`](/docs/reference/api/types#interactionopened), [`InteractionValue`](/docs/reference/api/types#interactionvalue), [`PaneValue`](/docs/reference/api/types#panevalue), [`PhonePushed`](/docs/reference/api/types#phonepushed), [`PhoneReplied`](/docs/reference/api/types#phonereplied)
+**Used by:** [`AdapterDisagreement`](/docs/reference/api/types#adapterdisagreement), [`AgentDetected`](/docs/reference/api/types#agentdetected), [`AgentIdentified`](/docs/reference/api/types#agentidentified), [`AgentLinked`](/docs/reference/api/types#agentlinked), [`AgentStateChanged`](/docs/reference/api/types#agentstatechanged), [`AgentValue`](/docs/reference/api/types#agentvalue), [`AttentionValue`](/docs/reference/api/types#attentionvalue), [`GitAgent`](/docs/reference/api/types#gitagent), [`GitWrite`](/docs/reference/api/types#gitwrite), [`InteractionOpened`](/docs/reference/api/types#interactionopened), [`InteractionValue`](/docs/reference/api/types#interactionvalue), [`PaneValue`](/docs/reference/api/types#panevalue), [`PhonePushed`](/docs/reference/api/types#phonepushed), [`PhoneReplied`](/docs/reference/api/types#phonereplied)
 
 ## S {#letter-s}
 
@@ -4225,7 +4626,7 @@ The state of the daemon of Tailscale.
 | `"needs_login"` | The daemon needs a login, or the admin of the tailnet must approve the machine. |
 | `"running"` | The daemon is connected to the tailnet. |
 
-**Rust:** [`crates/nh-proto/src/api/model.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/model.rs#L983) · **Used by:** [`TailscaleStatus`](/docs/reference/api/types#tailscalestatus)
+**Rust:** [`crates/nh-proto/src/api/model.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/model.rs#L1227) · **Used by:** [`TailscaleStatus`](/docs/reference/api/types#tailscalestatus)
 
 ### `TailscaleStatus` {#tailscalestatus}
 
@@ -4240,7 +4641,7 @@ What `tailscale status --json` and `tailscale serve status --json` say about the
 | `published` | boolean |  | Whether `tailscale serve` maps `https_port` to the listener. Default: `false`. |
 | `state` | [`TailscaleState`](/docs/reference/api/types#tailscalestate) | yes |  |
 
-**Rust:** [`crates/nh-proto/src/api/model.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/model.rs#L1002) · **Used by:** [`PhoneStatusValue`](/docs/reference/api/types#phonestatusvalue)
+**Rust:** [`crates/nh-proto/src/api/model.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/model.rs#L1246) · **Used by:** [`PhoneStatusValue`](/docs/reference/api/types#phonestatusvalue)
 
 ### `TimelineBody` {#timelinebody}
 
@@ -4364,7 +4765,7 @@ RFC 3339 in UTC with milliseconds, for example 2026-10-09T12:34:56.789Z.
 
 Type: string (date-time).
 
-**Rust:** [`crates/nh-proto/src/api/time.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/time.rs#L12) · **Used by:** [`AgentValue`](/docs/reference/api/types#agentvalue), [`AttentionValue`](/docs/reference/api/types#attentionvalue), [`ClipboardDropped`](/docs/reference/api/types#clipboarddropped), [`Event`](/docs/reference/api/types#event), [`Execution`](/docs/reference/api/types#execution), [`HarnessValue`](/docs/reference/api/types#harnessvalue), [`IntegrationStatusEntry`](/docs/reference/api/types#integrationstatusentry), [`InteractionValue`](/docs/reference/api/types#interactionvalue), [`JobValue`](/docs/reference/api/types#jobvalue), [`LinkValue`](/docs/reference/api/types#linkvalue), [`NoticePayload`](/docs/reference/api/types#noticepayload), [`NotificationValue`](/docs/reference/api/types#notificationvalue), [`PhonePairStarted`](/docs/reference/api/types#phonepairstarted), [`PhonePairingValue`](/docs/reference/api/types#phonepairingvalue), [`PhoneValue`](/docs/reference/api/types#phonevalue), [`PolicyRuleValue`](/docs/reference/api/types#policyrulevalue), [`PolicySuggestion`](/docs/reference/api/types#policysuggestion), [`Provenance`](/docs/reference/api/types#provenance), [`RateLimitWindow`](/docs/reference/api/types#ratelimitwindow), [`SearchHit`](/docs/reference/api/types#searchhit), [`SessionInfo`](/docs/reference/api/types#sessioninfo), [`TimelineItem`](/docs/reference/api/types#timelineitem)
+**Rust:** [`crates/nh-proto/src/api/time.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/time.rs#L12) · **Used by:** [`AgentValue`](/docs/reference/api/types#agentvalue), [`AttentionValue`](/docs/reference/api/types#attentionvalue), [`ClipboardDropped`](/docs/reference/api/types#clipboarddropped), [`Event`](/docs/reference/api/types#event), [`Execution`](/docs/reference/api/types#execution), [`GitBranchValue`](/docs/reference/api/types#gitbranchvalue), [`GitCommit`](/docs/reference/api/types#gitcommit), [`GitHead`](/docs/reference/api/types#githead), [`HarnessValue`](/docs/reference/api/types#harnessvalue), [`IntegrationStatusEntry`](/docs/reference/api/types#integrationstatusentry), [`InteractionValue`](/docs/reference/api/types#interactionvalue), [`JobValue`](/docs/reference/api/types#jobvalue), [`LinkValue`](/docs/reference/api/types#linkvalue), [`NoticePayload`](/docs/reference/api/types#noticepayload), [`NotificationValue`](/docs/reference/api/types#notificationvalue), [`PhonePairStarted`](/docs/reference/api/types#phonepairstarted), [`PhonePairingValue`](/docs/reference/api/types#phonepairingvalue), [`PhoneValue`](/docs/reference/api/types#phonevalue), [`PolicyRuleValue`](/docs/reference/api/types#policyrulevalue), [`PolicySuggestion`](/docs/reference/api/types#policysuggestion), [`Provenance`](/docs/reference/api/types#provenance), [`RateLimitWindow`](/docs/reference/api/types#ratelimitwindow), [`SearchHit`](/docs/reference/api/types#searchhit), [`SessionInfo`](/docs/reference/api/types#sessioninfo), …
 
 ### `ToolStatus` {#toolstatus}
 
@@ -4466,6 +4867,7 @@ Focus and visibility from the OS and the page, for gate mode and pacing.
 | `active_pane` | [`RefPaneId`](/docs/reference/api/types#refpaneid) \| `null` |  | The pane whose surface is the active element of the page. `null` when focus is in chrome such as the palette. |
 | `focused` | boolean | yes |  |
 | `minimized` | boolean |  | Default: `false`. |
+| `panes_hidden` | boolean |  | A view of the page covers the panes, for example the Git view. The window gets no frames, and it gets a keyframe of each pane when the view closes. Default: `false`. |
 | `refresh_hz` | number (float) \| `null` |  |  |
 | `visible` | boolean | yes |  |
 | `window` | [`WindowId`](/docs/reference/api/types#windowid) | yes |  |
@@ -4478,7 +4880,7 @@ The ULID of a window, as 26 characters.
 
 Type: string. Pattern: `^[0-9A-HJKMNP-TV-Z]{26}$`.
 
-**Used by:** [`ChangesDiff`](/docs/reference/api/types#changesdiff), [`ChangesFollow`](/docs/reference/api/types#changesfollow), [`FsOpen`](/docs/reference/api/types#fsopen), [`InputStreamParams`](/docs/reference/api/types#inputstreamparams), [`InteractionReveal`](/docs/reference/api/types#interactionreveal), [`InteractionRevealed`](/docs/reference/api/types#interactionrevealed), [`PaletteExecute`](/docs/reference/api/types#paletteexecute), [`PaletteQuery`](/docs/reference/api/types#palettequery), [`PaneClaim`](/docs/reference/api/types#paneclaim), [`PaneFocus`](/docs/reference/api/types#panefocus), [`PaneResize`](/docs/reference/api/types#paneresize), [`PaneValue`](/docs/reference/api/types#panevalue), [`PhoneWindowResult`](/docs/reference/api/types#phonewindowresult), [`RenderAck`](/docs/reference/api/types#renderack), [`RenderParams`](/docs/reference/api/types#renderparams), [`TabSelect`](/docs/reference/api/types#tabselect), [`WindowClose`](/docs/reference/api/types#windowclose), [`WindowEvent`](/docs/reference/api/types#windowevent), [`WindowFocusReport`](/docs/reference/api/types#windowfocusreport), [`WindowOpened`](/docs/reference/api/types#windowopened), [`WindowReportMetrics`](/docs/reference/api/types#windowreportmetrics), [`WindowSetBounds`](/docs/reference/api/types#windowsetbounds), [`WindowSetSingle`](/docs/reference/api/types#windowsetsingle), [`WindowSetVisiblePanes`](/docs/reference/api/types#windowsetvisiblepanes), …
+**Used by:** [`ChangesDiff`](/docs/reference/api/types#changesdiff), [`ChangesFollow`](/docs/reference/api/types#changesfollow), [`FsOpen`](/docs/reference/api/types#fsopen), [`GitDiff`](/docs/reference/api/types#gitdiff), [`GitFetch`](/docs/reference/api/types#gitfetch), [`GitFollow`](/docs/reference/api/types#gitfollow), [`GitLog`](/docs/reference/api/types#gitlog), [`GitPlace`](/docs/reference/api/types#gitplace), [`GitPull`](/docs/reference/api/types#gitpull), [`GitShow`](/docs/reference/api/types#gitshow), [`GitSwitch`](/docs/reference/api/types#gitswitch), [`GitUnstash`](/docs/reference/api/types#gitunstash), [`InputStreamParams`](/docs/reference/api/types#inputstreamparams), [`InteractionReveal`](/docs/reference/api/types#interactionreveal), [`InteractionRevealed`](/docs/reference/api/types#interactionrevealed), [`PaletteExecute`](/docs/reference/api/types#paletteexecute), [`PaletteQuery`](/docs/reference/api/types#palettequery), [`PaneClaim`](/docs/reference/api/types#paneclaim), [`PaneFocus`](/docs/reference/api/types#panefocus), [`PaneResize`](/docs/reference/api/types#paneresize), [`PaneValue`](/docs/reference/api/types#panevalue), [`PhoneWindowResult`](/docs/reference/api/types#phonewindowresult), [`RenderAck`](/docs/reference/api/types#renderack), [`RenderParams`](/docs/reference/api/types#renderparams), …
 
 ### `WindowOpen` {#windowopen}
 
@@ -4511,7 +4913,7 @@ What the page measured.
 | `renderer` | [`RendererKind`](/docs/reference/api/types#rendererkind) | yes |  |
 | `window` | [`WindowId`](/docs/reference/api/types#windowid) | yes |  |
 
-**Rust:** [`crates/nh-proto/src/api/calls/workspace.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workspace.rs#L306) · **Used by:** [`window.report_metrics`](/docs/reference/api/methods/window#window-report-metrics)
+**Rust:** [`crates/nh-proto/src/api/calls/workspace.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workspace.rs#L310) · **Used by:** [`window.report_metrics`](/docs/reference/api/methods/window#window-report-metrics)
 
 ### `WindowSetBounds` {#windowsetbounds}
 
@@ -4520,7 +4922,7 @@ What the page measured.
 | `bounds` | [`Bounds`](/docs/reference/api/types#bounds) | yes |  |
 | `window` | [`WindowId`](/docs/reference/api/types#windowid) | yes |  |
 
-**Rust:** [`crates/nh-proto/src/api/calls/workspace.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workspace.rs#L316) · **Used by:** [`window.set_bounds`](/docs/reference/api/methods/window#window-set-bounds)
+**Rust:** [`crates/nh-proto/src/api/calls/workspace.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workspace.rs#L320) · **Used by:** [`window.set_bounds`](/docs/reference/api/methods/window#window-set-bounds)
 
 ### `WindowSetSingle` {#windowsetsingle}
 
@@ -4531,7 +4933,7 @@ The single view of a window. With `single`, the window draws only its focused pa
 | `single` | boolean | yes |  |
 | `window` | [`WindowId`](/docs/reference/api/types#windowid) | yes |  |
 
-**Rust:** [`crates/nh-proto/src/api/calls/workspace.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workspace.rs#L323) · **Used by:** [`window.set_single`](/docs/reference/api/methods/window#window-set-single)
+**Rust:** [`crates/nh-proto/src/api/calls/workspace.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workspace.rs#L327) · **Used by:** [`window.set_single`](/docs/reference/api/methods/window#window-set-single)
 
 ### `WindowSetVisiblePanes` {#windowsetvisiblepanes}
 

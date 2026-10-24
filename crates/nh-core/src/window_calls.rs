@@ -66,11 +66,12 @@ pub(crate) async fn run(inner: &Arc<Inner>, call: Call, origin: Origin) -> Resul
                 Some(reference) => Some(PaneId::new(resolve_id(inner, reference).await?)),
                 None => None,
             };
-            // An invisible window gets no frames: minimized counts as hidden.
+            // An invisible window gets no frames: minimized counts as hidden, and so does a
+            // view of the page that covers the panes.
             inner.render.focus_report(&FocusReport {
                 window: p.window,
                 focused: p.focused,
-                visible: p.visible && !p.minimized,
+                visible: p.visible && !p.minimized && !p.panes_hidden,
                 refresh_hz: p.refresh_hz.map(f64::from),
             });
             let facts = WindowFacts {

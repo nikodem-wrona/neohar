@@ -1,7 +1,7 @@
 ---
 title: "doctor.*"
 description: "The checks of `nh doctor`."
-sidebar_position: 22
+sidebar_position: 23
 toc_max_heading_level: 2
 ---
 

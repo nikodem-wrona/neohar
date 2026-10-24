@@ -24,6 +24,30 @@ describe('the folds of the side columns', () => {
   });
 });
 
+describe('the Git view', () => {
+  it('folds both columns while it shows and opens them again when it closes', () => {
+    const view = createViewState();
+    view.setDrawerOpen(false);
+    view.openGit('/w/app');
+    expect([view.gitOpen(), view.leftOpen(), view.drawerOpen()]).toEqual([true, false, false]);
+    expect(view.gitTarget().folder).toBe('/w/app');
+    view.closeGit();
+    expect([view.gitOpen(), view.leftOpen(), view.drawerOpen()]).toEqual([false, true, false]);
+  });
+
+  it('takes a second request while it shows, and the command of the palette toggles it', () => {
+    const view = createViewState();
+    view.openGit('/w/app');
+    const first = view.gitTarget().seq;
+    view.openGit('/w/app');
+    expect(view.gitTarget().seq).toBe(first + 1);
+    view.pageAction('git.open');
+    expect(view.gitOpen()).toBe(false);
+    view.pageAction('git.open');
+    expect([view.gitOpen(), view.gitTarget().folder]).toEqual([true, null]);
+  });
+});
+
 describe('the widths of the side columns', () => {
   const kept = new Map<string, string>();
   const storage = {

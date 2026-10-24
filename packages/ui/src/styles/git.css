@@ -1,0 +1,564 @@
+/* The Git view: the top bar with the Repository, Worktree and Branch menus, the side with the
+   changes or the history, and the diff. It takes the main panel, where the tab bar and the panes
+   are. Names are in the face of the system, and paths, hashes and code in the family of the
+   terminal. */
+@layer components {
+  .git-view {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+    background: var(--bg-raised);
+    outline: none;
+  }
+
+  /* --- the top bar ---------------------------------------------------------------------------- */
+
+  .git-bar {
+    display: flex;
+    align-items: center;
+    gap: var(--s1);
+    padding: var(--s1) var(--s2);
+    border-bottom: 1px solid var(--hairline);
+    min-width: 0;
+  }
+
+  .git-menu-anchor {
+    min-width: 0;
+  }
+
+  .git-menu-button {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    max-width: 40ch;
+    padding: 2px var(--s2);
+    text-align: left;
+    line-height: 16px;
+  }
+
+  .git-menu-button:hover,
+  .git-menu-button.open {
+    background: var(--bg-hover);
+  }
+
+  .git-menu-label {
+    font-size: var(--size-small);
+    color: var(--text-dim);
+  }
+
+  .git-menu-line {
+    display: flex;
+    align-items: baseline;
+    gap: 1ch;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .git-menu-value {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 600;
+  }
+
+  .git-menu-note {
+    flex: none;
+    font-size: var(--size-small);
+    color: var(--text-dim);
+    white-space: nowrap;
+  }
+
+  .git-menu-arrow {
+    flex: none;
+    color: var(--text-dim);
+  }
+
+  .git-agents,
+  .git-close {
+    padding: 2px var(--s2);
+    color: var(--text-dim);
+    white-space: nowrap;
+  }
+
+  .git-agents {
+    color: var(--live);
+  }
+
+  .git-agents:hover,
+  .git-close:hover {
+    background: var(--bg-hover);
+    color: var(--text);
+  }
+
+  .git-spacer {
+    flex: 1;
+  }
+
+  .git-fetched {
+    font-size: var(--size-small);
+    color: var(--text-dim);
+    white-space: nowrap;
+  }
+
+  /* Fetch or pull, with the time of the last fetch under it. A pull is the action that goes. */
+  .git-remote {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    padding: 2px var(--s2);
+    line-height: 16px;
+  }
+
+  .git-remote:hover:not(:disabled) {
+    background: var(--bg-hover);
+  }
+
+  .git-remote-label {
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .git-remote.pull .git-remote-label {
+    color: var(--live);
+  }
+
+  .git-remote:disabled .git-remote-label {
+    color: var(--text-dim);
+  }
+
+  .git-stash {
+    display: flex;
+    align-items: baseline;
+    gap: 1ch;
+    margin: 0;
+    color: var(--caution);
+  }
+
+  .git-stash-restore {
+    padding: 0 var(--s2);
+    border: 1px solid var(--line);
+    color: var(--text);
+  }
+
+  .git-stash-restore:hover {
+    border-color: var(--text);
+  }
+
+  /* The question about changes or another worktree changes no file under an agent, so its
+     border is not red. */
+  .git-confirm.confirm:not(.git-confirm-danger) {
+    border-color: var(--hairline);
+  }
+
+  /* --- a menu: a popover in the top layer. The page sets `left` and `top`. ---------------------- */
+
+  .git-menu {
+    position: fixed;
+    inset: auto;
+    width: min(52ch, 90vw);
+    max-height: min(60vh, 520px);
+    margin: 0;
+    padding: var(--s1);
+    border-radius: var(--r-md);
+    color: var(--text);
+  }
+
+  .git-menu:popover-open {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s1);
+  }
+
+  .git-menu-filter,
+  .git-filter {
+    padding: 2px var(--s2);
+    border: 1px solid var(--text-dim);
+    background: transparent;
+    color: var(--text);
+    line-height: 20px;
+  }
+
+  .git-menu-filter::placeholder,
+  .git-filter::placeholder {
+    color: var(--text-dim);
+  }
+
+  .git-menu-list {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+  }
+
+  .git-menu-group-title {
+    padding: var(--s1) var(--s2) 0;
+    font-size: var(--size-small);
+    color: var(--text-dim);
+  }
+
+  /* The name keeps its room, and the facts after it give way. */
+  .git-menu-item {
+    display: grid;
+    grid-template-columns: minmax(0, max-content) minmax(0, 1fr);
+    column-gap: 1ch;
+    padding: 2px var(--s2);
+    border-radius: var(--r-sm);
+    line-height: 18px;
+    cursor: pointer;
+  }
+
+  .git-menu-item.active {
+    background: var(--bg-hover);
+  }
+
+  .git-menu-item.current .git-menu-item-title {
+    font-weight: 600;
+  }
+
+  .git-menu-item.current .git-menu-item-title::before {
+    content: '✓ ';
+  }
+
+  .git-menu-item.disabled {
+    cursor: default;
+    color: var(--text-dim);
+  }
+
+  .git-menu-item-title {
+    max-width: 36ch;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .git-menu-item-detail {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-align: right;
+    color: var(--text-dim);
+    font-family: var(--font-data);
+    font-size: var(--size-data);
+    white-space: nowrap;
+  }
+
+  .git-menu-item-agents {
+    grid-column: 1 / -1;
+    font-size: var(--size-small);
+    color: var(--text-dim);
+  }
+
+  .git-menu-empty {
+    margin: 0;
+    padding: var(--s1) var(--s2);
+    color: var(--text-dim);
+  }
+
+  .git-menu-actions {
+    display: flex;
+    flex-direction: column;
+    border-top: 1px solid var(--hairline);
+    padding-top: var(--s1);
+  }
+
+  .git-menu-action {
+    padding: 2px var(--s2);
+    text-align: left;
+  }
+
+  .git-menu-action:hover,
+  .git-menu-action:focus-visible {
+    background: var(--here);
+    color: var(--on-here);
+    outline: none;
+  }
+
+  /* --- the body: the side and the diff ------------------------------------------------------------ */
+
+  .git-body {
+    flex: 1;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: minmax(28ch, 40ch) minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-areas:
+      'tabs detail'
+      'side detail';
+  }
+
+  .git-tabs {
+    grid-area: tabs;
+    display: flex;
+    gap: var(--s1);
+    padding: var(--s1) var(--s2);
+    border-right: 1px solid var(--hairline);
+  }
+
+  .git-tab {
+    flex: 1;
+    height: 26px;
+    border-radius: var(--r-tab);
+    color: var(--text-dim);
+  }
+
+  .git-tab:hover {
+    background: var(--bg-hover);
+    color: var(--text);
+  }
+
+  .git-tab.selected {
+    background: var(--bg-card);
+    color: var(--text);
+    font-weight: 600;
+    box-shadow: inset 0 0 0 1px var(--hairline);
+  }
+
+  .git-count {
+    margin-left: 1ch;
+    color: var(--text-dim);
+    font-family: var(--font-data);
+    font-size: var(--size-data);
+  }
+
+  .git-side-body {
+    grid-area: side;
+    display: flex;
+    flex-direction: column;
+    gap: var(--s1);
+    min-height: 0;
+    padding: 0 var(--s2) var(--s2);
+    border-right: 1px solid var(--hairline);
+    overflow-y: auto;
+  }
+
+  /* The diff has a box of its own that scrolls, so the detail does not scroll. */
+  .git-detail {
+    grid-area: detail;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+    padding: var(--s2) var(--s3);
+  }
+
+  .git-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .git-file {
+    display: grid;
+    grid-template-columns: 2ch minmax(0, 1fr) auto;
+    align-items: baseline;
+    gap: 0 1ch;
+    width: 100%;
+    padding: 0 var(--s1);
+    text-align: left;
+    line-height: 22px;
+  }
+
+  .git-file:hover,
+  .git-commit:hover {
+    background: var(--bg-hover);
+  }
+
+  .git-file.picked,
+  .git-commit.picked {
+    background: var(--bg-card);
+    box-shadow: inset 0 0 0 1px var(--hairline);
+  }
+
+  .git-lines {
+    font-family: var(--font-data);
+    font-size: var(--size-data);
+    white-space: nowrap;
+  }
+
+  .git-lines .add {
+    color: var(--live);
+  }
+
+  .git-lines .del {
+    color: var(--danger);
+  }
+
+  .git-commit {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    width: 100%;
+    padding: var(--s1);
+    text-align: left;
+    line-height: 16px;
+  }
+
+  .git-commit-subject {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .git-commit-meta {
+    margin: 0;
+    font-size: var(--size-small);
+    color: var(--text-dim);
+  }
+
+  .git-hash {
+    font-family: var(--font-data);
+  }
+
+  .git-unpushed {
+    margin-right: 0.5ch;
+    color: var(--caution);
+  }
+
+  .git-labels {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s1);
+  }
+
+  .git-label {
+    padding: 0 var(--s1);
+    border-radius: var(--r-sm);
+    box-shadow: inset 0 0 0 1px var(--hairline);
+    font-family: var(--font-data);
+    font-size: var(--size-small);
+    color: var(--text-dim);
+  }
+
+  .git-more {
+    padding: 2px var(--s2);
+    color: var(--text-dim);
+  }
+
+  .git-more:hover {
+    background: var(--bg-hover);
+    color: var(--text);
+  }
+
+  .git-commit-detail {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: var(--s2);
+    min-height: 0;
+  }
+
+  .git-commit-head {
+    flex: none;
+    max-height: 30vh;
+    overflow-y: auto;
+  }
+
+  .git-commit-title {
+    margin: 0;
+    font: var(--t-title);
+  }
+
+  .git-commit-body {
+    margin: 0;
+    white-space: pre-wrap;
+    color: var(--text);
+  }
+
+  .git-commit-files {
+    flex: none;
+    max-height: 25vh;
+    overflow-y: auto;
+  }
+
+  .git-diff {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: var(--s1);
+    min-height: 0;
+  }
+
+  .git-diff-head {
+    display: flex;
+    gap: 1ch;
+    align-items: baseline;
+  }
+
+  /* The diff of a card stops at 240 px. The diff of the view takes the whole side, and its line
+     numbers have room for long files. */
+  .git-diff-body {
+    display: block;
+    flex: 1;
+    min-height: 0;
+    max-height: none;
+    overflow: auto;
+  }
+
+  .git-vspace {
+    position: relative;
+    min-width: 100%;
+    width: max-content;
+  }
+
+  .git-vrows {
+    position: absolute;
+    top: 0;
+    left: 0;
+    min-width: 100%;
+  }
+
+  /* Each row has one height and keeps its line on one line. */
+  .git-vrow {
+    height: 18px;
+    line-height: 18px;
+    white-space: pre;
+  }
+
+  .git-diff-body .diff-line {
+    grid-template-columns: 5ch 5ch 1ch max-content;
+  }
+
+  .git-diff-path {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: var(--font-data);
+    font-size: var(--size-data);
+  }
+
+  .git-empty,
+  .git-note {
+    margin: 0;
+    color: var(--text-dim);
+  }
+
+  .git-error {
+    margin: 0;
+    color: var(--danger);
+    overflow-wrap: anywhere;
+  }
+
+  .git-banner {
+    padding: var(--s1) var(--s2);
+  }
+
+  .git-center {
+    padding: var(--s5);
+    text-align: center;
+  }
+
+  /* The link of the Changes tab of the drawer. */
+  .changes-open-git {
+    margin-left: 1ch;
+    padding: 0 var(--s1);
+    color: var(--text-dim);
+    font-size: var(--size-small);
+  }
+
+  .changes-open-git:hover {
+    background: var(--bg-hover);
+    color: var(--text);
+  }
+}

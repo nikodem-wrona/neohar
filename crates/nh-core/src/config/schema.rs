@@ -207,6 +207,13 @@ pub struct Daemon {
     pub prevent_sleep: PreventSleep,
 }
 
+/// The Git view.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Git {
+    /// The minutes between two fetches in the background. 0 turns them off.
+    pub fetch_minutes: u32,
+}
+
 /// The listener of the phone.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Phone {
@@ -277,6 +284,7 @@ pub struct Keys {
     pub interaction_answer_next: String,
     pub peek_sibling: String,
     pub search_open: String,
+    pub git_open: String,
     pub window_new: String,
     pub pass_through: String,
 }
@@ -345,6 +353,7 @@ pub struct Config {
     pub events: Events,
     pub scrollback: Scrollback,
     pub daemon: Daemon,
+    pub git: Git,
     pub phone: Phone,
     pub ui: Ui,
     pub theme: Theme,
@@ -394,6 +403,7 @@ default_from_file! {
     Events => ["events"];
     Scrollback => ["scrollback"];
     Daemon => ["daemon"];
+    Git => ["git"];
     Phone => ["phone"];
     Ui => ["ui"];
     Theme => ["theme"];
