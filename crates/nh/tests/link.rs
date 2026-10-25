@@ -440,8 +440,27 @@ async fn host_requests_reach_the_client_within_the_limits() {
 
     core_host.notify(notification("Claude needs you"));
     core_host.set_badge(3);
+    // The client lets the core write the clipboard just after a copy of the person, and focus a
+    // window just after a reveal. The calls fail on this core, but the client sent them.
+    let _ = client
+        .call(None, "pane.copy", json!({ "pane": "w9:p9" }))
+        .await;
     core_host.clipboard_write("copied".to_owned());
+    let _ = client
+        .call(None, "interaction.reveal", json!({ "interaction": "i999" }))
+        .await;
     core_host.focus_window(mine);
+    eventually("the focus", || {
+        host.calls().last() == Some(&HostCall::FocusWindow(mine))
+    })
+    .await;
+    let _ = client
+        .call(
+            None,
+            "palette.execute",
+            json!({ "command": "no.such_command" }),
+        )
+        .await;
     core_host.open_settings();
     // Refused: a window of another client, text over the limits.
     core_host.focus_window(other);

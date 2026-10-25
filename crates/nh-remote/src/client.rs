@@ -345,6 +345,11 @@ impl LinkClient {
                 ))
             };
         }
+        // A call of the person at this Mac (not of a relayed phone) can let the core write the
+        // clipboard or focus a window once, just after it.
+        if device.is_none() {
+            self.inner.guard.local_call(method, &params);
+        }
         let id = self.next_id();
         let params = serde_json::to_vec(&params).map_err(|e| RpcError::internal(e.to_string()))?;
         self.ask(

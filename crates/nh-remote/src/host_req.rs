@@ -214,6 +214,20 @@ pub struct HostLimits {
     pub open_notifications: usize,
     /// The most bytes of text of one clipboard write.
     pub clipboard_bytes: usize,
+    /// How long after a call of the person on this client the core may answer it with a clipboard
+    /// write or a focus request ([`COPY_METHODS`], [`FOCUS_METHODS`]).
+    pub action_within: Duration,
+    /// The most focus requests (`FocusWindow`, `OpenSettings`) in [`HostLimits::focus_window`].
+    pub focus_requests: usize,
+    pub focus_window: Duration,
+    /// The most lines of the menu of the tray of one machine.
+    pub tray_entries: usize,
+    /// The most characters of a line of the menu of the tray.
+    pub tray_label_chars: usize,
+    /// The most log lines of refused requests in [`HostLimits::log_window`]. The next window
+    /// writes one line with the number of the lines that it skipped.
+    pub log_lines: usize,
+    pub log_window: Duration,
 }
 
 impl Default for HostLimits {
@@ -225,9 +239,28 @@ impl Default for HostLimits {
             notify_window: Duration::from_secs(10),
             open_notifications: 64,
             clipboard_bytes: 1 << 20,
+            action_within: Duration::from_secs(2),
+            focus_requests: 4,
+            focus_window: Duration::from_secs(10),
+            tray_entries: 50,
+            tray_label_chars: 200,
+            log_lines: 20,
+            log_window: Duration::from_secs(60),
         }
     }
 }
+
+/// The calls of the person that copy: the core answers each one with one clipboard write. A call
+/// that asks for the text back (`return_text`) writes no clipboard and does not count.
+pub const COPY_METHODS: [&str; 3] = ["pane.copy", "fs.copy_path", "pane.clipboard_allow"];
+
+/// The calls of the person that show something: the core answers each one with at most one focus
+/// request (`interaction.reveal` focuses the window of the card, and a command of the palette can
+/// open the settings).
+pub const FOCUS_METHODS: [&str; 2] = ["interaction.reveal", "palette.execute"];
+
+/// How often the client tells the person that it did not let the core write the clipboard.
+const CLIPBOARD_NOTE_EVERY: Duration = Duration::from_secs(300);
 
 fn lock<T>(mutex: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
     mutex.lock().unwrap_or_else(PoisonError::into_inner)
@@ -235,6 +268,53 @@ fn lock<T>(mutex: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
 
 /// The longest id of a notification of the core.
 const MAX_ID: usize = 64;
+
+/// The last calls of the person on this client that let the core write the clipboard or focus a
+/// window. A request of the core takes the call, so one call allows one request.
+#[derive(Default)]
+struct Recent {
+    copy: Option<Instant>,
+    focus: Option<Instant>,
+}
+
+/// A budget of log lines in a window of time: a core that sends refused requests for ever does
+/// not fill the disk of this Mac with log lines.
+#[derive(Default)]
+struct LogBudget {
+    started: Option<Instant>,
+    written: usize,
+    skipped: usize,
+}
+
+impl LogBudget {
+    /// Whether one more line fits. A new window first reports the lines that the last one skipped.
+    fn take(&mut self, lines: usize, window: Duration) -> bool {
+        let now = Instant::now();
+        if self
+            .started
+            .is_none_or(|started| now.duration_since(started) >= window)
+        {
+            if self.skipped > 0 {
+                tracing::warn!(
+                    skipped = self.skipped,
+                    "a remote core sent more refused host requests than the log takes"
+                );
+            }
+            *self = Self {
+                started: Some(now),
+                written: 0,
+                skipped: 0,
+            };
+        }
+        if self.written < lines {
+            self.written += 1;
+            true
+        } else {
+            self.skipped += 1;
+            false
+        }
+    }
+}
 
 fn refused(why: impl Into<String>) -> HostOutcome {
     HostOutcome::Refused(why.into())
@@ -252,6 +332,14 @@ pub(crate) struct HostGuard {
     shown: Mutex<Shown>,
     /// A `Notify` or a `NotifyOpen` came: a `NotifyOpen` is no longer taken.
     notified: AtomicBool,
+    /// The last copy and the last reveal of the person on this client.
+    actions: Mutex<Recent>,
+    /// When the last focus requests came.
+    focused: Mutex<VecDeque<Instant>>,
+    /// When the client last told the person that it did not let the core write the clipboard.
+    clipboard_note: Mutex<Option<Instant>>,
+    /// The log lines of refused requests.
+    log: Mutex<LogBudget>,
 }
 
 /// The most notifications of the core that the client keeps ids for.
@@ -300,7 +388,88 @@ impl HostGuard {
             recent: Mutex::default(),
             shown: Mutex::default(),
             notified: AtomicBool::new(false),
+            actions: Mutex::default(),
+            focused: Mutex::default(),
+            clipboard_note: Mutex::default(),
+            log: Mutex::default(),
         }
+    }
+
+    /// Notes a call that this client sends for the person at this Mac (not for a phone that it
+    /// relays). A copy lets the core write the clipboard once, and a reveal or a command of the
+    /// palette lets it focus a window once, within [`HostLimits::action_within`].
+    pub fn local_call(&self, method: &str, params: &serde_json::Value) {
+        let flag = |name: &str| params.get(name).and_then(serde_json::Value::as_bool);
+        let mut actions = lock(&self.actions);
+        if COPY_METHODS.contains(&method)
+            && flag("return_text") != Some(true)
+            && flag("allow") != Some(false)
+        {
+            actions.copy = Some(Instant::now());
+        } else if FOCUS_METHODS.contains(&method) {
+            actions.focus = Some(Instant::now());
+        }
+    }
+
+    /// Takes the last copy of the person, if it is recent.
+    fn take_copy(&self) -> bool {
+        lock(&self.actions)
+            .copy
+            .take()
+            .is_some_and(|at| at.elapsed() < self.limits.action_within)
+    }
+
+    /// Takes the last reveal of the person, if it is recent, and a slot of the focus requests.
+    fn take_focus(&self) -> Result<(), String> {
+        let recent = lock(&self.actions)
+            .focus
+            .take()
+            .is_some_and(|at| at.elapsed() < self.limits.action_within);
+        if !recent {
+            return Err(format!(
+                "a focus request comes only within {} ms of a reveal on this client",
+                self.limits.action_within.as_millis()
+            ));
+        }
+        let now = Instant::now();
+        let mut focused = lock(&self.focused);
+        while focused
+            .front()
+            .is_some_and(|at| now.duration_since(*at) >= self.limits.focus_window)
+        {
+            focused.pop_front();
+        }
+        if focused.len() >= self.limits.focus_requests {
+            return Err(format!(
+                "more than {} focus requests in {} s",
+                self.limits.focus_requests,
+                self.limits.focus_window.as_secs()
+            ));
+        }
+        focused.push_back(now);
+        Ok(())
+    }
+
+    /// Tells the person that the client did not let the core write the clipboard, at most once
+    /// in [`CLIPBOARD_NOTE_EVERY`]. The host puts the label of the machine in the title.
+    fn tell_clipboard_refused(&self) {
+        {
+            let mut last = lock(&self.clipboard_note);
+            if last.is_some_and(|at| at.elapsed() < CLIPBOARD_NOTE_EVERY) {
+                return;
+            }
+            *last = Some(Instant::now());
+        }
+        self.host.notify(HostNotification {
+            title: "The clipboard did not change".to_owned(),
+            body: "A program on this machine tried to write the clipboard of this Mac. A remote \
+                   machine can write it only just after you copy."
+                .to_owned(),
+            urgency: Urgency::Low,
+            interaction: None,
+            pane: None,
+            actions: Vec::new(),
+        });
     }
 
     pub fn set_owned(&self, windows: impl IntoIterator<Item = WindowId>) {
@@ -326,7 +495,9 @@ impl HostGuard {
             return refused("this client does not take this request");
         };
         let outcome = self.run(request);
-        if let HostOutcome::Refused(why) = &outcome {
+        if let HostOutcome::Refused(why) = &outcome
+            && lock(&self.log).take(self.limits.log_lines, self.limits.log_window)
+        {
             tracing::warn!(why, "a host request of a remote core was refused");
         }
         outcome
@@ -385,7 +556,7 @@ impl HostGuard {
                 self.host.set_badge(count);
                 HostOutcome::Done
             }
-            HostRequest::SetTray { tray } => match tray_model(tray) {
+            HostRequest::SetTray { tray } => match self.tray_model(tray) {
                 Ok(tray) => {
                     self.host.set_tray(tray);
                     HostOutcome::Done
@@ -406,13 +577,21 @@ impl HostGuard {
                 }
                 Err(why) => refused(why),
             },
-            HostRequest::FocusWindow { window } => match self.owned_window(&window) {
-                Ok(id) => {
-                    self.host.focus_window(id);
-                    HostOutcome::Done
+            // A focus request takes the keyboard from the window where the person types. It comes
+            // only just after the person showed something of this machine on this client.
+            HostRequest::FocusWindow { window } => {
+                let id = match self.owned_window(&window) {
+                    Ok(id) => id,
+                    Err(why) => return refused(why),
+                };
+                if let Err(why) = self.take_focus() {
+                    return refused(why);
                 }
-                Err(why) => refused(why),
-            },
+                self.host.focus_window(id);
+                HostOutcome::Done
+            }
+            // The core of the machine asks the person before an OSC 52 write, but this client
+            // cannot see that it did. A write comes only just after a copy on this client.
             HostRequest::ClipboardWrite { text } => {
                 if text.len() > self.limits.clipboard_bytes {
                     return refused(format!(
@@ -420,10 +599,20 @@ impl HostGuard {
                         self.limits.clipboard_bytes
                     ));
                 }
+                if !self.take_copy() {
+                    self.tell_clipboard_refused();
+                    return refused(format!(
+                        "a clipboard write comes only within {} ms of a copy on this client",
+                        self.limits.action_within.as_millis()
+                    ));
+                }
                 self.host.clipboard_write(text);
                 HostOutcome::Done
             }
             HostRequest::OpenSettings => {
+                if let Err(why) = self.take_focus() {
+                    return refused(why);
+                }
                 self.host.open_settings();
                 HostOutcome::Done
             }
@@ -458,7 +647,7 @@ impl HostGuard {
             let local = self.host.notify(notification);
             lock(&self.shown).insert(id, local);
         }
-        if skipped > 0 {
+        if skipped > 0 && lock(&self.log).take(self.limits.log_lines, self.limits.log_window) {
             tracing::warn!(
                 skipped,
                 "a remote core sent notifications of open interactions that the client does not show"
@@ -572,28 +761,49 @@ impl HostGuard {
     }
 }
 
-fn tray_model(tray: Tray) -> Result<TrayModel, String> {
-    let entries = tray
-        .entries
-        .into_iter()
-        .map(|e| {
-            Ok(TrayEntry {
-                label: e.label,
-                interaction: e
-                    .interaction
-                    .map(|i| i.parse::<InteractionId>())
-                    .transpose()
-                    .map_err(|e| e.to_string())?,
-                approval: e.approval,
-                allow: e.allow,
-                always: e.always,
+impl HostGuard {
+    /// The tray of the core within the limits: the first [`HostLimits::tray_entries`] lines (the
+    /// core sends them in the order of `interaction.next`), each cut at
+    /// [`HostLimits::tray_label_chars`]. A line that this cut shortens loses its Allow items,
+    /// because the person no longer sees the whole command.
+    fn tray_model(&self, tray: Tray) -> Result<TrayModel, String> {
+        let entries = tray
+            .entries
+            .into_iter()
+            .take(self.limits.tray_entries)
+            .map(|e| {
+                let whole = e.label.chars().count() <= self.limits.tray_label_chars;
+                Ok(TrayEntry {
+                    label: cut(e.label, self.limits.tray_label_chars),
+                    interaction: e
+                        .interaction
+                        .map(|i| i.parse::<InteractionId>())
+                        .transpose()
+                        .map_err(|e| e.to_string())?,
+                    approval: e.approval,
+                    allow: e.allow && whole,
+                    always: e.always && whole,
+                })
             })
+            .collect::<Result<Vec<_>, String>>()?;
+        Ok(TrayModel {
+            entries,
+            badge: tray.badge,
         })
-        .collect::<Result<Vec<_>, String>>()?;
-    Ok(TrayModel {
-        entries,
-        badge: tray.badge,
-    })
+    }
+}
+
+/// The text cut at `chars` characters, with `…` at the end when it was longer.
+fn cut(text: String, chars: usize) -> String {
+    match text.char_indices().nth(chars) {
+        Some((end, _)) => {
+            let mut short = text[..end].to_owned();
+            short.pop();
+            short.push('…');
+            short
+        }
+        None => text,
+    }
 }
 
 #[cfg(test)]
@@ -840,6 +1050,7 @@ mod tests {
         let mine = WindowId::new(Ulid::from(7u128));
         let other = WindowId::new(Ulid::from(8u128));
         guard.set_owned([mine]);
+        guard.local_call("interaction.reveal", &serde_json::json!({}));
         assert_eq!(
             guard.handle(&bytes(&HostRequest::FocusWindow {
                 window: mine.to_string()
@@ -864,6 +1075,175 @@ mod tests {
             HostOutcome::Refused(_)
         ));
         assert_eq!(host.calls(), [HostCall::FocusWindow(mine)]);
+    }
+
+    fn clipboard(text: &str) -> Vec<u8> {
+        bytes(&HostRequest::ClipboardWrite {
+            text: text.to_owned(),
+        })
+    }
+
+    fn clipboard_writes(host: &RecordingHost) -> Vec<String> {
+        host.calls()
+            .into_iter()
+            .filter_map(|c| match c {
+                HostCall::ClipboardWrite(text) => Some(text),
+                _ => None,
+            })
+            .collect()
+    }
+
+    #[test]
+    fn a_clipboard_write_comes_only_just_after_a_copy_on_this_client() {
+        let (guard, host) = guard();
+        // No copy: the write is refused, and the person gets one note about it.
+        assert!(matches!(
+            guard.handle(&clipboard("evil")),
+            HostOutcome::Refused(_)
+        ));
+        assert!(matches!(
+            guard.handle(&clipboard("evil again")),
+            HostOutcome::Refused(_)
+        ));
+        assert!(clipboard_writes(&host).is_empty());
+        assert_eq!(notified(&host), 1, "one note, not one for each write");
+        // A copy allows one write.
+        guard.local_call("pane.copy", &serde_json::json!({ "pane": "w1:p1" }));
+        assert_eq!(guard.handle(&clipboard("copied")), HostOutcome::Done);
+        assert!(matches!(
+            guard.handle(&clipboard("one more")),
+            HostOutcome::Refused(_)
+        ));
+        // A copy that asks for its text back, and a refused OSC 52 write, write no clipboard.
+        guard.local_call("pane.copy", &serde_json::json!({ "return_text": true }));
+        guard.local_call(
+            "pane.clipboard_allow",
+            &serde_json::json!({ "allow": false }),
+        );
+        assert!(matches!(
+            guard.handle(&clipboard("x")),
+            HostOutcome::Refused(_)
+        ));
+        // The answer of the person to an OSC 52 request allows the write that follows it.
+        guard.local_call(
+            "pane.clipboard_allow",
+            &serde_json::json!({ "allow": true }),
+        );
+        assert_eq!(guard.handle(&clipboard("osc 52")), HostOutcome::Done);
+        // Another call, for example input, allows nothing.
+        guard.local_call("pane.input", &serde_json::json!({}));
+        assert!(matches!(
+            guard.handle(&clipboard("y")),
+            HostOutcome::Refused(_)
+        ));
+        assert_eq!(clipboard_writes(&host), ["copied", "osc 52"]);
+    }
+
+    #[test]
+    fn a_copy_allows_a_write_only_for_a_short_time() {
+        let host = Arc::new(RecordingHost::new(PathBuf::from("/bin/nh"), true));
+        let limits = HostLimits {
+            action_within: Duration::ZERO,
+            ..HostLimits::default()
+        };
+        let guard = HostGuard::new(host.clone(), limits);
+        guard.local_call("fs.copy_path", &serde_json::json!({ "path": "/x" }));
+        assert!(matches!(
+            guard.handle(&clipboard("late")),
+            HostOutcome::Refused(_)
+        ));
+        guard.local_call("interaction.reveal", &serde_json::json!({}));
+        assert!(matches!(
+            guard.handle(&bytes(&HostRequest::OpenSettings)),
+            HostOutcome::Refused(_)
+        ));
+        assert!(clipboard_writes(&host).is_empty());
+    }
+
+    #[test]
+    fn a_focus_request_comes_only_just_after_a_reveal_and_within_a_rate() {
+        let (guard, host) = guard();
+        let mine = WindowId::new(Ulid::from(7u128));
+        guard.set_owned([mine]);
+        let focus = bytes(&HostRequest::FocusWindow {
+            window: mine.to_string(),
+        });
+        // The core cannot take the keyboard while the person types in another window.
+        assert!(matches!(guard.handle(&focus), HostOutcome::Refused(_)));
+        assert!(matches!(
+            guard.handle(&bytes(&HostRequest::OpenSettings)),
+            HostOutcome::Refused(_)
+        ));
+        // One reveal, one focus request.
+        guard.local_call("interaction.reveal", &serde_json::json!({}));
+        assert_eq!(guard.handle(&focus), HostOutcome::Done);
+        assert!(matches!(guard.handle(&focus), HostOutcome::Refused(_)));
+        guard.local_call("palette.execute", &serde_json::json!({}));
+        assert_eq!(
+            guard.handle(&bytes(&HostRequest::OpenSettings)),
+            HostOutcome::Done
+        );
+        // At most 4 in 10 s, even with a reveal before each.
+        let outcomes: Vec<HostOutcome> = (0..3)
+            .map(|_| {
+                guard.local_call("interaction.reveal", &serde_json::json!({}));
+                guard.handle(&focus)
+            })
+            .collect();
+        assert_eq!(outcomes[..2], [HostOutcome::Done, HostOutcome::Done]);
+        assert!(matches!(outcomes[2], HostOutcome::Refused(_)));
+        let calls = host.calls();
+        assert_eq!(
+            calls
+                .iter()
+                .filter(|c| matches!(c, HostCall::FocusWindow(_) | HostCall::OpenSettings))
+                .count(),
+            4
+        );
+    }
+
+    #[test]
+    fn the_tray_of_a_core_has_at_most_fifty_lines_of_two_hundred_characters() {
+        let (guard, host) = guard();
+        let tray = Tray {
+            entries: (0..60)
+                .map(|n| TrayLine {
+                    label: format!("{n} {}", "é".repeat(300)),
+                    interaction: None,
+                    approval: false,
+                })
+                .collect(),
+            badge: 60,
+        };
+        assert_eq!(
+            guard.handle(&bytes(&HostRequest::SetTray { tray })),
+            HostOutcome::Done
+        );
+        let calls = host.calls();
+        let [HostCall::SetTray(model)] = &calls[..] else {
+            panic!("expected the tray: {calls:?}");
+        };
+        assert_eq!(model.entries.len(), 50);
+        assert_eq!(model.entries[0].label.chars().count(), 200);
+        assert!(model.entries[0].label.starts_with("0 é"));
+        assert!(model.entries[0].label.ends_with('…'));
+        assert_eq!(model.entries[49].label.split(' ').next(), Some("49"));
+        assert_eq!(cut("short".to_owned(), 200), "short");
+        assert_eq!(cut("abc".to_owned(), 3), "abc");
+        assert_eq!(cut("abcd".to_owned(), 3), "ab…");
+    }
+
+    #[test]
+    fn the_log_takes_a_budget_of_lines_in_a_window() {
+        let mut budget = LogBudget::default();
+        let window = Duration::from_secs(60);
+        let taken = (0..25).filter(|_| budget.take(20, window)).count();
+        assert_eq!(taken, 20);
+        assert_eq!(budget.skipped, 5);
+        // A window that is over starts again.
+        let mut budget = LogBudget::default();
+        assert!(budget.take(1, Duration::ZERO));
+        assert!(budget.take(1, Duration::ZERO));
     }
 
     #[test]

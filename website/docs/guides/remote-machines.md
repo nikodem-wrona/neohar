@@ -84,6 +84,23 @@ label in the title. Also:
 - **Open** in the Files tab does not work for a remote file. **Copy path** and **Insert into
   pane** do.
 
+## What a remote machine can do on your Mac
+
+A remote machine runs its own core. If an attacker controls the remote Mac, the attacker also
+controls that core. Thus the app on your Mac does not trust it, and it applies these limits:
+
+- The core opens no address, file or program on your Mac, and it reads no file of your Mac.
+- The core writes the clipboard of your Mac only within 2 s after you copy in a window of that
+  machine. The app drops any other write and shows a note. Thus an OSC 52 write that a pane of
+  the machine remembers as allowed is dropped too. Answer the request of each write in the pane.
+- The core moves the focus to one of its windows only within 2 s after you show something of that
+  machine: a click on a notification, the tray, the hotkey or a command of the palette. It can do
+  this at most 4 times in 10 s.
+- The core shows at most 10 notifications in 10 s, and its section of the tray has at most 50
+  lines.
+- The app cleans the HTML of the plans and files of the machine again, and a link opens only when
+  you click it.
+
 ## The command line
 
 `--machine` runs a command on the machine over ssh, and a handle with a prefix does the same:
