@@ -110,6 +110,17 @@ requests use it.
 - The decision becomes a named choice (`@allow`, `@deny`, an option label, text for `@other`). The
   verifier reads the option labels from the screen manifest, so a new harness version can renumber
   options safely.
+- **The dialog must ask for the request of the card.** Before the first key, the verifier compares
+  the dialog with the interaction: the same command (line breaks and runs of spaces do not count),
+  the name of the file of an edit, or the header of a question. If the dialog asks for something
+  else, no key goes in, and the interaction fails with `request_not_on_screen`. An approval with no
+  command and no file fails with `request_not_verifiable`.
+- While the run has two open interactions of the same kind, no key goes in
+  (`several_requests_open`). The dialog on the screen can belong to either of them.
+- An approval that the screen opens can be answered only when the rule read its command. The
+  verifier reads the last dialog on the screen. A Claude Code dialog does not count while the input
+  box shows, so text in the output of a tool that only looks like a dialog opens no approval.
+- After each of these failures, the dialog stays in the harness. Answer it there.
 - Each reading must show the same dialog (labels at 0.9 similarity or more). The verifier presses a
   digit accelerator when there is one, else moves one Up or Down at a time and reads the screen
   after each key (300 ms wait, two retries). It never wraps around the list.

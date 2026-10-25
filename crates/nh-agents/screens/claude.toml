@@ -30,11 +30,14 @@ not = ['esc to interrupt', 'Do you want to ', 'Would you like to proceed\?', 'En
 confidence = 0.6
 hold_ms = 300
 
-# "Do you want to proceed?" with the list of choices, and the command in a box above it.
+# "Do you want to proceed?" with the list of choices, and the command in a box above it. The dialog
+# takes the place of the input box, so a screen with the input box shows no dialog: text in the
+# output of a tool that looks like the dialog is not one.
 [[rules]]
 id = "approval"
 opens = "approval"
 all = ['Do you want to ', '(?m)^\s*(❯ )?1\. Yes']
+not = ['(?m)^\s*─{10,}\n\s*❯[^\n]*\n\s*─{10,}']
 confidence = 0.95
 [rules.interaction]
 kind = "approval"
@@ -64,12 +67,14 @@ accelerators = "digits"
 multi_toggle = "space"
 labels = { other = '^Type something' }
 
-# The review of a plan: "Would you like to proceed?" under the plan.
+# The review of a plan: "Would you like to proceed?" under the plan. It also takes the place of the
+# input box.
 [[rules]]
 id = "plan"
 opens = "plan_review"
 region = { rows = "all" }
 all = ['Would you like to proceed\?', '(?m)^\s*(❯ )?1\. Yes']
+not = ['(?m)^\s*─{10,}\n\s*❯[^\n]*\n\s*─{10,}']
 confidence = 0.95
 [rules.interaction]
 kind = "plan_review"

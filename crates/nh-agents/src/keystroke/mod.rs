@@ -7,7 +7,8 @@
 //!
 //! The rules:
 //!
-//! 1. The dialog must match the request: the labels fuzzy-match at 0.9 or more.
+//! 1. The dialog must match the request: it asks for the same command, file or question
+//!    ([`Asks`]), and the labels fuzzy-match at 0.9 or more.
 //! 2. One move key at a time (or one accelerator), and a reading after each key.
 //! 3. Enter only when the pointer is on the target. A reading that does not fit the plan ends the
 //!    sequence with no more key.
@@ -15,7 +16,10 @@
 
 mod verifier;
 
-pub use verifier::{Choice, Failure, Key, Next, Outcome, Reading, Request, Verifier, similarity};
+pub use verifier::{
+    Asks, Choice, Failure, Key, Next, Outcome, Reading, Request, Verifier, shows_command,
+    similarity,
+};
 
 /// The least similarity of a label of the dialog to a label that the request names.
 pub const MIN_SIMILARITY: f32 = 0.9;

@@ -222,6 +222,9 @@ pub struct TitleFrom {
 pub enum CommandFrom {
     /// The lines above the question, between the rules that frame them.
     BoxAboveQuestion,
+    /// The line that starts with `$ ` between the question and the options, and the lines that
+    /// continue it up to an empty line.
+    ShellBelowQuestion,
 }
 
 #[derive(Clone, Debug)]
@@ -480,6 +483,7 @@ fn compile_rule(raw: RawRule) -> Result<Rule, String> {
                 .command_from
                 .map(|c| match c.region.as_str() {
                     "box_above_question" => Ok((CommandFrom::BoxAboveQuestion, c.trim)),
+                    "shell_below_question" => Ok((CommandFrom::ShellBelowQuestion, c.trim)),
                     other => Err(format!("command_from region `{other}` is not known")),
                 })
                 .transpose()?;

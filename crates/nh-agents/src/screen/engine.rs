@@ -60,6 +60,12 @@ pub struct Dialog {
     pub multi_toggle: Option<String>,
     /// The rows that the options cover.
     pub rows: (u16, u16),
+    /// The title that the rule read: the question of the dialog, or the header of a question.
+    pub title: Option<String>,
+    /// What the dialog asks for, as the screen shows it: the command, or the text in the box above
+    /// the question. The rows of the screen are joined with `\n`. The keystroke verifier compares
+    /// it with the request of the interaction before it sends a key.
+    pub command: Option<String>,
 }
 
 /// What a rule says about the screen.
@@ -263,33 +269,27 @@ fn rule_matches(manifest: &ScreenManifest, rule: &Rule, screen: &Screen) -> Opti
         collect_named(re, &text, &mut captures);
     }
     let mut dialog = None;
-    // The options of a dialog are below its question.
-    let title_row = rule
+    // The question of the dialog. A harness draws its dialog at the bottom of the screen, and the
+    // text above it (the output of a tool, for example) can look like a dialog too. So the last
+    // row that fits is the question.
+    let title_from = rule
         .interaction
         .as_ref()
-        .and_then(|i| i.title_from.as_ref())
-        .and_then(|t| rows.iter().find(|(_, row)| t.regex.is_match(row)))
-        .map(|(y, _)| *y);
-    if let Some(interaction) = &rule.interaction {
-        if let Some(title) = &interaction.title_from
-            && let Some(found) = title.regex.captures(&text)
-            && let Some(group) = found.get(title.group)
-        {
-            captures.insert("title".to_owned(), group.as_str().trim().to_owned());
-        }
-        if let Some((CommandFrom::BoxAboveQuestion, trim)) = interaction.command_from {
-            let question = interaction
-                .title_from
-                .as_ref()
-                .and_then(|t| rows.iter().find(|(_, row)| t.regex.is_match(row)))
-                .map(|(y, _)| *y);
-            if let Some(command) =
-                question.and_then(|y| box_above(screen, manifest.normalize, y, trim))
-            {
-                captures.insert("command".to_owned(), command);
-            }
-        }
+        .and_then(|i| i.title_from.as_ref());
+    let question = title_from.and_then(|t| {
+        rows.iter()
+            .rev()
+            .find(|(_, row)| t.regex.is_match(row))
+            .map(|(y, row)| (*y, t, row))
+    });
+    let title_row = question.map(|(y, _, _)| y);
+    if let Some((_, title, row)) = question
+        && let Some(found) = title.regex.captures(row)
+        && let Some(group) = found.get(title.group)
+    {
+        captures.insert("title".to_owned(), group.as_str().trim().to_owned());
     }
+    // The options of a dialog are below its question.
     if let Some(rule_dialog) = &rule.dialog {
         let below: Vec<(u16, String)> = rows
             .iter()
@@ -297,6 +297,22 @@ fn rule_matches(manifest: &ScreenManifest, rule: &Rule, screen: &Screen) -> Opti
             .cloned()
             .collect();
         dialog = read_dialog(rule_dialog, &below);
+    }
+    if let Some((from, trim)) = rule.interaction.as_ref().and_then(|i| i.command_from) {
+        // The command is the one of this dialog, and not a text that a pattern found elsewhere.
+        captures.remove("command");
+        let end = dialog.as_ref().map_or(u16::MAX, |d| d.rows.0);
+        let command = title_row.and_then(|y| match from {
+            CommandFrom::BoxAboveQuestion => box_above(screen, manifest.normalize, y, trim),
+            CommandFrom::ShellBelowQuestion => shell_below(&rows, y, end, trim),
+        });
+        if let Some(command) = command {
+            captures.insert("command".to_owned(), command);
+        }
+    }
+    if let Some(dialog) = dialog.as_mut() {
+        dialog.title = captures.get("title").cloned();
+        dialog.command = captures.get("command").cloned();
     }
     Some(ScreenMatch {
         rule_id: rule.id.clone(),
@@ -379,6 +395,27 @@ fn box_above(screen: &Screen, normalize: Normalize, question: u16, trim: bool) -
     (!text.is_empty()).then_some(text)
 }
 
+/// The command between the question (row `question`) and the options (row `end`): the first line
+/// that starts with `$ `, without the `$ `, and the lines below it up to an empty line.
+fn shell_below(rows: &[(u16, String)], question: u16, end: u16, trim: bool) -> Option<String> {
+    let mut lines: Vec<&str> = Vec::new();
+    for (_, text) in rows.iter().filter(|(y, _)| *y > question && *y < end) {
+        if lines.is_empty() {
+            if let Some(rest) = text.trim_start().strip_prefix("$ ") {
+                lines.push(rest);
+            }
+            continue;
+        }
+        if text.trim().is_empty() {
+            break;
+        }
+        lines.push(text);
+    }
+    let text = lines.join("\n");
+    let text = if trim { text.trim().to_owned() } else { text };
+    (!text.is_empty()).then_some(text)
+}
+
 // --- dialogs -----------------------------------------------------------------------------------
 
 fn read_dialog(rule: &DialogRule, rows: &[(u16, String)]) -> Option<Dialog> {
@@ -412,6 +449,12 @@ fn read_dialog(rule: &DialogRule, rows: &[(u16, String)]) -> Option<Dialog> {
     if options.is_empty() {
         return None;
     }
+    // A dialog numbers its options in order. Numbers that do not grow are two lists below the
+    // question, for example a list in the text and the list of the dialog: no key may answer that.
+    let numbers: Vec<u32> = options.iter().filter_map(|o| o.number).collect();
+    if numbers.windows(2).any(|pair| pair[1] <= pair[0]) {
+        return None;
+    }
     let first = options.first().map_or(0, |o| o.row);
     let last = options.last().map_or(0, |o| o.row);
     let pointer = options.iter().position(|o| o.pointed);
@@ -431,6 +474,8 @@ fn read_dialog(rule: &DialogRule, rows: &[(u16, String)]) -> Option<Dialog> {
         choices,
         multi_toggle: rule.multi_toggle.clone(),
         rows: (first, last),
+        title: None,
+        command: None,
     })
 }
 
@@ -497,6 +542,8 @@ fn unknown_dialog(manifest: &ScreenManifest, screen: &Screen) -> Option<ScreenMa
             choices: BTreeMap::new(),
             multi_toggle: None,
             rows: (first, last),
+            title: None,
+            command: None,
         }),
         keystroke_answerable: false,
     })

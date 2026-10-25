@@ -45,6 +45,9 @@ confidence = 0.95
 [rules.interaction]
 kind = "approval"
 title_from = { regex = 'Would you like to (.+?)\?', group = 1 }
+# The command is the `$ ` line between the question and the options, and not a `$ ` line of the
+# output above the dialog.
+command_from = { region = "shell_below_question", trim = true }
 [rules.dialog]
 options_regex = '^\s*(?P<ptr>›)?\s*(?P<n>\d+)\. (?P<label>.+?)(?: \((?P<key>\w+)\))?$'
 pointer = { glyph = "›" }

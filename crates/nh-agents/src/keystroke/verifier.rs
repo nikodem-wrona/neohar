@@ -28,12 +28,30 @@ pub enum Choice {
     Text { option: String, text: String },
 }
 
+/// What the dialog on the screen must ask for, so that the keys answer the request of the
+/// interaction and no other request of the harness.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Asks {
+    /// The request has nothing that the dialog shows (a plan). Other checks must make sure that
+    /// the dialog is the one of the request.
+    Anything,
+    /// A command. The dialog must show the same command: the line breaks of the screen and the
+    /// runs of white space do not count ([`shows_command`]).
+    Command(String),
+    /// Each text, the name of a file, must be in the title or in the box of the dialog.
+    Mentions(Vec<String>),
+    /// The title of the dialog, the header of a question, must be like this text.
+    Title(String),
+}
+
 /// What to do.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Request {
     /// The labels that the dialog must have, in order. Empty when the interaction does not know
     /// them (an approval that a hook opened). The labels of the choice must be there either way.
     pub expected: Vec<String>,
+    /// What the dialog must ask for. The verifier checks it before the first key.
+    pub asks: Asks,
     pub choice: Choice,
 }
 
@@ -87,6 +105,9 @@ pub enum Failure {
     TextNotShown,
     /// The person typed in the pane. The core ends the sequence and reports this.
     UserTyped,
+    /// The dialog on the screen asks for something other than the request: another command,
+    /// another file or another question. No key was sent, and the dialog stays for the person.
+    OtherRequest,
 }
 
 impl Failure {
@@ -100,6 +121,7 @@ impl Failure {
             Self::Unsupported => "keystrokes_unsupported",
             Self::TextNotShown => "text_not_shown",
             Self::UserTyped => "user_typed",
+            Self::OtherRequest => "request_not_on_screen",
         }
     }
 }
@@ -134,6 +156,66 @@ pub fn similarity(a: &str, b: &str) -> f32 {
         previous = row;
     }
     1.0 - previous[b.len()] as f32 / longest as f32
+}
+
+/// The text without the runs of white space: each run is one space, and none is at the ends.
+fn collapse(text: &str) -> String {
+    text.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
+/// Whether `shown`, the rows of a dialog that hold a command, show the command `want`. A terminal
+/// breaks a long line at a space or in a word, so a row break counts as one space or as nothing.
+/// The runs of white space count as one space. Any other difference, also a row that is cut or
+/// missing, is another command.
+pub fn shows_command(shown: &str, want: &str) -> bool {
+    let want: Vec<char> = collapse(want).chars().collect();
+    let rows: Vec<Vec<char>> = shown
+        .lines()
+        .map(|row| collapse(row).chars().collect::<Vec<char>>())
+        .filter(|row| !row.is_empty())
+        .collect();
+    if want.is_empty() || rows.is_empty() {
+        return false;
+    }
+    let mut at = 0;
+    for (index, row) in rows.iter().enumerate() {
+        // A row starts with a character that is not a space. A space of the command here is the
+        // place where the terminal broke the line.
+        if index > 0 && want.get(at) == Some(&' ') {
+            at += 1;
+        }
+        if want.get(at..at + row.len()) != Some(row.as_slice()) {
+            return false;
+        }
+        at += row.len();
+    }
+    at == want.len()
+}
+
+/// Whether the dialog asks for what the request is about.
+fn asks_for(asks: &Asks, dialog: &Dialog) -> bool {
+    match asks {
+        Asks::Anything => true,
+        Asks::Command(want) => dialog
+            .command
+            .as_deref()
+            .is_some_and(|shown| shows_command(shown, want)),
+        Asks::Mentions(names) => {
+            let text = collapse(&format!(
+                "{}\n{}",
+                dialog.title.as_deref().unwrap_or(""),
+                dialog.command.as_deref().unwrap_or("")
+            ));
+            !names.is_empty()
+                && names
+                    .iter()
+                    .all(|name| !name.trim().is_empty() && text.contains(name.trim()))
+        }
+        Asks::Title(want) => dialog
+            .title
+            .as_deref()
+            .is_some_and(|title| similarity(title, want) >= MIN_SIMILARITY),
+    }
 }
 
 /// The option that a request names: `@allow` is the option that the screen manifest named
@@ -192,6 +274,9 @@ pub struct Verifier {
     pasted: bool,
     /// The labels the dialog had at the start. A change of them ends the sequence.
     labels: Vec<String>,
+    /// The title and the command of the dialog at the start. A dialog with others is the dialog
+    /// of another request.
+    asked: (Option<String>, Option<String>),
 }
 
 impl Verifier {
@@ -202,6 +287,7 @@ impl Verifier {
             pending: Vec::new(),
             pasted: false,
             labels: Vec::new(),
+            asked: (None, None),
         }
     }
 
@@ -215,9 +301,19 @@ impl Verifier {
         Next::Done(Ok(outcome))
     }
 
+    /// Whether the dialog on the screen is the dialog of another request than the dialog of the
+    /// start: its title or its command differs. Without a command, the dialogs of two requests can
+    /// look the same, and this says no.
+    fn other_request(&self, dialog: &Dialog) -> bool {
+        let (title, command) = &self.asked;
+        (command.is_some() || title.is_some())
+            && (dialog.command != *command || dialog.title != *title)
+    }
+
     /// Whether the dialog on the screen is the dialog of the start.
     fn same_dialog(&self, dialog: &Dialog) -> bool {
-        dialog.options.len() == self.labels.len()
+        !self.other_request(dialog)
+            && dialog.options.len() == self.labels.len()
             && dialog
                 .options
                 .iter()
@@ -227,6 +323,12 @@ impl Verifier {
 
     /// The first reading: checks the dialog and plans.
     fn begin(&mut self, dialog: &Dialog) -> Next {
+        // The dialog must ask for the request of the interaction. Else the keys would answer
+        // another request: a later one of the harness, or a text that only looks like a dialog.
+        if !asks_for(&self.request.asks, dialog) {
+            return self.fail(Failure::OtherRequest);
+        }
+        self.asked = (dialog.title.clone(), dialog.command.clone());
         // The labels that the interaction names must be there, in order.
         if !self.request.expected.is_empty() {
             let fits = dialog.options.len() == self.request.expected.len()
@@ -397,6 +499,10 @@ impl Verifier {
             (Phase::Start, None) => self.fail(Failure::NoDialog),
             (Phase::Start, Some(dialog)) => self.begin(dialog),
             (Phase::Committed, None) | (Phase::Accelerated, None) => self.done(Outcome::DialogGone),
+            // The dialog of the next request came after the key: the dialog of this one went.
+            (Phase::Committed | Phase::Accelerated, Some(dialog)) if self.other_request(dialog) => {
+                self.done(Outcome::DialogGone)
+            }
             (Phase::Committed, Some(_)) => {
                 // The dialog stays after the last key. A reading without damage is the end of the
                 // wait.
@@ -433,6 +539,9 @@ impl Verifier {
                 }
             }
             (Phase::Pasted, Some(dialog)) => {
+                if self.other_request(dialog) {
+                    return self.fail(Failure::DialogChanged);
+                }
                 let shown = match (&self.request.choice, dialog.pointer) {
                     (Choice::Text { text, .. }, Some(pointer)) => {
                         let head: String = text.chars().take(16).collect();

@@ -206,6 +206,65 @@ fn a_dialog_rule_gives_the_title_the_command_and_the_geometry() {
     assert_eq!(dialog.map["allow"], 1);
     assert_eq!(dialog.choices["allow"], 0);
     assert_eq!(dialog.choices["deny"], 2);
+    // The dialog carries what it asks for, for the keystroke verifier.
+    assert_eq!(dialog.title.as_deref(), Some("proceed"));
+    assert_eq!(
+        dialog.command.as_deref(),
+        Some("git commit -m \"x\"\n  --amend")
+    );
+}
+
+#[test]
+fn the_last_question_on_the_screen_is_the_dialog_and_a_text_above_it_is_not() {
+    // The output of a tool shows a text that looks like a dialog, and the real dialog is below it.
+    let mut d = detector(&format!("{HEAD}{DIALOG}"));
+    let screen = Screen::from_text(&[
+        "╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌",
+        "  ls",
+        "╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌",
+        " Do you want to look?",
+        " ❯ 1. Yes",
+        "   2. No",
+        "Bash command",
+        "────────────────────",
+        "  rm -rf build",
+        "╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌",
+        " Do you want to proceed?",
+        " ❯ 1. Yes",
+        "   2. Yes, and don't ask again",
+        "   3. No",
+    ]);
+    let found = d.evaluate(&screen, Instant::now());
+    let found = found.rule("ask").expect("a match");
+    assert_eq!(found.captures["title"], "proceed");
+    assert_eq!(found.captures["command"], "rm -rf build");
+    let dialog = found.dialog.as_ref().expect("a dialog");
+    assert_eq!(
+        dialog.options.len(),
+        3,
+        "only the options of the last dialog"
+    );
+    assert_eq!(dialog.command.as_deref(), Some("rm -rf build"));
+}
+
+#[test]
+fn options_whose_numbers_do_not_grow_are_not_a_dialog_that_keys_may_answer() {
+    // Two lists below the question: no key may answer that.
+    let mut d = detector(&format!("{HEAD}{DIALOG}"));
+    let screen = Screen::from_text(&[
+        "────────────────────",
+        "  ls",
+        "╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌",
+        " Do you want to proceed?",
+        " ❯ 1. Yes",
+        "   2. No",
+        "   1. Yes",
+        "   2. No",
+    ]);
+    let found = d.evaluate(&screen, Instant::now());
+    let found = found.rule("ask").expect("a match");
+    assert!(found.dialog.is_none());
+    assert!(!found.keystroke_answerable);
 }
 
 #[test]

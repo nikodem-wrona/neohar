@@ -1438,6 +1438,8 @@ fn dialog(
             choices: Default::default(),
             multi_toggle: None,
             rows: (1, 2),
+            title: Some("proceed".to_owned()),
+            command: (!command.is_empty()).then(|| command.to_owned()),
         }),
         keystroke_answerable: true,
     }

@@ -31,6 +31,8 @@ struct Fake {
     typed_after: Option<usize>,
     /// The dialog is drawn with other labels after this many keys.
     redraw_after: Option<usize>,
+    /// The command that the dialog asks for.
+    command: Option<String>,
 }
 
 impl Fake {
@@ -43,6 +45,7 @@ impl Fake {
             log: Vec::new(),
             typed_after: None,
             redraw_after: None,
+            command: Some("ls".to_owned()),
         }
     }
 }
@@ -72,6 +75,8 @@ impl Terminal for Fake {
             choices: [("allow".to_owned(), 0), ("deny".to_owned(), 2)].into(),
             multi_toggle: None,
             rows: (0, 2),
+            title: Some("proceed".to_owned()),
+            command: self.command.clone(),
         })
     }
 
@@ -106,6 +111,7 @@ impl Terminal for Fake {
 fn named(name: &str) -> Request {
     Request {
         expected: Vec::new(),
+        asks: Asks::Command("ls".to_owned()),
         choice: Choice::Named(name.to_owned()),
     }
 }
@@ -159,6 +165,21 @@ async fn a_screen_without_a_dialog_gets_no_key() {
     assert!(term.log.is_empty());
 }
 
+#[tokio::test]
+async fn a_dialog_of_another_command_gets_no_key_and_nothing_is_committed() {
+    // The card is for `ls`, and the dialog on the screen asks for another command.
+    let mut term = Fake::new(&["Yes", "Yes, always", "No"], 0);
+    term.command = Some("rm -rf build".to_owned());
+    let commits = AtomicUsize::new(0);
+    let end = run(&mut term, named("allow"), || {
+        commits.fetch_add(1, Ordering::Relaxed);
+    })
+    .await;
+    assert_eq!(end, Err(Failure::OtherRequest));
+    assert!(term.log.is_empty(), "no key: {:?}", term.log);
+    assert_eq!(commits.load(Ordering::Relaxed), 0);
+}
+
 // --- what to type for a decision -----------------------------------------------------------
 
 fn interaction(payload: InteractionPayload, decision: Decision) -> Interaction {
@@ -193,12 +214,30 @@ fn interaction(payload: InteractionPayload, decision: Decision) -> Interaction {
     interaction
 }
 
+fn command(line: &str) -> nh_proto::api::rich::Command {
+    nh_proto::api::rich::Command {
+        argv: line.split_whitespace().map(str::to_owned).collect(),
+        display: nh_proto::api::rich::Spans {
+            text: line.to_owned(),
+            spans: Vec::new(),
+        },
+        cwd: String::new(),
+        risk: Risk::Low,
+        reasons: Vec::new(),
+        policy_hint: None,
+    }
+}
+
 fn approval_payload() -> InteractionPayload {
+    approval_of(Some("ls -la"), &[])
+}
+
+fn approval_of(line: Option<&str>, paths: &[&str]) -> InteractionPayload {
     InteractionPayload::Approval(Box::new(ApprovalPayload {
         tool: "Bash".to_owned(),
-        command: None,
+        command: line.map(command),
         cwd: None,
-        paths: Vec::new(),
+        paths: paths.iter().map(|p| (*p).to_owned()).collect(),
         diff: None,
         input: None,
         peek: Vec::new(),
@@ -357,4 +396,43 @@ fn an_answer_that_keys_cannot_give_is_refused_before_a_key_is_sent() {
     let mut none = interaction(approval_payload(), approval(Behavior::Allow, false));
     none.delivery.decision = None;
     assert_eq!(request_for(&none), Err("no_decision"));
+}
+
+#[test]
+fn the_request_names_what_the_dialog_must_ask_for() {
+    let allow = || approval(Behavior::Allow, false);
+    let asks = |payload: InteractionPayload, decision: Decision| {
+        request_for(&interaction(payload, decision)).map(|r| r.asks)
+    };
+    // An approval of a command names the command, and one of a file names the file.
+    assert_eq!(
+        asks(approval_of(Some("pnpm test"), &[]), allow()),
+        Ok(Asks::Command("pnpm test".into()))
+    );
+    assert_eq!(
+        asks(approval_of(None, &["/work/src/note.txt"]), allow()),
+        Ok(Asks::Mentions(vec!["note.txt".into()]))
+    );
+    // An approval with neither cannot be told from another one: no key answers it, also a deny.
+    assert_eq!(
+        asks(approval_of(None, &[]), allow()),
+        Err("request_not_verifiable")
+    );
+    assert_eq!(
+        asks(approval_of(None, &[]), approval(Behavior::Deny, false)),
+        Err("request_not_verifiable")
+    );
+    // A question names its header, when it has one.
+    let mut headed = question(false);
+    if let InteractionPayload::Question(q) = &mut headed {
+        q.questions[0].header = Some("Color".into());
+    }
+    assert_eq!(
+        asks(headed, answer(&["Red"], None)),
+        Ok(Asks::Title("Color".into()))
+    );
+    assert_eq!(
+        asks(question(false), answer(&["Red"], None)),
+        Ok(Asks::Anything)
+    );
 }

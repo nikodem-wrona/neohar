@@ -14,8 +14,8 @@ use std::{
 
 use nh_agents::{
     keystroke::{
-        CONFIRM_WAIT_MS, Choice, DAMAGE_WAIT_MS, Failure, Key, Next, Outcome, Reading, Request,
-        Verifier,
+        Asks, CONFIRM_WAIT_MS, Choice, DAMAGE_WAIT_MS, Failure, Key, Next, Outcome, Reading,
+        Request, Verifier,
     },
     screen::{self, Detector, Dialog},
 };
@@ -156,11 +156,55 @@ impl Terminal for PaneTerminal {
 
 // --- the request of an interaction -----------------------------------------------------------
 
+/// What the dialog of an interaction must ask for. An approval names its command, or else its
+/// file. An approval with neither cannot be told from the dialog of another request, so no key
+/// answers it (`request_not_verifiable`).
+fn asks_of(payload: &InteractionPayload) -> Result<Asks, &'static str> {
+    match payload {
+        InteractionPayload::Approval(approval) => {
+            if let Some(command) = approval
+                .command
+                .as_ref()
+                .filter(|c| !c.display.text.trim().is_empty())
+            {
+                return Ok(Asks::Command(command.display.text.clone()));
+            }
+            // The dialog of a change of a file names the file, for example "Do you want to make
+            // this edit to note.txt?".
+            let file = approval
+                .paths
+                .first()
+                .and_then(|path| std::path::Path::new(path).file_name())
+                .map(|name| name.to_string_lossy().into_owned())
+                .filter(|name| !name.trim().is_empty());
+            match file {
+                Some(name) => Ok(Asks::Mentions(vec![name])),
+                None => Err("request_not_verifiable"),
+            }
+        }
+        // The dialog of a question shows its header as the title.
+        InteractionPayload::Question(question) => Ok(question
+            .questions
+            .first()
+            .and_then(|q| q.header.clone())
+            .filter(|header| !header.trim().is_empty())
+            .map_or(Asks::Anything, Asks::Title)),
+        // A run shows one plan at a time, and the core refuses keys while it has two.
+        InteractionPayload::PlanReview(_) => Ok(Asks::Anything),
+        InteractionPayload::Notice(_) => Err("no_decision"),
+    }
+}
+
 /// What to type for the decision of an interaction, or why nothing can be typed.
 pub(crate) fn request_for(interaction: &Interaction) -> Result<Request, &'static str> {
+    if interaction.delivery.decision.is_none() {
+        return Err("no_decision");
+    }
+    let asks = asks_of(&interaction.payload)?;
     let named = |name: &str| {
         Ok(Request {
             expected: Vec::new(),
+            asks: asks.clone(),
             choice: Choice::Named(name.to_owned()),
         })
     };
@@ -177,6 +221,7 @@ pub(crate) fn request_for(interaction: &Interaction) -> Result<Request, &'static
                 (true, _) => named("allow"),
                 (false, Some(text)) if !text.trim().is_empty() => Ok(Request {
                     expected: Vec::new(),
+                    asks: asks.clone(),
                     choice: Choice::Text {
                         option: "@deny".to_owned(),
                         text: text.clone(),
@@ -186,7 +231,7 @@ pub(crate) fn request_for(interaction: &Interaction) -> Result<Request, &'static
             }
         }
         (InteractionPayload::Question(payload), Some(Decision::Question(d))) => {
-            question_request(payload, d)
+            question_request(payload, d, asks.clone())
         }
         _ => Err("no_decision"),
     }
@@ -195,6 +240,7 @@ pub(crate) fn request_for(interaction: &Interaction) -> Result<Request, &'static
 fn question_request(
     payload: &QuestionPayload,
     decision: &nh_proto::api::calls::agent::QuestionDecision,
+    asks: Asks,
 ) -> Result<Request, &'static str> {
     // The dialog of a harness shows one question at a time.
     let ([question], [answer]) = (payload.questions.as_slice(), decision.answers.as_slice()) else {
@@ -211,6 +257,7 @@ fn question_request(
     };
     Ok(Request {
         expected: Vec::new(),
+        asks,
         choice,
     })
 }

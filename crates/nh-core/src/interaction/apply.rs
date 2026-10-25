@@ -641,6 +641,20 @@ fn deliver_keystrokes(parts: &mut Parts<'_>, id: InteractionId, interaction: &In
         Ok(request) => request,
         Err(reason) => return failed(parts, id, reason),
     };
+    // The harness shows one dialog at a time. While the run has another open request of the same
+    // kind, the dialog on the screen can be the one of the other request: no key goes in, and the
+    // person answers in the harness.
+    let several = interaction.run.is_some_and(|run| {
+        parts
+            .state
+            .interactions
+            .open_of_run(run)
+            .iter()
+            .any(|other| other.id != id && other.kind == interaction.kind)
+    });
+    if several {
+        return failed(parts, id, "several_requests_open");
+    }
     let target = interaction
         .run
         .and_then(|run| parts.state.runs.by_id.get(&run))

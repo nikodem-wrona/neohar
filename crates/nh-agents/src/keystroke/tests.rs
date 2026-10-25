@@ -23,6 +23,11 @@ struct Sim {
     /// The program shows the dialog again after Enter (it did not take the key).
     deaf_to_enter: bool,
     changed: bool,
+    /// The title and the command of the dialog.
+    title: Option<String>,
+    command: Option<String>,
+    /// After Enter, the dialog of the next request comes with this command.
+    next_command: Option<String>,
 }
 
 impl Sim {
@@ -42,6 +47,9 @@ impl Sim {
             pasted: None,
             deaf_to_enter: false,
             changed: true,
+            title: None,
+            command: None,
+            next_command: None,
         }
     }
 
@@ -76,6 +84,8 @@ impl Sim {
             choices: Default::default(),
             multi_toggle: None,
             rows: (10, 10 + self.labels.len() as u16),
+            title: self.title.clone(),
+            command: self.command.clone(),
         })
     }
 
@@ -129,7 +139,11 @@ impl Sim {
                 }
             }
             Key::Enter => {
-                if !self.deaf_to_enter {
+                if let Some(command) = self.next_command.take() {
+                    self.command = Some(command);
+                    self.pointer = 0;
+                    self.changed = true;
+                } else if !self.deaf_to_enter {
                     self.gone = true;
                     self.changed = true;
                 }
@@ -176,6 +190,7 @@ fn drive(sim: &mut Sim, request: Request) -> Result<Outcome, Failure> {
 fn pick(label: &str) -> Request {
     Request {
         expected: Vec::new(),
+        asks: Asks::Anything,
         choice: Choice::Option(label.to_owned()),
     }
 }
@@ -313,6 +328,7 @@ fn the_expected_labels_of_the_interaction_must_be_the_labels_on_the_screen() {
     let mut sim = Sim::new(&["Red", "Blue"], 0);
     let request = Request {
         expected: vec!["Red".to_owned(), "Green".to_owned()],
+        asks: Asks::Anything,
         choice: Choice::Option("Red".to_owned()),
     };
     assert_eq!(drive(&mut sim, request), Err(Failure::DialogChanged));
@@ -320,6 +336,7 @@ fn the_expected_labels_of_the_interaction_must_be_the_labels_on_the_screen() {
     let mut fine = Sim::new(&["Red", "Blue"], 0);
     let request = Request {
         expected: vec!["Red".to_owned(), "Blue".to_owned()],
+        asks: Asks::Anything,
         choice: Choice::Option("Blue".to_owned()),
     };
     assert_eq!(drive(&mut fine, request), Ok(Outcome::DialogGone));
@@ -357,6 +374,7 @@ fn a_list_with_many_choices_is_toggled_one_option_at_a_time() {
     // Green must go off, Blue must go on.
     let request = Request {
         expected: Vec::new(),
+        asks: Asks::Anything,
         choice: Choice::Toggle(vec!["Red".to_owned(), "Blue".to_owned()]),
     };
     // Red is off and must be on; Green is on and must be off; Blue is off and must be on.
@@ -382,6 +400,7 @@ fn a_toggle_that_does_not_show_ends_the_sequence() {
     sim.checked = vec![None, None];
     let request = Request {
         expected: Vec::new(),
+        asks: Asks::Anything,
         choice: Choice::Toggle(vec!["Red".to_owned()]),
     };
     assert_eq!(drive(&mut sim, request), Err(Failure::Unsupported));
@@ -393,6 +412,7 @@ fn text_is_pasted_in_the_option_and_read_back_before_enter() {
     let mut sim = Sim::new(&["Red", "Type something.", "Chat about this"], 0);
     let request = Request {
         expected: Vec::new(),
+        asks: Asks::Anything,
         choice: Choice::Text {
             option: "Type something.".to_owned(),
             text: "teal".to_owned(),
@@ -407,6 +427,7 @@ fn text_is_pasted_in_the_option_and_read_back_before_enter() {
 fn text_that_does_not_show_ends_the_sequence_without_enter() {
     let mut verifier = Verifier::new(Request {
         expected: Vec::new(),
+        asks: Asks::Anything,
         choice: Choice::Text {
             option: "Type something.".to_owned(),
             text: "teal".to_owned(),
@@ -436,6 +457,7 @@ fn the_failures_have_the_reasons_of_the_delivery_record() {
         Failure::Unsupported,
         Failure::TextNotShown,
         Failure::UserTyped,
+        Failure::OtherRequest,
     ]
     .iter()
     .map(|f| f.reason())
@@ -449,7 +471,8 @@ fn the_failures_have_the_reasons_of_the_delivery_record() {
             "step_failed",
             "keystrokes_unsupported",
             "text_not_shown",
-            "user_typed"
+            "user_typed",
+            "request_not_on_screen"
         ]
     );
 }
@@ -460,6 +483,7 @@ fn a_choice_by_name_uses_the_label_that_the_screen_manifest_gave_the_option() {
     // The dialog is read with the names of the manifest: deny is the last option here.
     let mut verifier = Verifier::new(Request {
         expected: Vec::new(),
+        asks: Asks::Anything,
         choice: Choice::Named("deny".to_owned()),
     });
     let mut dialog = sim.dialog().expect("a dialog");
@@ -500,6 +524,7 @@ fn a_choice_by_name_uses_the_label_that_the_screen_manifest_gave_the_option() {
     // A name that the dialog does not have cannot be answered.
     let mut other = Verifier::new(Request {
         expected: Vec::new(),
+        asks: Asks::Anything,
         choice: Choice::Named("allow_always".to_owned()),
     });
     let next = other.observe(&Reading {
@@ -507,4 +532,143 @@ fn a_choice_by_name_uses_the_label_that_the_screen_manifest_gave_the_option() {
         damaged: true,
     });
     assert_eq!(next, Next::Done(Err(Failure::Unsupported)));
+}
+
+// --- the request that the dialog asks for ----------------------------------------------------------
+
+fn allow_command(command: &str) -> Request {
+    Request {
+        expected: Vec::new(),
+        asks: Asks::Command(command.to_owned()),
+        choice: Choice::Option("Yes".to_owned()),
+    }
+}
+
+#[test]
+fn a_dialog_that_asks_for_another_command_gets_no_key() {
+    // The card is for `ls`. The harness shows the dialog of a later request.
+    let mut sim = Sim::new(&LABELS, 0);
+    sim.command = Some("rm -rf build".to_owned());
+    assert_eq!(
+        drive(&mut sim, allow_command("ls")),
+        Err(Failure::OtherRequest)
+    );
+    assert!(sim.keys.is_empty(), "nothing was sent: {:?}", sim.keys);
+    // The same command is answered.
+    let mut same = Sim::new(&LABELS, 0);
+    same.command = Some("ls".to_owned());
+    assert_eq!(
+        drive(&mut same, allow_command("ls")),
+        Ok(Outcome::DialogGone)
+    );
+    assert_eq!(same.keys, [Key::Enter]);
+}
+
+#[test]
+fn a_dialog_whose_command_the_screen_did_not_read_gets_no_key() {
+    let mut sim = Sim::new(&LABELS, 0);
+    assert_eq!(
+        drive(&mut sim, allow_command("ls")),
+        Err(Failure::OtherRequest)
+    );
+    assert!(sim.keys.is_empty());
+}
+
+#[test]
+fn a_dialog_that_changes_to_another_command_during_the_moves_ends_the_sequence() {
+    // The first reading shows the command of the card. Before the second move key, the dialog of
+    // another request with the same labels takes its place.
+    let mut verifier = Verifier::new(Request {
+        expected: Vec::new(),
+        asks: Asks::Command("ls".to_owned()),
+        choice: Choice::Option("No".to_owned()),
+    });
+    let mut sim = Sim::new(&LABELS, 0);
+    sim.command = Some("ls".to_owned());
+    let first = verifier.observe(&Reading {
+        dialog: sim.dialog(),
+        damaged: true,
+    });
+    assert_eq!(first, Next::Send(vec![Key::Down]));
+    sim.press(Key::Down);
+    sim.command = Some("rm -rf build".to_owned());
+    let next = verifier.observe(&Reading {
+        dialog: sim.dialog(),
+        damaged: true,
+    });
+    assert_eq!(next, Next::Done(Err(Failure::DialogChanged)));
+}
+
+#[test]
+fn the_dialog_of_the_next_request_after_enter_means_that_this_dialog_went() {
+    let mut sim = Sim::new(&LABELS, 0);
+    sim.command = Some("ls".to_owned());
+    sim.next_command = Some("pwd".to_owned());
+    assert_eq!(
+        drive(&mut sim, allow_command("ls")),
+        Ok(Outcome::DialogGone)
+    );
+    assert_eq!(
+        sim.keys,
+        [Key::Enter],
+        "one key, and none for the next dialog"
+    );
+}
+
+#[test]
+fn a_command_on_several_rows_is_the_same_command() {
+    assert!(shows_command("touch note.txt", "touch note.txt"));
+    assert!(shows_command("  touch   note.txt ", "touch note.txt"));
+    // The terminal broke the line at a space, or in a word.
+    assert!(shows_command("printf %s\n\"a b\"", "printf %s \"a b\""));
+    assert!(shows_command(
+        "cat /very/long/pa\nth/file",
+        "cat /very/long/path/file"
+    ));
+    // A command with lines of its own.
+    assert!(shows_command(
+        "cat <<EOF\n  hello\nEOF",
+        "cat <<EOF\n  hello\nEOF"
+    ));
+    // Another command, a part of it, or more than it.
+    assert!(!shows_command("touch note.txt", "touch other.txt"));
+    assert!(!shows_command("rm -rf / tmp", "rm -rf /tmp"));
+    assert!(!shows_command("rm -rf /tmp", "rm -rf / tmp"));
+    assert!(!shows_command("touch note", "touch note.txt"));
+    assert!(!shows_command("touch note.txt && rm x", "touch note.txt"));
+    assert!(!shows_command("", "ls"));
+    assert!(!shows_command("ls", ""));
+}
+
+#[test]
+fn a_file_or_a_question_must_be_the_one_of_the_dialog() {
+    let mut sim = Sim::new(&LABELS, 0);
+    sim.title = Some("make this edit to note.txt".to_owned());
+    let edit = |name: &str| Request {
+        expected: Vec::new(),
+        asks: Asks::Mentions(vec![name.to_owned()]),
+        choice: Choice::Option("Yes".to_owned()),
+    };
+    assert_eq!(
+        drive(&mut sim, edit("other.txt")),
+        Err(Failure::OtherRequest)
+    );
+    assert!(sim.keys.is_empty());
+    assert_eq!(drive(&mut sim, edit("note.txt")), Ok(Outcome::DialogGone));
+    let mut question = Sim::new(&["Red", "Blue"], 0);
+    question.title = Some("Color".to_owned());
+    let header = |text: &str| Request {
+        expected: Vec::new(),
+        asks: Asks::Title(text.to_owned()),
+        choice: Choice::Option("Blue".to_owned()),
+    };
+    assert_eq!(
+        drive(&mut question, header("Size")),
+        Err(Failure::OtherRequest)
+    );
+    assert!(question.keys.is_empty());
+    assert_eq!(
+        drive(&mut question, header("Color")),
+        Ok(Outcome::DialogGone)
+    );
 }

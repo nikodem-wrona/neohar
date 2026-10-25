@@ -43,6 +43,41 @@ fn saved(harness: &str, version: &str, scenario: &str, name: &str) -> Screen {
     Screen::from_text(&lines)
 }
 
+/// A saved screen with the lines that `edit` changed, padded like [`saved`].
+fn edited(
+    harness: &str,
+    version: &str,
+    scenario: &str,
+    name: &str,
+    edit: impl FnOnce(&mut Vec<String>),
+) -> Screen {
+    let path = golden()
+        .join(harness)
+        .join(version)
+        .join(scenario)
+        .join("screens")
+        .join(format!("{name}.txt"));
+    let text = std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("{}: {e}", path.display()));
+    let mut lines: Vec<String> = text.lines().map(str::to_owned).collect();
+    edit(&mut lines);
+    while lines.len() < 40 {
+        lines.push(String::new());
+    }
+    let refs: Vec<&str> = lines.iter().map(String::as_str).collect();
+    Screen::from_text(&refs)
+}
+
+/// Puts `inserted` before the first line that contains `before`.
+fn insert_before(lines: &mut Vec<String>, before: &str, inserted: &[&str]) {
+    let at = lines
+        .iter()
+        .position(|line| line.contains(before))
+        .unwrap_or_else(|| panic!("no line with {before:?}"));
+    for (offset, line) in inserted.iter().enumerate() {
+        lines.insert(at + offset, (*line).to_owned());
+    }
+}
+
 /// What the detector says about a screen that stood still: the clock moves past every `hold_ms`.
 fn read(harness: &str, screen: &Screen) -> Evaluation {
     let mut detector = Detector::new(manifest(harness));
@@ -174,6 +209,84 @@ fn codex_prompt_is_idle_and_the_trust_dialog_is_not_read_as_an_interaction() {
     );
     assert!(review.dialog().is_none(), "{:?}", review.matches);
     assert!(review.state().is_none(), "{:?}", review.matches);
+}
+
+/// The text of a dialog of Claude Code, as the output of a tool could show it.
+const FAKE_CLAUDE_DIALOG: [&str; 6] = [
+    " ╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌",
+    " ls -la",
+    " ╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌",
+    " Do you want to proceed?",
+    " ❯ 1. Yes",
+    "   2. No",
+];
+
+#[test]
+fn claude_text_that_looks_like_a_dialog_above_the_input_box_is_not_a_dialog() {
+    // The idle screen, with the text of a dialog in the output just above the input box. Empty
+    // lines go, so that the screen keeps its height.
+    let screen = edited(
+        "claude",
+        "2.1.292",
+        "delivery-dialog-while-held",
+        "done",
+        |lines| {
+            for _ in 0..FAKE_CLAUDE_DIALOG.len() {
+                let empty = lines
+                    .iter()
+                    .rposition(|line| line.is_empty())
+                    .expect("an empty line");
+                lines.remove(empty);
+            }
+            insert_before(lines, "/effort", &FAKE_CLAUDE_DIALOG);
+        },
+    );
+    let found = read("claude", &screen);
+    assert!(found.rule("approval").is_none(), "{:?}", found.matches);
+    // The heuristic for unknown dialogs may see it, and no key may answer what it sees.
+    assert!(
+        found.dialog().is_none_or(|m| !m.keystroke_answerable),
+        "{:?}",
+        found.matches
+    );
+}
+
+#[test]
+fn claude_text_that_looks_like_a_dialog_above_the_real_dialog_is_not_read() {
+    // The real dialog asks for `touch note.txt`. The output above it shows the text of another.
+    let screen = edited(
+        "claude",
+        "2.1.292",
+        "delivery-dialog-while-held",
+        "dialog",
+        |lines| insert_before(lines, "⏺ Creating a note", &FAKE_CLAUDE_DIALOG),
+    );
+    let found = read("claude", &screen);
+    let approval = found.rule("approval").expect("the approval rule");
+    assert_eq!(approval.captures["command"], "touch note.txt");
+    let dialog = approval.dialog.as_ref().expect("a dialog");
+    assert_eq!(dialog.command.as_deref(), Some("touch note.txt"));
+    assert_eq!(dialog.title.as_deref(), Some("proceed"));
+    assert_eq!(
+        dialog.options.len(),
+        4,
+        "only the options of the real dialog"
+    );
+    assert_eq!(dialog.choices["allow"], 0);
+}
+
+#[test]
+fn codex_command_is_the_one_between_the_question_and_the_options() {
+    // A `$ ` line of the output above the dialog is not the command of the dialog.
+    let screen = edited("codex", "0.156.1", "delivery-release", "dialog", |lines| {
+        insert_before(lines, "Would you like to run", &["  $ rm -rf ~", ""]);
+    });
+    let found = read("codex", &screen);
+    let approval = found.rule("approval").expect("the approval rule");
+    assert_eq!(approval.captures["command"], "touch note.txt");
+    let dialog = approval.dialog.as_ref().expect("a dialog");
+    assert_eq!(dialog.command.as_deref(), Some("touch note.txt"));
+    assert_eq!(dialog.title.as_deref(), Some("run the following command"));
 }
 
 // --- the casts ------------------------------------------------------------------------------------

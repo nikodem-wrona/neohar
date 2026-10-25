@@ -820,6 +820,34 @@ async fn a_pane_that_has_the_focus_does_not_hold_the_hook() {
 }
 
 #[tokio::test]
+async fn keys_do_not_answer_while_the_run_has_two_open_approvals() {
+    // The person allowed `ls` in the dialog of the harness. Its tool runs, the dialog of `pwd`
+    // comes, and the card of `ls` stays open until the tool ends. An Allow on the card of `ls`
+    // must not answer the dialog of `pwd`.
+    let (f, _run) = started_in_mode("").await;
+    focus_the_pane(&f).await;
+    pre_tool(&f, "toolu_1", "ls").await;
+    let (first, _) = gate(&f, SHIM, "ls").await;
+    assert_eq!(first.result["reason"], "observe");
+    pre_tool(&f, "toolu_2", "pwd").await;
+    let (second, _) = gate(&f, SHIM + 1, "pwd").await;
+    assert_eq!(second.result["reason"], "observe");
+    let stale = f
+        .update(|parts| {
+            let open = parts.state.interactions.open();
+            assert_eq!(open.len(), 2, "two open approvals");
+            open.iter()
+                .find(|i| i.native_ref.as_deref() == Some("toolu_1"))
+                .map(|i| i.id)
+        })
+        .await
+        .expect("the approval of ls");
+    answer(&f, stale, allow()).await.expect("recorded");
+    let failed = eventually_row(&f, stale, |r| r["state"] == "failed").await;
+    assert_eq!(failed["delivery"]["fail_reason"], "several_requests_open");
+}
+
+#[tokio::test]
 async fn a_pane_without_the_focus_holds_the_hook() {
     let (f, _run) = started_in_mode("").await;
     let window = f.open_window().await;

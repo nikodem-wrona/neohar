@@ -139,6 +139,15 @@ pub(crate) fn opened(parts: &mut Parts<'_>, run_id: RunId, found: &ScreenMatch, 
     // when a rule read the dialog.
     let run_keys = matches!(run.binding, nh_proto::api::model::Binding::Bound)
         && run.capabilities.answer_keystroke;
+    // An approval from the screen is answerable only when the rule read its command: the card shows
+    // it, and the keys go in only while the dialog shows the same command. Without it, the card
+    // could stand for any dialog, also one that the output of a tool only imitates.
+    let read_command = kind != InteractionKind::Approval
+        || found
+            .captures
+            .get("command")
+            .is_some_and(|command| !command.trim().is_empty());
+    let keys = found.keystroke_answerable && run_keys && read_command;
     let (title, payload) = render(kind, found);
     let spec = OpenSpec {
         kind,
@@ -149,8 +158,8 @@ pub(crate) fn opened(parts: &mut Parts<'_>, run_id: RunId, found: &ScreenMatch, 
         risk: Risk::Unknown,
         payload,
         mode: GateMode::Observe,
-        answerable: found.keystroke_answerable && run_keys,
-        channels: if found.keystroke_answerable && run_keys {
+        answerable: keys,
+        channels: if keys {
             vec![AnswerChannel::Keystroke]
         } else {
             Vec::new()
@@ -160,7 +169,7 @@ pub(crate) fn opened(parts: &mut Parts<'_>, run_id: RunId, found: &ScreenMatch, 
         deadline: None,
         facts: None,
         by_policy: false,
-        keystroke: found.keystroke_answerable && run_keys,
+        keystroke: keys,
     };
     let Ok(id) = new_interaction_id() else {
         return;
