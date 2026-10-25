@@ -4,8 +4,10 @@
 
 | Version | Supported |
 |---|---|
-| 1.0.x | Yes |
-| Earlier versions | No |
+| The latest release | Yes |
+| Earlier releases | No |
+
+A security fix goes into a new release. We do not make fixes for earlier releases.
 
 ## Report a vulnerability
 
