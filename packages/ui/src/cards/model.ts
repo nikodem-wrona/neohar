@@ -156,8 +156,11 @@ export function statusOf(interaction: InteractionValue, harness: string): Status
   const by = answeredBy(interaction);
   switch (interaction.state) {
     case 'open':
+      // The core keeps a card from answers for several reasons: the run has no pane, or the
+      // screen showed a dialog whose request neohar could not read. Each time the person
+      // answers in the harness.
       return displayOnly(interaction)
-        ? { text: 'Display only. Link this agent to a pane to answer.', tone: 'warn' }
+        ? { text: `Display only. Answer it in ${harness}.`, tone: 'warn' }
         : null;
     case 'decision_recorded':
     case 'delivering':

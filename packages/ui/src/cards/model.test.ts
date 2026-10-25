@@ -135,11 +135,11 @@ describe('what a card says', () => {
     expect(canAnswer(card({ state: 'delivered' }))).toBe(false);
   });
 
-  it('is for reading when the run is not linked: display only, without answer buttons', () => {
+  it('is for reading when the core cannot answer: display only, without answer buttons', () => {
     const unlinked = card({ answerable: false });
     expect(displayOnly(unlinked)).toBe(true);
     expect(statusOf(unlinked, 'Claude Code')).toEqual({
-      text: 'Display only. Link this agent to a pane to answer.',
+      text: 'Display only. Answer it in Claude Code.',
       tone: 'warn',
     });
     expect(displayOnly(card({ answerable: false, kind: 'notice' }))).toBe(false);
