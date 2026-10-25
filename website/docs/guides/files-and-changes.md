@@ -77,6 +77,18 @@ Claude Code makes them under `.claude/worktrees/`, has its own agents.
 
 The reads never write the index, so a commit of an agent at the same time does not fail.
 
+The settings of a repository cannot change these rules of neohar for each git command of the
+Changes tab, the Git view and `nh git`:
+
+- Git runs no `core.fsmonitor` program, and it uses no bare repository that it finds in a folder.
+- A remote cannot use the `ext::` transport.
+- The reads and the fetch in the background run no hooks. A switch, a pull, a restore and a fetch
+  from the button run the hooks of the repository.
+- A read stops after 60 seconds.
+- A submodule is a change only when its commit changed.
+- neohar uses the `git` of an absolute folder of your `PATH`. It never uses a `git` of the
+  repository, such as `bin/git`.
+
 ### Switch, fetch and pull
 
 Each write is one git command, and the timeline of events records each write that works. One write

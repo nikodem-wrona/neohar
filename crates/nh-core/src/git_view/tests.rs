@@ -507,3 +507,38 @@ ddd\0stash@{3}\x001790000000\0WIP on main: 0123456 first\n";
     assert!(stash_of(&stashes, "ma").is_none(), "the whole name");
     assert!(stash_of(&stashes, "other").is_none());
 }
+
+#[tokio::test]
+async fn a_remote_named_like_an_option_is_a_name_in_a_fetch() {
+    use crate::changes::git::tests::{assert_empty, folder, markers, repo};
+    let (git, dir) = repo("option-remote").await;
+    let marks = markers("option-remote");
+    let origin = folder("option-remote-origin");
+    git.run(&origin, &["init", "-q", "--bare", "-b", "main"])
+        .await
+        .expect("an origin");
+    let url = origin.display().to_string();
+    git.run(&dir, &["push", "-q", &url, "main"])
+        .await
+        .expect("a push");
+    // `git remote add` refuses such a name, and the configuration takes it.
+    let name = format!(
+        "--upload-pack=touch {}/option;git-upload-pack",
+        marks.display()
+    );
+    let key = format!("remote.{name}.url");
+    git.run(&dir, &["config", &key, &url])
+        .await
+        .expect("a remote");
+    assert_eq!(
+        read::remotes(&git, &dir).await.expect("the remotes"),
+        std::slice::from_ref(&name)
+    );
+    for background in [true, false] {
+        let args = super::write::fetch_args(&name, background);
+        assert_eq!(args[args.len() - 2..], ["--end-of-options", name.as_str()]);
+        assert_eq!(args.contains(&"--no-recurse-submodules"), background);
+        git.run(&dir, &args).await.expect("a fetch of the remote");
+    }
+    assert_empty(&marks);
+}

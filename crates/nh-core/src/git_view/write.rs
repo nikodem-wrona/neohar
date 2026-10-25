@@ -12,6 +12,11 @@
 //! **Credentials.** A fetch from a click sets `GIT_ASKPASS` and `SSH_ASKPASS` to `nh askpass`, so a
 //! passphrase or a token shows the sheet of the app, as the ssh links do. A fetch in the
 //! background never asks: it stops, and the head says why (`fetch_note`).
+//!
+//! **Hooks.** A write from a click runs the hooks of the repository, as the person expects of git.
+//! A fetch in the background runs no hook and fetches no submodule. A name that comes from git (a
+//! branch, a remote, a stash) follows `--end-of-options`, so a name that starts with `-` is never
+//! an option.
 
 use std::{
     os::unix::fs::PermissionsExt,
@@ -104,6 +109,18 @@ fn quiet_env() -> Vec<(String, String)> {
     ]
     .map(|(key, value)| (key.to_owned(), value.to_owned()))
     .to_vec()
+}
+
+/// The arguments of a fetch of `remote`. The name comes from the configuration, so it follows
+/// `--end-of-options`: a remote named `--upload-pack=<command>` is a name, not an option. A fetch
+/// in the background fetches no submodule, which has a configuration of its own.
+pub(super) fn fetch_args(remote: &str, background: bool) -> Vec<&str> {
+    let mut args = vec!["fetch", "--prune"];
+    if background {
+        args.push("--no-recurse-submodules");
+    }
+    args.extend(["--end-of-options", remote]);
+    args
 }
 
 /// A write that runs in a worktree or a repository. The key goes free when it drops.
@@ -389,14 +406,27 @@ impl GitViewService {
                 });
                 return Err(error);
             }
-            Plan::Local(name) => (name.clone(), vec!["switch".to_owned(), name]),
-            Plan::Track { name, remote } => (
+            Plan::Local(name) => (
                 name.clone(),
-                ["switch", "--track", "-c", &name, &remote]
+                ["switch", "--end-of-options", &name]
                     .map(str::to_owned)
                     .to_vec(),
             ),
+            Plan::Track { name, remote } => (
+                name.clone(),
+                [
+                    "switch",
+                    "--track",
+                    "-c",
+                    &name,
+                    "--end-of-options",
+                    &remote,
+                ]
+                .map(str::to_owned)
+                .to_vec(),
+            ),
         };
+        let writer = self.git.with_hooks();
         let agents = self.guard(&place, &look, force, "switch")?;
         let count = self
             .count(&place.root)
@@ -422,7 +452,7 @@ impl GitViewService {
         let mut stash = None;
         if files > 0 && changes == Some(GitChanges::Leave) {
             let message = read::stash_message(&from_text);
-            self.git
+            writer
                 .run(
                     &place.root,
                     &[
@@ -446,10 +476,10 @@ impl GitViewService {
                 .map(|out| out.trim().to_owned());
         }
         let refs: Vec<&str> = args.iter().map(String::as_str).collect();
-        if let Err(error) = self.git.run(&place.root, &refs).await {
+        if let Err(error) = writer.run(&place.root, &refs).await {
             // The changes go back to where they were.
             if stash.is_some()
-                && let Err(back) = self.git.run(&place.root, &["stash", "pop"]).await
+                && let Err(back) = writer.run(&place.root, &["stash", "pop"]).await
             {
                 tracing::warn!(%back, "the changes of a switch that failed stay in a stash");
             }
@@ -491,7 +521,11 @@ impl GitViewService {
             .clone();
         let agents = self.guard(&place, &look, force, "restore")?;
         self.git
-            .run(&place.root, &["stash", "pop", &found.name])
+            .with_hooks()
+            .run(
+                &place.root,
+                &["stash", "pop", "--end-of-options", &found.name],
+            )
             .await
             .map_err(|error| refusal(&error))?;
         let event = EventPayload::GitUnstashed(GitWrite {
@@ -521,18 +555,21 @@ impl GitViewService {
         )
         .ok_or_else(|| RpcError::new(ErrorCode::NotFound, "The repository has no remote."))?;
         let writing = self.begin(&place.common_dir)?;
+        // A fetch in the background runs no hook: reference-transaction would run with no click.
         let git = if background {
             self.git.with_env(&quiet_env())
         } else {
+            let writer = self.git.with_hooks();
             match self.askpass.as_ref().map(Askpass::env) {
-                Some(Ok(env)) => self.git.with_env(&env),
+                Some(Ok(env)) => writer.with_env(&env),
                 Some(Err(error)) => {
                     tracing::warn!(%error, "a fetch cannot ask for a passphrase");
-                    self.git.with_env(&quiet_env())
+                    writer.with_env(&quiet_env())
                 }
-                None => self.git.with_env(&quiet_env()),
+                None => writer.with_env(&quiet_env()),
             }
-        };
+        }
+        .with_limit(JOB_LIMIT);
         let job = self.jobs.start(format!("Fetch {remote}"))?;
         let id = job.id();
         let key = place.common_dir.clone();
@@ -545,10 +582,10 @@ impl GitViewService {
         let this = Arc::clone(self);
         self.handle.spawn(async move {
             let _writing = writing;
-            let command = format!("git fetch --prune {remote}");
+            let args = fetch_args(&remote, background);
+            let command = format!("git {}", args.join(" "));
             job.message(command.clone());
             let token = job.token();
-            let args = ["fetch", "--prune", remote.as_str()];
             let run = git.run(&place.root, &args);
             let result = tokio::select! {
                 result = tokio::time::timeout(JOB_LIMIT, run) => result
@@ -638,7 +675,7 @@ impl GitViewService {
             });
         });
         let this = Arc::clone(self);
-        let git: Git = self.git.clone();
+        let git: Git = self.git.with_hooks().with_limit(JOB_LIMIT);
         self.handle.spawn(async move {
             let _writing = writing;
             let command = "git merge --ff-only @{u}".to_owned();

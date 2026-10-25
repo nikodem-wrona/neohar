@@ -2,7 +2,7 @@
 
 use super::*;
 
-fn env() -> Vec<(String, String)> {
+pub(crate) fn env() -> Vec<(String, String)> {
     vec![
         (
             "PATH".to_owned(),
@@ -25,7 +25,7 @@ fn env() -> Vec<(String, String)> {
 }
 
 /// A new empty folder in the temporary directory.
-fn folder(name: &str) -> PathBuf {
+pub(crate) fn folder(name: &str) -> PathBuf {
     let dir = std::env::temp_dir().join(format!("nh-core-git-{}-{name}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).expect("a directory");
@@ -33,7 +33,7 @@ fn folder(name: &str) -> PathBuf {
 }
 
 /// A repository with one commit on `main`: `a.txt` with two lines.
-async fn repo(name: &str) -> (Git, PathBuf) {
+pub(crate) async fn repo(name: &str) -> (Git, PathBuf) {
     let dir = folder(name);
     let git = Git::new(env());
     git.run(&dir, &["init", "-q", "-b", "main"])
@@ -44,14 +44,14 @@ async fn repo(name: &str) -> (Git, PathBuf) {
     (git, dir)
 }
 
-async fn commit(git: &Git, dir: &Path, message: &str) {
+pub(crate) async fn commit(git: &Git, dir: &Path, message: &str) {
     git.run(dir, &["add", "-A"]).await.expect("add");
     git.run(dir, &["commit", "-q", "-m", message])
         .await
         .expect("a commit");
 }
 
-fn write(dir: &Path, name: &str, text: &[u8]) {
+pub(crate) fn write(dir: &Path, name: &str, text: &[u8]) {
     let path = dir.join(OsStr::from_bytes(name.as_bytes()));
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).expect("a directory");
@@ -352,4 +352,173 @@ fn the_records_of_diff_index_join_the_raw_part_and_the_numstat_part() {
     assert_eq!(records[1].path, b"new\tname");
     assert_eq!(records[1].old_path.as_deref(), Some(&b"old name"[..]));
     assert_eq!((records[1].status, records[1].lines), (b'R', Some((0, 0))));
+}
+
+// --- the settings that always apply ------------------------------------------------------------
+
+/// A folder for the files that a program of a hostile repository writes. It must stay empty.
+pub(crate) fn markers(name: &str) -> PathBuf {
+    folder(&format!("{name}-markers"))
+}
+
+#[track_caller]
+pub(crate) fn assert_empty(dir: &Path) {
+    let found: Vec<_> = std::fs::read_dir(dir)
+        .expect("the markers")
+        .filter_map(Result::ok)
+        .map(|entry| entry.file_name())
+        .collect();
+    assert!(
+        found.is_empty(),
+        "a program of the repository ran: {found:?}"
+    );
+}
+
+/// A shell script with mode 0755.
+pub(crate) fn script(path: &Path, text: &str) {
+    std::fs::write(path, format!("#!/bin/sh\n{text}\n")).expect("a script");
+    std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o755)).expect("a mode");
+}
+
+#[tokio::test]
+async fn git_runs_no_fsmonitor_program_of_the_repository() {
+    let (git, dir) = repo("fsmonitor").await;
+    let marks = markers("fsmonitor");
+    let program = format!("touch {}/fsmonitor; false", marks.display());
+    git.run(&dir, &["config", "core.fsmonitor", &program])
+        .await
+        .expect("config");
+    write(&dir, "a.txt", b"one\ntwo\nthree\n");
+    let (changes, _) = git.uncommitted(&dir).await.expect("changes");
+    assert_eq!(paths(&changes), ["a.txt"]);
+    assert_empty(&marks);
+}
+
+#[tokio::test]
+async fn git_uses_no_bare_repository_that_a_clone_commits() {
+    let (git, dir) = repo("embedded").await;
+    let marks = markers("embedded");
+    // A bare repository in a folder of the checkout, whose worktree is the checkout.
+    write(&dir, "evil/HEAD", b"ref: refs/heads/main\n");
+    write(&dir, "evil/objects/.keep", b"");
+    write(&dir, "evil/refs/heads/.keep", b"");
+    let config = format!(
+        "[core]\n\trepositoryformatversion = 0\n\tbare = false\n\tworktree = ..\n\
+         \tfsmonitor = \"touch {}/embedded; false\"\n",
+        marks.display()
+    );
+    write(&dir, "evil/config", config.as_bytes());
+    commit(&git, &dir, "an embedded repository").await;
+    let evil = dir.join("evil");
+    assert!(git.repo_root(&evil).await.is_err());
+    assert!(git.uncommitted(&evil).await.is_err());
+    assert_empty(&marks);
+}
+
+#[tokio::test]
+async fn a_read_runs_no_hook_and_a_write_from_a_click_does() {
+    let (git, dir) = repo("hooks").await;
+    let marks = markers("hooks");
+    script(
+        &dir.join(".git/hooks/reference-transaction"),
+        &format!("touch {}/hook", marks.display()),
+    );
+    git.run(&dir, &["update-ref", "refs/heads/read", "HEAD"])
+        .await
+        .expect("a ref");
+    assert_empty(&marks);
+    git.with_hooks()
+        .run(&dir, &["update-ref", "refs/heads/click", "HEAD"])
+        .await
+        .expect("a ref");
+    assert!(
+        marks.join("hook").exists(),
+        "a write from a click runs hooks"
+    );
+}
+
+#[tokio::test]
+async fn a_remote_of_the_ext_transport_runs_no_command() {
+    let (git, dir) = repo("ext").await;
+    let marks = markers("ext");
+    let url = format!("ext::sh -c touch% {}/ext", marks.display());
+    git.run(&dir, &["config", "protocol.ext.allow", "always"])
+        .await
+        .expect("config");
+    git.run(&dir, &["remote", "add", "origin", &url])
+        .await
+        .expect("a remote");
+    assert!(git.run(&dir, &["fetch", "origin"]).await.is_err());
+    assert_empty(&marks);
+}
+
+#[test]
+fn the_program_comes_from_an_absolute_entry_of_the_path() {
+    let path = |value: &str| vec![("PATH".to_owned(), value.to_owned())];
+    let found = find_program(&path("bin::.:/usr/bin:/bin")).expect("a git");
+    assert!(found.is_absolute() && found.ends_with("git"), "{found:?}");
+    assert_eq!(find_program(&path("bin:.:node_modules/.bin")), None);
+    assert_eq!(find_program(&[]), None);
+}
+
+#[tokio::test]
+async fn a_git_of_the_repository_in_a_relative_entry_of_the_path_never_runs() {
+    let dir = folder("relative-path");
+    let marks = markers("relative-path");
+    std::fs::create_dir_all(dir.join("bin")).expect("a folder");
+    for fake in [dir.join("bin/git"), dir.join("git")] {
+        script(&fake, &format!("touch {}/fake; exit 0", marks.display()));
+    }
+    let mut env = env();
+    for (key, value) in &mut env {
+        if key == "PATH" {
+            *value = format!("bin:.::{value}");
+        }
+    }
+    let git = Git::new(env);
+    let program = git.program().expect("a git");
+    assert!(
+        program.is_absolute() && !program.starts_with(&dir),
+        "{program:?}"
+    );
+    git.run(&dir, &["--version"]).await.expect("git runs");
+    assert_empty(&marks);
+}
+
+#[tokio::test]
+async fn a_read_that_waits_stops_at_the_limit() {
+    let (git, dir) = repo("limit").await;
+    // Git opens the file of excludes for `ls-files --exclude-standard`, and an open of a FIFO
+    // waits for a writer.
+    let fifo = folder("limit-fifo").join("excludes");
+    let made = std::process::Command::new("mkfifo")
+        .arg(&fifo)
+        .status()
+        .expect("mkfifo runs");
+    assert!(made.success());
+    let path = fifo.display().to_string();
+    git.run(&dir, &["config", "core.excludesFile", &path])
+        .await
+        .expect("config");
+    let started = std::time::Instant::now();
+    let error = git
+        .with_limit(Duration::from_secs(2))
+        .uncommitted(&dir)
+        .await
+        .expect_err("the read waits");
+    assert!(matches!(error, GitError::Timeout { .. }), "{error:?}");
+    assert!(started.elapsed() < Duration::from_secs(60));
+}
+
+#[tokio::test]
+async fn an_output_stops_at_its_cap() {
+    let (git, dir) = repo("cap").await;
+    let args = ["log", "--format=%H%n%H%n%H", "HEAD"].map(OsStr::new);
+    let (out, cut) = git.output_capped(&dir, &args, 8).await.expect("an output");
+    assert_eq!((out.len(), cut), (8, true));
+    let (out, cut) = git
+        .output_capped(&dir, &args, 1 << 10)
+        .await
+        .expect("an output");
+    assert_eq!((out.len(), cut), (123, false));
 }

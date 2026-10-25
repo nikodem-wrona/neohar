@@ -673,7 +673,8 @@ pub(crate) async fn commit_files(
 }
 
 /// The patch of one file of a commit, from its first parent, with the old path of a rename. The
-/// paths are literal, not patterns.
+/// paths are literal, not patterns. The patch has at most `DIFF_INPUT` + 1 bytes: a longer one
+/// is cut.
 pub(crate) async fn commit_patch(
     git: &Git,
     worktree: &Path,
@@ -699,7 +700,9 @@ pub(crate) async fn commit_patch(
         args.push(OsStr::from_bytes(old));
     }
     args.push(OsStr::from_bytes(path));
-    let out = git.output(worktree, &args).await?;
+    let (out, _) = git
+        .output_capped(worktree, &args, crate::changes::DIFF_INPUT + 1)
+        .await?;
     Ok(String::from_utf8_lossy(&out).into_owned())
 }
 

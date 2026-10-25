@@ -1,7 +1,14 @@
 //! The git commands of the Changes tab, through the `git` program.
 //!
 //! The program is the one in the PATH of the environment that the caller gives, so the user's
-//! configuration applies to every command.
+//! configuration applies to every command. The core finds it once, as an absolute path, in the
+//! absolute entries of the PATH only.
+//!
+//! **Settings that always apply.** The configuration of a repository can name programs that git
+//! runs. Every command gets [`ALWAYS`] on its command line, which wins over each configuration
+//! file: no bare repository that git finds by itself (a repository can commit one, with its own
+//! `config`), no `core.fsmonitor` program, and no `ext::` transport. A read and a fetch in the
+//! background also get no hooks. A read stops after [`READ_LIMIT`], and its output stops at a cap.
 //!
 //! The count reads the trees with the plumbing command `git diff-index`, never with `git diff`.
 //! When `git diff` finds a file whose stat changed, it writes the index again, and it takes
@@ -13,12 +20,20 @@
 use std::{
     collections::HashSet,
     ffi::OsStr,
-    os::unix::{ffi::OsStrExt, fs::MetadataExt},
+    os::unix::{
+        ffi::OsStrExt,
+        fs::{MetadataExt, PermissionsExt},
+    },
     path::{Path, PathBuf},
+    process::Stdio,
+    time::Duration,
 };
 
 use nh_proto::api::rich::DiffStats;
-use tokio::process::Command;
+use tokio::{
+    io::{AsyncRead, AsyncReadExt},
+    process::Command,
+};
 
 /// Why a git command did not give a result.
 #[derive(Debug, thiserror::Error)]
@@ -34,6 +49,120 @@ pub(crate) enum GitError {
     /// The worktree is not on the disk.
     #[error("the worktree is gone")]
     WorktreeGone,
+    /// No absolute entry of the PATH has an executable `git`.
+    #[error("cannot find git in the PATH")]
+    NoProgram,
+    /// The command did not end in time, and the core stopped it.
+    #[error("git {args} did not end in {seconds} s")]
+    Timeout { args: String, seconds: u64 },
+    /// The output of the command is larger than the cap, and the core stopped it.
+    #[error("the output of git {args} is larger than {mib} MiB")]
+    TooLarge { args: String, mib: usize },
+}
+
+/// The settings on the command line of every git command. A setting of `-c` wins over every
+/// configuration file.
+///
+/// - `safe.bareRepository=explicit`: git uses no bare repository that it finds in a folder. A
+///   clone can commit a bare repository with a `config` of its own.
+/// - `core.fsmonitor=false`: git runs no program to watch the files.
+/// - `protocol.ext.allow=never`: a remote cannot be a command (`ext::`).
+pub(crate) const ALWAYS: [&str; 6] = [
+    "-c",
+    "safe.bareRepository=explicit",
+    "-c",
+    "core.fsmonitor=false",
+    "-c",
+    "protocol.ext.allow=never",
+];
+
+/// The setting of a command with no hooks: a read, and a fetch in the background.
+pub(crate) const NO_HOOKS: [&str; 2] = ["-c", "core.hooksPath=/dev/null"];
+
+/// The variables that name a repository or a part of it, as git clears them when it goes into
+/// another repository, and the two that change how git finds a repository. The core removes them
+/// from the environment of git, so that git finds the repository of a folder as the core does.
+const REPO_VARS: &[&str] = &[
+    "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+    "GIT_CEILING_DIRECTORIES",
+    "GIT_COMMON_DIR",
+    "GIT_CONFIG",
+    "GIT_CONFIG_COUNT",
+    "GIT_CONFIG_PARAMETERS",
+    "GIT_DIR",
+    "GIT_DISCOVERY_ACROSS_FILESYSTEM",
+    "GIT_GRAFT_FILE",
+    "GIT_IMPLICIT_WORK_TREE",
+    "GIT_INDEX_FILE",
+    "GIT_NO_REPLACE_OBJECTS",
+    "GIT_OBJECT_DIRECTORY",
+    "GIT_PREFIX",
+    "GIT_REPLACE_REF_BASE",
+    "GIT_SHALLOW_FILE",
+    "GIT_WORK_TREE",
+];
+
+/// The longest time that a read runs. A read that waits, for example on a FIFO that the
+/// configuration names, stops then.
+pub(crate) const READ_LIMIT: Duration = Duration::from_secs(60);
+
+/// The longest time that a write from a click runs: a switch, a stash, a merge.
+pub(crate) const WRITE_LIMIT: Duration = Duration::from_secs(10 * 60);
+
+/// The most bytes of the output of a command that gives a list. A larger output is an error.
+pub(crate) const OUTPUT_CAP: usize = 64 << 20;
+
+/// The most bytes of the error output that the core keeps.
+const STDERR_CAP: usize = 64 << 10;
+
+/// The absolute path of `git` in the `PATH` of `env`. An entry that is empty or not absolute is
+/// skipped: the system looks for such an entry from the folder of the command, so a repository
+/// with `bin/git` or `node_modules/.bin/git` would run its own program.
+pub(crate) fn find_program(env: &[(String, String)]) -> Option<PathBuf> {
+    let path = env
+        .iter()
+        .rev()
+        .find(|(key, _)| key == "PATH")
+        .map(|(_, value)| value.as_str())?;
+    path.split(':')
+        .map(Path::new)
+        .filter(|dir| dir.is_absolute())
+        .map(|dir| dir.join("git"))
+        .find(|candidate| {
+            std::fs::metadata(candidate)
+                .is_ok_and(|meta| meta.is_file() && meta.permissions().mode() & 0o111 != 0)
+        })
+}
+
+/// Reads at most `cap` bytes. At the cap it stops, and drops the pipe: the next write of git
+/// fails, and git ends. Returns the bytes and whether the output went on.
+async fn read_capped(
+    mut pipe: impl AsyncRead + Unpin,
+    cap: usize,
+) -> std::io::Result<(Vec<u8>, bool)> {
+    let mut out = Vec::new();
+    let mut chunk = vec![0u8; 64 << 10];
+    loop {
+        let read = pipe.read(&mut chunk).await?;
+        if read == 0 {
+            return Ok((out, false));
+        }
+        let room = cap - out.len();
+        if read > room {
+            out.extend_from_slice(&chunk[..room]);
+            return Ok((out, true));
+        }
+        out.extend_from_slice(&chunk[..read]);
+    }
+}
+
+/// What a command wrote, and how it ended.
+struct Ran {
+    stdout: Vec<u8>,
+    /// The output went on after the cap.
+    cut: bool,
+    stderr: Vec<u8>,
+    status: std::process::ExitStatus,
 }
 
 /// What happened to a file between `HEAD` and the worktree.
@@ -89,16 +218,47 @@ impl Changes {
 /// The largest file that does not track whose lines the count reads.
 const COUNT_LIMIT: u64 = 1 << 20;
 
-/// Runs git with an environment.
-#[derive(Clone, Debug, Default)]
+/// A submodule is a change only when its commit changed. Git then reads no file in the
+/// submodule, and it starts no git in it with the configuration of the submodule.
+pub(crate) const SUBMODULES: &str = "--ignore-submodules=dirty";
+
+/// The arguments of a command as one text, for an error.
+fn joined(args: &[&OsStr]) -> String {
+    args.iter()
+        .map(|arg| arg.to_string_lossy())
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+/// Runs git with an environment. A new runner is for reads: no hooks, [`READ_LIMIT`] and
+/// [`OUTPUT_CAP`]. [`Git::with_hooks`] makes a runner for a write from a click.
+#[derive(Clone, Debug)]
 pub(crate) struct Git {
+    /// The absolute path of `git`, or `None` when the PATH has none.
+    program: Option<PathBuf>,
     env: Vec<(String, String)>,
+    /// The hooks of the repository run.
+    hooks: bool,
+    limit: Duration,
 }
 
 impl Git {
     /// `env` is the environment of the process that git runs in. It must have a `PATH`.
     pub fn new(env: Vec<(String, String)>) -> Self {
-        Self { env }
+        let program = find_program(&env);
+        if program.is_none() {
+            tracing::warn!("no absolute entry of the PATH has git");
+        }
+        let env = env
+            .into_iter()
+            .filter(|(key, _)| !REPO_VARS.contains(&key.as_str()))
+            .collect();
+        Self {
+            program,
+            env,
+            hooks: false,
+            limit: READ_LIMIT,
+        }
     }
 
     /// A copy that runs git with more variables in its environment. A later variable wins.
@@ -106,7 +266,34 @@ impl Git {
         let mut env = self.env.clone();
         env.retain(|(key, _)| !extra.iter().any(|(name, _)| name == key));
         env.extend(extra.iter().cloned());
-        Self { env }
+        Self {
+            env,
+            ..self.clone()
+        }
+    }
+
+    /// A copy for a write that the person starts with a click: the hooks of the repository run,
+    /// as the person expects of a commit or a switch, and it runs for [`WRITE_LIMIT`] at most.
+    pub fn with_hooks(&self) -> Self {
+        Self {
+            hooks: true,
+            limit: WRITE_LIMIT,
+            ..self.clone()
+        }
+    }
+
+    /// A copy whose commands run for `limit` at most.
+    pub fn with_limit(&self, limit: Duration) -> Self {
+        Self {
+            limit,
+            ..self.clone()
+        }
+    }
+
+    /// The absolute path of the program, for a test.
+    #[cfg(test)]
+    pub fn program(&self) -> Option<&Path> {
+        self.program.as_deref()
     }
 
     pub async fn run(&self, cwd: &Path, args: &[&str]) -> Result<String, GitError> {
@@ -115,11 +302,63 @@ impl Git {
         Ok(String::from_utf8_lossy(&out).into_owned())
     }
 
-    /// The bytes that git writes, for output with `-z` and paths that are not UTF-8.
+    /// The bytes that git writes, for output with `-z` and paths that are not UTF-8. An output
+    /// larger than [`OUTPUT_CAP`] is [`GitError::TooLarge`].
     pub async fn output(&self, cwd: &Path, args: &[&OsStr]) -> Result<Vec<u8>, GitError> {
-        let mut command = Command::new("git");
+        let ran = self.spawn(cwd, args, OUTPUT_CAP).await?;
+        if ran.cut {
+            return Err(GitError::TooLarge {
+                args: joined(args),
+                mib: OUTPUT_CAP >> 20,
+            });
+        }
+        Self::checked(args, ran)
+    }
+
+    /// The first `cap` bytes that git writes, and whether it wrote more. The core stops git at the
+    /// cap. For a patch, which the page shows cut.
+    pub async fn output_capped(
+        &self,
+        cwd: &Path,
+        args: &[&OsStr],
+        cap: usize,
+    ) -> Result<(Vec<u8>, bool), GitError> {
+        let ran = self.spawn(cwd, args, cap).await?;
+        if ran.cut {
+            return Ok((ran.stdout, true));
+        }
+        Self::checked(args, ran).map(|out| (out, false))
+    }
+
+    fn checked(args: &[&OsStr], ran: Ran) -> Result<Vec<u8>, GitError> {
+        if ran.status.success() {
+            return Ok(ran.stdout);
+        }
+        Err(GitError::Failed {
+            args: joined(args),
+            status: ran.status.to_string(),
+            stderr: String::from_utf8_lossy(&ran.stderr).trim().to_owned(),
+        })
+    }
+
+    /// The command line of a command: [`ALWAYS`], [`NO_HOOKS`] unless the hooks run, then
+    /// `args`.
+    pub fn command_line<'a>(&self, args: &[&'a OsStr]) -> Vec<&'a OsStr> {
+        let mut line: Vec<&OsStr> = ALWAYS.iter().map(OsStr::new).collect();
+        if !self.hooks {
+            line.extend(NO_HOOKS.iter().map(OsStr::new));
+        }
+        line.extend_from_slice(args);
+        line
+    }
+
+    /// Runs one command, and reads at most `cap` bytes of its output. The command stops after
+    /// the limit of the runner.
+    async fn spawn(&self, cwd: &Path, args: &[&OsStr], cap: usize) -> Result<Ran, GitError> {
+        let program = self.program.as_ref().ok_or(GitError::NoProgram)?;
+        let mut command = Command::new(program);
         command
-            .args(args)
+            .args(self.command_line(args))
             .current_dir(cwd)
             .env_clear()
             .envs(self.env.iter().map(|(k, v)| (k, v)))
@@ -127,21 +366,49 @@ impl Git {
             .env("GIT_TERMINAL_PROMPT", "0")
             // A read must not lock the index: a commit of an agent at the same time would fail.
             .env("GIT_OPTIONAL_LOCKS", "0")
-            .stdin(std::process::Stdio::null())
+            .stdin(Stdio::null())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
             .kill_on_drop(true);
-        let output = command.output().await?;
-        if output.status.success() {
-            return Ok(output.stdout);
+        let mut child = command.spawn()?;
+        let stdout = child.stdout.take();
+        let stderr = child.stderr.take();
+        let work = async {
+            let (out, err) = tokio::join!(
+                async {
+                    match stdout {
+                        Some(pipe) => read_capped(pipe, cap).await,
+                        None => Ok((Vec::new(), false)),
+                    }
+                },
+                async {
+                    match stderr {
+                        Some(pipe) => read_capped(pipe, STDERR_CAP).await,
+                        None => Ok((Vec::new(), false)),
+                    }
+                },
+            );
+            let ((stdout, cut), (stderr, _)) = (out?, err?);
+            if cut {
+                // Git ends at its next write to the closed pipe. This is for a git that does not.
+                let _ = child.start_kill();
+            }
+            let status = child.wait().await?;
+            Ok::<Ran, GitError>(Ran {
+                stdout,
+                cut,
+                stderr,
+                status,
+            })
+        };
+        match tokio::time::timeout(self.limit, work).await {
+            Ok(ran) => ran,
+            // The child drops at the end of this function, and `kill_on_drop` ends it.
+            Err(_) => Err(GitError::Timeout {
+                args: joined(args),
+                seconds: self.limit.as_secs(),
+            }),
         }
-        Err(GitError::Failed {
-            args: args
-                .iter()
-                .map(|arg| arg.to_string_lossy())
-                .collect::<Vec<_>>()
-                .join(" "),
-            status: output.status.to_string(),
-            stderr: String::from_utf8_lossy(&output.stderr).trim().to_owned(),
-        })
     }
 
     /// The root of the repository that holds `path`.
@@ -215,7 +482,8 @@ impl Git {
     }
 
     /// The patch of one file from `head` to the worktree, with the old path of a rename. The
-    /// paths are literal, not patterns.
+    /// paths are literal, not patterns. The patch has at most `DIFF_INPUT` + 1 bytes: a longer
+    /// one is cut.
     pub async fn file_diff(
         &self,
         worktree: &Path,
@@ -229,6 +497,7 @@ impl Git {
             "-M",
             "--no-color",
             "--no-ext-diff",
+            SUBMODULES,
             head,
             "--",
         ]
@@ -238,7 +507,9 @@ impl Git {
             args.push(OsStr::from_bytes(old));
         }
         args.push(OsStr::from_bytes(&file.path));
-        let out = self.output(worktree, &args).await?;
+        let (out, _) = self
+            .output_capped(worktree, &args, super::DIFF_INPUT + 1)
+            .await?;
         Ok(String::from_utf8_lossy(&out).into_owned())
     }
 
@@ -247,7 +518,16 @@ impl Git {
         let out = self
             .output(
                 worktree,
-                &["diff-index", "--raw", "--numstat", "-z", "-M", tree].map(OsStr::new),
+                &[
+                    "diff-index",
+                    "--raw",
+                    "--numstat",
+                    "-z",
+                    "-M",
+                    SUBMODULES,
+                    tree,
+                ]
+                .map(OsStr::new),
             )
             .await?;
         let mut records = parse_diff_index(&out);
@@ -475,4 +755,4 @@ fn read_lines(path: &Path) -> (u32, bool) {
 }
 
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;
