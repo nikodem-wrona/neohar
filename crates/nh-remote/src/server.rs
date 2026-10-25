@@ -58,7 +58,7 @@ use ulid::Ulid;
 
 use crate::{
     codec::{MAX_FROM_CORE, MAX_MESSAGE},
-    host_req::{HostRequest, Notification, Tray, Window},
+    host_req::{HostRequest, Notification, Window},
     msg::{
         BlobOutcome, Device, HostOutcome, LinkMsg, Outcome, PROTO, REFUSED_API, REFUSED_PROTO,
         Welcome, is_control_method,
@@ -447,6 +447,15 @@ fn attach(
         if wire.is_down() {
             return;
         }
+        // Whether the client takes the tray with Allow items. A client of an earlier version
+        // refuses the question. The attach does not wait for the answer: until it comes, the
+        // client gets the old tray, and the answer sends the last tray again in the new form.
+        let probe = Arc::clone(&conn.host);
+        tokio::spawn(async move {
+            if let Some(HostOutcome::Done) = probe.ask(&HostRequest::TakesTrayV2).await {
+                probe.takes_tray_v2();
+            }
+        });
         let host: Arc<dyn Host> = conn.host.clone();
         let attachment = core.attach_client(conn.info.clone(), host);
         if let Some((_, link)) = lock(&shared.conns).get_mut(&id) {
@@ -983,6 +992,16 @@ pub struct LinkHost {
     pending: Mutex<HashMap<u64, oneshot::Sender<HostOutcome>>>,
     /// The notification capabilities that the client told after `Welcome`.
     actions: AtomicBool,
+    /// The last tray, and whether the client takes `SetTrayV2`. One lock for both, so that the
+    /// trays go out in order when the answer of the client comes.
+    tray: Mutex<TraySent>,
+}
+
+/// What the host of a link knows of the tray of its client.
+#[derive(Default)]
+struct TraySent {
+    takes_v2: bool,
+    last: Option<TrayModel>,
 }
 
 impl std::fmt::Debug for LinkHost {
@@ -1000,6 +1019,16 @@ impl LinkHost {
             next: AtomicU64::new(1),
             pending: Mutex::default(),
             actions: AtomicBool::new(false),
+            tray: Mutex::default(),
+        }
+    }
+
+    /// The client takes `SetTrayV2`: it gets the last tray again, with the Allow items.
+    fn takes_tray_v2(&self) {
+        let mut tray = lock(&self.tray);
+        tray.takes_v2 = true;
+        if let Some(last) = &tray.last {
+            self.fire(&HostRequest::set_tray(last, true));
         }
     }
 
@@ -1107,10 +1136,11 @@ impl Host for LinkHost {
         self.fire(&HostRequest::SetBadge { count });
     }
 
+    /// `SetTrayV2` for a client that takes it, else `SetTray` without the Allow items.
     fn set_tray(&self, tray: TrayModel) {
-        self.fire(&HostRequest::SetTray {
-            tray: Tray::from(&tray),
-        });
+        let mut sent = lock(&self.tray);
+        self.fire(&HostRequest::set_tray(&tray, sent.takes_v2));
+        sent.last = Some(tray);
     }
 
     fn open_window(&self, spec: WindowSpec) {

@@ -71,6 +71,17 @@ pub enum HostRequest {
     NotifyOpen {
         notifications: Vec<(String, Notification)>,
     },
+    // The variants after this line came after 1.0. A client of an earlier version cannot read
+    // them, refuses them and keeps the link. Append a new variant at the end, and never change
+    // the shape of an earlier one: `postcard` writes the index of a variant and no field names.
+    /// The core asks once, after `Welcome`, whether the client takes [`HostRequest::SetTrayV2`].
+    /// A client that takes it answers `Done`. A client of an earlier version refuses the request,
+    /// and the core sends it [`HostRequest::SetTray`].
+    TakesTrayV2,
+    /// The menu of the tray with the Allow items of each line.
+    SetTrayV2 {
+        tray: TrayV2,
+    },
 }
 
 /// The urgency of a notification.
@@ -100,28 +111,61 @@ pub struct Notification {
     pub pane: Option<String>,
 }
 
-/// A line of the menu of the tray.
+/// A line of the menu of the tray in [`HostRequest::SetTray`]: the shape of 1.0, which every
+/// client reads. It has no Allow items, so a client shows none for it. `postcard` writes no
+/// field names: a new field here would make the message of an earlier core unreadable. The new
+/// fields are in [`TrayLineV2`].
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TrayLine {
     pub label: String,
     pub interaction: Option<String>,
     pub approval: bool,
+}
+
+/// The menu of the tray in [`HostRequest::SetTray`].
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Tray {
+    pub entries: Vec<TrayLine>,
+    pub badge: u32,
+}
+
+/// A line of the menu of the tray in [`HostRequest::SetTrayV2`].
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TrayLineV2 {
+    pub label: String,
+    pub interaction: Option<String>,
+    pub approval: bool,
     /// The core offers Allow.
-    ///
-    /// `postcard` writes no field names, so every field is always present, and a field that
-    /// `serde` skips makes the message unreadable. A core of an earlier version sends lines
-    /// without `allow` and `always`: this client cannot read that `SetTray`, refuses it, and keeps
-    /// its last tray. Nothing else of the link changes.
     pub allow: bool,
     /// The rule of "Allow always", when the core offers it.
     pub always: Option<String>,
 }
 
-/// The menu of the tray.
+/// The menu of the tray in [`HostRequest::SetTrayV2`].
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Tray {
-    pub entries: Vec<TrayLine>,
+pub struct TrayV2 {
+    pub entries: Vec<TrayLineV2>,
     pub badge: u32,
+}
+
+/// A tray of an earlier core: no line has Allow items.
+impl From<Tray> for TrayV2 {
+    fn from(tray: Tray) -> Self {
+        Self {
+            entries: tray
+                .entries
+                .into_iter()
+                .map(|line| TrayLineV2 {
+                    label: line.label,
+                    interaction: line.interaction,
+                    approval: line.approval,
+                    allow: false,
+                    always: None,
+                })
+                .collect(),
+            badge: tray.badge,
+        }
+    }
 }
 
 /// The bounds of a window, in logical pixels.
@@ -166,6 +210,7 @@ impl From<&HostNotification> for Notification {
     }
 }
 
+/// The tray for a client of an earlier version: the Allow items of the lines go.
 impl From<&TrayModel> for Tray {
     fn from(tray: &TrayModel) -> Self {
         Self {
@@ -176,11 +221,44 @@ impl From<&TrayModel> for Tray {
                     label: e.label.clone(),
                     interaction: e.interaction.map(|i| i.to_string()),
                     approval: e.approval,
+                })
+                .collect(),
+            badge: tray.badge,
+        }
+    }
+}
+
+impl From<&TrayModel> for TrayV2 {
+    fn from(tray: &TrayModel) -> Self {
+        Self {
+            entries: tray
+                .entries
+                .iter()
+                .map(|e| TrayLineV2 {
+                    label: e.label.clone(),
+                    interaction: e.interaction.map(|i| i.to_string()),
+                    approval: e.approval,
                     allow: e.allow,
                     always: e.always.clone(),
                 })
                 .collect(),
             badge: tray.badge,
+        }
+    }
+}
+
+impl HostRequest {
+    /// The request that sets the tray of a client: [`HostRequest::SetTrayV2`] when the client
+    /// takes it, else [`HostRequest::SetTray`] without the Allow items.
+    pub fn set_tray(tray: &TrayModel, takes_v2: bool) -> Self {
+        if takes_v2 {
+            Self::SetTrayV2 {
+                tray: TrayV2::from(tray),
+            }
+        } else {
+            Self::SetTray {
+                tray: Tray::from(tray),
+            }
         }
     }
 }
@@ -578,13 +656,10 @@ impl HostGuard {
                 self.host.set_badge(count);
                 HostOutcome::Done
             }
-            HostRequest::SetTray { tray } => match self.tray_model(tray) {
-                Ok(tray) => {
-                    self.host.set_tray(tray);
-                    HostOutcome::Done
-                }
-                Err(why) => refused(why),
-            },
+            // A core of an earlier version sends the tray without Allow items.
+            HostRequest::SetTray { tray } => self.set_tray(TrayV2::from(tray)),
+            HostRequest::SetTrayV2 { tray } => self.set_tray(tray),
+            HostRequest::TakesTrayV2 => HostOutcome::Done,
             HostRequest::OpenWindow { window } => match self.window_spec(window) {
                 Ok(spec) => {
                     self.host.open_window(spec);
@@ -784,11 +859,21 @@ impl HostGuard {
 }
 
 impl HostGuard {
+    fn set_tray(&self, tray: TrayV2) -> HostOutcome {
+        match self.tray_model(tray) {
+            Ok(tray) => {
+                self.host.set_tray(tray);
+                HostOutcome::Done
+            }
+            Err(why) => refused(why),
+        }
+    }
+
     /// The tray of the core within the limits: the first [`HostLimits::tray_entries`] lines (the
     /// core sends them in the order of `interaction.next`), each cut at
     /// [`HostLimits::tray_label_chars`]. A line that this cut shortens loses its Allow items,
     /// because the person no longer sees the whole command.
-    fn tray_model(&self, tray: Tray) -> Result<TrayModel, String> {
+    fn tray_model(&self, tray: TrayV2) -> Result<TrayModel, String> {
         let entries = tray
             .entries
             .into_iter()
@@ -1277,8 +1362,6 @@ mod tests {
                     label: format!("{n} {}", "é".repeat(300)),
                     interaction: None,
                     approval: false,
-                    allow: false,
-                    always: None,
                 })
                 .collect(),
             badge: 60,
@@ -1304,14 +1387,14 @@ mod tests {
     #[test]
     fn a_tray_line_that_the_guard_cuts_has_no_allow_items() {
         let (guard, host) = guard();
-        let line = |label: String| TrayLine {
+        let line = |label: String| TrayLineV2 {
             label,
             interaction: Some(InteractionId::new(Ulid::from(9u128)).to_string()),
             approval: true,
             allow: true,
             always: Some("pnpm test:*".to_owned()),
         };
-        let tray = Tray {
+        let tray = TrayV2 {
             entries: vec![
                 line("Run `pnpm test`".to_owned()),
                 line(format!("Run `pnpm test {}`", "x".repeat(300))),
@@ -1319,7 +1402,7 @@ mod tests {
             badge: 2,
         };
         assert_eq!(
-            guard.handle(&bytes(&HostRequest::SetTray { tray })),
+            guard.handle(&bytes(&HostRequest::SetTrayV2 { tray })),
             HostOutcome::Done
         );
         let calls = host.calls();
@@ -1330,6 +1413,132 @@ mod tests {
         assert_eq!(model.entries[0].always.as_deref(), Some("pnpm test:*"));
         assert!(!model.entries[1].allow);
         assert_eq!(model.entries[1].always, None);
+    }
+
+    /// The host requests of 1.0, as a core and a client of that version encode them. The
+    /// variants before `SetTray` carry no data here: only their index counts.
+    mod v1 {
+        use serde::{Deserialize, Serialize};
+
+        #[derive(Debug, Serialize, Deserialize)]
+        pub enum HostRequest {
+            Notify,
+            UpdateNotification,
+            WithdrawNotification,
+            NotificationCapabilities,
+            SetBadge,
+            SetTray { tray: Tray },
+            OpenWindow,
+            CloseWindow,
+            FocusWindow,
+            ClipboardWrite,
+            OpenSettings,
+            NotifyOpen,
+        }
+
+        #[derive(Debug, PartialEq, Serialize, Deserialize)]
+        pub struct Tray {
+            pub entries: Vec<TrayLine>,
+            pub badge: u32,
+        }
+
+        #[derive(Debug, PartialEq, Serialize, Deserialize)]
+        pub struct TrayLine {
+            pub label: String,
+            pub interaction: Option<String>,
+            pub approval: bool,
+        }
+    }
+
+    fn approval_model(label: &str) -> TrayModel {
+        TrayModel {
+            entries: vec![TrayEntry {
+                label: label.to_owned(),
+                interaction: Some(InteractionId::new(Ulid::from(9u128))),
+                approval: true,
+                allow: true,
+                always: Some("pnpm test:*".to_owned()),
+            }],
+            badge: 1,
+        }
+    }
+
+    #[test]
+    fn a_new_client_takes_the_tray_of_a_core_of_1_0_without_allow_items() {
+        let (guard, host) = guard();
+        let interaction = InteractionId::new(Ulid::from(9u128)).to_string();
+        let old = postcard::to_allocvec(&v1::HostRequest::SetTray {
+            tray: v1::Tray {
+                entries: vec![v1::TrayLine {
+                    label: "Run `pnpm test`".to_owned(),
+                    interaction: Some(interaction.clone()),
+                    approval: true,
+                }],
+                badge: 1,
+            },
+        })
+        .expect("encodes");
+        assert_eq!(guard.handle(&old), HostOutcome::Done);
+        let calls = host.calls();
+        let [HostCall::SetTray(model)] = &calls[..] else {
+            panic!("expected the tray: {calls:?}");
+        };
+        assert_eq!(model.entries[0].label, "Run `pnpm test`");
+        assert_eq!(
+            model.entries[0].interaction.map(|i| i.to_string()),
+            Some(interaction)
+        );
+        assert!(model.entries[0].approval);
+        assert!(!model.entries[0].allow, "an old line has no Allow");
+        assert_eq!(model.entries[0].always, None);
+        // `SetTray` keeps the bytes of 1.0.
+        let model = approval_model("Run `pnpm test`");
+        assert_eq!(
+            bytes(&HostRequest::set_tray(&model, false)),
+            postcard::to_allocvec(&v1::HostRequest::SetTray {
+                tray: v1::Tray {
+                    entries: vec![v1::TrayLine {
+                        label: "Run `pnpm test`".to_owned(),
+                        interaction: model.entries[0].interaction.map(|i| i.to_string()),
+                        approval: true,
+                    }],
+                    badge: 1,
+                },
+            })
+            .expect("encodes")
+        );
+        // A new client says that it takes the new tray.
+        assert_eq!(
+            guard.handle(&bytes(&HostRequest::TakesTrayV2)),
+            HostOutcome::Done
+        );
+    }
+
+    #[test]
+    fn a_new_core_sends_a_client_of_1_0_a_tray_that_it_reads() {
+        let model = approval_model("Run `pnpm test`");
+        // A client of 1.0 reads the old variant, and the Allow items are not in it.
+        let old = bytes(&HostRequest::set_tray(&model, false));
+        let read = postcard::from_bytes::<v1::HostRequest>(&old).expect("1.0 reads it");
+        let v1::HostRequest::SetTray { tray } = read else {
+            panic!("expected SetTray: {read:?}");
+        };
+        assert_eq!(tray.entries[0].label, "Run `pnpm test`");
+        assert!(tray.entries[0].approval);
+        // The new variants are no requests of 1.0: such a client refuses them and keeps the link.
+        for new in [
+            HostRequest::TakesTrayV2,
+            HostRequest::set_tray(&model, true),
+        ] {
+            assert!(postcard::from_bytes::<v1::HostRequest>(&bytes(&new)).is_err());
+        }
+        // A client that takes the new tray gets the Allow items.
+        let (guard, host) = guard();
+        assert_eq!(
+            guard.handle(&bytes(&HostRequest::set_tray(&model, true))),
+            HostOutcome::Done
+        );
+        assert_eq!(host.calls(), [HostCall::SetTray(model)]);
     }
 
     #[test]

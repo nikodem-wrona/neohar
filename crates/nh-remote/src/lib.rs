@@ -31,7 +31,8 @@ mod wire;
 pub use client::{ClientHello, ClientOptions, LinkClient, LinkError, MAX_BLOB, link_down};
 pub use feed::LinkFeed;
 pub use host_req::{
-    Action, HostLimits, HostRequest, Level, Notification, Rect, Tray, TrayLine, Window,
+    Action, HostLimits, HostRequest, Level, Notification, Rect, Tray, TrayLine, TrayLineV2, TrayV2,
+    Window,
 };
 pub use link::Link;
 pub use msg::{Class, Device, Hello, HostOutcome, LinkMsg, Welcome};

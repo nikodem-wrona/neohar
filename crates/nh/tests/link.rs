@@ -15,7 +15,7 @@ use std::{
 use core_support::{Harness, TIMEOUT, has_row, next_input_id, wait_for};
 use nh_core::{
     ErrorCode, FrameSink, Host, MessageSink, RecordingHost,
-    host::{HostCall, HostNotification, NotificationAction},
+    host::{HostCall, HostNotification, NotificationAction, TrayEntry, TrayModel},
 };
 use nh_proto::{
     api::{
@@ -536,6 +536,102 @@ async fn a_new_client_shows_every_open_approval_and_the_next_one() {
     // The attach took one notification of the limit, so a new approval shows too.
     h.handle.router().notify(approval(12));
     eventually("the new approval", || notified() == 13).await;
+}
+
+/// A tray with one approval that the core offers to allow, with a rule for "Allow always".
+fn allowed_tray() -> TrayModel {
+    TrayModel {
+        entries: vec![TrayEntry {
+            label: "Run `pnpm test`".to_owned(),
+            interaction: Some(InteractionId::new(Ulid::from_parts(8, 1))),
+            approval: true,
+            allow: true,
+            always: Some("pnpm test:*".to_owned()),
+        }],
+        badge: 1,
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_client_that_takes_the_new_tray_gets_its_allow_items() {
+    let h = Harness::start();
+    let server = serve(&h);
+    let host = recording();
+    let _client = connect(&server, host.clone()).await;
+    let link = attached(&server).await;
+    let core_host: Arc<dyn Host> = link.host.clone();
+    let tray = allowed_tray();
+    // The tray can go before the answer of the client to `TakesTrayV2`: the answer sends it
+    // again with the Allow items.
+    core_host.set_tray(tray.clone());
+    eventually("the tray with its Allow items", || {
+        host.calls().last() == Some(&HostCall::SetTray(tray.clone()))
+    })
+    .await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_client_of_1_0_gets_the_tray_in_the_shape_of_1_0() {
+    let h = Harness::start();
+    let server = serve(&h);
+    let mut raw = Raw::connect(&server).await;
+    raw.send(&raw_hello("link/1", nh_proto::version::API_VERSION))
+        .await;
+    assert!(matches!(raw.recv().await, Some(LinkMsg::Welcome(_))));
+    // The client answers as a client of 1.0: the capabilities, and a refusal of each request that
+    // it cannot read.
+    let Some(LinkMsg::HostRequest { id, request }) = raw.recv().await else {
+        panic!("expected the request of the capabilities");
+    };
+    assert_eq!(
+        postcard::from_bytes::<HostRequest>(&request).expect("a request"),
+        HostRequest::NotificationCapabilities
+    );
+    raw.send(&LinkMsg::HostReply {
+        id,
+        result: HostOutcome::Capabilities { actions: true },
+    })
+    .await;
+    let link = attached(&server).await;
+    let core_host: Arc<dyn Host> = link.host.clone();
+    core_host.set_tray(allowed_tray());
+    let request = loop {
+        let Some(msg) = raw.recv().await else {
+            panic!("the link ended before the tray");
+        };
+        let LinkMsg::HostRequest { id, request } = msg else {
+            continue;
+        };
+        match postcard::from_bytes::<HostRequest>(&request) {
+            Ok(HostRequest::TakesTrayV2) => {
+                let result =
+                    HostOutcome::Refused("this client does not take this request".to_owned());
+                raw.send(&LinkMsg::HostReply { id, result }).await;
+            }
+            Ok(HostRequest::SetTrayV2 { .. }) => panic!("a client of 1.0 cannot read SetTrayV2"),
+            // The tray of the attach can come first, with no line.
+            Ok(HostRequest::SetTray { tray }) if !tray.entries.is_empty() => break request,
+            _ => {}
+        }
+    };
+    // `SetTray` is the variant 5 of 1.0, with lines of a label, an interaction and the approval
+    // flag, and nothing after them.
+    assert_eq!(request[0], 5, "SetTray of 1.0");
+    type Line = (String, Option<String>, bool);
+    let (tray, rest) =
+        postcard::take_from_bytes::<(Vec<Line>, u32)>(&request[1..]).expect("the shape of 1.0");
+    assert!(rest.is_empty(), "no field that 1.0 cannot read");
+    assert_eq!(
+        tray,
+        (
+            vec![(
+                "Run `pnpm test`".to_owned(),
+                Some(InteractionId::new(Ulid::from_parts(8, 1)).to_string()),
+                true
+            )],
+            1
+        )
+    );
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
