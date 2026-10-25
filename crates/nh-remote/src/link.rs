@@ -29,6 +29,10 @@ pub trait Link: Send + Sync + 'static {
     /// The windows that this client owns.
     fn set_owned_windows(&self, windows: Vec<WindowId>);
     fn own_window(&self, window: WindowId, owned: bool);
+    /// Whether the person asked for a window of the core a short time ago. The host gives the
+    /// focus only to such a window: a window that the core opens by itself must not take the
+    /// keyboard. Each request counts for one window.
+    fn take_window_request(&self) -> bool;
     async fn call(
         &self,
         window: Option<WindowId>,
@@ -101,6 +105,10 @@ impl Link for LinkClient {
 
     fn own_window(&self, window: WindowId, owned: bool) {
         LinkClient::own_window(self, window, owned);
+    }
+
+    fn take_window_request(&self) -> bool {
+        LinkClient::take_window_request(self)
     }
 
     async fn call(

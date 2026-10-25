@@ -99,8 +99,9 @@ controls that core. Thus the app on your Mac does not trust it, and it applies t
   machine: a click on a notification, the tray, the hotkey or a command of the palette. It can do
   this at most 4 times in 10 s.
 - The core shows at most 10 notifications in 10 s, and its section of the tray has at most 50
-  lines. The app opens at most 16 windows of one machine, and a new window of a machine does not
-  take the focus.
+  lines. The app opens at most 16 windows of one machine. A new window of a machine takes the
+  focus only when you asked for a window of that machine on this Mac within 5 s, for example
+  with **New window** or the palette.
 - A core that stops reading the link and keeps sending ends the link. The app keeps a limited
   number of log lines about the refused requests of a core.
 

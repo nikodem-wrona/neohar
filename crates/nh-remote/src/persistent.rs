@@ -725,6 +725,15 @@ impl Link for PersistentLink {
         }
     }
 
+    /// The request is one of the current link: a link that comes back has none.
+    fn take_window_request(&self) -> bool {
+        let state = lock(&self.shared.state);
+        state
+            .current
+            .as_ref()
+            .is_some_and(|(client, _)| client.take_window_request())
+    }
+
     async fn call(
         &self,
         window: Option<WindowId>,

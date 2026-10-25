@@ -387,9 +387,24 @@ fn open_settings_window(app: &AppHandle, machine: &str, section: Option<&str>) {
     }
 }
 
+/// Whether a new native window takes the focus. A window of this Mac does. A remote core adds rows
+/// when it wants, and such a window must not take the keyboard from the window where the person
+/// types. Thus a window of a remote machine takes the focus only when the person asked this app
+/// for a window of it a short time ago (`asked`, which takes that request).
+fn takes_focus(local: bool, asked: &dyn Fn() -> bool) -> bool {
+    local || asked()
+}
+
 /// Opens the native window of a row of the `windows` projection. `label` is the label of the
-/// window and `id` the id of the row.
-fn open_native(app: &AppHandle, label: &str, id: &str, bounds: Option<Bounds>) {
+/// window and `id` the id of the row. `asked` says whether the person asked for a window of the
+/// machine a short time ago.
+fn open_native(
+    app: &AppHandle,
+    label: &str,
+    id: &str,
+    bounds: Option<Bounds>,
+    asked: &dyn Fn() -> bool,
+) {
     if app.get_webview_window(label).is_some() {
         return;
     }
@@ -397,9 +412,7 @@ fn open_native(app: &AppHandle, label: &str, id: &str, bounds: Option<Bounds>) {
     let machine = machines::machine_of(label).map_or(machines::LOCAL, |(m, _)| m);
     let mut builder = WebviewWindowBuilder::new(app, label, url)
         .title("neohar")
-        // A remote core adds rows when it wants. Its new window must not take the keyboard from
-        // the window where the person types.
-        .focused(machine == machines::LOCAL)
+        .focused(takes_focus(machine == machines::LOCAL, asked))
         .initialization_script(gesture_script())
         .on_navigation(navigation_guard(app.clone(), machine.to_owned()));
     // On macOS the window has no title bar of its own. The page moves the window by its command
@@ -595,9 +608,12 @@ async fn run(
             .map(|(id, bounds)| (machines::label_of(&machine, &id), id, bounds))
             .collect();
         let (shown, of) = (app.clone(), machine.clone());
+        // The link knows whether the person asked for a window of the machine just now.
+        let link = backend.link().cloned();
         let _ = app.run_on_main_thread(move || {
+            let asked = || link.as_ref().is_some_and(|link| link.take_window_request());
             for (label, id, bounds) in &wanted {
-                open_native(&shown, label, id, *bounds);
+                open_native(&shown, label, id, *bounds, &asked);
             }
             // Only the windows of this machine close: those of another machine are not in `wanted`.
             for label in shown.webview_windows().into_keys() {
@@ -784,6 +800,26 @@ mod tests {
         // `resync` is not a message that changes the rows.
         assert!(!apply(&mut rows, &json!({ "type": "resync" })));
         assert_eq!(rows.len(), 1);
+    }
+
+    #[test]
+    fn a_remote_window_takes_the_focus_only_when_the_person_asked_for_it() {
+        let asked = std::cell::Cell::new(0);
+        let request = |answer: bool| {
+            let asked = &asked;
+            move || {
+                asked.set(asked.get() + 1);
+                answer
+            }
+        };
+        // A window of this Mac takes the focus, and takes no request of a link.
+        assert!(takes_focus(true, &request(false)));
+        assert_eq!(asked.get(), 0);
+        // A remote window takes it after "New window" or the palette on this Mac.
+        assert!(takes_focus(false, &request(true)));
+        // A window that the remote core opens by itself does not.
+        assert!(!takes_focus(false, &request(false)));
+        assert_eq!(asked.get(), 2);
     }
 
     #[test]

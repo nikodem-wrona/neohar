@@ -328,6 +328,12 @@ impl LinkClient {
         self.inner.guard.own(window, owned);
     }
 
+    /// Whether the person asked this client for a window of the core a short time ago. Each
+    /// request counts for one new window, which the host shows with the focus.
+    pub fn take_window_request(&self) -> bool {
+        self.inner.guard.take_window_request()
+    }
+
     /// The host of this client, which answers the host requests of the core.
     pub fn host(&self) -> &Arc<dyn Host> {
         self.inner.guard.host()

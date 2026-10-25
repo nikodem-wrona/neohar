@@ -308,6 +308,10 @@ pub struct HostLimits {
     /// writes one line with the number of the lines that it skipped.
     pub log_lines: usize,
     pub log_window: Duration,
+    /// How long after a call of the person that opens a window ([`WINDOW_METHODS`]) the host
+    /// gives the next new window of the machine the focus. The row of the window comes after the
+    /// answer of the core, so this time is longer than [`HostLimits::action_within`].
+    pub window_within: Duration,
     /// The core runs on this machine as the same user: the app is the client of an `nh daemon`
     /// through `link.sock`, which the client checked. Such a core is as trusted as the core of
     /// the app, so its clipboard writes and focus requests need no recent call of the person (an
@@ -331,6 +335,7 @@ impl Default for HostLimits {
             tray_label_chars: 200,
             log_lines: 20,
             log_window: Duration::from_secs(60),
+            window_within: Duration::from_secs(5),
             local_core: false,
         }
     }
@@ -344,6 +349,12 @@ pub const COPY_METHODS: [&str; 3] = ["pane.copy", "fs.copy_path", "pane.clipboar
 /// request (`interaction.reveal` focuses the window of the card, and a command of the palette can
 /// open the settings).
 pub const FOCUS_METHODS: [&str; 2] = ["interaction.reveal", "palette.execute"];
+
+/// The calls of the person that can open a window: `window.open` (also the one of
+/// `machine.open_window` on the core of this Mac), `pane.popout`, and a command of the palette.
+/// The next new window of the machine gets the focus. A window that the core opens by itself
+/// does not.
+pub const WINDOW_METHODS: [&str; 3] = ["window.open", "pane.popout", "palette.execute"];
 
 /// How often the client tells the person that it did not let the core write the clipboard.
 const CLIPBOARD_NOTE_EVERY: Duration = Duration::from_secs(300);
@@ -364,6 +375,7 @@ const MAX_TOKENS: usize = 8;
 struct Recent {
     copy: VecDeque<Instant>,
     focus: VecDeque<Instant>,
+    window: VecDeque<Instant>,
 }
 
 /// Notes a call of the person.
@@ -502,7 +514,9 @@ impl HostGuard {
 
     /// Notes a call that this client sends for the person at this Mac (not for a phone that it
     /// relays). A copy lets the core write the clipboard once, and a reveal or a command of the
-    /// palette lets it focus a window once, within [`HostLimits::action_within`].
+    /// palette lets it focus a window once, within [`HostLimits::action_within`]. A call that can
+    /// open a window lets the next new window of the machine take the focus, within
+    /// [`HostLimits::window_within`].
     pub fn local_call(&self, method: &str, params: &serde_json::Value) {
         let flag = |name: &str| params.get(name).and_then(serde_json::Value::as_bool);
         let mut actions = lock(&self.actions);
@@ -511,9 +525,20 @@ impl HostGuard {
             && flag("allow") != Some(false)
         {
             give(&mut actions.copy);
-        } else if FOCUS_METHODS.contains(&method) {
+        }
+        if FOCUS_METHODS.contains(&method) {
             give(&mut actions.focus);
         }
+        if WINDOW_METHODS.contains(&method) {
+            give(&mut actions.window);
+        }
+    }
+
+    /// Whether the person asked for a window of this machine a short time ago. A new window of
+    /// the machine takes the call: the host gives that window the focus. A window that the core
+    /// opens by itself finds no call and does not take the keyboard.
+    pub fn take_window_request(&self) -> bool {
+        self.limits.local_core || take(&mut lock(&self.actions).window, self.limits.window_within)
     }
 
     /// Takes a recent copy of the person.
@@ -1413,6 +1438,34 @@ mod tests {
         assert_eq!(model.entries[0].always.as_deref(), Some("pnpm test:*"));
         assert!(!model.entries[1].allow);
         assert_eq!(model.entries[1].always, None);
+    }
+
+    #[test]
+    fn a_new_window_takes_the_focus_only_just_after_the_person_asked_for_one() {
+        let (guard, _) = guard();
+        // A window that the core opens by itself.
+        assert!(!guard.take_window_request());
+        // "New window", the palette or a popout: the next new window takes the focus, once.
+        for method in WINDOW_METHODS {
+            guard.local_call(method, &serde_json::json!({}));
+            assert!(guard.take_window_request(), "{method}");
+            assert!(!guard.take_window_request(), "{method}");
+        }
+        // Other calls do not count.
+        guard.local_call("pane.input", &serde_json::json!({}));
+        guard.local_call("interaction.reveal", &serde_json::json!({}));
+        assert!(!guard.take_window_request());
+        // An old request does not count.
+        let host = Arc::new(RecordingHost::new(PathBuf::from("/bin/nh"), true));
+        let late = HostGuard::new(
+            host,
+            HostLimits {
+                window_within: Duration::ZERO,
+                ..HostLimits::default()
+            },
+        );
+        late.local_call("window.open", &serde_json::json!({}));
+        assert!(!late.take_window_request());
     }
 
     /// The host requests of 1.0, as a core and a client of that version encode them. The

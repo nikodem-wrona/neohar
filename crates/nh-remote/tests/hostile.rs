@@ -261,6 +261,17 @@ async fn local_call(client: &LinkClient, core: &mut FakeCore, method: &'static s
 }
 
 #[tokio::test]
+async fn a_new_window_of_the_core_takes_the_focus_only_after_the_person_asked_for_one() {
+    let (client, mut core, _) = linked(LinkTiming::default()).await;
+    // The core adds a row by itself: its window does not take the keyboard.
+    assert!(!client.take_window_request());
+    // The person asks for a window ("New window", or the palette): one window takes the focus.
+    local_call(&client, &mut core, "window.open").await;
+    assert!(client.take_window_request());
+    assert!(!client.take_window_request());
+}
+
+#[tokio::test]
 async fn the_core_writes_the_clipboard_only_just_after_a_copy_of_the_person() {
     let (client, mut core, host) = linked(LinkTiming::default()).await;
     let write = |text: &str| HostRequest::ClipboardWrite {
