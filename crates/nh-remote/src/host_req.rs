@@ -230,6 +230,11 @@ pub struct HostLimits {
     /// writes one line with the number of the lines that it skipped.
     pub log_lines: usize,
     pub log_window: Duration,
+    /// The core runs on this machine as the same user: the app is the client of an `nh daemon`
+    /// through `link.sock`, which the client checked. Such a core is as trusted as the core of
+    /// the app, so its clipboard writes and focus requests need no recent call of the person (an
+    /// OSC 52 write that the person let a pane do always). The limits of size and rate stay.
+    pub local_core: bool,
 }
 
 impl Default for HostLimits {
@@ -248,6 +253,7 @@ impl Default for HostLimits {
             tray_label_chars: 200,
             log_lines: 20,
             log_window: Duration::from_secs(60),
+            local_core: false,
         }
     }
 }
@@ -434,12 +440,13 @@ impl HostGuard {
 
     /// Takes a recent copy of the person.
     fn take_copy(&self) -> bool {
-        take(&mut lock(&self.actions).copy, self.limits.action_within)
+        self.limits.local_core || take(&mut lock(&self.actions).copy, self.limits.action_within)
     }
 
     /// Takes a recent reveal of the person, and a slot of the focus requests.
     fn take_focus(&self) -> Result<(), String> {
-        let recent = take(&mut lock(&self.actions).focus, self.limits.action_within);
+        let recent = self.limits.local_core
+            || take(&mut lock(&self.actions).focus, self.limits.action_within);
         if !recent {
             return Err(format!(
                 "a focus request comes only within {} ms of a reveal on this client",
@@ -1166,6 +1173,36 @@ mod tests {
             clipboard_writes(&host),
             ["copied", "osc 52", "first", "second"]
         );
+    }
+
+    #[test]
+    fn a_local_core_writes_the_clipboard_and_focuses_without_a_recent_call() {
+        let host = Arc::new(RecordingHost::new(PathBuf::from("/bin/nh"), true));
+        let limits = HostLimits {
+            local_core: true,
+            ..HostLimits::default()
+        };
+        let guard = HostGuard::new(host.clone(), limits);
+        assert_eq!(
+            guard.handle(&bytes(&HostRequest::ClipboardWrite {
+                text: "osc 52".to_owned()
+            })),
+            HostOutcome::Done
+        );
+        assert_eq!(clipboard_writes(&host), ["osc 52"]);
+        // The limit of the size stays.
+        assert!(matches!(
+            guard.handle(&bytes(&HostRequest::ClipboardWrite {
+                text: "x".repeat((1 << 20) + 1)
+            })),
+            HostOutcome::Refused(_)
+        ));
+        // The limit of the rate of focus requests stays.
+        let settings = bytes(&HostRequest::OpenSettings);
+        let done = (0..6)
+            .filter(|_| guard.handle(&settings) == HostOutcome::Done)
+            .count();
+        assert_eq!(done, 4);
     }
 
     #[test]

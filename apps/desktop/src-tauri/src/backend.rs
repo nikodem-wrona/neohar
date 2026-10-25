@@ -22,7 +22,8 @@ use nh_proto::{
     paths::{self, Env},
 };
 use nh_remote::{
-    ClientHello, ClientOptions, Device, Link, LinkClient, LinkError, LinkTiming, PersistentLink,
+    ClientHello, ClientOptions, Device, HostLimits, Link, LinkClient, LinkError, LinkTiming,
+    PersistentLink,
 };
 use serde_json::{Value, json};
 use tauri::{AppHandle, Manager};
@@ -447,6 +448,11 @@ pub async fn connect(
         timing: LinkTiming {
             hello_within: WELCOME_WITHIN,
             ..LinkTiming::default()
+        },
+        // The checks above prove that the core runs as this user on this machine.
+        limits: HostLimits {
+            local_core: true,
+            ..HostLimits::default()
         },
         ..ClientOptions::default()
     };
