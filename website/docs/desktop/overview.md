@@ -89,9 +89,19 @@ through `MachineHost`, which adds the machine label to notifications and the tra
 
 **`nh://` and navigation.** `nh://blob/<hash>` serves a blob of the store (immutable, cached).
 `nh://font/` serves the font files that the person installed, because WebKit on macOS matches no
-user font by family name. A pure policy allows only the app's own pages (and the Vite dev
-server in a debug build); `nh://open?url=` opens `http`, `https` and `mailto` outside the app;
-everything else is denied.
+user font by family name. A pure policy allows only the app's own pages (`tauri://localhost` on
+macOS and Linux, and the Vite dev server in a debug build). `nh://open?url=` opens `http`,
+`https` and `mailto` outside the app, but only with the gesture token of the host. The host puts a
+random token for each launch into each page (`__NEOHAR_GESTURE__`), and the click handler of
+`RichHtml` adds it to the link. A refresh or a form in hostile HTML has no script, so it cannot
+know the token, and nothing opens without a click. The policy denies everything else. The CSP
+also has `form-action 'none'`, `base-uri 'none'`, `object-src 'none'` and `frame-src 'none'`.
+
+**HTML of a remote core.** The core cleans each Markdown text with `ammonia`. For a window of a
+remote machine, that core is on the other machine and can send any text. Thus the link client
+cleans each field `html` of every result and projection message again, with the same rules
+(`nh_rich::markdown::clean`). The UI inserts HTML only through `RichHtml`, and only from such a
+field.
 
 **Quitting.**
 

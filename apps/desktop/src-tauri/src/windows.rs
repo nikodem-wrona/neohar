@@ -254,15 +254,33 @@ fn bounds_of(window: &Window) -> Option<Bounds> {
     })
 }
 
+/// The gesture token of this run of the app: two random ULIDs. Each webview gets it in a global of
+/// its page (`__NEOHAR_GESTURE__`) before the page loads. The page adds it to the navigation of a
+/// click on a link, and the host opens a link only with it ([`navigation`]). A page from a
+/// hostile core is HTML with no script, so it cannot read the token.
+fn gesture() -> &'static str {
+    static TOKEN: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+    TOKEN.get_or_init(|| format!("{}{}", nh_remote::new_ulid(), nh_remote::new_ulid()))
+}
+
+/// The script that gives a page the gesture token. A ULID has only letters and digits, so the
+/// token needs no escape.
+fn gesture_script() -> String {
+    format!(
+        "Object.defineProperty(window, '__NEOHAR_GESTURE__', {{ value: '{}' }});",
+        gesture()
+    )
+}
+
 /// The rule for the addresses that a webview may open: the app, and the web pages that the
-/// system browser opens. An address to a loopback host in a window of a remote machine is a
-/// service of that machine, so the host adds a forward first and opens the address with the port
-/// of the forward.
+/// system browser opens after a click on a link. An address to a loopback host in a window of a
+/// remote machine is a service of that machine, so the host adds a forward first and opens the
+/// address with the port of the forward.
 fn navigation_guard(
     handle: AppHandle,
     machine: String,
 ) -> impl Fn(&tauri::Url) -> bool + Send + 'static {
-    move |url| match navigation(url) {
+    move |url| match navigation(url, gesture()) {
         Navigation::Allow => true,
         Navigation::OpenOutside(target) => {
             use nh_core::Host as _;
@@ -357,6 +375,7 @@ fn open_settings_window(app: &AppHandle, machine: &str, section: Option<&str>) {
     let built = WebviewWindowBuilder::new(app, &label, WebviewUrl::App(url.into()))
         .title(title)
         .inner_size(SETTINGS_SIZE.0, SETTINGS_SIZE.1)
+        .initialization_script(gesture_script())
         .on_navigation(navigation_guard(app.clone(), machine.to_owned()))
         .build();
     match built {
@@ -377,6 +396,7 @@ fn open_native(app: &AppHandle, label: &str, id: &str, bounds: Option<Bounds>) {
     let url = WebviewUrl::App(format!("index.html?window={id}").into());
     let mut builder = WebviewWindowBuilder::new(app, label, url)
         .title("neohar")
+        .initialization_script(gesture_script())
         .on_navigation(navigation_guard(
             app.clone(),
             machines::machine_of(label)
@@ -720,6 +740,17 @@ mod tests {
         // `resync` is not a message that changes the rows.
         assert!(!apply(&mut rows, &json!({ "type": "resync" })));
         assert_eq!(rows.len(), 1);
+    }
+
+    #[test]
+    fn the_gesture_token_is_random_text_that_a_script_can_hold() {
+        let token = gesture();
+        assert_eq!(token.len(), 52);
+        assert!(token.bytes().all(|b| b.is_ascii_alphanumeric()), "{token}");
+        assert_eq!(gesture(), token, "one token for the run");
+        assert!(gesture_script().contains(&format!("value: '{token}'")));
+        // The random parts of the two ULIDs differ.
+        assert_ne!(&token[10..26], &token[36..52]);
     }
 
     #[test]

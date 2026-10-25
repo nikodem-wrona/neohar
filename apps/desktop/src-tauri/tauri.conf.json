@@ -13,8 +13,8 @@
     "withGlobalTauri": false,
     "windows": [],
     "security": {
-      "csp": "default-src 'self'; connect-src 'self' ipc: http://ipc.localhost; script-src 'self' 'wasm-unsafe-eval'; img-src nh: blob: data:; style-src 'self' 'unsafe-inline' nh:; font-src nh:",
-      "devCsp": "default-src 'self'; connect-src 'self' ipc: http://ipc.localhost ws://localhost:1420; script-src 'self' 'wasm-unsafe-eval'; img-src nh: blob: data:; style-src 'self' 'unsafe-inline' nh:; font-src nh:"
+      "csp": "default-src 'self'; connect-src 'self' ipc: http://ipc.localhost; script-src 'self' 'wasm-unsafe-eval'; img-src nh: blob: data:; style-src 'self' 'unsafe-inline' nh:; font-src nh:; object-src 'none'; frame-src 'none'; form-action 'none'; base-uri 'none'",
+      "devCsp": "default-src 'self'; connect-src 'self' ipc: http://ipc.localhost ws://localhost:1420; script-src 'self' 'wasm-unsafe-eval'; img-src nh: blob: data:; style-src 'self' 'unsafe-inline' nh:; font-src nh:; object-src 'none'; frame-src 'none'; form-action 'none'; base-uri 'none'"
     }
   },
   "bundle": {

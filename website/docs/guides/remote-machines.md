@@ -78,7 +78,8 @@ the Files and Changes tabs. Notifications, the badge and the tray show on your M
 label in the title. Also:
 
 - Files that you drop on a remote pane are copied to the remote Mac first.
-- A link to `localhost` from a remote window opens through an ssh forward.
+- A click on a link to `localhost` in a remote window opens it through an ssh forward. Only a
+  click opens a link.
 - The font, theme and keys come from your Mac. The other settings belong to the machine.
 - **Open** in the Files tab does not work for a remote file. **Copy path** and **Insert into
   pane** do.
