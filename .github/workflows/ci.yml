@@ -5,8 +5,10 @@
 # remote suites. They need installed harnesses, a GPU, Playwright browsers, a display, a release
 # build on quiet hardware or a second machine. See website/docs/testing/local-suites.md.
 #
-# The versions of the actions are the major tags that the earlier workflow of this repository
-# used (until commit 17f7380), when its runs passed.
+# Each action is pinned to the full SHA of a commit, because a tag can move to other code. The
+# comment after the SHA gives the major tag that the SHA had when it was pinned. To update an
+# action, get the SHA of the new tag (`gh api repos/<owner>/<repo>/commits/<tag> --jq .sha`) and
+# change the SHA and the comment in every workflow.
 name: ci
 
 on:
@@ -43,16 +45,16 @@ jobs:
     timeout-minutes: 120
     steps:
       # The whole history with the tags: `check:version` compares the version with the last tag.
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
 
       # Installs the tools that mise.toml pins (Rust, Bun, the cargo tools) and caches them.
-      - uses: jdx/mise-action@v5
+      - uses: jdx/mise-action@82a612c5ab8bcda7cc5db6b7e81a8e7584c3dc6e # v5
 
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
 
-      - uses: actions/cache@v6
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: ~/.bun/install/cache
           key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
