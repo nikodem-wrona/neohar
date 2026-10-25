@@ -5,6 +5,10 @@
 //! gets its words, its risk and the reasons for the risk. A change of files gets a diff. A plan
 //! gets sanitized HTML. The core does this once, so every client shows the same, and the UI needs
 //! no formatting code.
+//!
+//! An invisible character (a control of direction such as U+202E, a character of zero width) and
+//! a control character in a title, a command or a path become a visible escape such as `<U+202E>`
+//! ([`nh_rich::visible`]), so a card, a notification and the tray show each character.
 
 use std::path::{Path, PathBuf};
 
@@ -73,14 +77,15 @@ fn text<'a>(value: &'a Value, key: &str) -> Option<&'a str> {
     value.get(key).and_then(Value::as_str)
 }
 
-/// A title of at most `max` characters, on one line.
+/// A title of at most `max` characters, on one line, with its invisible characters as escapes.
 fn one_line(text: &str, max: usize) -> String {
     let first = text
         .lines()
         .find(|line| !line.trim().is_empty())
         .unwrap_or("");
-    let mut out: String = first.trim().chars().take(max).collect();
-    if first.trim().chars().count() > max || text.trim().lines().count() > 1 {
+    let shown = nh_rich::visible(first.trim());
+    let mut out: String = shown.chars().take(max).collect();
+    if shown.chars().count() > max || text.trim().lines().count() > 1 {
         out.push('…');
     }
     out
@@ -106,7 +111,7 @@ fn rules_context<'a>(ctx: &'a RenderCtx<'a>) -> Context<'a> {
 }
 
 fn approval(raw: &Value, ctx: &RenderCtx<'_>) -> Rendered {
-    let tool = text(raw, "tool").unwrap_or("tool").to_owned();
+    let tool = nh_rich::visible(text(raw, "tool").unwrap_or("tool")).into_owned();
     let input = raw.get("input").cloned().unwrap_or(Value::Null);
     let paths: Vec<String> = raw
         .get("paths")
@@ -139,7 +144,7 @@ fn approval(raw: &Value, ctx: &RenderCtx<'_>) -> Rendered {
                 tool,
                 command: Some(rich_calls::command(&explained)),
                 cwd: Some(ctx.cwd.display().to_string()),
-                paths,
+                paths: shown_paths(&paths),
                 diff: None,
                 input: None,
                 peek: ctx.peek.clone(),
@@ -148,19 +153,20 @@ fn approval(raw: &Value, ctx: &RenderCtx<'_>) -> Rendered {
             subject: Some(subject),
         };
     }
+    let shown = shown_paths(&paths);
     let (title, diff_value) = if EDIT_TOOLS.contains(&tool.as_str()) {
         (
             format!(
                 "{} `{}`",
                 verb(&tool),
-                paths.first().map_or("file", String::as_str)
+                shown.first().map_or("file", String::as_str)
             ),
             file_diff(&tool, &input, &paths, ctx),
         )
     } else if paths.is_empty() {
         (tool.clone(), None)
     } else {
-        (format!("{tool} `{}`", paths.join("`, `")), None)
+        (format!("{tool} `{}`", shown.join("`, `")), None)
     };
     let risk = if paths.is_empty() {
         Risk::Unknown
@@ -183,7 +189,7 @@ fn approval(raw: &Value, ctx: &RenderCtx<'_>) -> Rendered {
             tool,
             command: None,
             cwd: Some(ctx.cwd.display().to_string()),
-            paths,
+            paths: shown,
             input: if diff_value.is_none() {
                 capped(&input)
             } else {
@@ -196,14 +202,23 @@ fn approval(raw: &Value, ctx: &RenderCtx<'_>) -> Rendered {
     }
 }
 
-/// The paths relative to the root of the workspace. A path outside the root stays absolute, so
-/// that no glob of a rule matches it.
+/// The paths as a card shows them: each invisible character as an escape.
+fn shown_paths(paths: &[String]) -> Vec<String> {
+    paths
+        .iter()
+        .map(|path| nh_rich::visible(path).into_owned())
+        .collect()
+}
+
+/// The paths relative to the root of the workspace, after the symbolic links of the part that
+/// exists: `src/link/.zshrc` with `src/link -> ~` is the file in the home. A path outside the root
+/// stays absolute, so that no glob of a rule matches it.
 fn relative_paths(paths: &[String], ctx: &RenderCtx<'_>) -> Vec<String> {
-    let root = lexical(ctx.workspace);
+    let root = nh_rich::command::real_path(&lexical(ctx.workspace));
     paths
         .iter()
         .map(|path| {
-            let full = lexical(&absolute(ctx, path));
+            let full = nh_rich::command::real_path(&lexical(&absolute(ctx, path)));
             match full.strip_prefix(&root) {
                 Ok(rest) if !rest.as_os_str().is_empty() => rest.to_string_lossy().into_owned(),
                 _ => full.to_string_lossy().into_owned(),
@@ -273,8 +288,10 @@ fn file_diff(
     paths: &[String],
     ctx: &RenderCtx<'_>,
 ) -> Option<nh_proto::api::rich::Diff> {
-    let path = paths.first()?;
-    let file = (ctx.read_file)(&absolute(ctx, path));
+    let raw = paths.first()?;
+    let file = (ctx.read_file)(&absolute(ctx, raw));
+    let shown = nh_rich::visible(raw);
+    let path = shown.as_ref();
     let result = match tool {
         "Edit" => {
             let edit = Edit {

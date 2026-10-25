@@ -98,7 +98,8 @@ pub fn explain(source: &str, ctx: &Context<'_>) -> Command {
     };
     Command {
         argv,
-        display: display(source, &lexed.tokens),
+        // An invisible character shows as an escape, so the person sees each character that runs.
+        display: crate::text::visible_spans(display(source, &lexed.tokens)),
         cwd: ctx.cwd.display().to_string(),
         risk: assessment.risk,
         reasons: assessment.reasons,
@@ -126,16 +127,25 @@ pub fn assess_paths(paths: &[&str], ctx: &Context<'_>) -> Assessment {
                 Risk::High,
                 format!(
                     "The change writes outside the workspace, to {}.",
-                    resolved.display()
+                    self::paths::shown(&resolved)
                 ),
             );
         }
-        if self::paths::is_credential(&resolved) {
+        if self::paths::is_credential_or_leads_to_one(&resolved) {
             verdict.add(
                 Risk::High,
                 format!(
                     "The change is to a file that can hold secrets, {}.",
-                    resolved.display()
+                    self::paths::shown(&resolved)
+                ),
+            );
+        }
+        if let Some(ch) = path.chars().find(|ch| crate::text::is_invisible(*ch)) {
+            verdict.add(
+                Risk::High,
+                format!(
+                    "The path has an invisible character, U+{:04X}. It can show another name than the name of the file.",
+                    u32::from(ch)
                 ),
             );
         }
@@ -207,6 +217,12 @@ fn is_compound(lexed: &lex::Lexed, source: &str) -> bool {
 /// can be relative or absolute.
 pub fn is_credential_path(path: &str) -> bool {
     paths::is_credential(Path::new(path))
+}
+
+/// Where an absolute path leads, after the symbolic links of the part that exists. A link whose
+/// target does not exist yet leads to that target.
+pub fn real_path(path: &Path) -> std::path::PathBuf {
+    paths::real(path)
 }
 
 /// The prefix that a rule for this command would match, such as `pnpm test:*`: the program, its

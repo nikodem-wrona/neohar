@@ -138,8 +138,12 @@ like a shell does, through quotes, wrappers (`env`, `xargs`), `sh -c`, `eval`, s
 here-documents, and scores each command `low`, `unknown`, `medium` or `high`. The line takes the
 highest. `high` covers `rm -r`, force pushes, `git reset --hard`, `curl … | sh`, `sudo`, writes
 outside the workspace, secret files and hosts outside the allowlist (only this machine is on it, and
-no setting fills it yet). Read-only commands and the project's own test, lint and build scripts are
-`low`; anything unread is `unknown`. Risk orders the inbox, and Enter never answers a high-risk card.
+no setting fills it yet). `high` also covers git options that run a program (`-c core.fsmonitor=…`,
+`--exec-path=…`) and invisible characters such as U+202E. The check of a path follows the symbolic
+links of the part of the path that exists. Read-only commands and the project's own test, lint and
+build scripts are `low`; anything unread is `unknown`. Risk orders the inbox, and Enter never
+answers a high-risk card. Titles, commands and paths show invisible characters as escapes such as
+`<U+202E>`.
 
 **Policy rules**. Rules come from
 `[[policy.rule]]` in `config.toml`, from `policy.add`, and from "Allow always" (a session rule that

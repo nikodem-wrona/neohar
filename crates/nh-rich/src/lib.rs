@@ -15,4 +15,7 @@ pub mod text;
 
 pub use highlight::{Span, Spans, class};
 pub use markdown::{Markdown, markdown};
-pub use text::{Capped, OUTPUT_CAP, cap, cap_output, strip_terminal_controls};
+pub use text::{
+    Capped, OUTPUT_CAP, cap, cap_output, is_invisible, strip_terminal_controls, visible,
+    visible_lines, visible_spans,
+};

@@ -219,7 +219,17 @@ pub(super) fn assess(source: &str, ctx: &Context<'_>) -> Verdict {
         depth: 0,
         piped: false,
     };
-    analyzer.text(source)
+    let mut verdict = analyzer.text(source);
+    if let Some(ch) = source.chars().find(|ch| crate::text::is_invisible(*ch)) {
+        verdict.add(
+            Risk::High,
+            format!(
+                "The command has an invisible character, U+{:04X}. It can show other text than the text that runs.",
+                u32::from(ch)
+            ),
+        );
+    }
+    verdict
 }
 
 impl Analyzer<'_, '_> {
@@ -360,18 +370,18 @@ impl Analyzer<'_, '_> {
                 Risk::High,
                 format!(
                     "The command writes outside the workspace, to {}.",
-                    path.display()
+                    paths::shown(path)
                 ),
             );
         } else {
             verdict.add(Risk::Unknown, "The command changes files in the workspace.");
         }
-        if paths::is_credential(path) {
+        if paths::is_credential_or_leads_to_one(path) {
             verdict.add(
                 Risk::High,
                 format!(
                     "The command changes a file that can hold secrets, {}.",
-                    path.display()
+                    paths::shown(path)
                 ),
             );
         }
@@ -741,6 +751,7 @@ impl Analyzer<'_, '_> {
     }
 
     fn git(&mut self, args: &[&Word], verdict: &mut Verdict) {
+        git_options(args, verdict);
         let (sub, rest) = git_split(args);
         let Some(sub) = sub else {
             verdict.add(Risk::Low, "The command prints help of git.");
@@ -1473,6 +1484,126 @@ fn git_split<'a>(args: &[&'a Word]) -> (Option<&'a str>, Vec<&'a Word>) {
         }
     }
     (None, Vec::new())
+}
+
+/// The keys of the git configuration that name a program for git to run, or that read more
+/// configuration from another place. The comparison ignores case.
+const GIT_PROGRAM_KEYS: &[&str] = &[
+    "core.fsmonitor",
+    "core.pager",
+    "core.editor",
+    "core.sshcommand",
+    "core.askpass",
+    "core.hookspath",
+    "core.gitproxy",
+    "core.alternaterefscommand",
+    "core.worktree",
+    "sequence.editor",
+    "diff.external",
+    "diff.tool",
+    "merge.tool",
+    "interactive.difffilter",
+    "uploadpack.packobjectshook",
+    "include.path",
+    "web.browser",
+    "ssh.variant",
+];
+
+/// The sections of the git configuration whose keys can name a program.
+const GIT_PROGRAM_SECTIONS: &[&str] = &[
+    "alias.",
+    "filter.",
+    "pager.",
+    "includeif.",
+    "credential.",
+    "gpg.",
+    "browser.",
+    "difftool.",
+    "mergetool.",
+    "man.",
+    "protocol.",
+    "url.",
+    "remote.",
+    "submodule.",
+    "instaweb.",
+    "sendemail.",
+    "trailer.",
+];
+
+/// The last parts of keys that name a program in any section: `diff.<driver>.textconv`.
+const GIT_PROGRAM_ENDS: &[&str] = &[
+    ".textconv",
+    ".command",
+    ".driver",
+    ".cmd",
+    ".program",
+    ".helper",
+    ".uploadpack",
+    ".receivepack",
+    ".proxy",
+];
+
+fn git_key_runs_program(key: &str) -> bool {
+    let key = key.to_ascii_lowercase();
+    GIT_PROGRAM_KEYS.contains(&key.as_str())
+        || GIT_PROGRAM_SECTIONS.iter().any(|s| key.starts_with(s))
+        || GIT_PROGRAM_ENDS.iter().any(|s| key.ends_with(s))
+}
+
+/// The options of git itself, before the subcommand, that change what git runs: `-c` and
+/// `--config-env` set an option of the configuration for this call, and `--exec-path` with a path
+/// runs the programs of git from another directory. An option that can name a program is `high`.
+/// Another option of the configuration is `unknown`, because the rules do not know all of them.
+fn git_options(args: &[&Word], verdict: &mut Verdict) {
+    let mut at = 0;
+    while let Some(arg) = args.get(at) {
+        let text = arg.text.as_str();
+        if !text.starts_with('-') {
+            break;
+        }
+        let (flag, inline) = match text.split_once('=') {
+            Some((flag, value)) if flag.starts_with("--") => (flag, Some((value, arg.dynamic))),
+            _ => (text, None),
+        };
+        let takes_value = matches!(
+            flag,
+            "-C" | "-c" | "--git-dir" | "--work-tree" | "--namespace" | "--config-env"
+        ) && inline.is_none();
+        let value = inline.or_else(|| {
+            takes_value
+                .then(|| args.get(at + 1))
+                .flatten()
+                .map(|w| (w.text.as_str(), w.dynamic))
+        });
+        match (flag, value) {
+            ("-c" | "--config-env", Some((setting, dynamic))) => {
+                let key = setting.split_once('=').map_or(setting, |(key, _)| key);
+                if dynamic || git_key_runs_program(key) {
+                    verdict.add(
+                        Risk::High,
+                        format!("The command sets the git option {key}, which can run a program."),
+                    );
+                } else {
+                    verdict.add(
+                        Risk::Unknown,
+                        format!("The command sets the git option {key} for this call."),
+                    );
+                }
+            }
+            ("-c" | "--config-env", None) => {
+                verdict.add(
+                    Risk::Unknown,
+                    "The command sets a git option for this call.",
+                );
+            }
+            ("--exec-path", Some(_)) => verdict.add(
+                Risk::High,
+                "The command runs the programs of git from another directory.",
+            ),
+            _ => {}
+        }
+        at += if takes_value { 2 } else { 1 };
+    }
 }
 
 /// Splits the arguments of `cargo`: a toolchain `+nightly` and options come before the subcommand.

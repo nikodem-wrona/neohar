@@ -93,6 +93,8 @@ for you.** Looking means that the window has the focus and the pane has the keyb
 The card shows the command or the diff, its risk and the last lines of the pane. At a **high**
 risk, Deny starts selected, a number key only selects, and Enter on the button answers. "Display
 only" means the agent is not linked to its pane: answer in the pane, or run `nh agent link`.
+Invisible characters, such as the direction control U+202E, show as escapes like `<U+202E>`,
+and they make the risk high.
 
 Under the card, neohar says what became of your answer: delivered, answered in the pane, or
 "Couldn't confirm your answer reached …". In that last case, look at the pane: neohar never sends

@@ -480,9 +480,12 @@ fn turn_ended(state: &State, run: RunId) -> Option<HostNotification> {
 fn work(state: &State, run: &crate::agents::runs::Run) -> String {
     run.pane
         .and_then(|pane| state.layout.panes.get(&pane))
-        .and_then(|entry| entry.facts.title.clone())
+        .and_then(|entry| entry.facts.title.as_deref())
         .filter(|title| !title.is_empty())
-        .unwrap_or_else(|| harness_name(run.harness).to_owned())
+        .map_or_else(
+            || harness_name(run.harness).to_owned(),
+            |title| nh_rich::visible(title).into_owned(),
+        )
 }
 
 /// The words of a notification. The urgency follows the risk. Only an

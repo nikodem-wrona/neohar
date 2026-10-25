@@ -113,3 +113,59 @@ fn tabs_and_line_ends_stay() {
         "a\tb\nc\r\nd"
     );
 }
+
+#[test]
+fn invisible_characters_become_visible_escapes() {
+    // The name shows as `photodnammoc.png` when the override works.
+    assert_eq!(
+        visible("photo\u{202E}gnp.command"),
+        "photo<U+202E>gnp.command"
+    );
+    for ch in [
+        '\u{200B}',
+        '\u{200F}',
+        '\u{2066}',
+        '\u{2069}',
+        '\u{2060}',
+        '\u{FEFF}',
+        '\u{2028}',
+        '\u{2029}',
+        '\u{E0041}',
+        '\u{00AD}',
+    ] {
+        assert!(is_invisible(ch), "{:04X}", u32::from(ch));
+        assert!(
+            visible(&format!("a{ch}b")).contains("<U+"),
+            "{:04X}",
+            u32::from(ch)
+        );
+    }
+    // Control characters too. A tab stays, and a line feed stays only in text with lines.
+    assert_eq!(visible("a\u{1b}[2Kb\tc\nd"), "a<U+001B>[2Kb\tc<U+000A>d");
+    assert_eq!(
+        visible_lines("a\u{1b}b\tc\nd\re"),
+        "a<U+001B>b\tc\nd<U+000D>e"
+    );
+    // Text without them is not copied, and the letters of other scripts stay.
+    assert!(matches!(visible("ls -la"), std::borrow::Cow::Borrowed(_)));
+    assert_eq!(visible("日本 é 😀"), "日本 é 😀");
+}
+
+#[test]
+fn the_ranges_of_highlighted_text_move_with_the_escapes() {
+    let span = |start, end, class| crate::Span { start, end, class };
+    let spans = crate::Spans {
+        text: "echo \u{202E}x😀 y".to_owned(),
+        // `x😀` starts after the override, which is one unit.
+        spans: vec![span(0, 4, "c"), span(6, 9, "s"), span(10, 11, "y")],
+    };
+    let shown = visible_spans(spans);
+    assert_eq!(shown.text, "echo <U+202E>x😀 y");
+    let units: Vec<u16> = shown.text.encode_utf16().collect();
+    let pieces: Vec<String> = shown
+        .spans
+        .iter()
+        .map(|s| String::from_utf16(&units[s.start as usize..s.end as usize]).expect("text"))
+        .collect();
+    assert_eq!(pieces, ["echo", "x😀", "y"]);
+}

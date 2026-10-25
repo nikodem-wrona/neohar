@@ -626,6 +626,82 @@ fn the_policy_hint_names_the_rule() {
     assert_eq!(hint("sudo ls"), None);
 }
 
+#[test]
+fn a_config_option_of_git_that_runs_a_program_is_high() {
+    check(
+        Risk::High,
+        &[
+            "git -c core.fsmonitor='sh /tmp/p' status",
+            "git -c core.pager=less log",
+            "git -c core.sshCommand=x fetch",
+            "git -c alias.st='!sh /tmp/p' st",
+            "git -c diff.external=/tmp/p diff",
+            "git -c core.hooksPath=/tmp/h commit -m x",
+            "git -c filter.lfs.smudge=x checkout .",
+            "git -c diff.x.textconv=/tmp/p diff",
+            "git -c include.path=/tmp/c status",
+            "git --config-env=core.pager=PAGER log",
+            "git --exec-path=/tmp/x status",
+        ],
+    );
+    // Another option of the configuration is not called safe either.
+    check(Risk::Unknown, &["git -c color.ui=always status"]);
+    // `-C` names the directory, not an option.
+    check(Risk::Low, &["git -C src status"]);
+}
+
+#[test]
+fn an_invisible_character_makes_a_command_high_and_shows_as_an_escape() {
+    let command = explain_in("echo photo\u{202E}gnp.command", WORKSPACE);
+    assert_eq!(command.risk, Risk::High);
+    assert!(
+        command.reasons.iter().any(|r| r.contains("U+202E")),
+        "{:?}",
+        command.reasons
+    );
+    assert_eq!(command.display.text, "echo photo<U+202E>gnp.command");
+    assert_eq!(command.policy_hint, None);
+    for hidden in ["ls\u{200B}", "ls \u{2066}x", "ls\u{FEFF}"] {
+        assert_eq!(risk(hidden), Risk::High, "{hidden:?}");
+    }
+}
+
+#[test]
+fn a_link_in_the_workspace_that_leads_out_of_it_is_outside() {
+    let base = std::env::temp_dir().join(format!("nh-rich-link-{}", std::process::id()));
+    let workspace = base.join("app");
+    let home = base.join("home");
+    std::fs::create_dir_all(workspace.join("src")).expect("workspace");
+    std::fs::create_dir_all(&home).expect("home");
+    std::os::unix::fs::symlink(&home, workspace.join("src/link")).expect("link");
+    // A link to a file that does not exist yet: a write makes it outside.
+    std::os::unix::fs::symlink(home.join("new"), workspace.join("src/dangling")).expect("link");
+    let project = project();
+    let ctx = Context {
+        workspace: &workspace,
+        cwd: &workspace,
+        home: Some(&home),
+        project: &project,
+        network_allow: &[],
+    };
+    let outside = assess_paths(&["src/link/.zshrc"], &ctx);
+    let dangling = assess_paths(&["src/dangling"], &ctx);
+    let inside = assess_paths(&["src/main.rs"], &ctx);
+    let written = assess_command("echo x > src/link/.zshrc", &ctx);
+    let secret = assess_paths(&["src/link/.ssh/config"], &ctx);
+    std::fs::remove_dir_all(&base).expect("clean up");
+    assert_eq!(outside.risk, Risk::High, "{:?}", outside.reasons);
+    assert!(
+        outside.reasons.iter().any(|r| r.contains("a link to")),
+        "{:?}",
+        outside.reasons
+    );
+    assert_eq!(dangling.risk, Risk::High, "{:?}", dangling.reasons);
+    assert_eq!(inside.risk, Risk::Unknown, "{:?}", inside.reasons);
+    assert_eq!(written.risk, Risk::High, "{:?}", written.reasons);
+    assert_eq!(secret.risk, Risk::High, "{:?}", secret.reasons);
+}
+
 fn marked(command: &Command) -> Vec<(&str, &'static str)> {
     let units: Vec<u16> = command.display.text.encode_utf16().collect();
     let text = &command.display.text;
