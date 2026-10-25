@@ -55,7 +55,7 @@ A change to the API in `nh-proto` has three generated outputs. Make all three in
 - **Conventional Commits.** Write each commit message as `<type>(<scope>): <description>`. The types and the scopes are in `scripts/commits.ts`. The description is an STE instruction that starts with a verb in lowercase and has no period. The header has at most 72 characters.
 - **The checks.** The commit-msg hook in `.githooks/` refuses a message with a fault. If it refuses your message, correct the message and commit again. Do not use `--no-verify`: `mise run check` and CI lint the commits again.
 - **The type sets the version.** `feat` makes a minor release. `fix`, `perf` and `revert` make a patch release. A breaking change of the public interface gets a `!` and a `BREAKING CHANGE:` footer, and makes a major release. CONTRIBUTING.md tells what the public interface is. Do not put a feature in a `fix`, a `refactor` or a `chore`.
-- **Never change a version by hand.** Only `mise run release` writes the version, the sections of `CHANGELOG.md` and the tags `v*`. Run it only when the maintainer asks for a release. Then run `mise run check` and `mise run test`, and push with `git push --atomic origin main vX.Y.Z`. The tag publishes the GitHub release.
+- **Never change a version by hand.** Only `mise run release` writes the version, the sections of `CHANGELOG.md` and the tags `v*`. Run it only when the maintainer asks for a release. Then run `mise run check` and `mise run test`, and push with `git push --atomic origin main vX.Y.Z`. The tag publishes the GitHub release with the DMG of the app.
 - **Linear history.** Make no merge commits. Squash each `fixup!` commit before you push to `main`.
 
 ## Scope and fixed choices

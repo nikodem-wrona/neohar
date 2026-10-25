@@ -14,7 +14,7 @@ Your agents continue to run when the app quits. Their requests come to you, also
 ![Platform: macOS](https://img.shields.io/badge/platform-macOS-lightgrey.svg)
 ![Harnesses: Claude Code and Codex](https://img.shields.io/badge/harnesses-Claude%20Code%20%7C%20Codex-8a63d2.svg)
 
-[Install](#install-from-source) · [Quick start](#quick-start) · [How it works](#how-it-works) · [Documentation](#documentation) · [Contributing](CONTRIBUTING.md)
+[Install](#install) · [Quick start](#quick-start) · [How it works](#how-it-works) · [Documentation](#documentation) · [Contributing](CONTRIBUTING.md)
 
 </div>
 
@@ -100,7 +100,7 @@ flowchart LR
 |---|---|
 | Version | The [latest release](https://github.com/nikodem-wrona/neohar/releases/latest). neohar uses Semantic Versioning, and [CHANGELOG.md](CHANGELOG.md) records each release |
 | macOS | The only tested platform, on Apple Silicon |
-| Builds | Ad-hoc signed and not notarized. You build the app from source. There is no download and no updater |
+| Builds | Each release has a DMG for Apple Silicon. The DMG and a build from source are ad-hoc signed and not notarized. There is no updater |
 | Linux | Not tested. The app can possibly build, but nobody verified it. Notifications are not built for Linux |
 | Windows | Not a target. The core uses Unix sockets and PTYs |
 | Claude Code | Validated: 2.1.x (recorded with 2.1.292) |
@@ -108,7 +108,16 @@ flowchart LR
 
 neohar only observes a harness version that it did not validate: it shows the state, but it does not hold or answer the requests. [`golden-coverage.toml`](crates/nh-agents/golden-coverage.toml) lists the validated versions.
 
-## Install from source
+## Install
+
+1. Download the DMG from the [latest release](https://github.com/nikodem-wrona/neohar/releases/latest).
+2. Open the DMG and drag neohar to the Applications folder.
+3. Remove the quarantine attribute of the download: `xattr -dr com.apple.quarantine /Applications/neohar.app`.
+4. Open neohar from the Applications folder, not from the DMG.
+
+Apple did not notarize the app, so without step 3 macOS refuses to open it. The DMG is for Apple Silicon. On an Intel Mac, install from source.
+
+### Install from source
 
 You need these programs:
 
@@ -131,7 +140,7 @@ The build has an ad-hoc signature and is not notarized, so use it on the Mac tha
 
 ## Quick start
 
-1. Open the app: `open ~/Applications/neohar.app`.
+1. Open neohar from the Applications folder.
 2. Click **New workspace** at the bottom of the left column. You get a pane with your login shell.
 3. Put `~/.local/bin` on your `PATH`, so that your shell finds `nh`.
 4. Install the hooks of Claude Code and Codex: `nh integration install all`.

@@ -10,6 +10,12 @@ not edit a released section. A note under Unreleased goes to the top of the next
 
 ## [Unreleased]
 
+This release is the first with a DMG for Apple silicon. The DMG has an ad-hoc signature, and Apple
+did not notarize it. Drag neohar to the Applications folder. Then run
+`xattr -dr com.apple.quarantine /Applications/neohar.app`, because without it macOS refuses to open
+the app. [Install the app](https://github.com/nikodem-wrona/neohar/blob/main/website/docs/guides/install.md)
+tells more.
+
 Read this before you update. This release closes the findings of a security review, and some of
 the fixes change what you do:
 

@@ -4,9 +4,12 @@
 # 1. verify: the tag is the release commit "chore(release): X.Y.Z" on main, and every version
 #    file and CHANGELOG.md agree with it (scripts/release.ts --check --tag).
 # 2. ci: the same check and tests as a push to main (ci.yml), on the tagged commit.
-# 3. publish: the GitHub release, with the section of the version in CHANGELOG.md as its text.
+# 3. build: the DMG of neohar.app for Apple silicon (mise run build:dmg), at the same time as ci.
+# 4. publish: the GitHub release, with the section of the version in CHANGELOG.md as its text and
+#    the DMG as its file. It starts only when ci and build pass.
 #
-# The release has no binaries: builds have an ad-hoc signature and are for local use only.
+# The DMG has an ad-hoc signature, and Apple does not notarize it. Gatekeeper blocks the first
+# launch of a downloaded copy, so the install guide tells the person how to open it.
 name: release
 
 on:
@@ -36,9 +39,34 @@ jobs:
     needs: verify
     uses: ./.github/workflows/ci.yml
 
+  build:
+    name: build the DMG
+    needs: verify
+    runs-on: macos-15
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      # No cache of the Rust or Bun builds: the DMG comes from the locked sources only.
+      - uses: jdx/mise-action@82a612c5ab8bcda7cc5db6b7e81a8e7584c3dc6e # v5
+
+      - run: bun install --frozen-lockfile
+
+      - run: mise run build:dmg
+
+      - name: Check the signature
+        run: codesign --verify --deep --strict --verbose=2 target/release/bundle/macos/neohar.app
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: dmg
+          path: target/release/bundle/dmg/neohar_*.dmg
+          if-no-files-found: error
+          retention-days: 7
+
   publish:
     name: publish the release
-    needs: ci
+    needs: [ci, build]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -50,6 +78,11 @@ jobs:
         with:
           install_args: bun
 
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: dmg
+          path: ${{ runner.temp }}/dmg
+
       - name: Publish
         env:
           GH_TOKEN: ${{ github.token }}
@@ -57,4 +90,4 @@ jobs:
           version="${GITHUB_REF_NAME#v}"
           bun scripts/release.ts --notes "$version" > "$RUNNER_TEMP/notes.md"
           gh release create "$GITHUB_REF_NAME" --verify-tag --title "neohar $version" \
-            --notes-file "$RUNNER_TEMP/notes.md"
+            --notes-file "$RUNNER_TEMP/notes.md" "$RUNNER_TEMP/dmg/neohar_${version}_aarch64.dmg"

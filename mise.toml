@@ -164,6 +164,13 @@ env = { NEOHAR_WEB_DIST = "{{config_root}}/target/web-dist" }
 dir = "apps/desktop"
 run = "cargo tauri build --bundles app -c src-tauri/tauri.bundle.conf.json"
 
+[tasks."build:dmg"]
+description = "Build the ad-hoc signed neohar.app and its DMG for a release (release workflow). The DMG is under target/release/bundle/dmg"
+depends = ["build:wasm", "build:web", "build:sidecar"]
+env = { NEOHAR_WEB_DIST = "{{config_root}}/target/web-dist" }
+dir = "apps/desktop"
+run = "cargo tauri build --bundles app,dmg -c src-tauri/tauri.bundle.conf.json"
+
 [tasks."test:transport"]
 description = "The WebSocketTransport in WebKit against a headless core: a snapshot, then a patch after a CLI call (local, needs node)"
 run = "bash scripts/test-transport.sh"
