@@ -25,7 +25,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use nh_proto::paths::{Env, validate_session_name};
+use nh_proto::paths::{Env, PathsError, validate_session_name};
 
 /// The protocols that this bridge can carry. It copies bytes, so the list says which clients this
 /// version of `nh` serves.
@@ -66,7 +66,16 @@ pub fn main(args: &[String]) -> ExitCode {
     if let Err(error) = validate_session_name(&session) {
         return fail(&error.to_string());
     }
-    let path = match Env::from_process().link_socket(&session) {
+    let env = Env::from_process();
+    // On a host without `XDG_RUNTIME_DIR` the root is in `/tmp`, where another user can make it
+    // first and serve a fake core in it. A missing root means that no core ran here: the daemon
+    // makes the root and checks it.
+    if let Err(error) = env.verify_runtime_root()
+        && !matches!(&error, PathsError::Io { source, .. } if source.kind() == io::ErrorKind::NotFound)
+    {
+        return fail(&error.to_string());
+    }
+    let path = match env.link_socket(&session) {
         Ok(path) => path,
         Err(error) => return fail(&error.to_string()),
     };
@@ -97,9 +106,10 @@ fn nobody(error: &io::Error) -> bool {
 }
 
 /// Connects to `link.sock`. When no core answers, it starts a daemon and tries again until
-/// [`START_WAIT`] is over.
+/// [`START_WAIT`] is over. Each connect checks the directory of the socket and the user of the
+/// core ([`crate::peer::connect`]).
 fn connect_or_start(path: &Path, session: &str) -> Result<UnixStream, String> {
-    match UnixStream::connect(path) {
+    match crate::peer::connect(path) {
         Ok(stream) => return Ok(stream),
         Err(error) if nobody(&error) => {}
         Err(error) => return Err(format!("{}: {error}", path.display())),
@@ -107,7 +117,7 @@ fn connect_or_start(path: &Path, session: &str) -> Result<UnixStream, String> {
     let deadline = Instant::now() + START_WAIT;
     let started = start_daemon(session, deadline);
     loop {
-        match UnixStream::connect(path) {
+        match crate::peer::connect(path) {
             Ok(stream) => {
                 // Another bridge started a daemon at the same moment, and its daemon won.
                 if let Err(reason) = &started {

@@ -461,7 +461,12 @@ fn exchange(socket: &Path, request: &[u8]) -> io::Result<()> {
 /// `connect` to a Unix socket with a time limit. `UnixStream::connect` cannot stop: with a full
 /// backlog it waits on Linux. A socket in non-blocking mode answers `EAGAIN` at once, and the
 /// shim tries again until the limit.
+///
+/// The socket must be in a directory that no other user can change, and a process of this user
+/// must serve it: a fake core of another user would get the payload and the token, and could
+/// answer a gate with a decision. The checks are one `lstat` and one `getpeereid`.
 fn connect_with_timeout(path: &Path, timeout: Duration) -> io::Result<UnixStream> {
+    crate::peer::before_connect(path)?;
     let address = SocketAddrUnix::new(path)?;
     let fd = socket(AddressFamily::UNIX, SocketType::STREAM, None)?;
     ioctl_fionbio(&fd, true)?;
@@ -476,7 +481,9 @@ fn connect_with_timeout(path: &Path, timeout: Duration) -> io::Result<UnixStream
         }
     }
     ioctl_fionbio(&fd, false)?;
-    Ok(UnixStream::from(fd))
+    let stream = UnixStream::from(fd);
+    crate::peer::after_connect(&stream, path)?;
+    Ok(stream)
 }
 
 #[cfg(test)]

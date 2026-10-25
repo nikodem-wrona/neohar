@@ -385,11 +385,10 @@ pub fn run() {
             let connect_link = || {
                 let (handle, host, hello) =
                     (app.handle().clone(), Arc::clone(&setup_host), hello.clone());
-                let socket = paths.link_socket(&session);
+                let (paths, session) = (paths.clone(), session.clone());
                 async move {
-                    let socket = socket
-                        .map_err(|error| nh_remote::LinkError::Io(std::io::Error::other(error)))?;
-                    backend::connect(&socket, hello, move || {
+                    // It checks the runtime root first: the core of the app has not checked it yet.
+                    backend::connect(&paths, &session, hello, move || {
                         // The core asks the host for its notification capabilities after
                         // `Welcome`, so the notification centre must be up.
                         host.attach(handle);

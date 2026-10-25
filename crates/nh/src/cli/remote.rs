@@ -214,7 +214,12 @@ pub fn run(
             ))
         })?
         .machine;
-    let runtime = env.paths.runtime_root().map_err(usage)?;
+    // ssh puts its ControlPath socket under `<runtime>/ssh` and connects to whatever is there, so
+    // the root must be a directory of this user that nobody else can change.
+    let runtime = env
+        .paths
+        .ensure_runtime_root()
+        .map_err(|e| CliError::Failed(e.to_string()))?;
     let spec = SshSpec::new(
         machine.ssh.clone(),
         machine.session.clone(),

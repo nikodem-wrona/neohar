@@ -53,7 +53,12 @@ struct Proxy {
 impl Proxy {
     fn start(target: &Path) -> Self {
         let n = COUNTER.fetch_add(1, Ordering::Relaxed);
-        let path = PathBuf::from(format!("/tmp/nhp-{}-{n}.sock", std::process::id()));
+        // Next to `link.sock`: a client refuses a socket in a directory that other users can
+        // write, such as `/tmp`.
+        let path = target
+            .parent()
+            .expect("link.sock is in a directory")
+            .join(format!("proxy-{n}.sock"));
         let _ = std::fs::remove_file(&path);
         let listener = UnixListener::bind(&path).expect("the proxy listens");
         let target = Arc::new(Mutex::new(target.to_owned()));

@@ -8,7 +8,10 @@ mod core_support;
 
 use std::{
     io::{BufRead, BufReader, Read, Write},
-    os::unix::net::{UnixListener, UnixStream},
+    os::unix::{
+        fs::PermissionsExt,
+        net::{UnixListener, UnixStream},
+    },
     path::{Path, PathBuf},
     process::{Command, Stdio},
     sync::atomic::{AtomicU32, Ordering},
@@ -34,6 +37,8 @@ impl Dir {
         ));
         let _ = std::fs::remove_dir_all(&path);
         std::fs::create_dir_all(&path).expect("a directory");
+        // The shim refuses a socket in a directory that other users can write, whatever the umask.
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o700)).expect("the mode");
         Self(path)
     }
 
@@ -179,6 +184,27 @@ fn outside_neohar_the_shim_connects_to_nothing_and_prints_nothing() {
     let run = run_shim(&["claude", "Stop"], &env, br#"{"a":1}"#);
     run.assert_silent_success();
     // A connection that the shim had made would wait in the queue of the listener.
+    assert_eq!(
+        listener.accept().expect_err("no connection").kind(),
+        std::io::ErrorKind::WouldBlock
+    );
+}
+
+#[test]
+fn the_shim_sends_nothing_to_a_socket_in_a_directory_that_others_can_write() {
+    let dir = Dir::new();
+    std::fs::set_permissions(&dir.0, std::fs::Permissions::from_mode(0o777)).expect("the mode");
+    let socket = dir.join("api.sock");
+    let listener = UnixListener::bind(&socket).expect("a socket");
+    listener.set_nonblocking(true).expect("non-blocking");
+    let token = PathBuf::from("pane-token-1");
+    let run = run_shim(
+        &["claude", "PreToolUse"],
+        &pane_env(&socket, &token),
+        br#"{"tool_name":"Bash","tool_input":{"command":"ls"}}"#,
+    );
+    run.assert_silent_success();
+    // Another user could have made the socket there, so the shim did not connect.
     assert_eq!(
         listener.accept().expect_err("no connection").kind(),
         std::io::ErrorKind::WouldBlock

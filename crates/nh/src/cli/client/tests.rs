@@ -115,3 +115,28 @@ fn nobody_at_the_socket_is_not_running() {
     ));
     let _ = std::fs::remove_file(&stale);
 }
+
+#[test]
+fn a_socket_in_a_directory_that_others_can_write_is_refused() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let dir = std::env::temp_dir().join(format!("nhcli-open{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir(&dir).expect("a directory");
+    std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o777)).expect("the mode");
+    let socket = dir.join("api.sock");
+    let _listener = std::os::unix::net::UnixListener::bind(&socket).expect("a socket");
+    let refused = Client::connect(&socket, WAIT);
+    let _ = std::fs::remove_dir_all(&dir);
+    match refused {
+        Err(CallError::Io(error)) => {
+            assert_eq!(
+                error.kind(),
+                std::io::ErrorKind::PermissionDenied,
+                "{error}"
+            );
+        }
+        Err(other) => panic!("another error: {other:?}"),
+        Ok(_) => panic!("the CLI connected to a socket that another user could have made"),
+    }
+}

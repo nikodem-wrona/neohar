@@ -188,14 +188,19 @@ impl std::fmt::Debug for LinkClient {
 }
 
 impl LinkClient {
-    /// Opens a link on `link.sock`.
+    /// Opens a link on `link.sock`. The directory of the socket must be closed to other users,
+    /// and a process of this user must serve it: the link carries every key and paste of the
+    /// client. A refusal is a [`LinkError::Io`] of kind `PermissionDenied`.
     pub async fn connect_unix(
         path: &Path,
         hello: ClientHello,
         host: Arc<dyn Host>,
         options: ClientOptions,
     ) -> Result<Self, LinkError> {
+        nh_proto::paths::check_socket_parent(path).map_err(std::io::Error::from)?;
         let stream = UnixStream::connect(path).await?;
+        nh_proto::paths::check_peer(path, stream.peer_cred()?.uid())
+            .map_err(std::io::Error::from)?;
         let (read, write) = stream.into_split();
         Self::connect(read, write, hello, host, options).await
     }

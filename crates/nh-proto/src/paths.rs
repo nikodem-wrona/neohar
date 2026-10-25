@@ -39,6 +39,14 @@ pub enum PathsError {
     NoHome,
     #[error("the runtime directory {path} is not safe: {problem}")]
     UnsafeRuntimeRoot { path: PathBuf, problem: RootProblem },
+    #[error("the directory {path} of a socket is not safe: {problem}")]
+    UnsafeSocketDir { path: PathBuf, problem: RootProblem },
+    #[error("the process that serves {path} belongs to user {found}, not to user {expected}")]
+    ForeignPeer {
+        path: PathBuf,
+        found: u32,
+        expected: u32,
+    },
     #[error("cannot prepare {path}: {source}")]
     Io {
         path: PathBuf,
@@ -57,6 +65,25 @@ pub enum RootProblem {
     WrongOwner { found: u32, expected: u32 },
     #[error("its mode is {found:04o}, not 0700")]
     WrongMode { found: u32 },
+    #[error("other users can write in it (mode {found:04o})")]
+    WritableByOthers { found: u32 },
+}
+
+impl From<PathsError> for std::io::Error {
+    /// An error of the file system keeps its kind, so that a client can still tell a missing
+    /// socket from a refusal. A directory or a peer that is not safe is `PermissionDenied`.
+    fn from(error: PathsError) -> Self {
+        let kind = match &error {
+            PathsError::Io { source, .. } => source.kind(),
+            PathsError::InvalidSession { .. } | PathsError::NoHome => {
+                std::io::ErrorKind::InvalidInput
+            }
+            PathsError::UnsafeRuntimeRoot { .. }
+            | PathsError::UnsafeSocketDir { .. }
+            | PathsError::ForeignPeer { .. } => std::io::ErrorKind::PermissionDenied,
+        };
+        Self::new(kind, error)
+    }
 }
 
 /// The kind of file at the runtime root, as `lstat` reports it.
@@ -93,6 +120,79 @@ pub fn check_runtime_root(meta: RootMeta, uid: u32) -> Result<(), RootProblem> {
         }),
         FileKind::Directory => Ok(()),
     }
+}
+
+/// Checks the directory of a socket before a client connects to it: a real directory that `uid`
+/// owns, in which no other user can write. Then no other user can have put the socket there or
+/// replaced it. The runtime root and the directories of the sessions have mode 0700, so they pass.
+pub fn check_socket_dir(meta: RootMeta, uid: u32) -> Result<(), RootProblem> {
+    match meta.kind {
+        FileKind::Symlink => Err(RootProblem::Symlink),
+        FileKind::Other => Err(RootProblem::NotADirectory),
+        FileKind::Directory if meta.uid != uid => Err(RootProblem::WrongOwner {
+            found: meta.uid,
+            expected: uid,
+        }),
+        FileKind::Directory if meta.mode & 0o022 != 0 => Err(RootProblem::WritableByOthers {
+            found: meta.mode & 0o7777,
+        }),
+        FileKind::Directory => Ok(()),
+    }
+}
+
+/// Checks the user of the process that serves a socket, after a client connected to it. Only a
+/// process of `uid` may get what the client sends.
+pub fn check_peer_uid(socket: &Path, peer: u32, uid: u32) -> Result<(), PathsError> {
+    if peer == uid {
+        Ok(())
+    } else {
+        Err(PathsError::ForeignPeer {
+            path: socket.to_owned(),
+            found: peer,
+            expected: uid,
+        })
+    }
+}
+
+/// The `lstat` facts of `path`.
+#[cfg(unix)]
+fn lstat(path: &Path) -> Result<RootMeta, PathsError> {
+    use std::os::unix::fs::MetadataExt;
+
+    let meta = std::fs::symlink_metadata(path).map_err(|source| PathsError::Io {
+        path: path.to_owned(),
+        source,
+    })?;
+    let kind = match meta.file_type() {
+        t if t.is_symlink() => FileKind::Symlink,
+        t if t.is_dir() => FileKind::Directory,
+        _ => FileKind::Other,
+    };
+    Ok(RootMeta {
+        kind,
+        uid: meta.uid(),
+        mode: meta.mode(),
+    })
+}
+
+/// [`check_socket_dir`] on the directory of `socket`, for the user of this process. It is one
+/// `lstat`, so the hook shim can afford it. A missing directory is an [`PathsError::Io`] of kind
+/// `NotFound`: no core serves the socket.
+#[cfg(unix)]
+pub fn check_socket_parent(socket: &Path) -> Result<(), PathsError> {
+    let dir = match socket.parent() {
+        Some(dir) if !dir.as_os_str().is_empty() => dir,
+        _ => Path::new("."),
+    };
+    check_socket_dir(lstat(dir)?, current_uid()).map_err(|problem| PathsError::UnsafeSocketDir {
+        path: dir.to_owned(),
+        problem,
+    })
+}
+
+/// [`check_peer_uid`] for the user of this process.
+pub fn check_peer(socket: &Path, peer: u32) -> Result<(), PathsError> {
+    check_peer_uid(socket, peer, current_uid())
 }
 
 /// Checks a session name: 1 to 32 characters from `a-z`, `0-9` and `-`.
@@ -275,35 +375,31 @@ impl Env {
     /// It refuses a root that is a symbolic link, belongs to another user, or has another mode.
     #[cfg(unix)]
     pub fn ensure_runtime_root(&self) -> Result<PathBuf, PathsError> {
-        use std::os::unix::fs::{DirBuilderExt, MetadataExt};
+        use std::os::unix::fs::DirBuilderExt;
 
         let root = self.runtime_root()?;
-        let io = |source| PathsError::Io {
-            path: root.clone(),
-            source,
-        };
         std::fs::DirBuilder::new()
             .recursive(true)
             .mode(0o700)
             .create(&root)
-            .map_err(io)?;
-        let meta = std::fs::symlink_metadata(&root).map_err(io)?;
-        let kind = match meta.file_type() {
-            t if t.is_symlink() => FileKind::Symlink,
-            t if t.is_dir() => FileKind::Directory,
-            _ => FileKind::Other,
-        };
-        check_runtime_root(
-            RootMeta {
-                kind,
-                uid: meta.uid(),
-                mode: meta.mode(),
-            },
-            self.uid,
-        )
-        .map_err(|problem| PathsError::UnsafeRuntimeRoot {
-            path: root.clone(),
-            problem,
+            .map_err(|source| PathsError::Io {
+                path: root.clone(),
+                source,
+            })?;
+        self.verify_runtime_root()
+    }
+
+    /// Checks the runtime root as [`Env::ensure_runtime_root`] does, but creates nothing. A client
+    /// calls it before it connects to a socket of a core. A missing root is an
+    /// [`PathsError::Io`] of kind `NotFound`: no core runs.
+    #[cfg(unix)]
+    pub fn verify_runtime_root(&self) -> Result<PathBuf, PathsError> {
+        let root = self.runtime_root()?;
+        check_runtime_root(lstat(&root)?, self.uid).map_err(|problem| {
+            PathsError::UnsafeRuntimeRoot {
+                path: root.clone(),
+                problem,
+            }
         })?;
         Ok(root)
     }
@@ -625,6 +721,107 @@ mod tests {
         );
     }
 
+    #[test]
+    fn the_directory_of_a_socket_must_be_owned_by_the_user_and_closed_to_other_writers() {
+        let good = RootMeta {
+            kind: FileKind::Directory,
+            uid: 501,
+            mode: 0o40700,
+        };
+        assert_eq!(check_socket_dir(good, 501), Ok(()));
+        // Others may read and enter, but not write.
+        assert_eq!(
+            check_socket_dir(
+                RootMeta {
+                    mode: 0o755,
+                    ..good
+                },
+                501
+            ),
+            Ok(())
+        );
+        assert_eq!(
+            check_socket_dir(
+                RootMeta {
+                    kind: FileKind::Symlink,
+                    ..good
+                },
+                501
+            ),
+            Err(RootProblem::Symlink)
+        );
+        assert_eq!(
+            check_socket_dir(
+                RootMeta {
+                    kind: FileKind::Other,
+                    ..good
+                },
+                501
+            ),
+            Err(RootProblem::NotADirectory)
+        );
+        // `/tmp` belongs to root, and another user can have made a directory there first.
+        assert_eq!(
+            check_socket_dir(
+                RootMeta {
+                    uid: 502,
+                    mode: 0o700,
+                    ..good
+                },
+                501
+            ),
+            Err(RootProblem::WrongOwner {
+                found: 502,
+                expected: 501
+            })
+        );
+        for mode in [0o1777, 0o770, 0o702, 0o720] {
+            assert_eq!(
+                check_socket_dir(RootMeta { mode, ..good }, 501),
+                Err(RootProblem::WritableByOthers { found: mode }),
+                "{mode:o}"
+            );
+        }
+    }
+
+    #[test]
+    fn only_a_process_of_the_user_may_serve_a_socket() {
+        let socket = Path::new("/tmp/neohar-501/default/link.sock");
+        assert!(check_peer_uid(socket, 501, 501).is_ok());
+        let error = check_peer_uid(socket, 502, 501).expect_err("another user");
+        assert!(matches!(
+            error,
+            PathsError::ForeignPeer {
+                found: 502,
+                expected: 501,
+                ..
+            }
+        ));
+        assert_eq!(
+            std::io::Error::from(error).kind(),
+            std::io::ErrorKind::PermissionDenied
+        );
+    }
+
+    #[test]
+    fn an_error_of_the_file_system_keeps_its_kind_as_an_io_error() {
+        let missing = PathsError::Io {
+            path: "/tmp/x".into(),
+            source: std::io::Error::from(std::io::ErrorKind::NotFound),
+        };
+        assert_eq!(
+            std::io::Error::from(missing).kind(),
+            std::io::ErrorKind::NotFound
+        );
+        let unsafe_root = PathsError::UnsafeRuntimeRoot {
+            path: "/tmp/neohar-501".into(),
+            problem: RootProblem::Symlink,
+        };
+        let error = std::io::Error::from(unsafe_root);
+        assert_eq!(error.kind(), std::io::ErrorKind::PermissionDenied);
+        assert!(error.to_string().contains("/tmp/neohar-501"), "{error}");
+    }
+
     #[cfg(unix)]
     mod on_disk {
         use std::{
@@ -714,6 +911,67 @@ mod tests {
                     ..
                 })
             ));
+        }
+
+        #[test]
+        fn verify_creates_nothing_and_refuses_what_ensure_refuses() {
+            let scratch = Scratch::new();
+            let root = scratch.0.join("run");
+            let e = env_with_root(&root);
+            let missing = e.verify_runtime_root().expect_err("no root yet");
+            assert_eq!(
+                std::io::Error::from(missing).kind(),
+                std::io::ErrorKind::NotFound
+            );
+            assert!(!root.exists(), "verify creates nothing");
+            fs::create_dir(&root).expect("the root is created");
+            fs::set_permissions(&root, fs::Permissions::from_mode(0o777)).expect("the mode is set");
+            assert!(matches!(
+                e.verify_runtime_root(),
+                Err(PathsError::UnsafeRuntimeRoot {
+                    problem: RootProblem::WrongMode { found: 0o777 },
+                    ..
+                })
+            ));
+            fs::set_permissions(&root, fs::Permissions::from_mode(0o700)).expect("the mode is set");
+            assert_eq!(e.verify_runtime_root().expect("a good root"), root);
+        }
+
+        #[test]
+        fn the_parent_of_a_socket_is_checked_without_following_a_link() {
+            let scratch = Scratch::new();
+            let dir = scratch.0.join("session");
+            fs::create_dir(&dir).expect("the directory is created");
+            fs::set_permissions(&dir, fs::Permissions::from_mode(0o700)).expect("the mode is set");
+            let socket = dir.join("link.sock");
+            check_socket_parent(&socket).expect("a private directory");
+
+            fs::set_permissions(&dir, fs::Permissions::from_mode(0o777)).expect("the mode is set");
+            assert!(matches!(
+                check_socket_parent(&socket),
+                Err(PathsError::UnsafeSocketDir {
+                    problem: RootProblem::WritableByOthers { found: 0o777 },
+                    ..
+                })
+            ));
+            fs::set_permissions(&dir, fs::Permissions::from_mode(0o700)).expect("the mode is set");
+
+            let link = scratch.0.join("link");
+            symlink(&dir, &link).expect("the link is created");
+            assert!(matches!(
+                check_socket_parent(&link.join("link.sock")),
+                Err(PathsError::UnsafeSocketDir {
+                    problem: RootProblem::Symlink,
+                    ..
+                })
+            ));
+
+            let gone = check_socket_parent(&scratch.0.join("nothing").join("link.sock"))
+                .expect_err("no directory");
+            assert_eq!(
+                std::io::Error::from(gone).kind(),
+                std::io::ErrorKind::NotFound
+            );
         }
 
         #[test]

@@ -320,8 +320,11 @@ fn errors_are_json_on_stderr_when_the_output_is_json() {
 
 #[test]
 fn no_core_is_exit_code_1_with_a_hint() {
+    // The temp dir of the user: the CLI refuses a socket directly in `/tmp`.
+    let nothing = std::env::temp_dir().join("nhcli-nothing.sock");
+    let nothing = nothing.to_str().expect("a UTF-8 path");
     let ran = run_with(
-        &["--socket", "/tmp/nhcli-nothing.sock", "session", "info"],
+        &["--socket", nothing, "session", "info"],
         &env(None, None),
         "",
         true,
@@ -329,7 +332,7 @@ fn no_core_is_exit_code_1_with_a_hint() {
     assert_eq!(ran.code, 1);
     assert_eq!(ran.out, "");
     assert!(
-        ran.err.contains("not running") && ran.err.contains("/tmp/nhcli-nothing.sock"),
+        ran.err.contains("not running") && ran.err.contains("nhcli-nothing.sock"),
         "{}",
         ran.err
     );

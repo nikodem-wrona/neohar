@@ -84,7 +84,7 @@ One module, [crates/nh-proto/src/paths.rs](https://github.com/nikodem-wrona/neoh
 | Data | `~/Library/Application Support/dev.neohar.app/<session>` | `$XDG_DATA_HOME/neohar/<session>` | `state.db`, `scrollback/`, `blobs/`, `logs/`, `shims/` |
 | Runtime | `/tmp/neohar-$UID/<session>` | `$XDG_RUNTIME_DIR/neohar/<session>` | `api.sock`, `link.sock`, `holders/<pane>.sock`, `ssh/` |
 
-- The macOS runtime root is under `/tmp`, because a socket path under `$TMPDIR` is longer than the macOS limit of 103 bytes. The core uses it only if it is a real directory of the user with mode 0700.
+- The macOS runtime root is under `/tmp`, because a socket path under `$TMPDIR` is longer than the macOS limit of 103 bytes. The core uses it only if it is a real directory of the user with mode 0700. Another user can make it first, so the clients check it too before they connect (see the security model).
 - `NEOHAR_CONFIG_DIR`, `NEOHAR_DATA_DIR` and `NEOHAR_RUNTIME_DIR` replace the roots. Every test sets all three, and a debug build refuses to start without them. `mise run app:dev` sets them under `target/dev-run`.
 
 ## Budgets
@@ -113,6 +113,7 @@ Not proven yet: GPU time of a draw, 120 Hz, the renderer on Linux, and the link 
 - **Agent output is untrusted.** Terminal bytes reach only the VT engine in Rust and a canvas. Markdown is cleaned by `ammonia` in `nh-rich`; card text is shown as text nodes, never `innerHTML`.
 - **The webview is sandboxed.** It may call three commands and nothing else; plugins are called from Rust only. The CSP allows no remote origin, and navigation stays inside the app. `mise run test:host` checks this in a real window.
 - **Only the user's processes reach the core.** Sockets have mode 0600 in 0700 directories, and the core checks the peer user id. A holder also needs a 32-byte secret and a fencing token.
+- **Only the user's core gets the data of a client.** The app, the CLI, the hook shim and `nh bridge` do not connect to a socket in a directory that another user owns or can write. After the connect, they close a socket that a process of another user serves, and send nothing to it. The app shows the problem and starts no core. `nh @<machine>` uses `ssh/` only in a safe runtime root.
 - **Scopes.** A request is `ui`, `cli`, `pane` (carries a pane token, may call only `adapter.*`), `phone` (a paired phone, may call only some methods) or `dev`. A request with a pane token cannot answer an interaction. A `cli` client whose parent processes include the holder of a pane may not answer interactions or weaken the approvals ([`in_pane.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-core/src/in_pane.rs)). This is not a sandbox: a process that leaves the process tree of its pane gets past it.
 - **Redaction.** `nh-redact` masks secrets in event payloads, logs and debug bundles. Scrollback and snapshots stay on disk as they are, with mode 0600.
 - **Links.** ssh authenticates the person. A client accepts only limited host requests from a remote core.

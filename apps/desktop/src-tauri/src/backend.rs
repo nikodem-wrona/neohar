@@ -12,13 +12,15 @@
 
 use std::{
     collections::{HashMap, VecDeque},
-    path::Path,
     sync::{Arc, Mutex, PoisonError},
     time::Duration,
 };
 
 use nh_core::{CoreHandle, FrameSink, Host, MessageSink, Origin, RpcError};
-use nh_proto::api::ids::WindowId;
+use nh_proto::{
+    api::ids::WindowId,
+    paths::{self, Env},
+};
 use nh_remote::{
     ClientHello, ClientOptions, Device, Link, LinkClient, LinkError, LinkTiming, PersistentLink,
 };
@@ -326,6 +328,9 @@ pub enum Launch<T> {
 pub fn launch_of<T>(outcome: Result<T, LinkError>, session: &str) -> Launch<T> {
     match outcome {
         Ok(client) => Launch::Client(client),
+        Err(LinkError::Io(error)) if error.kind() == std::io::ErrorKind::PermissionDenied => {
+            Launch::Refuse(unsafe_socket(session, &error))
+        }
         Err(LinkError::Io(error)) => Launch::StartCore(error.to_string()),
         Err(LinkError::Refused(reason)) => Launch::Refuse(format!(
             "the core that serves the session {session:?} refused this app ({reason}): their \
@@ -339,6 +344,17 @@ pub fn launch_of<T>(outcome: Result<T, LinkError>, session: &str) -> Launch<T> {
             "the core that serves the session {session:?} ended the link: {error}"
         )),
     }
+}
+
+/// The message when the runtime directory or `link.sock` of the session is not safe: another user
+/// of this Mac can have made it to get the keys of the app. The app neither connects nor starts a
+/// core there.
+fn unsafe_socket(session: &str, error: &std::io::Error) -> String {
+    format!(
+        "neohar does not use the session {session:?}: {error}. Another user of this Mac can have \
+         made it. Remove it, or set NEOHAR_RUNTIME_DIR to a directory of yours, and open neohar \
+         again."
+    )
 }
 
 /// How long the app tries `link.sock` again when its own core does not start because another
@@ -361,6 +377,9 @@ pub fn launch_when_busy<T>(
 ) -> Option<Result<T, String>> {
     match outcome {
         Ok(client) => Some(Ok(client)),
+        Err(LinkError::Io(error)) if error.kind() == std::io::ErrorKind::PermissionDenied => {
+            Some(Err(unsafe_socket(session, &error)))
+        }
         Err(LinkError::Io(_)) if !last => None,
         Err(LinkError::Io(error)) => Some(Err(format!(
             "another core holds the session {session:?}, and its link.sock does not take a \
@@ -397,19 +416,31 @@ where
     }
 }
 
-/// Connects to `link.sock`. `host` runs only when the socket takes the connection,
+/// Connects to `link.sock` of `session`. `host` runs only when the socket takes the connection,
 /// and gives the host that answers the host requests of the core. The core asks it for its
 /// notification capabilities at once, so the host must be ready.
+///
+/// The app connects before its own core checks the runtime root, and the root can be in `/tmp`,
+/// where another user can make it first and serve a fake core. So the root must pass the check of
+/// [`Env::verify_runtime_root`], the directory of the socket must be closed to other users, and a
+/// process of this user must serve the socket. A refusal is a [`LinkError::Io`] of kind
+/// `PermissionDenied`, and [`launch_of`] stops the app with it. A missing root is `NotFound`: no
+/// core ran.
 pub async fn connect(
-    socket: &Path,
+    paths: &Env,
+    session: &str,
     hello: ClientHello,
     host: impl FnOnce() -> Arc<dyn Host>,
 ) -> Result<LinkClient, LinkError> {
-    let stream = match tokio::time::timeout(CONNECT_WITHIN, UnixStream::connect(socket)).await {
+    paths.verify_runtime_root().map_err(std::io::Error::from)?;
+    let socket = paths.link_socket(session).map_err(std::io::Error::from)?;
+    paths::check_socket_parent(&socket).map_err(std::io::Error::from)?;
+    let stream = match tokio::time::timeout(CONNECT_WITHIN, UnixStream::connect(&socket)).await {
         Ok(Ok(stream)) => stream,
         Ok(Err(error)) => return Err(LinkError::Io(error)),
         Err(_) => return Err(LinkError::Timeout),
     };
+    paths::check_peer(&socket, stream.peer_cred()?.uid()).map_err(std::io::Error::from)?;
     let host = host();
     let (read, write) = stream.into_split();
     let options = ClientOptions {
@@ -537,6 +568,105 @@ mod tests {
             let outcome: Result<(), _> = Err(error);
             assert!(matches!(launch_of(outcome, session), Launch::Refuse(_)));
         }
+    }
+
+    #[test]
+    fn a_socket_that_is_not_safe_stops_the_app_and_starts_no_core() {
+        let session = "dev";
+        let unsafe_dir = || {
+            Err::<u8, _>(LinkError::Io(std::io::Error::new(
+                std::io::ErrorKind::PermissionDenied,
+                "the runtime directory /tmp/neohar-501 is not safe",
+            )))
+        };
+        match launch_of(unsafe_dir(), session) {
+            Launch::Refuse(message) => assert!(
+                message.contains("/tmp/neohar-501") && message.contains("Another user"),
+                "{message}"
+            ),
+            other => panic!("{other:?}"),
+        }
+        // Also while the app waits for a busy session: no retry.
+        assert!(matches!(
+            launch_when_busy(unsafe_dir(), session, false),
+            Some(Err(message)) if message.contains("not safe")
+        ));
+    }
+
+    /// A directory under `/tmp` (a socket path holds 103 bytes), removed on drop.
+    struct Scratch(std::path::PathBuf);
+
+    impl Drop for Scratch {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.0);
+        }
+    }
+
+    /// The runtime root with this mode in a new scratch directory, and an `Env` that uses it.
+    fn env_with_root(mode: u32) -> (Scratch, Env) {
+        use std::os::unix::fs::PermissionsExt;
+
+        static N: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+        let scratch = Scratch(std::path::PathBuf::from(format!(
+            "/tmp/nhb-{}-{}",
+            std::process::id(),
+            N.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+        )));
+        let _ = std::fs::remove_dir_all(&scratch.0);
+        let root = scratch.0.join("run");
+        std::fs::create_dir_all(&root).expect("the root");
+        std::fs::set_permissions(&root, std::fs::Permissions::from_mode(mode)).expect("the mode");
+        let mut env = Env::from_process();
+        env.runtime_override = Some(root);
+        (scratch, env)
+    }
+
+    fn hello() -> ClientHello {
+        ClientHello {
+            device: Ulid::nil(),
+            name: "test".to_owned(),
+            app_version: "0.0.0".to_owned(),
+        }
+    }
+
+    #[tokio::test]
+    async fn the_app_does_not_connect_to_a_link_sock_that_another_user_can_have_made() {
+        // A root that other users can write: another user could serve a fake core in it.
+        let (_dir, env) = env_with_root(0o777);
+        let socket = env.link_socket("dev").expect("a path");
+        std::fs::create_dir_all(socket.parent().expect("a parent")).expect("the session dir");
+        let listener = std::os::unix::net::UnixListener::bind(&socket).expect("a listener");
+        listener.set_nonblocking(true).expect("non-blocking");
+        let outcome = connect(&env, "dev", hello(), || {
+            panic!("the host is never made for a socket that is not safe")
+        })
+        .await;
+        match outcome {
+            Err(LinkError::Io(error)) => {
+                assert_eq!(
+                    error.kind(),
+                    std::io::ErrorKind::PermissionDenied,
+                    "{error}"
+                );
+            }
+            other => panic!("{other:?}"),
+        }
+        assert!(listener.accept().is_err(), "the app did not connect");
+        assert!(matches!(
+            launch_of(
+                connect(&env, "dev", hello(), || panic!("no host")).await,
+                "dev"
+            ),
+            Launch::Refuse(_)
+        ));
+    }
+
+    #[tokio::test]
+    async fn a_missing_root_means_that_no_core_runs() {
+        let (_dir, mut env) = env_with_root(0o700);
+        env.runtime_override = env.runtime_override.map(|root| root.join("absent"));
+        let outcome = connect(&env, "dev", hello(), || panic!("no host")).await;
+        assert!(matches!(launch_of(outcome, "dev"), Launch::StartCore(_)));
     }
 
     #[test]

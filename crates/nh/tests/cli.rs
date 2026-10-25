@@ -212,14 +212,21 @@ async fn usage_errors_are_exit_code_2_and_need_no_core() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn no_core_is_exit_code_1_and_says_so() {
+    // The temp dir of the user: a directory that no other user can change.
+    let nothing = std::env::temp_dir().join("nhcli-nothing.sock");
+    let nothing = nothing.to_str().expect("a UTF-8 path");
+    let ran = nh(&["--socket", nothing, "session", "info"], &[], "");
+    assert_eq!(ran.code, 1);
+    assert_eq!(ran.out, "");
+    assert!(ran.err.contains("not running"), "{}", ran.err);
+    // Any user can make a file in `/tmp`, so the CLI does not connect to a socket there.
     let ran = nh(
         &["--socket", "/tmp/nhcli-nothing.sock", "session", "info"],
         &[],
         "",
     );
     assert_eq!(ran.code, 1);
-    assert_eq!(ran.out, "");
-    assert!(ran.err.contains("not running"), "{}", ran.err);
+    assert!(ran.err.contains("is not safe"), "{}", ran.err);
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

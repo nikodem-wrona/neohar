@@ -8,6 +8,7 @@ mod askpass;
 mod bridge;
 mod cli;
 mod daemon;
+mod peer;
 mod shim;
 
 use std::process::ExitCode;

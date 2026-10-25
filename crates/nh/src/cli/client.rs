@@ -41,9 +41,11 @@ pub struct Client {
 }
 
 impl Client {
-    /// Connects to the socket. `timeout` is how long a call waits for its reply.
+    /// Connects to the socket. `timeout` is how long a call waits for its reply. It refuses a
+    /// socket in a directory that another user can change, and a socket that a process of another
+    /// user serves ([`crate::peer`]): the CLI sends commands for the panes.
     pub fn connect(path: &Path, timeout: Duration) -> Result<Self, CallError> {
-        let stream = UnixStream::connect(path).map_err(|source| match source.kind() {
+        let stream = crate::peer::connect(path).map_err(|source| match source.kind() {
             io::ErrorKind::NotFound | io::ErrorKind::ConnectionRefused => {
                 CallError::NotRunning(path.to_owned())
             }
