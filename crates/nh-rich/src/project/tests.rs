@@ -108,3 +108,28 @@ fn scan_reads_the_files_of_a_directory() {
     // A directory that does not exist gives an empty project.
     assert_eq!(Project::scan(&dir), Project::default());
 }
+
+#[test]
+fn scan_does_not_open_a_fifo_or_a_folder() {
+    let dir = std::env::temp_dir().join(format!("nh-rich-project-fifo-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(dir.join("Cargo.toml")).expect("a folder with the name of a manifest");
+    for name in ["package.json", "Makefile", "justfile"] {
+        let made = std::process::Command::new("mkfifo")
+            .arg(dir.join(name))
+            .status()
+            .expect("mkfifo runs");
+        assert!(made.success(), "mkfifo {name}");
+    }
+    // An open of a FIFO with no writer waits for ever, so the scan runs on its own thread.
+    let (send, receive) = std::sync::mpsc::channel();
+    let scanned = dir.clone();
+    std::thread::spawn(move || {
+        let _ = send.send(Project::scan(&scanned));
+    });
+    let project = receive
+        .recv_timeout(std::time::Duration::from_secs(20))
+        .expect("the scan does not wait for a FIFO");
+    assert_eq!(project, Project::default());
+    std::fs::remove_dir_all(&dir).expect("cleanup");
+}

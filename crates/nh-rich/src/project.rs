@@ -17,8 +17,17 @@ pub struct Project {
     pub cargo_targets: BTreeSet<String>,
 }
 
+/// The text of a manifest. Only a regular file is opened: an open of a FIFO waits for a writer,
+/// and a read of a device can wait for ever. A symlink to a regular file is read.
 fn read(path: &Path) -> Option<String> {
+    if !fs::metadata(path).ok()?.is_file() {
+        return None;
+    }
     let file = fs::File::open(path).ok()?;
+    // The file can change between the two looks.
+    if !file.metadata().ok()?.is_file() {
+        return None;
+    }
     let mut text = String::new();
     file.take(FILE_CAP).read_to_string(&mut text).ok()?;
     Some(text)
