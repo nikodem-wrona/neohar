@@ -219,7 +219,9 @@ pub(crate) fn list(dir: &Path) -> Result<FsListResult, RpcError> {
         entries.push(FsEntry {
             hidden: name.starts_with('.'),
             icon: icon_of(&name, kind).to_owned(),
-            name,
+            // The person sees each character of the name: `photo<U+202E>gnp.command`, not
+            // `photodnammoc.png`. The path stays as it is, for the actions.
+            name: nh_rich::visible(&name).into_owned(),
             path: text,
             kind,
             link,
@@ -343,9 +345,10 @@ pub(crate) fn read(path: &Path) -> Result<FsReadResult, RpcError> {
         .unwrap_or(&shown)
         .to_owned();
     let size = meta.len();
+    let visible_name = nh_rich::visible(&name).into_owned();
     let preview = |kind, info: String| FsReadResult {
         path: shown.clone(),
-        name: name.clone(),
+        name: visible_name.clone(),
         icon: icon_of(&name, FsEntryKind::File).to_owned(),
         kind,
         info,

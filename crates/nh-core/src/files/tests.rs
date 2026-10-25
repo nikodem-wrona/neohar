@@ -365,3 +365,22 @@ fn dots_in_a_path_are_applied() {
     assert_eq!(normal(Path::new("/a/b/../c/./d")), PathBuf::from("/a/c/d"));
     assert_eq!(normal(Path::new("/..")), PathBuf::from("/"));
 }
+
+#[test]
+fn an_invisible_character_in_a_name_shows_as_an_escape_and_the_path_stays() {
+    let base = std::fs::canonicalize(std::env::temp_dir())
+        .expect("a path")
+        .join(format!("nh-files-{}-invisible", std::process::id()));
+    let _ = std::fs::remove_dir_all(&base);
+    std::fs::create_dir_all(&base).expect("a folder");
+    // `photodnammoc.png` when the override works: the file is a script.
+    let name = "photo\u{202E}gnp.command";
+    std::fs::write(base.join(name), "echo hi\n").expect("a file");
+    let listed = list(&base).expect("a listing");
+    let read_back = read(&base.join(name)).expect("a preview");
+    std::fs::remove_dir_all(&base).expect("clean up");
+    let shown = &listed.entries[0];
+    assert_eq!(shown.name, "photo<U+202E>gnp.command");
+    assert_eq!(shown.path, base.join(name).display().to_string());
+    assert_eq!(read_back.name, "photo<U+202E>gnp.command");
+}
