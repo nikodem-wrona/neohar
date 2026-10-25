@@ -10,6 +10,7 @@ use nh_proto::api::{
         Behavior, Decision, InteractionAnswered, InteractionListResult, InteractionNextResult,
         InteractionRevealed, InteractionShown,
     },
+    common::Via,
     events::{EventPayload, PolicyEvent},
     ids::{InteractionId, PaneId, Ref, RunId, WindowId},
     methods::{Call, Method},
@@ -50,6 +51,21 @@ fn client_name(origin: &Origin) -> String {
         Scope::Phone => origin
             .device
             .map_or_else(|| "phone".to_owned(), |device| format!("phone:{device}")),
+    }
+}
+
+/// The surface of an answer for the delivery record. The server sets it from the scope of the
+/// caller: a client of the CLI is `cli` and a phone is `phone`, whatever it says. Only the UI says
+/// which of its surfaces it was (a card, a notification, the tray or the palette). No client is
+/// `policy`: only a rule of the policy is.
+fn via_of(origin: &Origin, claimed: Via) -> Via {
+    match origin.scope {
+        Scope::Ui => match claimed {
+            Via::Card | Via::Notification | Via::Tray | Via::Palette => claimed,
+            Via::Cli | Via::Policy | Via::Phone => Via::Card,
+        },
+        Scope::Phone => Via::Phone,
+        Scope::Cli | Scope::Dev | Scope::Pane => Via::Cli,
     }
 }
 
@@ -176,12 +192,13 @@ fn answer(ctx: &Ctx<'_>, tx: &mut Tx<'_>, call: &Call) -> Result<Handled, RpcErr
         .get(id)
         .ok_or_else(|| not_found(id))?;
     let mut interaction = before.clone();
+    let via = via_of(ctx.origin, p.via);
     let step = interaction
-        .answer(p.decision.clone(), &client_name(ctx.origin), p.via)
+        .answer(p.decision.clone(), &client_name(ctx.origin), via)
         .map_err(|refusal| {
             // A click on a notification that came too late shows who answered.
             if let Some(host) = &ctx.state.host {
-                crate::native::late_action(host, ctx.origin.device, before, &refusal, p.via);
+                crate::native::late_action(host, ctx.origin.device, before, &refusal, via);
             }
             refuse(refusal, before)
         })?;

@@ -34,6 +34,7 @@ pub mod health;
 pub mod holder;
 pub mod host;
 mod ids;
+mod in_pane;
 mod integration_calls;
 mod interaction;
 pub mod jobs;

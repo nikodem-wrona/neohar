@@ -18,6 +18,15 @@ The CLI takes the socket from, in order: `--socket`, `--session` (`<runtime>/<NA
 
 The CLI never sends the pane token, so a command typed in a pane has the scope of the CLI, not of the pane.
 
+In a neohar pane, some commands are refused with `permission_denied`. The core finds the holder of the pane among the parent processes of the client, and it refuses the calls that answer approvals or weaken them:
+
+- `interaction.answer` and `interaction.dismiss`.
+- `policy.add` and `policy.remove`.
+- `phone.pair_begin` and `phone.publish`.
+- `config.set` of a key in `approvals`, `policy`, `phone` or `machines`, and of `agents.shims` and `events.audit_retention`.
+
+Run these commands in a terminal outside neohar, or use the app. Other commands work in a pane, for example `nh config set ui.font_size 14` and `nh integration install`. This check is not a sandbox: [SECURITY.md](https://github.com/nikodem-wrona/neohar/blob/main/SECURITY.md) tells its limits.
+
 ## Output and exit codes
 
 On a terminal `nh` prints text for people; piped, it prints the result of the method as one line of JSON. `--json` on a terminal prints indented JSON, which is the way to read a nested result. Errors go to stderr.

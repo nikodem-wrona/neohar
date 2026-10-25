@@ -4,9 +4,14 @@
 //! scope, which the entry point gives:
 //!
 //! - **Ui**: the host, for the webview (`CoreHandle::rpc`).
-//! - **Cli**: a client of the API socket with no pane token.
+//! - **Cli**: a client of the API socket with no pane token. A client of this scope that runs
+//!   inside a pane of the core may not answer interactions or weaken the approvals: the API socket
+//!   refuses these calls before they get here ([`crate::in_pane`]).
 //! - **Pane**: a request with the token of a pane. Pane scope can call only the methods for panes
-//!   (`adapter.*`). So the shim of a hook can never answer an interaction (`interaction.answer`).
+//!   (`adapter.*`), so a request with the token cannot answer an interaction. This does not make a
+//!   process in a pane harmless: it runs as the user, it can connect without the token, and then it
+//!   is a client of the CLI. [`crate::in_pane`] stops that plain path, and a process that leaves
+//!   the process tree of its pane gets past it. The approval gate is not a sandbox.
 //! - **Phone**: a paired phone over the listener. It has the methods of the UI,
 //!   less the refusals of [`Method::phone_refusal`], and the methods that only a phone calls.
 //! - **Dev**: the methods of development and test builds (`debug.*`) exist only in a build with the

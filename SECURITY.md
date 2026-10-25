@@ -38,3 +38,12 @@ These items are not in scope:
 - Tailscale, OpenSSH and macOS.
 - An attack that needs code that already runs as your macOS user.
 - The ad-hoc signature of the builds. It is a known limit: there is no notarized build.
+
+## Limits of the approval gate
+
+The approval gate of neohar is not a sandbox. It shows the requests of an agent and carries your answers. It does not contain the agent.
+
+- A process that runs as your user and can connect to `api.sock` can drive neohar. It can answer approvals, change the policy and type into panes. The environment of each pane names the socket (`NEOHAR_SOCKET`).
+- neohar refuses the plain path from inside a pane. When a client of the API socket calls a method that answers or releases an interaction, changes a policy rule, pairs a phone, or sets a key of `approvals`, `policy`, `phone` or `machines`, the core reads the parent processes of the client. If the holder of a pane is one of them, or the client is in the session of the program of a pane, the core refuses the call.
+- A process that leaves the process tree of its pane can bypass this check. An example is a process that starts a session of its own and whose parent then ends.
+- Configure the sandbox of each harness so that it cannot reach Unix sockets in the runtime directory of neohar: `/tmp/neohar-$UID/` on macOS, `$XDG_RUNTIME_DIR` on Linux. The sandbox of Codex and the sandboxed Bash of Claude Code can permit or refuse this access.

@@ -853,6 +853,43 @@ async fn a_pane_that_has_the_focus_does_not_hold_the_hook() {
 }
 
 #[tokio::test]
+async fn the_server_sets_the_surface_of_an_answer() {
+    // A client of the CLI says that a rule of the policy decided. The record says `cli`.
+    let (f, _) = started().await;
+    pre_tool(&f, "toolu_1", "ls").await;
+    let (start, _rx) = gate(&f, SHIM, "ls").await;
+    let id = id_of(&start);
+    let call = nh_proto::api::methods::Call::parse(
+        "interaction.answer",
+        json!({"interaction": id.to_string(), "decision": allow(), "via": "policy"}),
+    )
+    .expect("a call");
+    f.thread
+        .handle()
+        .call(call, crate::actor::Origin::cli(3))
+        .await
+        .expect("recorded");
+    let shown = row(&f, id);
+    assert_eq!(shown["delivery"]["via"], "cli");
+    assert_eq!(shown["delivery"]["decided_by"], "cli:3");
+    // The UI says which of its surfaces it was, and it cannot be a rule either.
+    pre_tool(&f, "toolu_2", "pwd").await;
+    let (start, _rx2) = gate(&f, SHIM + 1, "pwd").await;
+    let second = id_of(&start);
+    let call = nh_proto::api::methods::Call::parse(
+        "interaction.answer",
+        json!({"interaction": second.to_string(), "decision": allow(), "via": "policy"}),
+    )
+    .expect("a call");
+    f.thread
+        .handle()
+        .call(call, crate::actor::Origin::ui())
+        .await
+        .expect("recorded");
+    assert_eq!(row(&f, second)["delivery"]["via"], "card");
+}
+
+#[tokio::test]
 async fn keys_do_not_answer_while_the_run_has_two_open_approvals() {
     // The person allowed `ls` in the dialog of the harness. Its tool runs, the dialog of `pwd`
     // comes, and the card of `ls` stays open until the tool ends. An Allow on the card of `ls`

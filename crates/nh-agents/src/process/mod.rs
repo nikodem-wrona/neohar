@@ -287,6 +287,37 @@ pub fn group_of(pid: i32) -> Option<i32> {
     sys::basic(pid).map(|basic| basic.pgid)
 }
 
+/// The most parents that [`ancestors`] reads.
+pub const MAX_ANCESTORS: usize = 64;
+
+/// The parents of a process: its parent, the parent of that one, and so on up to `launchd` or
+/// `init` (pid 1), which is not in the list. At most [`MAX_ANCESTORS`]. The list ends early at a
+/// process that the system does not show.
+pub fn ancestors(pid: i32) -> Vec<i32> {
+    let mut out = Vec::new();
+    let mut at = pid;
+    while out.len() < MAX_ANCESTORS {
+        let Some(parent) = sys::basic(at).map(|basic| basic.ppid) else {
+            break;
+        };
+        if parent <= 1 || parent == at || out.contains(&parent) {
+            break;
+        }
+        out.push(parent);
+        at = parent;
+    }
+    out
+}
+
+/// The session of a process, or `None` if it is gone or the system does not tell it.
+pub fn session_of(pid: i32) -> Option<i32> {
+    let pid = rustix::process::Pid::from_raw(pid)?;
+    rustix::process::getsid(Some(pid))
+        .ok()
+        .map(rustix::process::Pid::as_raw_nonzero)
+        .map(i32::from)
+}
+
 /// The working directory of a process, or `None` if it is gone or belongs to another user. The
 /// `cwd` of a pane is the one of its foreground group.
 pub fn cwd(pid: i32) -> Option<PathBuf> {

@@ -182,6 +182,30 @@ fn the_group_of_a_process_is_known() {
 }
 
 #[test]
+fn the_ancestors_of_a_process_go_up_to_this_process_and_beyond() {
+    // `sh` starts `sleep`: the parents of `sleep` are `sh`, this test process, and its parents.
+    let child = spawn("sleep 30; true");
+    let shell = pid(&child);
+    let me = i32::try_from(std::process::id()).expect("a pid");
+    let tree = walk_until(&mut Walker::new(false), shell, has_sleep);
+    let sleep = tree
+        .processes
+        .iter()
+        .find(|process| process.exe_name() == Some("sleep"))
+        .map(|process| process.pid)
+        .expect("sleep runs");
+    let up = ancestors(sleep);
+    assert_eq!(up.first(), Some(&shell), "{up:?}");
+    assert!(up.contains(&me), "{up:?}");
+    assert!(!up.contains(&1), "launchd and init are not in the list");
+    assert!(ancestors(i32::MAX).is_empty());
+    // The child is in the session of this process: it did not start a session of its own.
+    assert_eq!(session_of(sleep), session_of(me));
+    assert!(session_of(me).is_some());
+    assert_eq!(session_of(i32::MAX), None);
+}
+
+#[test]
 fn the_working_directory_follows_a_cd() {
     // The folder of the system for temporary files has a link in its path on macOS (`/var` is
     // `/private/var`). The system gives the real path.

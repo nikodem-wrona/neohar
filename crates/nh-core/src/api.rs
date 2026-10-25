@@ -11,7 +11,9 @@
 //!
 //! **Scope.** A connection is a client of the CLI. A request with the token of a pane is a request
 //! of pane scope, and a token that no pane has is `permission_denied`.
-//! [`crate::authorize`] decides which scope may call which method.
+//! [`crate::authorize`] decides which scope may call which method. A client of the CLI that runs
+//! inside a pane of this core may not answer interactions or weaken the approvals
+//! ([`crate::in_pane`]).
 //!
 //! **Replies.** A method that is not `adapter.*` runs on its own task, so a slow call does not
 //! hold the connection: replies come in the order in which the calls end. A connection runs at
@@ -58,7 +60,7 @@ use tokio::{
 };
 
 use crate::{
-    actor::Origin,
+    actor::{Origin, Scope},
     authorize::authorize,
     error::{CoreError, RpcError},
     interaction::{Gates, gate::GateStart},
@@ -357,6 +359,9 @@ pub(crate) struct Conn {
     out: Option<tokio::sync::mpsc::Sender<Vec<u8>>>,
     /// The projections and the events that the client follows.
     subs: Arc<Table>,
+    /// Whether the client runs inside a pane of this core ([`crate::in_pane`]). The core reads
+    /// the parents of the client once, at the first call that needs it.
+    in_pane: OnceLock<bool>,
 }
 
 impl Conn {
@@ -368,7 +373,20 @@ impl Conn {
             pid: None,
             out: None,
             subs: Arc::default(),
+            in_pane: OnceLock::new(),
         }
+    }
+
+    /// Whether the client runs inside a pane of the core. A client whose process the system does
+    /// not tell is not: this check is a second line, and the CLI must work without it.
+    fn in_pane(&self, state: &ApiState) -> bool {
+        *self.in_pane.get_or_init(|| {
+            let (Some(pid), Some(core)) = (self.pid, state.core()) else {
+                return false;
+            };
+            let panes = crate::in_pane::Panes::of(&core);
+            crate::in_pane::runs_in_pane(pid, &panes)
+        })
     }
 
     /// Passes the outcomes of a gate to the client as `adapter.gate_result` lines.
@@ -400,6 +418,7 @@ async fn connection(stream: UnixStream, state: Arc<ApiState>) {
         pid,
         out: Some(out_tx.clone()),
         subs: Arc::default(),
+        in_pane: OnceLock::new(),
     };
     let in_flight = Arc::new(Semaphore::new(MAX_IN_FLIGHT));
     loop {
@@ -582,6 +601,15 @@ fn route(line: &[u8], state: &ApiState, conn: &Conn) -> Routed {
             return Routed::Reply(request.id.map(|id| answer(&id, Err(error))));
         }
     };
+    // A program in a pane may not answer the approvals or weaken them with the powers of the CLI.
+    if matches!(origin.scope, Scope::Cli | Scope::Dev)
+        && let Some(why) = crate::in_pane::refusal(&request.method, &request.params)
+        && conn.in_pane(state)
+    {
+        tracing::warn!(method = %request.method, "a client inside a pane was refused");
+        let error = RpcError::new(ErrorCode::PermissionDenied, why);
+        return Routed::Reply(request.id.map(|id| answer(&id, Err(error))));
+    }
     if request.method.starts_with("adapter.") {
         if let Err(error) = authorize(&request.method, &origin) {
             return Routed::Reply(request.id.map(|id| answer(&id, Err(error))));
@@ -887,6 +915,45 @@ mod tests {
             Routed::Call(call) => panic!("{} is a call for the core", call.method),
             Routed::Gate(gate) => panic!("{} waits for the core", gate.method),
         }
+    }
+
+    #[test]
+    fn a_client_inside_a_pane_may_not_answer_or_weaken_the_approvals() {
+        let state = ApiState::default();
+        let inside = Conn::none();
+        inside.in_pane.set(true).expect("not read yet");
+        let route_line = |line: &[u8], conn: &Conn| match route(line, &state, conn) {
+            Routed::Reply(reply) => Err(text(&reply.expect("a reply"))),
+            Routed::Call(call) => Ok(call.method),
+            Routed::Gate(gate) => Ok(gate.method),
+        };
+        for line in [
+            br#"{"jsonrpc":"2.0","id":1,"method":"interaction.answer","params":{"interaction":"i1","decision":{"kind":"approval","behavior":"allow"},"via":"policy"}}"#.as_slice(),
+            br#"{"jsonrpc":"2.0","id":1,"method":"policy.add","params":{}}"#,
+            br#"{"jsonrpc":"2.0","id":1,"method":"config.set","params":{"key":"approvals.mode","value":"observe"}}"#,
+            br#"{"jsonrpc":"2.0","id":1,"method":"config.set","params":{"key":"phone.enabled","value":true}}"#,
+        ] {
+            let reply = route_line(line, &inside).expect_err("refused");
+            assert_eq!(reply["error"]["data"]["code"], "permission_denied", "{reply}");
+            let message = reply["error"]["message"].as_str().unwrap_or("");
+            assert!(message.contains("outside a neohar pane"), "{message}");
+        }
+        // Harmless calls go on, inside a pane too.
+        for line in [
+            br#"{"jsonrpc":"2.0","id":1,"method":"config.set","params":{"key":"ui.font_size","value":14}}"#.as_slice(),
+            br#"{"jsonrpc":"2.0","id":1,"method":"integration.install","params":{}}"#,
+            br#"{"jsonrpc":"2.0","id":1,"method":"interaction.list","params":{}}"#,
+        ] {
+            assert!(route_line(line, &inside).is_ok());
+        }
+        // Outside a pane, the CLI may answer.
+        let outside = Conn::none();
+        outside.in_pane.set(false).expect("not read yet");
+        let line = br#"{"jsonrpc":"2.0","id":1,"method":"interaction.answer","params":{}}"#;
+        assert_eq!(
+            route_line(line, &outside).expect("a call"),
+            "interaction.answer"
+        );
     }
 
     #[test]
