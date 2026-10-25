@@ -2,8 +2,9 @@
 //! listener.
 //!
 //! - **Offer.** `phone.pair_begin` makes one offer: a long code for the QR code and a short code
-//!   that a person types. It is good for [`OFFER_TTL`] and for one phone, and [`WRONG_CODES`]
-//!   wrong codes end it. The offer lives in memory only: a core that starts again has none.
+//!   that a person types. It is good for [`OFFER_TTL`] and for one phone. [`WRONG_CODES`] wrong
+//!   codes of one client end the offer for that client, and [`WRONG_CODES_TOTAL`] wrong codes of
+//!   all clients end it. The offer lives in memory only: a core that starts again has none.
 //! - **Devices.** A pairing makes a device with a random token. The table `phone_devices` keeps the
 //!   BLAKE3 hash of the token, never the token. The listener (crate `nh-web`) finds the device of a
 //!   cookie with [`crate::CoreHandle::phone_of_token`].
@@ -33,7 +34,7 @@
 //!   ([`crate::CoreHandle::phone_left`]). A visible phone gets no push.
 
 use std::{
-    collections::BTreeSet,
+    collections::{BTreeMap, BTreeSet},
     sync::{
         Arc, Mutex, PoisonError,
         atomic::{AtomicU64, Ordering},
@@ -73,8 +74,17 @@ use crate::{
 /// How long an offer waits for a phone.
 pub const OFFER_TTL: Duration = Duration::from_secs(10 * 60);
 
-/// The wrong codes that end an offer.
+/// The wrong codes of one client that end an offer for that client. Thus one device of the tailnet
+/// cannot end the offer for the phone of the person.
 pub const WRONG_CODES: u8 = 5;
+
+/// The wrong codes of all clients that end an offer. A local user can send any client name, so
+/// this cap keeps a guess of the code infeasible: 50 guesses of a short code of 40 bits succeed
+/// with a chance of about 1 in 20 billion.
+pub const WRONG_CODES_TOTAL: u8 = 50;
+
+/// The longest name of a client that the count of wrong codes keeps.
+pub const CLIENT_MAX: usize = 256;
 
 /// The longest name of a phone, in characters.
 pub const NAME_MAX: usize = 64;
@@ -467,8 +477,20 @@ struct Offer {
     expires_at: i64,
     /// How long the offer is good for, as a person reads it.
     note: String,
+    /// The wrong codes of all clients.
     wrong: u8,
+    /// The wrong codes of each client. At most [`WRONG_CODES_TOTAL`] entries.
+    wrong_by: BTreeMap<String, u8>,
     device: Option<Ulid>,
+}
+
+/// What one try of a code did to an offer that waits.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Guess {
+    Right,
+    Wrong,
+    /// The client had [`WRONG_CODES`] wrong codes, so the offer does not look at its code.
+    LockedOut,
 }
 
 /// What the actor keeps of the phones.
@@ -695,6 +717,29 @@ fn same(a: &str, b: &str) -> bool {
 }
 
 impl Offer {
+    /// Checks a code that `client` sent. A wrong code counts for the client and for the offer. A
+    /// client with [`WRONG_CODES`] wrong codes gets no more tries, and [`WRONG_CODES_TOTAL`] wrong
+    /// codes of all clients end the offer.
+    fn guess(&mut self, client: &str, code: &str) -> Guess {
+        if self
+            .wrong_by
+            .get(client)
+            .is_some_and(|wrong| *wrong >= WRONG_CODES)
+        {
+            return Guess::LockedOut;
+        }
+        if self.matches(code) {
+            return Guess::Right;
+        }
+        self.wrong = self.wrong.saturating_add(1);
+        let by = self.wrong_by.entry(client.to_owned()).or_default();
+        *by = by.saturating_add(1);
+        if self.wrong >= WRONG_CODES_TOTAL {
+            self.end(PairingState::Expired);
+        }
+        Guess::Wrong
+    }
+
     fn matches(&self, code: &str) -> bool {
         let long = same(code, &self.long);
         let short = typed_short(code).is_some_and(|typed| same(&typed, &self.short));
@@ -708,6 +753,7 @@ impl Offer {
         self.short.clear();
         self.url.clear();
         self.qr.clear();
+        self.wrong_by.clear();
     }
 }
 
@@ -1056,6 +1102,7 @@ async fn pair_begin(inner: &Arc<Inner>) -> Result<PhonePairStarted, RpcError> {
         expires_at,
         note: ttl_note(ttl),
         wrong: 0,
+        wrong_by: BTreeMap::new(),
         device: None,
     };
     inner
@@ -1190,9 +1237,17 @@ enum Verdict {
 
 impl CoreHandle {
     /// Pairs a phone with the code of the offer: the long code of the QR code or the short code.
-    /// On success the offer is `paired`, and the result has the token for the cookie.
-    pub async fn phone_pair(&self, code: &str, name: &str) -> Result<PairedPhone, PairRefusal> {
+    /// On success the offer is `paired`, and the result has the token for the cookie. `client`
+    /// names the sender for the count of wrong codes: the login of the tailnet user that
+    /// `tailscale serve` puts in `Tailscale-User-Login`, or empty when there is none.
+    pub async fn phone_pair(
+        &self,
+        code: &str,
+        name: &str,
+        client: &str,
+    ) -> Result<PairedPhone, PairRefusal> {
         let code = code.trim().to_owned();
+        let client: String = client.chars().take(CLIENT_MAX).collect();
         let name = clean_name(name);
         let token: String = random::<32>()
             .map_err(|error| PairRefusal::Store(error.message))?
@@ -1215,14 +1270,10 @@ impl CoreHandle {
                         offer.end(PairingState::Expired);
                         Verdict::Refuse(PairRefusal::Expired)
                     }
-                    Some(offer) if !offer.matches(&code) => {
-                        offer.wrong += 1;
-                        if offer.wrong >= WRONG_CODES {
-                            offer.end(PairingState::Expired);
-                        }
-                        Verdict::Refuse(PairRefusal::Wrong)
-                    }
-                    Some(_) => Verdict::Take,
+                    Some(offer) => match offer.guess(&client, &code) {
+                        Guess::Right => Verdict::Take,
+                        Guess::Wrong | Guess::LockedOut => Verdict::Refuse(PairRefusal::Wrong),
+                    },
                 };
                 if let Verdict::Refuse(refusal) = verdict {
                     publish_pairing(parts.projections, &parts.state.phones);
@@ -1438,6 +1489,7 @@ mod tests {
             expires_at: 0,
             note: String::new(),
             wrong: 0,
+            wrong_by: BTreeMap::new(),
             device: None,
         };
         assert!(offer.matches("long-code-of-the-qr"));
@@ -1445,6 +1497,56 @@ mod tests {
         assert!(!offer.matches("long-code-of-the-qR"));
         assert!(!offer.matches("ABCDEFGJ"));
         assert!(!offer.matches(""));
+    }
+
+    #[test]
+    fn one_client_cannot_end_an_offer_and_all_clients_together_can() {
+        let mut offer = Offer {
+            number: 1,
+            state: PairingState::Waiting,
+            long: "long-code-of-the-qr".to_owned(),
+            short: "ABCDEFGH".to_owned(),
+            url: String::new(),
+            qr: String::new(),
+            expires_at: 0,
+            note: String::new(),
+            wrong: 0,
+            wrong_by: BTreeMap::new(),
+            device: None,
+        };
+        for _ in 0..WRONG_CODES {
+            assert_eq!(offer.guess("mallory@example.com", "ZZZZZZZZ"), Guess::Wrong);
+        }
+        // The client is out, also with the right code, and its tries count no more.
+        assert_eq!(
+            offer.guess("mallory@example.com", "ABCDEFGH"),
+            Guess::LockedOut
+        );
+        assert_eq!(offer.wrong, WRONG_CODES);
+        assert_eq!(offer.state, PairingState::Waiting);
+        // The phone of the person still pairs.
+        assert_eq!(offer.guess("ada@example.com", "abcd-efgh"), Guess::Right);
+
+        // Many clients (a local user can name any client) end the offer at the cap.
+        let mut tries = 0;
+        let mut client = 0;
+        while offer.state == PairingState::Waiting {
+            client += 1;
+            for _ in 0..WRONG_CODES {
+                if offer.state != PairingState::Waiting {
+                    break;
+                }
+                assert_eq!(offer.guess(&format!("c{client}"), "ZZZZZZZZ"), Guess::Wrong);
+                tries += 1;
+            }
+        }
+        assert_eq!(offer.state, PairingState::Expired);
+        assert_eq!(
+            usize::from(WRONG_CODES) + tries,
+            usize::from(WRONG_CODES_TOTAL)
+        );
+        assert!(offer.wrong_by.is_empty(), "the end forgets the clients");
+        assert!(!offer.matches("ABCDEFGH"), "the end forgets the codes");
     }
 
     #[test]

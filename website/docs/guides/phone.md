@@ -57,7 +57,8 @@ If your Mac has an HTTPS address of another kind, set `phone.url` to it and do n
 3. In Safari, add neohar to the Home Screen, and open it from the Home Screen. The app pairs by
    itself. You can also type the short code.
 
-The code is good for 10 minutes and for one phone. Five wrong codes end the offer.
+The code is good for 10 minutes and for one phone. Five wrong codes from one device of the tailnet
+end the offer for that device, and 50 wrong codes in all end it for every device.
 `nh phone pair-cancel` ends it before that.
 
 To remove a phone, click **Remove** next to it in the section **Phone**, or tap **Unpair this

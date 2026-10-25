@@ -98,11 +98,51 @@ async fn an_expired_offer_and_the_sixth_wrong_code_refuse_the_pairing() {
     assert_eq!(
         rig.pair(&long).await.status,
         403,
-        "five wrong codes ended the offer"
+        "five wrong codes ended the offer for this client"
     );
     // No offer: every code fails.
     rig.h.call("phone.pair_cancel", json!({})).await;
     assert_eq!(rig.pair(&long).await.status, 403);
+}
+
+/// A pairing with the tailnet user that `tailscale serve` names.
+async fn pair_as(rig: &Rig, code: &str, login: &str) -> u16 {
+    let body = json!({ "code": code, "name": "Test iPhone" }).to_string();
+    http(
+        rig.port,
+        "POST",
+        "/api/pair",
+        &[
+            ("Host", &rig.host()),
+            ("Origin", &rig.origin()),
+            ("Tailscale-User-Login", login),
+        ],
+        Some(body.as_bytes()),
+    )
+    .await
+    .status
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn another_device_of_the_tailnet_cannot_end_the_offer_alone() {
+    let rig = Rig::start();
+    let (long, _) = rig.offer().await;
+    for _ in 0..5 {
+        assert_eq!(pair_as(&rig, "ZZZZ-ZZZZ", "mallory@example.com").await, 403);
+    }
+    assert_eq!(pair_as(&rig, &long, "mallory@example.com").await, 403);
+    // The phone of the person, with its own login, still pairs.
+    assert_eq!(pair_as(&rig, &long, "ada@example.com").await, 200);
+
+    // Fifty wrong codes of all clients end the offer.
+    let (long, _) = rig.offer().await;
+    for n in 0..nh_core::phones::WRONG_CODES_TOTAL {
+        assert_eq!(
+            pair_as(&rig, "ZZZZ-ZZZZ", &format!("c{}", n / 5)).await,
+            403
+        );
+    }
+    assert_eq!(pair_as(&rig, &long, "ada@example.com").await, 403);
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

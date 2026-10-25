@@ -440,6 +440,19 @@ async fn handle(server: &Server, request: Request<Incoming>) -> Response<Body> {
     }
 }
 
+/// The header in which `tailscale serve` names the tailnet user of a request.
+const USER_LOGIN: &str = "tailscale-user-login";
+
+/// The name of the client of a pairing for the count of wrong codes: the login of the tailnet
+/// user, or empty.
+fn request_client(headers: &HeaderMap) -> String {
+    headers
+        .get(USER_LOGIN)
+        .and_then(|value| value.to_str().ok())
+        .unwrap_or_default()
+        .to_owned()
+}
+
 /// The code of a pairing in the query, when it is base64url or a short code.
 fn code_of(query: Option<&str>) -> Option<&str> {
     query_value(query, "code").filter(|code| {
@@ -573,6 +586,10 @@ async fn pair(server: &Server, request: Request<Incoming>) -> Response<Body> {
     if !server.checks.origin_allowed(request.headers()) {
         return refused(StatusCode::FORBIDDEN, "not allowed");
     }
+    // `tailscale serve` sets the login of the tailnet user, and it removes a value that the
+    // device sent. A local client that skips Tailscale can send any value: the core caps the wrong
+    // codes of all clients too.
+    let client = request_client(request.headers());
     let body = tokio::time::timeout(
         server.admission.limits.pair_body_wait,
         Limited::new(request.into_body(), PAIR_BODY_MAX).collect(),
@@ -586,7 +603,11 @@ async fn pair(server: &Server, request: Request<Incoming>) -> Response<Body> {
     let Ok(body) = serde_json::from_slice::<PairBody>(&body.to_bytes()) else {
         return refused(StatusCode::BAD_REQUEST, "the body is {code, name}");
     };
-    match server.core.phone_pair(&body.code, &body.name).await {
+    match server
+        .core
+        .phone_pair(&body.code, &body.name, &client)
+        .await
+    {
         Ok(paired) => {
             let mut answer = json_response(
                 StatusCode::OK,
