@@ -2,7 +2,7 @@ use std::path::Path;
 
 use nh_proto::api::{
     calls::system::{PolicyDecision, PolicyRule, PolicyScope},
-    common::Harness,
+    common::{Harness, Risk},
     time::Timestamp,
 };
 use serde_json::json;
@@ -183,7 +183,8 @@ fn allow_always_makes_a_session_rule_for_the_pattern_of_the_approval() {
         workspace: "/work".to_owned(),
         eligible: true,
     };
-    let rule = session_rule(&facts, Timestamp(5)).expect("a rule");
+    let rule = session_rule(&facts, Risk::Low, Timestamp(5)).expect("a rule");
+    assert_eq!(rule.max_risk, Some(Risk::Low));
     assert_eq!(rule.id, "session-01234567");
     assert_eq!(rule.scope, PolicyScope::Session);
     assert_eq!(rule.harness, [Harness::Claude]);
@@ -194,8 +195,8 @@ fn allow_always_makes_a_session_rule_for_the_pattern_of_the_approval() {
     );
     let mut not_eligible = facts.clone();
     not_eligible.eligible = false;
-    assert!(session_rule(&not_eligible, Timestamp(5)).is_none());
+    assert!(session_rule(&not_eligible, Risk::Low, Timestamp(5)).is_none());
     let mut no_pattern = facts;
     no_pattern.pattern = None;
-    assert!(session_rule(&no_pattern, Timestamp(5)).is_none());
+    assert!(session_rule(&no_pattern, Risk::Low, Timestamp(5)).is_none());
 }

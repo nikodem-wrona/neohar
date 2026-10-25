@@ -111,6 +111,10 @@ for that word only. There is no **Allow always** for these requests:
 - A path in `.git`, a `.env` file, keys or credentials.
 - A request that the harness answers in its own dialog: its rule is the rule of the harness.
 
+The rule allows a later request only up to the risk of the request that you allowed. If you
+allow `git log` always at a low risk, `git log --output=log.txt` writes a file and comes to you
+again.
+
 Under the card, neohar says what became of your answer: delivered, answered in the pane, or
 "Couldn't confirm your answer reached …". In that last case, look at the pane: neohar never sends
 an answer twice. The first answer wins, from any card, notification or client.

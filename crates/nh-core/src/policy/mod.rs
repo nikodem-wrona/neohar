@@ -10,7 +10,7 @@ use std::sync::Arc;
 
 use nh_proto::api::{
     calls::system::{PolicyDecision, PolicyRule, PolicyScope},
-    common::Harness,
+    common::{Harness, Risk},
     time::Timestamp,
 };
 use nh_store::PolicyRuleRow;
@@ -44,6 +44,22 @@ pub struct Rule {
     /// Where the rule came from, for the list: `config.toml`, `api` or `allow_always`.
     pub source: &'static str,
     pub created_at: Timestamp,
+    /// The highest risk that the rule allows. A session rule of "Allow always" allows only up to
+    /// the risk of the request that the person allowed: a call of the same program with an option
+    /// that writes a file or runs a program goes to the person again. `None` for the other rules,
+    /// which allow up to a medium risk.
+    pub max_risk: Option<Risk>,
+}
+
+/// The order of the danger of a risk: `unknown` is above `low`, because a command that nobody
+/// read cannot be called safe.
+pub fn risk_rank(risk: Risk) -> u8 {
+    match risk {
+        Risk::Low => 0,
+        Risk::Unknown => 1,
+        Risk::Medium => 2,
+        Risk::High => 3,
+    }
 }
 
 /// The id of a rule that has none: the hash of its text, so the same rule has the same id.
@@ -123,6 +139,7 @@ pub fn compile(
         scope,
         source,
         created_at,
+        max_risk: None,
     })
 }
 
@@ -239,8 +256,9 @@ pub fn load(store: &mut nh_store::Store) -> Policy {
 }
 
 /// The session rule for "Allow always": the pattern of the approval, for this harness
-/// and this workspace. An approval that no rule may cover gives none.
-pub fn session_rule(facts: &fingerprint::Facts, at: Timestamp) -> Option<Rule> {
+/// and this workspace, up to the risk of the approval. An approval that no rule may cover gives
+/// none.
+pub fn session_rule(facts: &fingerprint::Facts, risk: Risk, at: Timestamp) -> Option<Rule> {
     let pattern = facts.pattern.as_deref().filter(|_| facts.eligible)?;
     let spec = PolicyRule {
         id: Some(format!("session-{}", &facts.fingerprint[..8])),
@@ -252,7 +270,11 @@ pub fn session_rule(facts: &fingerprint::Facts, at: Timestamp) -> Option<Rule> {
             Some("Allow always".to_owned()),
         )
     };
-    compile(&spec, PolicyScope::Session, "allow_always", at, None).ok()
+    let rule = compile(&spec, PolicyScope::Session, "allow_always", at, None).ok()?;
+    Some(Rule {
+        max_risk: Some(risk),
+        ..rule
+    })
 }
 
 /// The row of a rule, for the table.

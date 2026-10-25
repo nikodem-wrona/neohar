@@ -216,7 +216,7 @@ fn answer(ctx: &Ctx<'_>, tx: &mut Tx<'_>, call: &Call) -> Result<Handled, RpcErr
         interaction
             .facts
             .as_ref()
-            .and_then(|facts| crate::policy::session_rule(facts, at))
+            .and_then(|facts| crate::policy::session_rule(facts, interaction.risk, at))
     } else {
         None
     };

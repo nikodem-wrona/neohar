@@ -19,6 +19,7 @@ fn rule(decision: PolicyDecision, tool: &str, command: Option<&str>, paths: &[&s
         scope: PolicyScope::Config,
         source: "config.toml",
         created_at: Timestamp(0),
+        max_risk: None,
     }
 }
 

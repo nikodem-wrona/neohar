@@ -1152,7 +1152,7 @@ async fn a_rule_that_allows_does_not_decide_a_construct_of_zsh_or_a_high_risk() 
     assert_eq!(shown["state"], "open");
     assert_eq!(shown["risk"], "high");
     let note = shown["payload"]["policy_note"].as_str().expect("a note");
-    assert!(note.contains("The risk is high"), "{note}");
+    assert!(note.contains("higher than the rule allows"), "{note}");
 }
 
 #[tokio::test]
@@ -1239,6 +1239,42 @@ async fn allow_always_makes_a_session_rule_that_decides_the_next_request() {
         output["hookSpecificOutput"]["decision"]["behavior"],
         "allow"
     );
+}
+
+#[tokio::test]
+async fn a_session_rule_decides_only_up_to_the_risk_that_the_person_allowed() {
+    let (f, _run) = started_in_mode("").await;
+    // `git log` only reads: low.
+    pre_tool(&f, "toolu_1", "git log").await;
+    let (start, rx) = gate(&f, SHIM, "git log").await;
+    let mut rx = rx.expect("the shim listens");
+    answer(
+        &f,
+        id_of(&start),
+        json!({"kind": "approval", "behavior": "allow", "always": true}),
+    )
+    .await
+    .expect("recorded");
+    let GateOutcome::Decision { .. } = recv(&mut rx).await else {
+        panic!("a decision");
+    };
+    // The rule `git log:*` fits, but the option writes a file: the person decides.
+    let line = "git log --output=log.txt";
+    pre_tool(&f, "toolu_2", line).await;
+    let (start, rx) = gate(&f, SHIM + 1, line).await;
+    let mut rx = rx.expect("the shim listens");
+    assert!(rx.try_recv().is_err(), "nobody decided");
+    let shown = row(&f, id_of(&start));
+    assert_eq!(shown["state"], "open");
+    let note = shown["payload"]["policy_note"].as_str().expect("a note");
+    assert!(note.contains("higher than the rule allows"), "{note}");
+    // A call at the same risk is decided by the rule.
+    pre_tool(&f, "toolu_3", "git log --oneline").await;
+    let (_third, rx) = gate(&f, SHIM + 2, "git log --oneline").await;
+    let mut rx = rx.expect("the shim listens");
+    let GateOutcome::Decision { .. } = recv(&mut rx).await else {
+        panic!("the session rule decided");
+    };
 }
 
 #[tokio::test]

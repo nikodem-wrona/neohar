@@ -208,8 +208,7 @@ fn open(
     // An allow never decides a high risk: the words of a rule do not show the part that is
     // dangerous, such as an option that runs a program or a write outside the workspace.
     let high = verdict.as_ref().is_some_and(|found| {
-        found.decision == PolicyDecision::Allow
-            && rendered.risk == nh_proto::api::common::Risk::High
+        found.decision == PolicyDecision::Allow && found.above_its_risk(rendered.risk)
     });
     let can_decide = verdict.is_some()
         && !high
@@ -225,7 +224,7 @@ fn open(
     {
         payload.policy_note = Some(if high {
             format!(
-                "{} The risk is high, so the rule does not decide.",
+                "{} The risk is higher than the rule allows, so the rule does not decide.",
                 found.note()
             )
         } else {
@@ -339,9 +338,19 @@ struct Found {
     id: String,
     decision: PolicyDecision,
     reason: Option<String>,
+    max_risk: Option<nh_proto::api::common::Risk>,
 }
 
 impl Found {
+    /// Whether the risk of a request is above the risk that an allow of the rule covers: a high
+    /// risk for every rule, and more than the risk that the person allowed for a session rule.
+    fn above_its_risk(&self, risk: nh_proto::api::common::Risk) -> bool {
+        risk == nh_proto::api::common::Risk::High
+            || self
+                .max_risk
+                .is_some_and(|max| policy::risk_rank(risk) > policy::risk_rank(max))
+    }
+
     /// The note for a card whose request the core cannot answer.
     fn note(&self) -> String {
         let verb = match self.decision {
@@ -380,6 +389,7 @@ fn policy_verdict(
         id: rule.id.clone(),
         decision: rule.decision,
         reason: rule.reason.clone(),
+        max_risk: rule.max_risk,
     })
 }
 
