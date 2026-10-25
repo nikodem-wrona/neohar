@@ -88,6 +88,8 @@ notifications, the badge, the tray, focus of a window, the clipboard, opening a 
 through `MachineHost`, which adds the machine label to notifications and the tray.
 
 **`nh://` and navigation.** `nh://blob/<hash>` serves a blob of the store (immutable, cached).
+Each blob has the CSP `sandbox`, and a blob that is not a raster image (for example HTML or SVG)
+is an attachment, so it never runs as a page of the app.
 `nh://font/` serves the font files that the person installed, because WebKit on macOS matches no
 user font by family name. A pure policy allows only the app's own pages (`tauri://localhost` on
 macOS and Linux, and the Vite dev server in a debug build). `nh://open?url=` opens `http`,

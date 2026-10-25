@@ -25,6 +25,42 @@ fn found(bytes: Vec<u8>, mime: &str, cache: &str) -> Response<Vec<u8>> {
         .unwrap_or_else(|_| missing())
 }
 
+/// The policy of a blob: a document from the store runs in a sandbox with no script and no
+/// network, whatever type it has. Tauri treats `nh:` as a local origin of the app.
+const BLOB_CSP: &str =
+    "sandbox; default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'";
+
+/// A blob of the store. The store keeps the type of the file, which can be `text/html` or
+/// `image/svg+xml`. The page shows blobs only as images, so a blob of another type is an
+/// attachment, and every blob has [`BLOB_CSP`].
+fn found_blob(bytes: Vec<u8>, mime: &str) -> Response<Vec<u8>> {
+    let mut response = found(bytes, mime, BLOB_CACHE);
+    let headers = response.headers_mut();
+    headers.insert(
+        header::CONTENT_SECURITY_POLICY,
+        header::HeaderValue::from_static(BLOB_CSP),
+    );
+    if !is_raster_image(mime) {
+        headers.insert(
+            header::CONTENT_DISPOSITION,
+            header::HeaderValue::from_static("attachment"),
+        );
+    }
+    response
+}
+
+/// Whether a type is an image with no script: not SVG, which is a document.
+fn is_raster_image(mime: &str) -> bool {
+    let base = mime
+        .split(';')
+        .next()
+        .unwrap_or_default()
+        .trim()
+        .to_ascii_lowercase();
+    base.strip_prefix("image/")
+        .is_some_and(|kind| !kind.is_empty() && !kind.starts_with("svg"))
+}
+
 fn missing() -> Response<Vec<u8>> {
     let mut response = Response::new(Vec::new());
     *response.status_mut() = StatusCode::NOT_FOUND;
@@ -70,7 +106,7 @@ pub fn handle(
         let backend = crate::machines::of(&app).and_then(|m| m.backend_of_label(&label).ok());
         let response = match (blob_name(&uri), backend) {
             (Some(name), Some(backend)) => match backend.blob(&name).await {
-                Ok(Some((bytes, mime))) => found(bytes, &mime, BLOB_CACHE),
+                Ok(Some((bytes, mime))) => found_blob(bytes, &mime),
                 Ok(None) => missing(),
                 Err(error) => {
                     tracing::warn!(%error, "cannot read a blob");
@@ -81,4 +117,37 @@ pub fn handle(
         };
         responder.respond(response);
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_blob_is_a_sandboxed_image_or_an_attachment() {
+        let png = found_blob(vec![1], "image/png");
+        assert_eq!(png.headers()[header::CONTENT_SECURITY_POLICY], BLOB_CSP);
+        assert!(png.headers().get(header::CONTENT_DISPOSITION).is_none());
+        for document in [
+            "text/html",
+            "image/svg+xml",
+            "IMAGE/SVG+XML; charset=utf-8",
+            "application/pdf",
+            "image/",
+        ] {
+            let blob = found_blob(vec![1], document);
+            assert_eq!(
+                blob.headers()[header::CONTENT_SECURITY_POLICY],
+                BLOB_CSP,
+                "{document}"
+            );
+            assert_eq!(
+                blob.headers()[header::CONTENT_DISPOSITION],
+                "attachment",
+                "{document}"
+            );
+        }
+        assert!(BLOB_CSP.starts_with("sandbox;"));
+        assert!(is_raster_image("Image/JPEG"));
+    }
 }
