@@ -1,11 +1,11 @@
 //! Links of the form `neohar://…`: `neohar://pane/w3:p5` and `neohar://interaction/i42`. A
-//! notification on a platform without actions uses them, and so does the phone app.
+//! script or a page can show a pane or a card with them. neohar itself makes none: its
+//! notifications answer through the notification centre, and the phone app has routes of its own.
 //!
 //! A link names something. The core knows what that is, and the host only finds the name and
 //! passes it on. The host does not search, sort or decide here (the thin-presentation rule).
 
-use serde_json::json;
-use tauri::{AppHandle, Url};
+use tauri::{AppHandle, Manager, Url};
 
 use crate::{
     machines::{self, LOCAL},
@@ -63,39 +63,75 @@ pub fn parse(text: &str) -> Option<Target> {
     })
 }
 
-/// Opens what a link names: the app comes to the front, and a pane gets focus in the window that
-/// draws it. The link goes to the core of its machine; a machine whose link is down answers
-/// nothing.
+/// Opens what a link names. Any page of the web can open a link, and neohar makes none of its
+/// own, so a link never moves the keyboard to a pane: a pane that gets the focus releases the
+/// approval that neohar holds for it, and the keys that the person types for another app would go
+/// to the dialog of the harness.
+///
+/// - A link to an interaction shows its card (`interaction.reveal`, which does not focus the
+///   pane) and never answers it.
+/// - A link to a pane brings a window of its machine to the front, and the pane does not get the
+///   focus.
+///
+/// The link goes to the core of its machine; a machine whose link is down answers nothing.
 pub fn open(app: &AppHandle, target: Target) {
-    focus_any_window(app);
     let Target {
         kind,
         machine,
         name,
     } = target;
-    let Some(backend) = machines::of(app).and_then(|m| m.backend(&machine).ok()) else {
+    if machines::of(app)
+        .and_then(|m| m.backend(&machine).ok())
+        .is_none()
+    {
+        focus_any_window(app);
         tracing::info!(
             machine,
             name,
             "a link names a machine that is not connected"
         );
         return;
-    };
-    match kind {
-        Kind::Pane => {
-            let Some(window) = window_of(app, &machine) else {
-                tracing::info!(name, machine, "a link names a pane, and no window shows it");
-                return;
-            };
-            tauri::async_runtime::spawn(async move {
-                let params = json!({ "window": window.to_string(), "pane": name });
-                if let Err(error) = backend.call(Some(window), "pane.focus", params).await {
-                    tracing::info!(%error, "a link names a pane that no window draws");
-                }
-            });
+    }
+    match action_of(&kind) {
+        Action::ShowWindow => {
+            show_window_of(app, &machine);
+            tracing::info!(
+                machine,
+                name,
+                "a link names a pane: a window of its machine comes to the front"
+            );
         }
-        // A link to an interaction shows its card and never answers it.
-        Kind::Interaction => crate::reach::reveal(app, &machine, Some(name)),
+        Action::RevealCard => crate::reach::reveal(app, &machine, Some(name)),
+    }
+}
+
+/// What the host does for a link. No action gives a pane the focus or answers a card.
+#[derive(Debug, PartialEq, Eq)]
+enum Action {
+    /// A window of the machine comes to the front.
+    ShowWindow,
+    /// `interaction.reveal`: a window shows the card.
+    RevealCard,
+}
+
+fn action_of(kind: &Kind) -> Action {
+    match kind {
+        Kind::Pane => Action::ShowWindow,
+        Kind::Interaction => Action::RevealCard,
+    }
+}
+
+/// Brings a window of `machine` to the front, or any window when none shows the machine.
+fn show_window_of(app: &AppHandle, machine: &str) {
+    let window = window_of(app, machine)
+        .and_then(|id| app.get_webview_window(&machines::label_of(machine, &id.to_string())));
+    match window {
+        Some(window) => {
+            let _ = window.unminimize();
+            let _ = window.show();
+            let _ = window.set_focus();
+        }
+        None => focus_any_window(app),
     }
 }
 
@@ -146,6 +182,13 @@ mod tests {
             parse("neohar://interaction/studio/i42"),
             target(Kind::Interaction, "studio", "i42")
         );
+    }
+
+    #[test]
+    fn a_link_never_gives_a_pane_the_focus() {
+        // A pane with the focus would release its held approval.
+        assert_eq!(action_of(&Kind::Pane), Action::ShowWindow);
+        assert_eq!(action_of(&Kind::Interaction), Action::RevealCard);
     }
 
     #[test]

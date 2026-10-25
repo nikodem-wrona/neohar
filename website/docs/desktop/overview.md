@@ -158,7 +158,7 @@ the host draws it and reports a click as an API call. An answer from any surface
 | Dock badge | The number of runs in `attention` |
 | Menu-bar inbox | Open interactions in the order of `interaction.next`; approvals have Deny and Open, Allow under the rule of the notifications, and "Allow `<rule>` always" when the core sends the rule. One section for each machine. The two quit items |
 | Global hotkey | `ui.global_hotkey` (default `ctrl+alt+cmd+n`): show the app and the card that waits longest. Changes without a restart |
-| Deep links | `neohar://pane/` and `neohar://interaction/`, with an optional machine before the name (`neohar://pane/studio/w3:p5`). A link shows, it never answers |
+| Deep links | `neohar://pane/` and `neohar://interaction/`, with an optional machine before the name (`neohar://pane/studio/w3:p5`). Any web page can open a link, so a link shows and never answers. A link to an interaction shows its card. A link to a pane brings a window of its machine to the front, and the pane does not get the focus, because the focus would release a held approval |
 | Machines menu | For each machine: New window, Connect, Disconnect ([remote machines](/docs/guides/remote-machines)) |
 | Settings window | `⌘,`: edits `config.toml` through `config.set` and shows where each value comes from; one window for each machine. The section Phone shows the phone listener, "Publish with Tailscale", the paired phones with "Send a test notification" when a phone has push, and "Pair a phone"; the palette command "Pair a phone" opens it |
 
