@@ -9,7 +9,9 @@
 //!   BLAKE3 hash of the token, never the token. The listener (crate `nh-web`) finds the device of a
 //!   cookie with [`crate::CoreHandle::phone_of_token`].
 //! - **Removal.** `phone.remove` removes the row and tells the listener, which closes the
-//!   connections of the device ([`crate::CoreHandle::phone_revocations`]).
+//!   connections of the device ([`crate::CoreHandle::phone_revocations`]). A phone that did not
+//!   use its cookie for [`PHONE_IDLE`] is removed the same way at its next request: the cookie
+//!   lives 400 days in the browser, and the core keeps no other end for it.
 //! - **Status.** The listener tells the core where it listens
 //!   ([`crate::CoreHandle::set_phone_status`]). The core needs the public origin for the URL of the
 //!   QR code, and the doctor reports the state.
@@ -88,6 +90,113 @@ pub const CLIENT_MAX: usize = 256;
 
 /// The longest name of a phone, in characters.
 pub const NAME_MAX: usize = 64;
+
+/// How long a paired phone may go without a use of its cookie. After that, its next request
+/// removes it, and the person pairs it again.
+pub const PHONE_IDLE: Duration = Duration::from_secs(30 * 24 * 60 * 60);
+
+/// How old the last use of a phone may get before a request writes a new one. A phone that keeps
+/// one socket open for weeks still counts as used, with one write a day at most.
+const SEEN_EVERY: Duration = Duration::from_secs(24 * 60 * 60);
+
+/// What a request of a phone does with the time of its last use.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Use {
+    /// The last use is recent.
+    Fresh,
+    /// The last use is older than [`SEEN_EVERY`]: keep the time of this request.
+    Touch,
+    /// The phone was idle for more than [`PHONE_IDLE`]: remove it.
+    Expired,
+}
+
+/// What a request at `now` does for a phone whose last use (or pairing) was at `last`.
+fn use_at(last: i64, now: i64) -> Use {
+    let ms = |d: Duration| i64::try_from(d.as_millis()).unwrap_or(i64::MAX);
+    let idle = now.saturating_sub(last);
+    if idle > ms(PHONE_IDLE) {
+        Use::Expired
+    } else if idle > ms(SEEN_EVERY) {
+        Use::Touch
+    } else {
+        Use::Fresh
+    }
+}
+
+/// What the check of a cookie found.
+#[derive(Clone, Debug, PartialEq, Eq)]
+enum TokenCheck {
+    Found(PhoneIdentity),
+    /// The phone of the cookie was idle too long. The device is removed already.
+    Expired(Ulid),
+    Unknown,
+}
+
+/// Finds the phone of a token hash. It keeps the time of the use, or removes a phone that was
+/// idle for more than [`PHONE_IDLE`].
+fn check_token(parts: &mut Parts<'_>, hash: &str, now: i64) -> TokenCheck {
+    let Some(device) = parts
+        .state
+        .phones
+        .devices
+        .iter()
+        .find(|device| same(&device.row.token_hash, hash))
+        .cloned()
+    else {
+        return TokenCheck::Unknown;
+    };
+    let last = device.row.seen_at.unwrap_or(device.row.paired_at);
+    match use_at(last, now) {
+        Use::Expired => {
+            tracing::info!(
+                device = %device.id,
+                "a paired phone was idle for 30 days; the core removes it"
+            );
+            match remove_device(parts, device.id) {
+                Ok(()) => TokenCheck::Expired(device.id),
+                Err(error) => {
+                    tracing::warn!(%error, "the idle phone is not removed");
+                    TokenCheck::Unknown
+                }
+            }
+        }
+        Use::Touch => {
+            touch(parts, device.id, now);
+            TokenCheck::Found(identity_of(&device))
+        }
+        Use::Fresh => TokenCheck::Found(identity_of(&device)),
+    }
+}
+
+fn identity_of(device: &Device) -> PhoneIdentity {
+    PhoneIdentity {
+        device: device.id,
+        name: device.row.name.clone(),
+    }
+}
+
+/// Keeps `now` as the last use of a phone, in the row and in memory.
+fn touch(parts: &mut Parts<'_>, device: Ulid, now: i64) {
+    let Some(found) = parts.state.phones.device(device).cloned() else {
+        return;
+    };
+    if parts
+        .commit(|tx| tx.see_phone(&found.row.device, now))
+        .is_err()
+    {
+        return;
+    }
+    if let Some(d) = parts
+        .state
+        .phones
+        .devices
+        .iter_mut()
+        .find(|d| d.id == device)
+    {
+        d.row.seen_at = Some(now);
+    }
+    publish_phones(parts.projections, &parts.state.phones, None);
+}
 
 /// The letters of a short code: Crockford base32, with no `I`, `L`, `O` or `U`.
 const SHORT_ALPHABET: &[u8; 32] = b"0123456789ABCDEFGHJKMNPQRSTVWXYZ";
@@ -1133,34 +1242,37 @@ async fn pair_begin(inner: &Arc<Inner>) -> Result<PhonePairStarted, RpcError> {
 async fn remove(inner: &Arc<Inner>, id: Ulid) -> Result<(), RpcError> {
     inner
         .actor
-        .update(move |mut parts| {
-            let Some(device) = parts.state.phones.device(id).cloned() else {
-                return Err(unknown(id));
-            };
-            let event = EventPayload::PhoneRemoved(PhoneEvent {
-                device: DeviceId(id),
-                name: device.row.name.clone(),
-            });
-            parts
-                .commit(|tx| {
-                    tx.delete_phone(&device.row.device)?;
-                    tx.append(Some(&device.row.device), &event)
-                })
-                .map_err(gone)?;
-            parts.state.phones.devices.retain(|d| d.id != id);
-            parts
-                .state
-                .phones
-                .visible
-                .retain(|(device, _)| *device != id);
-            publish_phones(parts.projections, &parts.state.phones, Some(id));
-            crate::clients::remove_windows_of(&mut parts, id);
-            Ok(())
-        })
+        .update(move |mut parts| remove_device(&mut parts, id))
         .await
         .map_err(gone)??;
     // No receiver means no listener runs: nothing to close.
     let _ = inner.phones.revoked.send(id);
+    Ok(())
+}
+
+/// Removes a paired phone: its row, its event, its windows. The caller tells the listener.
+fn remove_device(parts: &mut Parts<'_>, id: Ulid) -> Result<(), RpcError> {
+    let Some(device) = parts.state.phones.device(id).cloned() else {
+        return Err(unknown(id));
+    };
+    let event = EventPayload::PhoneRemoved(PhoneEvent {
+        device: DeviceId(id),
+        name: device.row.name.clone(),
+    });
+    parts
+        .commit(|tx| {
+            tx.delete_phone(&device.row.device)?;
+            tx.append(Some(&device.row.device), &event)
+        })
+        .map_err(gone)?;
+    parts.state.phones.devices.retain(|d| d.id != id);
+    parts
+        .state
+        .phones
+        .visible
+        .retain(|(device, _)| *device != id);
+    publish_phones(parts.projections, &parts.state.phones, Some(id));
+    crate::clients::remove_windows_of(parts, id);
     Ok(())
 }
 
@@ -1315,26 +1427,24 @@ impl CoreHandle {
         })
     }
 
-    /// The paired phone whose cookie has this token, or `None`.
+    /// The paired phone whose cookie has this token, or `None`. A phone that did not use its
+    /// cookie for [`PHONE_IDLE`] is removed now, and its connections close.
     pub async fn phone_of_token(&self, token: &str) -> Option<PhoneIdentity> {
         let hash = token_hash(token);
-        self.inner()
+        let checked = self
+            .inner()
             .actor
-            .update(move |parts| {
-                parts
-                    .state
-                    .phones
-                    .devices
-                    .iter()
-                    .find(|device| same(&device.row.token_hash, &hash))
-                    .map(|device| PhoneIdentity {
-                        device: device.id,
-                        name: device.row.name.clone(),
-                    })
-            })
+            .update(move |mut parts| check_token(&mut parts, &hash, now_ms()))
             .await
-            .ok()
-            .flatten()
+            .ok()?;
+        match checked {
+            TokenCheck::Found(phone) => Some(phone),
+            TokenCheck::Expired(device) => {
+                let _ = self.inner().phones.revoked.send(device);
+                None
+            }
+            TokenCheck::Unknown => None,
+        }
     }
 
     /// Notes a connection of a phone: the time of its last connection in `phones`.
@@ -1730,5 +1840,81 @@ mod tests {
         ] {
             assert!(!phone_may_follow(&name, window), "{name}");
         }
+    }
+
+    #[test]
+    fn a_phone_expires_after_30_days_without_a_use_and_a_use_is_kept_once_a_day() {
+        let day = 24 * 60 * 60 * 1000;
+        assert_eq!(use_at(0, 0), Use::Fresh);
+        assert_eq!(use_at(0, day), Use::Fresh);
+        assert_eq!(use_at(0, day + 1), Use::Touch);
+        assert_eq!(use_at(0, 30 * day), Use::Touch);
+        assert_eq!(use_at(0, 30 * day + 1), Use::Expired);
+        // A clock that went back is no idle time.
+        assert_eq!(use_at(day, 0), Use::Fresh);
+    }
+
+    #[tokio::test]
+    async fn the_cookie_of_an_idle_phone_removes_the_phone() {
+        let f = crate::agents::tests::Fixture::new();
+        let day = 24 * 60 * 60 * 1000;
+        let now = 100 * day;
+        let phone = |n: u64, seen_at: Option<i64>| PhoneRow {
+            device: Ulid::from_parts(n, 1).to_string(),
+            name: format!("phone {n}"),
+            token_hash: token_hash(&format!("token-{n}")),
+            paired_at: now - 60 * day,
+            seen_at,
+            push: None,
+        };
+        let rows = [
+            phone(1, Some(now - 1000)),
+            phone(2, Some(now - 2 * day)),
+            phone(3, Some(now - 31 * day)),
+            phone(4, None),
+        ];
+        let checks = f
+            .update(move |parts| {
+                for row in rows {
+                    parts
+                        .commit(|tx| tx.put_phone(&row))
+                        .expect("the row is kept");
+                    let id = Ulid::from_string(&row.device).expect("a ULID");
+                    parts.state.phones.devices.push(Device { id, row });
+                }
+                let checks: Vec<TokenCheck> = (1..=5)
+                    .map(|n| check_token(parts, &token_hash(&format!("token-{n}")), now))
+                    .collect();
+                let seen: Vec<Option<i64>> = (1..=2)
+                    .map(|n| {
+                        parts
+                            .state
+                            .phones
+                            .device(Ulid::from_parts(n, 1))
+                            .and_then(|d| d.row.seen_at)
+                    })
+                    .collect();
+                let left = parts.state.phones.devices.len();
+                (checks, seen, left)
+            })
+            .await;
+        let (checks, seen, left) = checks;
+        let identity = |n: u64| PhoneIdentity {
+            device: Ulid::from_parts(n, 1),
+            name: format!("phone {n}"),
+        };
+        assert_eq!(
+            checks[0],
+            TokenCheck::Found(identity(1)),
+            "used a moment ago"
+        );
+        assert_eq!(checks[1], TokenCheck::Found(identity(2)), "used 2 days ago");
+        assert_eq!(checks[2], TokenCheck::Expired(Ulid::from_parts(3, 1)));
+        // Paired 60 days ago and never used.
+        assert_eq!(checks[3], TokenCheck::Expired(Ulid::from_parts(4, 1)));
+        assert_eq!(checks[4], TokenCheck::Unknown);
+        assert_eq!(seen[0], Some(now - 1000), "a fresh use writes nothing");
+        assert_eq!(seen[1], Some(now), "an old use is kept anew");
+        assert_eq!(left, 2, "the idle phones are gone");
     }
 }

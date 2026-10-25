@@ -65,6 +65,9 @@ To remove a phone, click **Remove** next to it in the section **Phone**, or tap 
 phone** on the phone. `nh phone remove <device>` does the same. The removal closes the connections
 of the phone at once.
 
+A phone that does not open the phone app for 30 days stops to work: its next request removes it.
+Then pair it again.
+
 ## Push notifications
 
 On the phone, open **This phone** and turn on **Notifications**. Safari sends a push only to an app
@@ -95,7 +98,8 @@ on battery sleeps in all cases.
   directory: the Tailscale app of the App Store runs in a sandbox, and it may not reach that
   socket. On a Mac with other users, quit neohar cleanly, and remove a phone that you do not use.
 - **Pairing.** Each pairing gives the phone a cookie with a random token. The cookie is
-  `HttpOnly`, `Secure` and `SameSite=Strict`. The core keeps only a hash of the token.
+  `HttpOnly`, `Secure` and `SameSite=Strict`. The core keeps only a hash of the token. A token that
+  is not used for 30 days stops to work.
 - **Checks on each request.** Every route that is not a file of the app needs the cookie. Every
   request needs the host of the public address in `Host`, so that a page of another site cannot
   reach the port. The connections and each `POST` also need that address in `Origin`.
