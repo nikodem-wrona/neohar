@@ -10,6 +10,24 @@ not edit a released section. A note under Unreleased goes to the top of the next
 
 ## [Unreleased]
 
+Read this before you update. This release closes the findings of a security review, and some of
+the fixes change what you do:
+
+- neohar runs git in a repository only after you trust it. Click **Trust** in the Changes tab or
+  the Git view once for each repository, or run `nh git trust <path>`. neohar asks again when a
+  setting or a hook of the repository that can start a program changes.
+- "Allow always" shows only when neohar can make a rule that covers the request exactly, and the
+  button shows the rule. A notification and the tray show Allow only for a command of low or
+  medium risk that the title shows in full. For other requests, open the card.
+- From inside a neohar pane, neohar refuses these calls: an answer to a request, a change of the
+  policy, `nh git trust`, `nh config set` for the keys of `approvals`, `policy`, `phone` and
+  `machines`, and input to a pane that waits for an answer. Use the app, or a terminal that is not
+  a neohar pane.
+- `nh --socket` refuses a socket in a folder that other users can write, for example directly in
+  `/tmp`.
+- neohar removes a paired phone that did not connect for 30 days. Pair it again.
+- A `neohar://pane/…` link shows the app but does not select the pane.
+
 ## [1.0.0] - 2026-10-21
 
 The first public release.
