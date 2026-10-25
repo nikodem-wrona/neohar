@@ -73,7 +73,7 @@ The webview sorts out what only a browser knows (input methods, dead keys, AltGr
 - **App chords.** While a pane has focus, it gets every key except the reserved chords of the keymap, matched by physical key. ⌘⌥V passes the next key through ([The UI](/docs/desktop/ui)).
 - **Mouse.** A program that asked for the mouse gets it; Shift bypasses it for a selection. Moves and wheel steps are merged per animation frame. Without a mouse mode, the wheel scrolls the history in the core.
 - **Paste.** Line ends become carriage returns. With bracketed paste on, the text goes between the markers, and any end marker inside it is removed first. One write is at most 1 MiB.
-- **Paths.** `pane.drop_files` and `pane.insert_paths` (the Files tab) quote each path in POSIX single quotes and paste them. A drop on a pane of a remote machine uploads the files first.
+- **Paths.** `pane.drop_files` and `pane.insert_paths` (the Files tab) quote each path in POSIX single quotes and paste them. The host refuses `pane.drop_files` from a window of a remote machine: the paths of this Mac name nothing there, and the host uploads no file of this Mac. A phone attaches files with `pane.drop_blobs`.
 
 Every input is at most once: the holder writes an id once and acknowledges it, and an input without an ack is reported, never replayed ([Holders](/docs/architecture/holders)).
 

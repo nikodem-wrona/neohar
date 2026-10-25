@@ -108,77 +108,23 @@ pub(crate) async fn route_call(
     {
         return done;
     }
-    // Files dropped on a pane of a remote machine go up over the link first. A phone
-    // has no paths of this Mac: it attaches files with `POST /blob`.
-    if method == "pane.drop_files"
-        && phone.is_none()
-        && matches!(backend, crate::backend::Backend::Link(_))
-    {
-        return drop_remote(&backend, window, params).await;
+    // A window of a remote machine reads no file of this Mac. The UI has no caller of
+    // `pane.drop_files`, and the paths of this Mac name nothing on the machine. A phone
+    // attaches files with `POST /blob` and `pane.drop_blobs`.
+    if let Some(refused) = refused_for_machine(machine, phone.is_some(), method) {
+        return Err(refused);
     }
     backend.call_for(phone, window, method, params).await
 }
 
-/// What a file of a drop may be: a regular file that the core takes.
-fn checked_drop(path: &str) -> Result<(String, u64), RpcError> {
-    let meta = std::fs::metadata(path)
-        .map_err(|e| RpcError::invalid_params(format!("cannot read {path}: {e}")))?;
-    if !meta.is_file() {
-        return Err(RpcError::invalid_params(format!("{path} is not a file")));
-    }
-    if meta.len() > nh_core::UPLOAD_MAX_BYTES {
-        return Err(RpcError::new(
-            ErrorCode::TooLarge,
-            format!("{path} is over {} bytes", nh_core::UPLOAD_MAX_BYTES),
-        ));
-    }
-    let name = std::path::Path::new(path)
-        .file_name()
-        .map_or_else(|| "file".to_owned(), |n| n.to_string_lossy().into_owned());
-    Ok((name, meta.len()))
-}
-
-/// `pane.drop_files` of a window of a remote machine. The paths are paths of
-/// this Mac, so the core of the machine cannot read them. The host checks every file first, puts
-/// each one in the blob store of the machine with `BlobPut`, and then calls `pane.drop_blobs`. A
-/// file over the limit stops the drop before the first byte goes up.
-async fn drop_remote(
-    backend: &crate::backend::Backend,
-    window: Option<nh_proto::api::ids::WindowId>,
-    params: Value,
-) -> Result<Value, RpcError> {
-    let paths: Vec<String> = params
-        .get("paths")
-        .and_then(Value::as_array)
-        .into_iter()
-        .flatten()
-        .filter_map(|p| p.as_str().map(str::to_owned))
-        .collect();
-    if paths.is_empty() || paths.len() > 20 {
-        return Err(RpcError::invalid_params("a drop has 1 to 20 files"));
-    }
-    let checked: Vec<(String, String)> = paths
-        .iter()
-        .map(|path| checked_drop(path).map(|(name, _)| (path.clone(), name)))
-        .collect::<Result<_, _>>()?;
-    let crate::backend::Backend::Link(linked) = backend else {
-        return Err(RpcError::internal("not a link"));
-    };
-    let mut blobs = Vec::new();
-    for (path, name) in checked {
-        let owned = path.clone();
-        let bytes = tokio::task::spawn_blocking(move || std::fs::read(owned))
-            .await
-            .map_err(|e| RpcError::internal(e.to_string()))?
-            .map_err(|e| RpcError::invalid_params(format!("cannot read {path}: {e}")))?;
-        let hash = linked.client.put_blob(&name, bytes).await?;
-        blobs.push(json!({ "hash": hash, "name": name }));
-    }
-    let mut call = json!({ "blobs": blobs });
-    for key in ["pane", "input_id"] {
-        call[key] = params.get(key).cloned().unwrap_or(Value::Null);
-    }
-    backend.call(window, "pane.drop_blobs", call).await
+/// The error of a call that a window of a remote machine may not make, or `None`.
+fn refused_for_machine(machine: &str, phone: bool, method: &str) -> Option<RpcError> {
+    (machine != LOCAL && !phone && method == "pane.drop_files").then(|| {
+        RpcError::new(
+            ErrorCode::PermissionDenied,
+            "A window of a remote machine cannot drop files of this Mac.",
+        )
+    })
 }
 
 /// `projection.versions {names}`: the core answers for its projections, and the host for `link`.
@@ -294,6 +240,16 @@ pub async fn stream(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_window_of_a_remote_machine_drops_no_file_of_this_mac() {
+        assert!(refused_for_machine("studio", false, "pane.drop_files").is_some());
+        // The core of this Mac pastes the paths of this Mac, and a phone has no paths of it.
+        assert!(refused_for_machine(LOCAL, false, "pane.drop_files").is_none());
+        assert!(refused_for_machine("studio", true, "pane.drop_files").is_none());
+        assert!(refused_for_machine("studio", false, "pane.drop_blobs").is_none());
+        assert!(refused_for_machine("studio", false, "pane.insert_paths").is_none());
+    }
 
     #[test]
     fn the_label_of_a_window_is_the_id_of_a_window_of_the_layout() {

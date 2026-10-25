@@ -318,10 +318,15 @@ impl<T: Link + ?Sized> Calls for T {
     }
 }
 
+/// The keys of the client sections that a window of a remote machine does not set. `ui.editor`
+/// is the app that `fs.open` starts on this Mac: a window of a remote machine shows the content
+/// of that machine, so it must not choose a program of this Mac.
+pub const LOCAL_ONLY_KEYS: [&str; 1] = ["ui.editor"];
+
 /// `config.get`, `config.set` and `config.reload` of a window of a remote machine. A key
-/// of `ui`, `theme` or `keys` goes to the core of this Mac, and any other key to the machine.
-/// `config.reload` goes to both, and `config.get` without a section joins the two answers.
-/// Returns `None` for a method that this does not route.
+/// of `ui`, `theme` or `keys` goes to the core of this Mac, and any other key to the machine. A
+/// key of [`LOCAL_ONLY_KEYS`] is refused. `config.reload` goes to both, and `config.get` without
+/// a section joins the two answers. Returns `None` for a method that this does not route.
 pub async fn route_config(
     local: &dyn Calls,
     machine: &dyn Calls,
@@ -336,6 +341,12 @@ pub async fn route_config(
     Some(match method {
         "config.set" => {
             let key = params["key"].as_str().unwrap_or_default();
+            if LOCAL_ONLY_KEYS.contains(&key) {
+                return Some(Err(RpcError::new(
+                    nh_core::ErrorCode::PermissionDenied,
+                    format!("Set {key} in the settings of this Mac."),
+                )));
+            }
             pick(side_of_key(key))
                 .call(window, method, params.clone())
                 .await
@@ -412,6 +423,42 @@ mod tests {
 
     fn set(key: &str, value: &str) -> Value {
         json!({"type": "patch", "version": 2, "ops": [{"op": "set", "key": key, "value": section(value)}]})
+    }
+
+    /// A core that answers every call with `{}` and writes down the keys of `config.set`.
+    #[derive(Default)]
+    struct Keys(Mutex<Vec<String>>);
+
+    #[async_trait]
+    impl Calls for Keys {
+        async fn call(
+            &self,
+            _: Option<WindowId>,
+            _: &str,
+            params: Value,
+        ) -> Result<Value, RpcError> {
+            lock(&self.0).push(params["key"].as_str().unwrap_or_default().to_owned());
+            Ok(json!({}))
+        }
+    }
+
+    #[tokio::test]
+    async fn a_window_of_a_machine_does_not_choose_the_editor_of_this_mac() {
+        let (local, machine) = (Keys::default(), Keys::default());
+        let set = |key: &str| json!({ "key": key, "value": "x" });
+        let refused = route_config(&local, &machine, None, "config.set", &set("ui.editor"))
+            .await
+            .expect("routed")
+            .expect_err("refused");
+        assert_eq!(refused.code, nh_core::ErrorCode::PermissionDenied);
+        for key in ["ui.font_size", "git.fetch_minutes"] {
+            route_config(&local, &machine, None, "config.set", &set(key))
+                .await
+                .expect("routed")
+                .expect("set");
+        }
+        assert_eq!(*lock(&local.0), ["ui.font_size"]);
+        assert_eq!(*lock(&machine.0), ["git.fetch_minutes"]);
     }
 
     #[test]

@@ -12,7 +12,7 @@ sleeps or a quit of the app stops no agent on the remote Mac.
 :::info[Status]
 
 Built: the daemon, the link, `[machines]`, windows of a machine, reconnect, `nh --machine`, the
-client settings, port forwards, dropped files and several clients. Not built
+client settings, port forwards and several clients. Not built
 yet: the install and update of `nh` on the remote Mac by the app, the doctor checks of the remote
 Mac and the "Stop everything on …" menu item. Not tested yet: link chaos, a killed daemon, sleep and
 a network change.
@@ -79,10 +79,10 @@ Everything of a local window works: panes, splits, scrollback, search, agents, c
 the Files and Changes tabs. Notifications, the badge and the tray show on your Mac, with the
 label in the title. Also:
 
-- Files that you drop on a remote pane are copied to the remote Mac first.
 - A click on a link to `localhost` in a remote window opens it through an ssh forward. Only a
   click opens a link.
-- The font, theme and keys come from your Mac. The other settings belong to the machine.
+- The font, theme and keys come from your Mac. The other settings belong to the machine. Set
+  `ui.editor` in the settings of your Mac: a remote window cannot set it.
 - **Open** in the Files tab does not work for a remote file. **Copy path** and **Insert into
   pane** do.
 
