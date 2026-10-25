@@ -4006,7 +4006,7 @@ expression: document()
       "description": "`trust` of `changes_head` and `git_head`: the settings of a repository can name programs\nthat git runs, so the core runs git in a repository only after the person trusts it\n(`git.trust`).",
       "properties": {
         "changed": {
-          "description": "The keys of the settings that changed after the trust, for example `core.fsmonitor`.",
+          "description": "What changed after the trust: the keys of the settings, for example `core.fsmonitor`,\nand the hook files, for example `hooks/post-checkout`.",
           "items": {
             "type": "string"
           },
@@ -4059,7 +4059,7 @@ expression: document()
         },
         {
           "const": "changed",
-          "description": "A setting of the repository that names a program changed after the trust.",
+          "description": "A setting of the repository in the fingerprint of the trust, or a hook file, changed\nafter the trust.",
           "type": "string"
         }
       ]

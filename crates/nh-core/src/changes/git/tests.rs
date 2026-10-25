@@ -525,3 +525,110 @@ async fn an_output_stops_at_its_cap() {
         .expect("an output");
     assert_eq!((out.len(), cut), (123, false));
 }
+
+#[tokio::test]
+async fn git_gets_only_the_absolute_entries_of_the_path_for_its_own_programs() {
+    let (_, dir) = repo("helper-path").await;
+    let marks = markers("helper-path");
+    // A remote `evil::<address>` runs the program `git-remote-evil`, which git finds in the PATH.
+    std::fs::create_dir_all(dir.join("bin")).expect("a folder");
+    script(
+        &dir.join("bin/git-remote-evil"),
+        &format!("touch {}/helper; exit 1", marks.display()),
+    );
+    let mut env = env();
+    let mut absolute = String::new();
+    for (key, value) in &mut env {
+        if key == "PATH" {
+            absolute.clone_from(value);
+            *value = format!("bin:.::{value}");
+        }
+    }
+    let git = Git::new(env);
+    assert_eq!(git.env_value("PATH"), Some(absolute.as_str()));
+    git.run(&dir, &["remote", "add", "ev", "evil::anything"])
+        .await
+        .expect("a remote");
+    assert!(git.run(&dir, &["fetch", "ev"]).await.is_err());
+    assert!(git.with_hooks().run(&dir, &["fetch", "ev"]).await.is_err());
+    assert_empty(&marks);
+}
+
+#[test]
+fn the_names_of_the_hooks_of_the_settings_come_once_each() {
+    let out = b"hook.lint.command\0hook.lint.event\0hook.a.b=c.command\0HOOK.Up.event\0";
+    assert_eq!(parse_hook_names(out), ["lint", "a.b=c", "Up"]);
+    assert!(parse_hook_names(b"").is_empty());
+}
+
+#[tokio::test]
+async fn no_git_runs_in_a_submodule_also_for_a_switch_from_a_click() {
+    let (git, dir) = repo("submodule").await;
+    let marks = markers("submodule");
+    // A submodule with two commits: `main` has the first, `other` the second.
+    let (_, sub) = repo("submodule-sub").await;
+    let first = git
+        .run(&sub, &["rev-parse", "HEAD"])
+        .await
+        .expect("a commit");
+    write(&sub, "b.txt", b"b\n");
+    commit(&git, &sub, "second").await;
+    let url = sub.display().to_string();
+    git.run(
+        &dir,
+        &[
+            "-c",
+            "protocol.file.allow=always",
+            "submodule",
+            "add",
+            "-q",
+            &url,
+            "sub",
+        ],
+    )
+    .await
+    .expect("a submodule");
+    let module = dir.join("sub");
+    git.run(&module, &["checkout", "-q", first.trim()])
+        .await
+        .expect("the first commit");
+    commit(&git, &dir, "a submodule").await;
+    git.run(&dir, &["switch", "-q", "-c", "other"])
+        .await
+        .expect("a branch");
+    git.run(&module, &["checkout", "-q", "main"])
+        .await
+        .expect("the second commit");
+    commit(&git, &dir, "the second commit of the submodule").await;
+    git.run(&dir, &["switch", "-q", "main"])
+        .await
+        .expect("back to main");
+    git.run(&module, &["checkout", "-q", first.trim()])
+        .await
+        .expect("the first commit");
+    // The submodule has hooks of its own, and the repository asks git to go into it.
+    let hooks = dir.join(".git/modules/sub/hooks");
+    for hook in ["post-checkout", "reference-transaction"] {
+        script(
+            &hooks.join(hook),
+            &format!("touch {}/{hook}", marks.display()),
+        );
+    }
+    git.run(&dir, &["config", "submodule.recurse", "true"])
+        .await
+        .expect("config");
+    git.with_hooks()
+        .run(&dir, &["switch", "-q", "other"])
+        .await
+        .expect("a switch");
+    assert_empty(&marks);
+    let head = git
+        .run(&module, &["rev-parse", "HEAD"])
+        .await
+        .expect("HEAD");
+    assert_eq!(
+        head.trim(),
+        first.trim(),
+        "the submodule stays where it was"
+    );
+}

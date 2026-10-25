@@ -63,4 +63,4 @@ neohar keeps its data in `state.db` and in the scrollback archive, in the data d
 
 ## Git repositories
 
-The settings of a git repository can name programs that git runs. Thus neohar runs no git command in a repository until you trust it: the Changes tab and the Git view show a **Trust** button. Trust a repository only when you know where it comes from. When a setting that names a program changes after the trust, neohar asks again. [Trust a repository](website/docs/guides/files-and-changes.md#trust-a-repository) gives the details.
+The settings and the hooks of a git repository can name programs that git runs. Thus neohar runs no git command in a repository until you trust it: the Changes tab and the Git view show a **Trust** button. Trust a repository only when you know where it comes from. When such a setting or a hook file changes after the trust, neohar asks again. [Trust a repository](website/docs/guides/files-and-changes.md#trust-a-repository) gives the details.

@@ -10,11 +10,13 @@
 //!   walk, because git refuses it (`safe.bareRepository=explicit`).
 //! - **The key.** A trust is for the canonical path of the common git directory, so the worktrees
 //!   of a repository share it. The store keeps it in `git_trust`.
-//! - **The settings.** At the time of the trust, the core keeps the settings of the repository
-//!   (local and worktree, with their includes) that name a program ([`names_a_program`]). It reads
-//!   them with `git config --list`, which runs no program. Before git runs in a trusted repository,
-//!   the core reads them again ([`Trusts::gate`]). When they changed, for example because an agent
-//!   wrote `.git/config`, the core asks again.
+//! - **The fingerprint.** At the time of the trust, the core keeps the settings of the repository
+//!   (local and worktree, with their includes) that name a program, that move the worktree, or
+//!   that start git in a submodule ([`in_fingerprint`]). It reads them with `git config --list`,
+//!   which runs no program. It also keeps each hook file that git can run on a write from a click
+//!   ([`hook_files`]): its name, its mode and the hash of its bytes. Before git runs in a trusted
+//!   repository, the core reads them again ([`Trusts::gate`]). When they changed, for example
+//!   because an agent wrote `.git/config` or `.git/hooks/post-checkout`, the core asks again.
 //! - **Git after the trust.** `git rev-parse` gives the worktree. When git finds another common
 //!   git directory than the walk, the core does not use the folder.
 
@@ -165,11 +167,18 @@ pub(crate) fn discover(folder: &Path) -> Option<Found> {
 /// no value.
 pub(crate) type Setting = (String, Option<String>);
 
-/// Whether a setting names a program that git, or a program that git starts, runs. It is the list
-/// of git-config(1), and of `git lfs`, of the settings whose value is a command or a program, and
-/// of the settings that read more settings. The key has the form `section[.subsection].name`, and
-/// the section and the name have any case.
-pub(crate) fn names_a_program(key: &str) -> bool {
+/// Whether a setting is part of the fingerprint of a trust. It is the list of git-config(1),
+/// githooks(5) and `git lfs`:
+///
+/// - the settings whose value is a command or a program, and the hooks of the settings
+///   (`hook.<name>.command`);
+/// - the settings that read more settings (`include.path`, `includeIf`);
+/// - `core.worktree`, which sends the writes of a click into another folder;
+/// - the settings that start git in a submodule, whose own settings and hooks the trust does not
+///   read. The command line turns them off too ([`super::git::ALWAYS`]).
+///
+/// The key has the form `section[.subsection].name`, and the section and the name have any case.
+pub(crate) fn in_fingerprint(key: &str) -> bool {
     let Some((section, rest)) = key.split_once('.') else {
         return false;
     };
@@ -181,9 +190,11 @@ pub(crate) fn names_a_program(key: &str) -> bool {
     let name = name.to_ascii_lowercase();
     match (section.as_str(), sub, name.as_str()) {
         // Each setting of these sections can run a program, or read more settings.
-        ("alias" | "filter" | "gpg" | "includeif" | "instaweb" | "pager" | "sendemail", _, _) => {
-            true
-        }
+        (
+            "alias" | "filter" | "gpg" | "hook" | "includeif" | "instaweb" | "pager" | "sendemail",
+            _,
+            _,
+        ) => true,
         (
             "core",
             None,
@@ -194,8 +205,12 @@ pub(crate) fn names_a_program(key: &str) -> bool {
             | "gitproxy"
             | "hookspath"
             | "pager"
-            | "sshcommand",
+            | "sshcommand"
+            | "worktree",
         )
+        | ("submodule", None, "recurse")
+        | ("submodule", Some(_), "fetchrecursesubmodules")
+        | ("fetch" | "push", None, "recursesubmodules")
         | ("include", None, "path")
         | ("diff", None, "external")
         | ("diff", Some(_), "command" | "textconv")
@@ -217,28 +232,101 @@ pub(crate) fn names_a_program(key: &str) -> bool {
     }
 }
 
-/// The settings of the repository that name a program, from the output of
-/// `git config --list --includes --show-scope -z`: a scope, then the key, a newline and the
-/// value, each with a NUL at its end. Only the scopes of the repository count: `local` and
-/// `worktree`, with the files that they include. The settings of the person (`global`, `system`)
-/// and of the command line do not.
-pub(crate) fn parse_settings(out: &[u8]) -> Vec<Setting> {
+/// The entries of `git config --list --includes --show-scope -z`: a scope, then the key, a
+/// newline and the value, each with a NUL at its end.
+fn config_entries(out: &[u8]) -> impl Iterator<Item = (&[u8], String, Option<String>)> {
     let mut fields = out.split(|b| *b == 0);
-    let mut settings = Vec::new();
-    while let (Some(scope), Some(entry)) = (fields.next(), fields.next()) {
-        if !matches!(scope, b"local" | b"worktree") {
-            continue;
-        }
+    std::iter::from_fn(move || {
+        let (scope, entry) = (fields.next()?, fields.next()?);
         let entry = String::from_utf8_lossy(entry);
         let (key, value) = match entry.split_once('\n') {
             Some((key, value)) => (key.to_owned(), Some(value.to_owned())),
             None => (entry.into_owned(), None),
         };
-        if names_a_program(&key) {
-            settings.push((key, value));
-        }
+        Some((scope, key, value))
+    })
+}
+
+/// The settings of the repository in the fingerprint, from the output of
+/// `git config --list --includes --show-scope -z`. Only the scopes of the repository count:
+/// `local` and `worktree`, with the files that they include. The settings of the person
+/// (`global`, `system`) and of the command line do not.
+pub(crate) fn parse_settings(out: &[u8]) -> Vec<Setting> {
+    config_entries(out)
+        .filter(|(scope, key, _)| matches!(*scope, b"local" | b"worktree") && in_fingerprint(key))
+        .map(|(_, key, value)| (key, value))
+        .collect()
+}
+
+/// The key of a hook file in the fingerprint: `hooks/<name>`. The section of a setting has no
+/// `/`, so no setting has such a key.
+const HOOK_KEY: &str = "hooks/";
+
+/// The most bytes of a hook file that the hash reads. A larger file also gives its size.
+const HOOK_CAP: u64 = 16 << 20;
+
+/// The folder of the hook files that a write from a click runs, as git finds it:
+/// `core.hooksPath` of every scope but the command line (the last one wins), else `hooks` of the
+/// common git directory. A relative path is from the root of the worktree, where git runs a hook,
+/// and `~/` is the home folder.
+pub(crate) fn hooks_dir(
+    out: &[u8],
+    common_dir: &Path,
+    root: &Path,
+    home: Option<&Path>,
+) -> PathBuf {
+    let set = config_entries(out)
+        .filter(|(scope, key, _)| {
+            *scope != b"command" && key.eq_ignore_ascii_case("core.hookspath")
+        })
+        .filter_map(|(_, _, value)| value)
+        .last();
+    let Some(set) = set else {
+        return common_dir.join("hooks");
+    };
+    match (set.strip_prefix("~/"), home) {
+        (Some(rest), Some(home)) => home.join(rest),
+        _ => path_in(root, &set),
     }
-    settings
+}
+
+/// The hook files of `dir` that git can run: each executable regular file, or symlink to one,
+/// whose name does not end in `.sample`. Each gives the key `hooks/<name>` and the value `<mode>
+/// <hash>`: its permissions in octal and the BLAKE3 hash of its bytes. A FIFO or a device is
+/// never opened.
+pub(crate) fn hook_files(dir: &Path) -> Vec<Setting> {
+    use std::os::unix::fs::PermissionsExt;
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return Vec::new();
+    };
+    let mut hooks: Vec<Setting> = entries
+        .filter_map(Result::ok)
+        .filter_map(|entry| {
+            let name = entry.file_name().to_string_lossy().into_owned();
+            if name.ends_with(".sample") {
+                return None;
+            }
+            let path = entry.path();
+            let meta = std::fs::metadata(&path).ok()?;
+            let mode = meta.permissions().mode() & 0o7777;
+            if !meta.is_file() || mode & 0o111 == 0 {
+                return None;
+            }
+            let mut bytes = Vec::new();
+            let read = std::fs::File::open(&path)
+                .and_then(|file| file.take(HOOK_CAP).read_to_end(&mut bytes));
+            let mut value = match read {
+                Ok(_) => format!("{mode:o} {}", blake3::hash(&bytes).to_hex()),
+                Err(error) => format!("{mode:o} unreadable: {}", error.kind()),
+            };
+            if meta.len() > HOOK_CAP {
+                value.push_str(&format!(" {} bytes", meta.len()));
+            }
+            Some((format!("{HOOK_KEY}{name}"), Some(value)))
+        })
+        .collect();
+    hooks.sort();
+    hooks
 }
 
 /// The keys whose values are not the same in `before` and `now`, in their order. A key can have
@@ -305,8 +393,8 @@ pub(crate) fn untrusted(ask: &GitTrustAsk) -> RpcError {
             ask.path
         ),
         GitTrustReason::Changed => format!(
-            "The settings of {} changed after you trusted it. neohar runs no git command in it \
-             until you trust it again (nh git trust).",
+            "The settings or the hooks of {} changed after you trusted it. neohar runs no git \
+             command in it until you trust it again (nh git trust).",
             ask.path
         ),
     };
@@ -326,6 +414,8 @@ pub(crate) type Listener = Box<dyn Fn(&Path) + Send + Sync>;
 pub(crate) struct Trusts {
     /// Reads the settings: `git config` runs no program.
     git: Git,
+    /// The home folder, for a `core.hooksPath` that starts with `~/`.
+    home: Option<PathBuf>,
     actor: OnceLock<ActorHandle>,
     /// By common git directory. `None` before the store answered.
     kept: Mutex<Option<HashMap<PathBuf, Vec<Setting>>>>,
@@ -335,8 +425,14 @@ pub(crate) struct Trusts {
 impl Trusts {
     /// `base_env` is the environment of `git config`. It must have a `PATH`.
     pub(crate) fn new(base_env: &[(String, String)]) -> Arc<Self> {
+        let home = base_env
+            .iter()
+            .rev()
+            .find(|(key, _)| key == "HOME")
+            .map(|(_, value)| PathBuf::from(value));
         Arc::new(Self {
             git: Git::new(base_env.to_vec()),
+            home,
             actor: OnceLock::new(),
             kept: Mutex::new(None),
             listeners: Mutex::new(Vec::new()),
@@ -387,32 +483,36 @@ impl Trusts {
         lock(&self.kept).get_or_insert(table);
     }
 
-    /// The settings of a trusted repository at the time of the trust.
+    /// The fingerprint of a trusted repository at the time of the trust.
     async fn kept(&self, common_dir: &Path) -> Option<Vec<Setting>> {
         self.load().await;
         lock(&self.kept).as_ref()?.get(common_dir).cloned()
     }
 
-    /// The settings of the repository of `cwd` that name a program. `git config` reads them and
-    /// runs nothing.
-    async fn settings(&self, cwd: &Path) -> Result<Vec<Setting>, GitError> {
+    /// The fingerprint of the repository of `common_dir`, from its worktree at `root`: its
+    /// settings in the fingerprint, then its hook files. `git config` reads the settings and runs
+    /// nothing.
+    async fn fingerprint(&self, common_dir: &Path, root: &Path) -> Result<Vec<Setting>, GitError> {
         let out = self
             .git
             .output(
-                cwd,
+                root,
                 &["config", "--list", "--includes", "--show-scope", "-z"].map(OsStr::new),
             )
             .await?;
-        Ok(parse_settings(&out))
+        let mut fingerprint = parse_settings(&out);
+        let dir = hooks_dir(&out, common_dir, root, self.home.as_deref());
+        fingerprint.extend(hook_files(&dir));
+        Ok(fingerprint)
     }
 
-    /// Whether git may run in the repository of `common_dir` now, from `cwd` in one of its
-    /// worktrees. A repository that the person did not trust runs no git at all. A trusted one
-    /// runs `git config` to read its settings again.
+    /// Whether git may run in the repository of `common_dir` now, from its worktree at `root`. A
+    /// repository that the person did not trust runs no git at all. A trusted one runs
+    /// `git config` to read its fingerprint again.
     pub(crate) async fn gate(
         &self,
         common_dir: &Path,
-        cwd: &Path,
+        root: &Path,
     ) -> Result<Option<Refusal>, GitError> {
         let Some(before) = self.kept(common_dir).await else {
             return Ok(Some(Refusal {
@@ -420,7 +520,7 @@ impl Trusts {
                 changed: Vec::new(),
             }));
         };
-        let changed = changed_keys(&before, &self.settings(cwd).await?);
+        let changed = changed_keys(&before, &self.fingerprint(common_dir, root).await?);
         Ok((!changed.is_empty()).then_some(Refusal {
             reason: GitTrustReason::Changed,
             changed,
@@ -459,11 +559,11 @@ impl Trusts {
         }
     }
 
-    /// `git.trust`: trusts the repository that holds `path`, with its settings of now.
+    /// `git.trust`: trusts the repository that holds `path`, with its fingerprint of now.
     pub(crate) async fn trust(&self, path: &Path) -> Result<GitTrustResult, RpcError> {
         let found = discover(path).ok_or_else(not_a_repository)?;
         let settings = self
-            .settings(&found.root)
+            .fingerprint(&found.common_dir, &found.root)
             .await
             .map_err(|error| RpcError::new(ErrorCode::GitFailed, error.to_string()))?;
         let stored =

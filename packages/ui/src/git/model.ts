@@ -231,13 +231,14 @@ export interface TrustPromptText {
  * trusted the repository, or a setting that names a program changed after the trust.
  */
 export function trustPrompt(ask: GitTrustAsk): TrustPromptText {
+  const why = 'Git can run the hooks of this repository, and programs that its settings name.';
   const advice = 'Trust a repository only when you know where it comes from.';
   if (ask.reason === 'changed') {
     const keys = ask.changed ?? [];
     return {
-      title: 'The settings of this repository changed',
+      title: 'The settings or the hooks of this repository changed',
       lines: [
-        'Git can run programs that the settings of this repository name.',
+        why,
         'neohar runs git in this repository again only after you trust it again.',
         advice,
       ],
@@ -246,11 +247,7 @@ export function trustPrompt(ask: GitTrustAsk): TrustPromptText {
   }
   return {
     title: 'Do you trust this repository?',
-    lines: [
-      'Git can run programs that the settings of this repository name.',
-      'neohar runs git in this repository only after you trust it.',
-      advice,
-    ],
+    lines: [why, 'neohar runs git in this repository only after you trust it.', advice],
     changed: null,
   };
 }

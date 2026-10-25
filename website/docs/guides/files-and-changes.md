@@ -49,8 +49,9 @@ changes, at most once in 2 seconds.
 ## Trust a repository
 
 The settings of a git repository can name programs that git runs, for example a filter or
-`core.fsmonitor`. A repository from an archive, a shared folder or a clone can bring such
-settings. Thus neohar runs no git command in a repository until you trust it.
+`core.fsmonitor`, and its hooks are programs that git runs. A repository from an archive, a shared
+folder or a clone can bring such settings and hooks. Thus neohar runs no git command in a
+repository until you trust it.
 
 Until then, the Changes tab and the Git view show the path of the repository and a **Trust**
 button. They do not show its branch, its changes or its history. neohar finds the repository
@@ -59,11 +60,20 @@ without git: it looks for `.git` in the folder and in the folders above it.
 - Click **Trust** only when you know where the repository comes from. Then neohar reads the
   repository and shows its changes.
 - A trust is for the whole repository, with all its worktrees. neohar keeps it after a restart.
-- neohar keeps the settings of the repository that name a program at the time of the trust: the
-  local settings, and the files that they include. Before each look, neohar reads them again.
-  When one of them changes, for example because an agent wrote `.git/config`, the tab and the
-  view ask again and name the changed settings. Your global settings, for example in
-  `~/.gitconfig`, do not count.
+- At the time of the trust, neohar keeps a fingerprint of the repository. Before each look, it
+  reads the fingerprint again. When a part of it changes, for example because an agent wrote
+  `.git/config` or `.git/hooks/post-checkout`, the tab and the view ask again and name the
+  changes. The fingerprint has these parts:
+  - The local settings, and the files that they include, that name a program, for example
+    `core.sshCommand`, `filter.*`, `remote.*.uploadpack` and `hook.*`.
+  - `core.worktree`, which moves the writes into another folder.
+  - The settings that tell git to go into the submodules: `submodule.recurse` and
+    `fetch.recurseSubmodules`.
+  - Each hook file that git can run: the name, the mode and the hash of the bytes of each
+    executable file in the folder of the hooks (`.git/hooks`, or the folder of
+    `core.hooksPath`). A file whose name ends in `.sample` does not count.
+- Your global settings, for example in `~/.gitconfig`, do not count. The hooks of a global
+  `core.hooksPath` count, because git runs them in the repository.
 - `nh git trust` trusts the repository of the current directory, and `nh git untrust` takes the
   trust back. An `nh git` command in a repository that you do not trust fails with
   `permission_denied`.
@@ -111,12 +121,15 @@ Changes tab, the Git view and `nh git`, also in a repository that you trust:
 
 - Git runs no `core.fsmonitor` program, and it uses no bare repository that it finds in a folder.
 - A remote cannot use the `ext::` transport.
-- The reads and the fetch in the background run no hooks. A switch, a pull, a restore and a fetch
-  from the button run the hooks of the repository.
+- The reads and the fetch in the background run no hooks, also no hooks of the settings
+  (`hook.*`). A switch, a pull, a restore and a fetch from the button run the hooks of the
+  repository.
 - A read stops after 60 seconds.
-- A submodule is a change only when its commit changed.
-- neohar uses the `git` of an absolute folder of your `PATH`. It never uses a `git` of the
-  repository, such as `bin/git`.
+- Git never goes into a submodule, also for a switch, a pull or a fetch from the button. A
+  submodule is a change only when its commit changed.
+- neohar uses the `git` of an absolute folder of your `PATH`. Git gets only the absolute folders
+  of your `PATH`, so it never runs a program of the repository, such as `bin/git`, `bin/ssh` or
+  `bin/git-remote-<name>`.
 
 ### Switch, fetch and pull
 

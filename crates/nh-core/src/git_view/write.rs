@@ -13,10 +13,11 @@
 //! passphrase or a token shows the sheet of the app, as the ssh links do. A fetch in the
 //! background never asks: it stops, and the head says why (`fetch_note`).
 //!
-//! **Hooks.** A write from a click runs the hooks of the repository, as the person expects of git.
-//! A fetch in the background runs no hook and fetches no submodule. A name that comes from git (a
-//! branch, a remote, a stash) follows `--end-of-options`, so a name that starts with `-` is never
-//! an option.
+//! **Hooks.** A write from a click runs the hooks of the repository, as the person expects of git:
+//! the trust covers the hook files and the hooks of the settings. A fetch in the background runs no
+//! hook, also no hook of the settings. No write starts git in a submodule. A name that comes from
+//! git (a branch, a remote, a stash) follows `--end-of-options`, so a name that starts with `-` is
+//! never an option.
 
 use std::{
     os::unix::fs::PermissionsExt,
@@ -113,14 +114,22 @@ fn quiet_env() -> Vec<(String, String)> {
 
 /// The arguments of a fetch of `remote`. The name comes from the configuration, so it follows
 /// `--end-of-options`: a remote named `--upload-pack=<command>` is a name, not an option. A fetch
-/// in the background fetches no submodule, which has a configuration of its own.
-pub(super) fn fetch_args(remote: &str, background: bool) -> Vec<&str> {
-    let mut args = vec!["fetch", "--prune"];
-    if background {
-        args.push("--no-recurse-submodules");
-    }
-    args.extend(["--end-of-options", remote]);
-    args
+/// fetches no submodule, which has a configuration of its own.
+pub(super) fn fetch_args(remote: &str) -> Vec<&str> {
+    vec![
+        "fetch",
+        "--prune",
+        "--no-recurse-submodules",
+        "--end-of-options",
+        remote,
+    ]
+}
+
+/// The runner of a fetch in the background: no program answers a question, and no hook runs,
+/// also no hook of the settings (`hook.<name>.command`), which `core.hooksPath` does not stop.
+pub(super) async fn background_git(base: &Git, root: &Path) -> Result<Git, GitError> {
+    let names = base.hook_names(root).await?;
+    Ok(base.with_env(&quiet_env()).without_config_hooks(&names))
 }
 
 /// A write that runs in a worktree or a repository. The key goes free when it drops.
@@ -408,14 +417,20 @@ impl GitViewService {
             }
             Plan::Local(name) => (
                 name.clone(),
-                ["switch", "--end-of-options", &name]
-                    .map(str::to_owned)
-                    .to_vec(),
+                [
+                    "switch",
+                    "--no-recurse-submodules",
+                    "--end-of-options",
+                    &name,
+                ]
+                .map(str::to_owned)
+                .to_vec(),
             ),
             Plan::Track { name, remote } => (
                 name.clone(),
                 [
                     "switch",
+                    "--no-recurse-submodules",
                     "--track",
                     "-c",
                     &name,
@@ -561,7 +576,9 @@ impl GitViewService {
         let writing = self.begin(&place.common_dir)?;
         // A fetch in the background runs no hook: reference-transaction would run with no click.
         let git = if background {
-            self.git.with_env(&quiet_env())
+            background_git(&self.git, &place.root)
+                .await
+                .map_err(|e| git_failed(&e))?
         } else {
             let writer = self.git.with_hooks();
             match self.askpass.as_ref().map(Askpass::env) {
@@ -586,7 +603,7 @@ impl GitViewService {
         let this = Arc::clone(self);
         self.handle.spawn(async move {
             let _writing = writing;
-            let args = fetch_args(&remote, background);
+            let args = fetch_args(&remote);
             let command = format!("git {}", args.join(" "));
             job.message(command.clone());
             let token = job.token();

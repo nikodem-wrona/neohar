@@ -67,17 +67,61 @@ pub(crate) enum GitError {
 ///   clone can commit a bare repository with a `config` of its own.
 /// - `core.fsmonitor=false`: git runs no program to watch the files.
 /// - `protocol.ext.allow=never`: a remote cannot be a command (`ext::`).
-pub(crate) const ALWAYS: [&str; 6] = [
+/// - `submodule.recurse=false` and `fetch.recurseSubmodules=false`: git starts no git in a
+///   submodule, also for a switch, a pull or a fetch from a click. A submodule has a
+///   configuration and hooks of its own (`.git/modules/*`), which the trust does not read.
+pub(crate) const ALWAYS: [&str; 10] = [
     "-c",
     "safe.bareRepository=explicit",
     "-c",
     "core.fsmonitor=false",
     "-c",
     "protocol.ext.allow=never",
+    "-c",
+    "submodule.recurse=false",
+    "-c",
+    "fetch.recurseSubmodules=false",
 ];
 
-/// The setting of a command with no hooks: a read, and a fetch in the background.
+/// The setting of a command with no hooks: a read, and a fetch in the background. It stops the
+/// hooks of the hooks folder. A hook of the settings (`hook.<name>.command`) needs
+/// [`Git::without_config_hooks`] too.
 pub(crate) const NO_HOOKS: [&str; 2] = ["-c", "core.hooksPath=/dev/null"];
+
+/// The `PATH` of git with only its absolute entries. Git looks up its own programs in the `PATH`
+/// (`ssh`, `git-remote-<helper>`, `git-credential-<helper>`), and it looks up a relative entry
+/// from the folder of the repository.
+fn absolute_path(value: &str) -> String {
+    value
+        .split(':')
+        .filter(|dir| Path::new(dir).is_absolute())
+        .collect::<Vec<_>>()
+        .join(":")
+}
+
+/// The friendly names of the hooks of the settings, from `git config --name-only -z
+/// --get-regexp ^hook\.`: each key `hook.<name>.<setting>` with a NUL at its end. Each name once,
+/// in its order.
+pub(crate) fn parse_hook_names(out: &[u8]) -> Vec<String> {
+    let mut names: Vec<String> = Vec::new();
+    for key in out.split(|b| *b == 0).filter(|key| !key.is_empty()) {
+        let key = String::from_utf8_lossy(key);
+        let Some(rest) = key
+            .split_once('.')
+            .filter(|(section, _)| section.eq_ignore_ascii_case("hook"))
+            .map(|(_, rest)| rest)
+        else {
+            continue;
+        };
+        let Some((name, _)) = rest.rsplit_once('.') else {
+            continue;
+        };
+        if !names.iter().any(|known| known == name) {
+            names.push(name.to_owned());
+        }
+    }
+    names
+}
 
 /// The variables that name a repository or a part of it, as git clears them when it goes into
 /// another repository, and the two that change how git finds a repository. The core removes them
@@ -263,6 +307,14 @@ impl Git {
         let env = env
             .into_iter()
             .filter(|(key, _)| !REPO_VARS.contains(&key.as_str()))
+            .map(|(key, value)| {
+                let value = if key == "PATH" {
+                    absolute_path(&value)
+                } else {
+                    value
+                };
+                (key, value)
+            })
             .collect();
         Self {
             program,
@@ -270,6 +322,43 @@ impl Git {
             hooks: false,
             limit: READ_LIMIT,
         }
+    }
+
+    /// The value of a variable of the environment of git, for a test.
+    #[cfg(test)]
+    pub fn env_value(&self, key: &str) -> Option<&str> {
+        self.env
+            .iter()
+            .rev()
+            .find(|(name, _)| name == key)
+            .map(|(_, value)| value.as_str())
+    }
+
+    /// The friendly names of the hooks of the settings of the repository of `cwd`
+    /// (`hook.<name>.command`), from every scope. `git config` runs nothing.
+    pub async fn hook_names(&self, cwd: &Path) -> Result<Vec<String>, GitError> {
+        let args = ["config", "--name-only", "-z", "--get-regexp", r"^hook\."].map(OsStr::new);
+        match self.output(cwd, &args).await {
+            Ok(out) => Ok(parse_hook_names(&out)),
+            // No key matches.
+            Err(GitError::Failed { stderr, .. }) if stderr.is_empty() => Ok(Vec::new()),
+            Err(error) => Err(error),
+        }
+    }
+
+    /// A copy that runs no hook of the settings: `hook.<name>.enabled=false` for each name. The
+    /// settings go in the environment (`GIT_CONFIG_COUNT`), because a name can hold a `=`, which
+    /// `-c` cannot. A child of git gets them too.
+    pub fn without_config_hooks(&self, names: &[String]) -> Self {
+        let mut extra = vec![("GIT_CONFIG_COUNT".to_owned(), names.len().to_string())];
+        for (index, name) in names.iter().enumerate() {
+            extra.push((
+                format!("GIT_CONFIG_KEY_{index}"),
+                format!("hook.{name}.enabled"),
+            ));
+            extra.push((format!("GIT_CONFIG_VALUE_{index}"), "false".to_owned()));
+        }
+        self.with_env(&extra)
     }
 
     /// A copy that runs git with more variables in its environment. A later variable wins.

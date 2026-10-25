@@ -1397,7 +1397,10 @@ export interface GitTrust {
  * (`git.trust`).
  */
 export interface GitTrustAsk {
-  /** The keys of the settings that changed after the trust, for example `core.fsmonitor`. */
+  /**
+   * What changed after the trust: the keys of the settings, for example `core.fsmonitor`,
+   * and the hook files, for example `hooks/post-checkout`.
+   */
   changed?: string[];
   /** The common git directory: the key of the trust, which its worktrees share. */
   common_dir: string;

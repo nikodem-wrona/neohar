@@ -119,7 +119,7 @@ test('the prompt of a trust says why the core asks', () => {
   const first = trustPrompt(ask);
   expect(first.title).toBe('Do you trust this repository?');
   expect(first.lines).toEqual([
-    'Git can run programs that the settings of this repository name.',
+    'Git can run the hooks of this repository, and programs that its settings name.',
     'neohar runs git in this repository only after you trust it.',
     'Trust a repository only when you know where it comes from.',
   ]);
@@ -127,13 +127,13 @@ test('the prompt of a trust says why the core asks', () => {
   const again = trustPrompt({
     ...ask,
     reason: 'changed',
-    changed: ['core.fsmonitor', 'remote.origin.uploadpack'],
+    changed: ['core.fsmonitor', 'hooks/post-checkout'],
   });
-  expect(again.title).toBe('The settings of this repository changed');
+  expect(again.title).toBe('The settings or the hooks of this repository changed');
   expect(again.lines[1]).toBe(
     'neohar runs git in this repository again only after you trust it again.',
   );
-  expect(again.changed).toBe('Changed: core.fsmonitor, remote.origin.uploadpack');
+  expect(again.changed).toBe('Changed: core.fsmonitor, hooks/post-checkout');
   expect(trustPrompt({ ...ask, reason: 'changed' }).changed).toBeNull();
 });
 

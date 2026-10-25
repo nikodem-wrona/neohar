@@ -3,14 +3,25 @@
 //! The trusts here have no state actor, so they live in memory. The store and the path through a
 //! core are tested in `crates/nh/tests/changes.rs` and `git_view.rs`.
 
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::{
+    os::unix::fs::PermissionsExt,
+    sync::atomic::{AtomicUsize, Ordering},
+};
 
 use super::*;
 use crate::changes::git::tests::{assert_empty, env, folder, markers, repo, script, write};
 
 #[test]
-fn the_settings_that_name_a_program_are_known() {
+fn the_settings_of_the_fingerprint_are_known() {
     for key in [
+        "core.worktree",
+        "submodule.recurse",
+        "submodule.lib.fetchRecurseSubmodules",
+        "fetch.recurseSubmodules",
+        "push.recurseSubmodules",
+        "hook.lint.command",
+        "hook.lint.event",
+        "hook.lint.enabled",
         "core.fsmonitor",
         "core.hooksPath",
         "core.sshCommand",
@@ -46,11 +57,10 @@ fn the_settings_that_name_a_program_are_known() {
         "lfs.customtransfer.x.path",
         "lfs.extension.foo.clean",
     ] {
-        assert!(names_a_program(key), "{key}");
+        assert!(in_fingerprint(key), "{key}");
     }
     for key in [
         "core.bare",
-        "core.worktree",
         "remote.origin.url",
         "remote.origin.fetch",
         "branch.main.remote",
@@ -61,7 +71,7 @@ fn the_settings_that_name_a_program_are_known() {
         "credential.username",
         "include",
     ] {
-        assert!(!names_a_program(key), "{key}");
+        assert!(!in_fingerprint(key), "{key}");
     }
 }
 
@@ -324,4 +334,121 @@ async fn a_git_of_the_repository_never_runs_for_the_settings() {
     trusts.trust(&dir).await.expect("a trust");
     assert!(matches!(trusts.access(&dir).await, Access::Open(_)));
     assert_empty(&marks);
+}
+
+/// The keys that changed after the trust, or `None` when git may run.
+async fn changed(trusts: &Trusts, dir: &Path) -> Option<Vec<String>> {
+    match trusts.access(dir).await {
+        Access::Open(_) => None,
+        Access::Ask(ask) => {
+            assert_eq!(ask.reason, GitTrustReason::Changed, "{ask:?}");
+            Some(ask.changed)
+        }
+        Access::None => panic!("the repository is gone"),
+    }
+}
+
+#[tokio::test]
+async fn a_new_or_changed_hook_file_asks_again() {
+    let (_git, dir) = repo("trust-hooks").await;
+    let hooks = dir.join(".git/hooks");
+    let trusts = Trusts::new(&env());
+    trusts.trust(&dir).await.expect("a trust");
+    assert_eq!(changed(&trusts, &dir).await, None);
+
+    // An agent writes a hook that the next switch from a click would run.
+    script(&hooks.join("post-checkout"), "echo one");
+    assert_eq!(
+        changed(&trusts, &dir).await,
+        Some(vec!["hooks/post-checkout".to_owned()])
+    );
+    trusts.trust(&dir).await.expect("a trust again");
+    assert_eq!(changed(&trusts, &dir).await, None);
+    // Its bytes change.
+    script(&hooks.join("post-checkout"), "echo two");
+    assert_eq!(
+        changed(&trusts, &dir).await,
+        Some(vec!["hooks/post-checkout".to_owned()])
+    );
+    trusts.trust(&dir).await.expect("a trust again");
+
+    // A file that git does not run changes nothing: not executable, a sample, a FIFO.
+    std::fs::write(hooks.join("pre-commit"), "#!/bin/sh\n").expect("a file");
+    script(&hooks.join("pre-push.sample"), "echo sample");
+    let made = std::process::Command::new("mkfifo")
+        .arg(hooks.join("post-merge"))
+        .status()
+        .expect("mkfifo runs");
+    assert!(made.success());
+    assert_eq!(changed(&trusts, &dir).await, None);
+    // Its mode changes, and git can run it now.
+    std::fs::set_permissions(
+        hooks.join("pre-commit"),
+        std::fs::Permissions::from_mode(0o755),
+    )
+    .expect("a mode");
+    assert_eq!(
+        changed(&trusts, &dir).await,
+        Some(vec!["hooks/pre-commit".to_owned()])
+    );
+}
+
+#[tokio::test]
+async fn the_hooks_of_core_hooks_path_count_and_the_settings_of_writes_count() {
+    let (git, dir) = repo("trust-hooks-path").await;
+    git.run(&dir, &["config", "core.hooksPath", "tools/hooks"])
+        .await
+        .expect("config");
+    let trusts = Trusts::new(&env());
+    trusts.trust(&dir).await.expect("a trust");
+    // A hook in the folder of `core.hooksPath`, from the root of the worktree. The hooks of
+    // `.git/hooks` do not run now.
+    std::fs::create_dir_all(dir.join("tools/hooks")).expect("a folder");
+    script(&dir.join("tools/hooks/post-merge"), "echo merge");
+    script(&dir.join(".git/hooks/post-merge"), "echo ignored");
+    assert_eq!(
+        changed(&trusts, &dir).await,
+        Some(vec!["hooks/post-merge".to_owned()])
+    );
+    trusts.trust(&dir).await.expect("a trust again");
+    // Settings that move the writes, start git in submodules, or add a hook of the settings.
+    for (key, value) in [
+        ("core.worktree", "/tmp"),
+        ("submodule.recurse", "true"),
+        ("fetch.recurseSubmodules", "true"),
+        ("hook.lint.command", "echo lint"),
+    ] {
+        git.run(&dir, &["config", key, value])
+            .await
+            .expect("config");
+        let keys = changed(&trusts, &dir).await.expect("a change");
+        assert_eq!(keys, [key.to_ascii_lowercase()]);
+        git.run(&dir, &["config", "--unset", key])
+            .await
+            .expect("config");
+        assert_eq!(changed(&trusts, &dir).await, None, "{key}");
+    }
+}
+
+#[test]
+fn the_folder_of_the_hooks_is_the_one_that_git_uses() {
+    let common = Path::new("/w/app/.git");
+    let root = Path::new("/w/app");
+    let home = Some(Path::new("/home/ada"));
+    let dir = |out: &[u8]| hooks_dir(out, common, root, home);
+    assert_eq!(dir(b""), Path::new("/w/app/.git/hooks"));
+    assert_eq!(
+        dir(b"global\0core.hookspath\n~/hooks\0"),
+        Path::new("/home/ada/hooks")
+    );
+    assert_eq!(
+        dir(b"global\0core.hookspath\n/etc/hooks\0local\0core.hookspath\ntools/hooks\0"),
+        Path::new("/w/app/tools/hooks"),
+        "the last one wins, and a relative path is from the root"
+    );
+    assert_eq!(
+        dir(b"local\0core.hookspath\n/srv/hooks\0command\0core.hookspath\n/dev/null\0"),
+        Path::new("/srv/hooks"),
+        "the command line of neohar does not count"
+    );
 }

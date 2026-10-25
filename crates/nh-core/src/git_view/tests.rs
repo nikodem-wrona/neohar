@@ -534,11 +534,54 @@ async fn a_remote_named_like_an_option_is_a_name_in_a_fetch() {
         read::remotes(&git, &dir).await.expect("the remotes"),
         std::slice::from_ref(&name)
     );
-    for background in [true, false] {
-        let args = super::write::fetch_args(&name, background);
-        assert_eq!(args[args.len() - 2..], ["--end-of-options", name.as_str()]);
-        assert_eq!(args.contains(&"--no-recurse-submodules"), background);
-        git.run(&dir, &args).await.expect("a fetch of the remote");
+    let args = super::write::fetch_args(&name);
+    assert_eq!(args[args.len() - 2..], ["--end-of-options", name.as_str()]);
+    assert!(args.contains(&"--no-recurse-submodules"));
+    git.run(&dir, &args).await.expect("a fetch of the remote");
+    git.with_hooks()
+        .run(&dir, &args)
+        .await
+        .expect("a fetch from a click");
+    assert_empty(&marks);
+}
+
+#[tokio::test]
+async fn a_fetch_in_the_background_runs_no_hook_of_the_settings() {
+    use crate::changes::git::tests::{assert_empty, folder, markers, repo};
+    let (git, dir) = repo("config-hook").await;
+    let marks = markers("config-hook");
+    let origin = folder("config-hook-origin");
+    git.run(&origin, &["init", "-q", "--bare", "-b", "main"])
+        .await
+        .expect("an origin");
+    let url = origin.display().to_string();
+    git.run(&dir, &["push", "-q", &url, "main"])
+        .await
+        .expect("a push");
+    git.run(&dir, &["remote", "add", "origin", &url])
+        .await
+        .expect("a remote");
+    // A hook of the settings: `core.hooksPath=/dev/null` does not stop it. Its name has a `=`,
+    // which `-c` cannot hold.
+    let program = format!("touch {}/hook", marks.display());
+    for (key, value) in [
+        ("hook.a=b.command", program.as_str()),
+        ("hook.a=b.event", "reference-transaction"),
+    ] {
+        git.run(&dir, &["config", key, value])
+            .await
+            .expect("config");
     }
+    let quiet = super::write::background_git(&git, &dir)
+        .await
+        .expect("the names of the hooks");
+    quiet
+        .run(&dir, &super::write::fetch_args("origin"))
+        .await
+        .expect("a fetch in the background");
+    let fetched = git
+        .run(&dir, &["rev-parse", "--verify", "refs/remotes/origin/main"])
+        .await;
+    assert!(fetched.is_ok(), "the fetch wrote a ref: {fetched:?}");
     assert_empty(&marks);
 }

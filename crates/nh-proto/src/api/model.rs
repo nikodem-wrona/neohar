@@ -650,7 +650,8 @@ wire! {
     pub enum GitTrustReason {
         /// The person did not trust the repository, or took the trust back.
         New,
-        /// A setting of the repository that names a program changed after the trust.
+        /// A setting of the repository in the fingerprint of the trust, or a hook file, changed
+        /// after the trust.
         Changed,
     }
 
@@ -664,7 +665,8 @@ wire! {
         /// The common git directory: the key of the trust, which its worktrees share.
         pub common_dir: String,
         pub reason: GitTrustReason,
-        /// The keys of the settings that changed after the trust, for example `core.fsmonitor`.
+        /// What changed after the trust: the keys of the settings, for example `core.fsmonitor`,
+        /// and the hook files, for example `hooks/post-checkout`.
         #[serde(default, skip_serializing_if = "Vec::is_empty")]
         pub changed: Vec<String>,
     }

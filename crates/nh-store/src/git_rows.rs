@@ -16,8 +16,8 @@ use crate::{Store, StoreError, Tx};
 pub struct GitTrustRow {
     /// The canonical path of the common git directory.
     pub common_dir: String,
-    /// The settings of the repository that name a program, at the time of the trust: a JSON array
-    /// of `[key, value]` pairs.
+    /// The fingerprint of the repository at the time of the trust: a JSON array of `[key, value]`
+    /// pairs, for its settings and for its hook files (`hooks/<name>`).
     pub settings: String,
     /// Unix milliseconds.
     pub trusted_at: i64,
