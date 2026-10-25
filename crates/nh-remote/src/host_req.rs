@@ -269,12 +269,31 @@ fn lock<T>(mutex: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
 /// The longest id of a notification of the core.
 const MAX_ID: usize = 64;
 
+/// The most calls of one kind that wait for their request.
+const MAX_TOKENS: usize = 8;
+
 /// The last calls of the person on this client that let the core write the clipboard or focus a
-/// window. A request of the core takes the call, so one call allows one request.
+/// window, oldest first. A request of the core takes one call, so one call allows one request.
 #[derive(Default)]
 struct Recent {
-    copy: Option<Instant>,
-    focus: Option<Instant>,
+    copy: VecDeque<Instant>,
+    focus: VecDeque<Instant>,
+}
+
+/// Notes a call of the person.
+fn give(tokens: &mut VecDeque<Instant>) {
+    if tokens.len() >= MAX_TOKENS {
+        tokens.pop_front();
+    }
+    tokens.push_back(Instant::now());
+}
+
+/// Takes the oldest call that is younger than `within`, and drops the older ones.
+fn take(tokens: &mut VecDeque<Instant>, within: Duration) -> bool {
+    while tokens.front().is_some_and(|at| at.elapsed() >= within) {
+        tokens.pop_front();
+    }
+    tokens.pop_front().is_some()
 }
 
 /// A budget of log lines in a window of time: a core that sends refused requests for ever does
@@ -405,26 +424,20 @@ impl HostGuard {
             && flag("return_text") != Some(true)
             && flag("allow") != Some(false)
         {
-            actions.copy = Some(Instant::now());
+            give(&mut actions.copy);
         } else if FOCUS_METHODS.contains(&method) {
-            actions.focus = Some(Instant::now());
+            give(&mut actions.focus);
         }
     }
 
-    /// Takes the last copy of the person, if it is recent.
+    /// Takes a recent copy of the person.
     fn take_copy(&self) -> bool {
-        lock(&self.actions)
-            .copy
-            .take()
-            .is_some_and(|at| at.elapsed() < self.limits.action_within)
+        take(&mut lock(&self.actions).copy, self.limits.action_within)
     }
 
-    /// Takes the last reveal of the person, if it is recent, and a slot of the focus requests.
+    /// Takes a recent reveal of the person, and a slot of the focus requests.
     fn take_focus(&self) -> Result<(), String> {
-        let recent = lock(&self.actions)
-            .focus
-            .take()
-            .is_some_and(|at| at.elapsed() < self.limits.action_within);
+        let recent = take(&mut lock(&self.actions).focus, self.limits.action_within);
         if !recent {
             return Err(format!(
                 "a focus request comes only within {} ms of a reveal on this client",
@@ -1136,7 +1149,19 @@ mod tests {
             guard.handle(&clipboard("y")),
             HostOutcome::Refused(_)
         ));
-        assert_eq!(clipboard_writes(&host), ["copied", "osc 52"]);
+        // Two quick copies, two writes.
+        guard.local_call("pane.copy", &serde_json::json!({}));
+        guard.local_call("pane.copy", &serde_json::json!({}));
+        assert_eq!(guard.handle(&clipboard("first")), HostOutcome::Done);
+        assert_eq!(guard.handle(&clipboard("second")), HostOutcome::Done);
+        assert!(matches!(
+            guard.handle(&clipboard("z")),
+            HostOutcome::Refused(_)
+        ));
+        assert_eq!(
+            clipboard_writes(&host),
+            ["copied", "osc 52", "first", "second"]
+        );
     }
 
     #[test]
