@@ -126,6 +126,11 @@ impl Connector for UnixConnector {
         )
         .await
         .map_err(|error| match error {
+            // The socket or its directory belongs to another user, or another user serves it.
+            // Another try finds the same owner.
+            LinkError::Io(ref io) if io.kind() == std::io::ErrorKind::PermissionDenied => {
+                ConnectError::Fatal(error.to_string())
+            }
             // No listener: the core is not up yet, or is up again soon.
             LinkError::Io(_) | LinkError::Timeout | LinkError::Closed(_) => {
                 ConnectError::Retry(error.to_string())
