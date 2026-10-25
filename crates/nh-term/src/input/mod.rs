@@ -24,7 +24,7 @@ use serde::{Deserialize, Serialize};
 
 pub use focus::encode_focus;
 pub use mouse::{MouseEncoding, MouseMode};
-pub use paste::{encode_drop_files, encode_paste, encode_text};
+pub use paste::{encode_drop_files, encode_paste, encode_text, path_control};
 
 /// The modes of a pane that decide how input is encoded. The core reads them from the VT engine.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]

