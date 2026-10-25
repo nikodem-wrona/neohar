@@ -48,6 +48,7 @@ mod reach;
 mod screen;
 #[cfg(feature = "selftest")]
 mod selftest;
+mod single_instance;
 mod tray;
 mod windows;
 
@@ -350,14 +351,21 @@ pub fn run() {
     let machine_links: Arc<Mutex<Option<nh_remote::machines::MachineManager>>> = Arc::default();
     let manager_slot = Arc::clone(&machine_links);
     let setup_host = Arc::clone(&host);
+    let context = tauri::generate_context!();
 
-    tauri::Builder::default()
-        // A second launch focuses the running app, and its arguments may be links. The plugin must
-        // come first.
-        .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
+    let builder = tauri::Builder::default();
+    // A second launch focuses the running app, and its arguments may be links. The plugin must
+    // come first. Its socket is in `/tmp`, so the app uses it only when another user did not make
+    // it first.
+    let builder = if single_instance::allowed(&context.config().identifier) {
+        builder.plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
             windows::focus_any_window(app);
             deeplink::open_all(app, args.iter().map(String::as_str));
         }))
+    } else {
+        builder
+    };
+    builder
         .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_dialog::init())
@@ -533,7 +541,7 @@ pub fn run() {
             });
             Ok(())
         })
-        .build(tauri::generate_context!())
+        .build(context)
         .expect("the app builds")
         .run(move |app, event| match event {
             RunEvent::ExitRequested { api, code, .. } => {

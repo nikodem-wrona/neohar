@@ -55,8 +55,10 @@ order the core gave.
 
 **Startup.** A debug build refuses to start unless `NEOHAR_CONFIG_DIR`, `NEOHAR_DATA_DIR` and
 `NEOHAR_RUNTIME_DIR` are set. The single-instance plugin registers first, so a second
-launch hands its arguments to the running app and ends. The app then tries `link.sock` of its
-session. When a core answers (for example `nh daemon`), the app starts no core and is a client of
+launch hands its arguments to the running app and ends. On macOS the plugin uses a fixed socket in
+`/tmp`, and another user can make that file first. The app registers the plugin only when the path
+is free or is a socket of the user. Else it logs a warning and runs without it. The app then tries
+`link.sock` of its session, after a check of the runtime root. When a core answers (for example `nh daemon`), the app starts no core and is a client of
 that core; else it starts its own core on its own Tokio runtime and serves `link.sock` for other
 clients. Every module talks to a `Backend`,
 never to the core directly. A product build without overrides also keeps `~/.local/bin/nh`
