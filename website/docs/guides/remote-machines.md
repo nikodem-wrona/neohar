@@ -103,6 +103,12 @@ controls that core. Thus the app on your Mac does not trust it, and it applies t
   take the focus.
 - A core that stops reading the link and keeps sending ends the link. The app keeps a limited
   number of log lines about the refused requests of a core.
+
+The link has one known limit. Each key that you type in a remote window goes to the machine at
+once, in its own ssh packet. A person who watches the network cannot read the keys, but can see
+when you type and how fast. ssh hides this timing only for a terminal session
+(`ObscureKeystrokeTiming`), and the link is not a terminal session (`ssh -T`). On a network that
+you do not trust, do not type a secret into a remote pane.
 - The app cleans the HTML of the plans and files of the machine again, and a link opens only when
   you click it.
 

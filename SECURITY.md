@@ -29,8 +29,9 @@ These parts of neohar are in scope:
 - **The holder** (`nh hold`): the process that owns the PTY of each pane, its journal and its socket protocol.
 - **The hooks**: the hook shim (`nh hook`), and the hooks that `nh integration install` writes into the configuration of Claude Code and Codex.
 - **The phone listener** (`nh-web`). This includes the pairing, the cookie of a paired phone and the checks of `Host` and `Origin`. It also includes the scope of the calls of a phone and the list of push services.
-- **The link to remote machines over ssh**: `nh daemon`, `nh bridge` and `nh askpass`.
+- **The link to remote machines over ssh**: `nh daemon`, `nh bridge` and `nh askpass`. The app does not trust the core of a remote machine. That core must stay limited to its own panes: it must not open, read or start anything on your Mac, it must not write your clipboard or take your keyboard without an action of yours, and its HTML must not escape the sandbox of the webview. A way around one of these limits is in scope.
 - **The webview sandbox**: the three commands of the webview, the content security policy, and the `nh://` URLs.
+- **Deep links** (`neohar://`): any web page can open one, so a link must not answer a request or give a pane the focus.
 
 These items are not in scope:
 
@@ -38,6 +39,7 @@ These items are not in scope:
 - Tailscale, OpenSSH and macOS.
 - An attack that needs code that already runs as your macOS user.
 - The ad-hoc signature of the builds. It is a known limit: there is no notarized build.
+- The timing of the keys that you type in a window of a remote machine. A person who watches the network can see it, because the link sends each key at once and ssh does not hide the timing of a session without a terminal. [Remote machines](website/docs/guides/remote-machines.md) tells more.
 
 ## Limits of the approval gate
 
