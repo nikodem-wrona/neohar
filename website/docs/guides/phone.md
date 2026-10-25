@@ -72,8 +72,10 @@ of the Home Screen.
 - A phone gets a push when an agent needs you and no desktop window has the focus. An agent needs
   you for an approval, a question, a plan review, an error, a rate limit or the end of a turn.
 - A phone that shows the phone app gets no push.
-- A push has the harness, the work of the agent and the reason in a few words. It has no text of the
-  agent.
+- A push has the harness, the name of the workspace, the handle of the pane and the reason in a
+  few words, for example "Claude Code · neohar (w1:p3)". It has no text of the agent. It also has
+  no title of the terminal, because any program can set that title, and a push shows on the lock
+  screen. A push of another machine has its label and only known words of its core.
 - The core sends pushes only to the push services of Apple, Google and Mozilla.
 
 **Send a test notification** in the settings and `nh phone push-test <device>` send a test push.

@@ -21,8 +21,9 @@
 //!   device keeps it. The sender is in `nh-web`: the listener gives the core a
 //!   [`PushOut`] ([`crate::CoreHandle::set_push_out`]). [`deliver`] sends one push to a phone and
 //!   removes the subscription when the push service no longer knows it. [`PushMessage::notice`]
-//!   makes the text of a push: the harness and the work of the run, and the reason in a few words.
-//!   No text of the agent goes into a push. When a push goes is the rule of `crate::native::push`.
+//!   makes the text of a push: the harness, a label of the pane that the core makes, and the
+//!   reason in a few words. No text of the agent and no title that a program sets goes into a
+//!   push: it shows on the lock screen. When a push goes is the rule of `crate::native::push`.
 //! - **Window.** A phone has one row of `windows`. `phone.window` gives it, and
 //!   the core makes it when there is none. While a connection of the phone is open, the device is
 //!   a client of the core ([`crate::CoreHandle::attach_phone`]), so the window is present. A removal
@@ -181,13 +182,42 @@ pub struct PushMessage {
     pub badge: Option<u32>,
 }
 
-/// The longest work of a run in the title of a push, in characters.
+/// The longest label of a run in the title of a push, in characters.
 pub const WORK_MAX: usize = 60;
 
+/// The harnesses that the title of a notice of another machine may name.
+const MACHINE_WHO: [&str; 3] = ["Claude Code", "Codex", "An agent"];
+
+/// What the title of a notice of another machine may say that the harness does.
+const MACHINE_WHAT: [&str; 5] = [
+    "asks for permission",
+    "has a question",
+    "has a plan to review",
+    "has a notice",
+    "finished",
+];
+
+/// The words of the title of a notice of another machine that a push may carry. The core of that
+/// machine words the title as "<harness> <what it does>"; it controls the text fully, so any other
+/// title becomes "An agent".
+fn machine_words(title: &str) -> String {
+    MACHINE_WHO
+        .iter()
+        .find_map(|who| {
+            let what = title.strip_prefix(who)?.strip_prefix(' ')?;
+            MACHINE_WHAT
+                .iter()
+                .find(|known| **known == what)
+                .map(|what| format!("{who} {what}"))
+        })
+        .unwrap_or_else(|| "An agent".to_owned())
+}
+
 impl PushMessage {
-    /// The push of a run that needs the person. The title is the harness and the work
-    /// of the run ("Claude Code · fix the login bug"). The body tells in a few words what the
-    /// notice is about. No text of the agent, of a question or of a command goes in.
+    /// The push of a run that needs the person. The title is the harness and a label of the
+    /// pane that the core makes ("Claude Code · neohar (w1:p3)"). The body tells in a few words
+    /// what the notice is about. No text of the agent, of a question or of a command goes in, and
+    /// no title that a program sets (OSC 0 and 2): a shell can put a command line there.
     pub fn notice(
         harness: &str,
         work: Option<&str>,
@@ -224,7 +254,8 @@ impl PushMessage {
 
     /// The push of a notice of another machine. The title is the label of the machine
     /// and the title of the notice, which names the harness and what it waits for ("studio ·
-    /// Claude Code asks for permission"). A tap opens the desk of that machine. No text of the
+    /// Claude Code asks for permission"). The other machine controls the title, so only these
+    /// known words pass ([`machine_words`]). A tap opens the desk of that machine. No text of the
     /// agent goes in: the body of the notice stays out.
     pub fn machine(machine: &str, title: &str, interaction: bool, tag: &str) -> Self {
         let title: String = title
@@ -234,6 +265,7 @@ impl PushMessage {
             .chars()
             .filter(|c| !c.is_control())
             .collect();
+        let title = machine_words(&title);
         let title = if title.chars().count() > WORK_MAX {
             let short: String = title.chars().take(WORK_MAX - 1).collect();
             format!("{}…", short.trim_end())
@@ -1488,6 +1520,37 @@ mod tests {
         assert!(push.title.ends_with('…'), "{}", push.title);
         let push = PushMessage::notice("Codex", Some("  "), AttentionReason::Error, run, 1);
         assert_eq!(push.title, "Codex");
+    }
+
+    #[test]
+    fn a_notice_of_another_machine_carries_only_known_words() {
+        let tag = "studio/x";
+        for (title, shown) in [
+            (
+                "Claude Code asks for permission",
+                "studio · Claude Code asks for permission",
+            ),
+            ("Codex  has a\nquestion", "studio · Codex has a question"),
+            ("Codex finished", "studio · Codex finished"),
+            (
+                "An agent has a plan to review",
+                "studio · An agent has a plan to review",
+            ),
+            // A core of the other machine can put anything in the title.
+            ("export TOKEN=hunter2", "studio · An agent"),
+            (
+                "Claude Code asks for permission: rm -rf ~",
+                "studio · An agent",
+            ),
+            ("Claude Code", "studio · An agent"),
+            ("", "studio · An agent"),
+        ] {
+            assert_eq!(
+                PushMessage::machine("studio", title, true, tag).title,
+                shown,
+                "{title:?}"
+            );
+        }
     }
 
     #[test]

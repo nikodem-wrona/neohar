@@ -207,6 +207,35 @@ async fn with_no_window_a_new_row_gives_one_push_with_the_reason_only() {
 }
 
 #[tokio::test]
+async fn a_push_names_the_workspace_and_the_pane_and_never_the_title_of_a_program() {
+    let r = rig(Options::default()).await;
+    let run = r.run;
+    // A shell puts the command line into the title of the terminal (OSC 0 or 2).
+    let expected =
+        r.f.update(move |parts| {
+            let pane = parts.state.runs.by_id.get(&run)?.pane?;
+            let entry = parts.state.layout.panes.get_mut(&pane)?;
+            entry.facts.title = Some("export API_TOKEN=hunter2".to_owned());
+            let (workspace, handle) = (entry.workspace, entry.handle.clone());
+            let name = parts
+                .state
+                .layout
+                .workspaces
+                .iter()
+                .find(|w| w.id == workspace)?
+                .name
+                .clone();
+            Some(format!("Claude Code · {name} ({handle})"))
+        })
+        .await
+        .expect("the run has a pane in a workspace");
+    r.set(Execution::Error).await;
+    let jobs = r.pushes(1).await;
+    assert_eq!(jobs[0].message.title, expected);
+    assert!(!format!("{jobs:?}").contains("hunter2"));
+}
+
+#[tokio::test]
 async fn a_focused_desktop_window_gives_no_push() {
     let r = rig(Options::default()).await;
     let window = r.f.open_window().await;

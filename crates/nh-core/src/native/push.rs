@@ -13,8 +13,9 @@
 //! - A row that ends before its push gets none: the push goes from a later step of the actor,
 //!   which looks at the row again.
 //! - A phone whose app is open and visible gets none.
-//! - The text is the harness and the work of the run, and the reason in a few words
-//!   ([`PushMessage::notice`]). No text of the agent goes into a push.
+//! - The text is the harness, a label of the pane that the core makes ([`label`]), and the reason
+//!   in a few words ([`PushMessage::notice`]). No text of the agent and no title that a program
+//!   sets goes into a push.
 //!
 //! The rule runs on the actor after each change of `attention`, as a diff, as the badge does. The
 //! sender is async and lives in `nh-web`: the actor hands it the jobs, and the results come back as
@@ -228,7 +229,7 @@ fn send(parts: &mut Parts<'_>, run: RunId, reason: AttentionReason) {
     let badge = u32::try_from(rows.len()).unwrap_or(u32::MAX);
     let message = PushMessage::notice(
         super::harness_name(found.harness),
-        Some(&super::work(state, found)),
+        label(state, found).as_deref(),
         reason,
         run.ulid(),
         badge,
@@ -250,6 +251,20 @@ fn send(parts: &mut Parts<'_>, run: RunId, reason: AttentionReason) {
             },
         );
     }
+}
+
+/// The label of the pane of a run in a push: the name of its workspace and its handle, for
+/// example `neohar (w1:p3)`. The person names the workspace, or the core takes the name of its
+/// folder. Never the title that a program sets (OSC 0 and 2): any program can set it, a shell can
+/// put a command line with a secret in it, and a push shows on the lock screen of the phone.
+fn label(state: &State, run: &crate::agents::runs::Run) -> Option<String> {
+    let pane = state.layout.panes.get(&run.pane?)?;
+    let workspace = state
+        .layout
+        .workspaces
+        .iter()
+        .find(|workspace| workspace.id == pane.workspace)?;
+    Some(format!("{} ({})", workspace.name, pane.handle))
 }
 
 /// A notice of another machine: each phone with a subscription gets a push, when no
