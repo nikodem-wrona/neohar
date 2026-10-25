@@ -83,6 +83,68 @@ const PUBLISHED_MARK: &str = "published";
 /// How long a stop of the service waits for the removal of the mapping.
 const WITHDRAW_WAIT: Duration = Duration::from_secs(5);
 
+/// The soft limit of open files that [`raise_fd_limit`] asks for. macOS refuses a soft limit above
+/// `OPEN_MAX`, which is 10240.
+const FD_WANT: u64 = 10_240;
+
+/// The new soft limit of open files for these limits, or `None` when the soft limit stays.
+/// `None` in a limit is no limit.
+fn fd_target(current: Option<u64>, maximum: Option<u64>) -> Option<u64> {
+    let want = maximum.map_or(FD_WANT, |maximum| maximum.min(FD_WANT));
+    current.filter(|&current| current < want).map(|_| want)
+}
+
+/// Raises the soft limit of open files of this process to the hard limit, at most to 10240. The
+/// app and `nh daemon` call it at their start: the default soft limit of macOS is 256, and the
+/// panes, the links and the connections of the phones all take file descriptors. Returns the soft
+/// limit after the call, or `None` for no limit.
+pub fn raise_fd_limit() -> Option<u64> {
+    use rustix::process::{Resource, Rlimit, getrlimit, setrlimit};
+
+    let limit = getrlimit(Resource::Nofile);
+    let Some(want) = fd_target(limit.current, limit.maximum) else {
+        return limit.current;
+    };
+    let raised = Rlimit {
+        current: Some(want),
+        maximum: limit.maximum,
+    };
+    match setrlimit(Resource::Nofile, raised) {
+        Ok(()) => Some(want),
+        Err(error) => {
+            tracing::warn!(%error, want, "the soft limit of open files stays");
+            limit.current
+        }
+    }
+}
+
+/// The limits of the connections of a listener. Every device of the tailnet and every local user
+/// can open connections, so these bound what they hold in the process of the core. The tests make
+/// them small.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Limits {
+    /// The most connections at one time, before their upgrade to a WebSocket.
+    pub connections: usize,
+    /// The most connections at one time that have not shown the cookie of a paired phone.
+    pub unpaired: usize,
+    /// How long a connection may take to send the headers of a request, and how long it may
+    /// wait between two requests.
+    pub header_wait: Duration,
+    /// How long the body of `POST /api/pair` may take.
+    pub pair_body_wait: Duration,
+}
+
+impl Default for Limits {
+    fn default() -> Self {
+        Self {
+            connections: 128,
+            unpaired: 16,
+            header_wait: Duration::from_secs(15),
+            pair_body_wait: Duration::from_secs(10),
+        }
+    }
+}
+
 /// Where one listener serves.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 struct Listen {
@@ -147,6 +209,7 @@ struct Inner {
     fonts: Arc<http::FontSlot>,
     /// The other machines that the host gives.
     machines: Arc<http::MachineSlot>,
+    limits: Limits,
 }
 
 /// The listener of the phone. Dropping it stops the listener and closes its connections.
@@ -168,13 +231,18 @@ impl PhoneService {
 
     /// [`PhoneService::start`] with this CLI of Tailscale. The tests give a fake.
     pub fn start_with(core: CoreHandle, cli: TailscaleCli) -> Self {
-        Self::with(core, None, cli)
+        Self::with(core, None, cli, Limits::default())
     }
 
     /// A development run (`nh daemon --phone-port <port>`): it always serves, on `port` of
     /// `127.0.0.1` (0 is a free port), with the origin `http://127.0.0.1:<port>`. Returns the port.
     pub fn start_dev(core: CoreHandle, port: u16) -> io::Result<(Self, u16)> {
-        let service = Self::with(core, Some(port), TailscaleCli::Search);
+        Self::start_dev_with(core, port, Limits::default())
+    }
+
+    /// [`PhoneService::start_dev`] with these limits of the connections.
+    pub fn start_dev_with(core: CoreHandle, port: u16, limits: Limits) -> io::Result<(Self, u16)> {
+        let service = Self::with(core, Some(port), TailscaleCli::Search, limits);
         match service.port() {
             Some(port) => Ok((service, port)),
             None => Err(io::Error::other(
@@ -188,7 +256,7 @@ impl PhoneService {
         }
     }
 
-    fn with(core: CoreHandle, dev_port: Option<u16>, cli: TailscaleCli) -> Self {
+    fn with(core: CoreHandle, dev_port: Option<u16>, cli: TailscaleCli, limits: Limits) -> Self {
         let pusher = Arc::new(push::Pusher::new(core.phone_dir(), core.config()));
         let inner = Arc::new(Inner {
             core: core.clone(),
@@ -200,6 +268,7 @@ impl PhoneService {
             pusher: Arc::clone(&pusher),
             fonts: Arc::default(),
             machines: Arc::default(),
+            limits,
         });
         inner.reconcile();
         let network: Arc<dyn PhoneNetwork> = Arc::new(Network(Arc::downgrade(&inner)));
@@ -592,6 +661,7 @@ impl Inner {
             stop: stopped,
             fonts: Arc::clone(&self.fonts),
             machines: Arc::clone(&self.machines),
+            admission: http::Admission::new(self.limits),
         });
         let runtime = self.core.runtime();
         let listener = {
@@ -784,5 +854,28 @@ mod tests {
         assert_eq!(origin_of("ftp://mac.ts.net"), None);
         assert_eq!(origin_of("https://"), None);
         assert_eq!(origin_of(""), None);
+    }
+
+    #[test]
+    fn the_soft_limit_of_open_files_rises_to_the_hard_limit_or_to_10240() {
+        // The default of macOS: 256, and no hard limit.
+        assert_eq!(fd_target(Some(256), None), Some(10_240));
+        assert_eq!(fd_target(Some(256), Some(4096)), Some(4096));
+        assert_eq!(fd_target(Some(4096), Some(4096)), None);
+        assert_eq!(fd_target(Some(65_536), None), None, "it never lowers");
+        assert_eq!(fd_target(None, None), None, "no limit stays");
+    }
+
+    #[test]
+    fn the_raise_never_lowers_the_limit() {
+        use rustix::process::{Resource, getrlimit};
+
+        let before = getrlimit(Resource::Nofile).current;
+        let after = raise_fd_limit();
+        assert!(
+            after >= before || after.is_none(),
+            "{before:?} -> {after:?}"
+        );
+        assert_eq!(getrlimit(Resource::Nofile).current, after);
     }
 }

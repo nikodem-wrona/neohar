@@ -193,6 +193,8 @@ fn detached(args: &Args) -> ExitCode {
         return ExitCode::from(2);
     }
     nh_core::logging::init(&paths, &args.session, LogTo::File);
+    let files = nh_web::raise_fd_limit();
+    tracing::debug!(?files, "the soft limit of open files");
     let config = match core_config(&args.session, &paths) {
         Ok(config) => config,
         Err(error) => {
@@ -287,6 +289,8 @@ fn quiet_stdio(paths: &Env, session: &str) -> Result<(), String> {
 fn foreground(args: &Args) -> ExitCode {
     let paths = Env::from_process();
     nh_core::logging::init(&paths, &args.session, LogTo::Stderr);
+    let files = nh_web::raise_fd_limit();
+    tracing::debug!(?files, "the soft limit of open files");
     let config = match core_config(&args.session, &paths) {
         Ok(config) => config,
         Err(error) => return fail(&error),

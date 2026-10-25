@@ -3375,6 +3375,7 @@ dependencies = [
  "nh-core",
  "nh-proto",
  "p256",
+ "rustix",
  "rustls",
  "serde",
  "serde_json",

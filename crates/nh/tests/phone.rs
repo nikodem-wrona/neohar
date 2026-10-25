@@ -543,3 +543,165 @@ async fn the_log_has_no_token_and_no_code() {
     );
     assert!(!log.contains(&short), "the short code is in the log");
 }
+
+/// Small limits, so that a test reaches each one quickly.
+const SMALL: nh_web::Limits = nh_web::Limits {
+    connections: 3,
+    unpaired: 2,
+    header_wait: Duration::from_millis(600),
+    pair_body_wait: Duration::from_millis(600),
+};
+
+/// Sends one request on a connection that stays open, and returns the status of the answer.
+async fn request_on(stream: &mut TcpStream, path: &str, headers: &[(String, String)]) -> u16 {
+    try_request_on(stream, path, headers)
+        .await
+        .expect("the listener closed the connection")
+}
+
+/// [`request_on`], or `None` when the listener closes the connection without an answer.
+async fn try_request_on(
+    stream: &mut TcpStream,
+    path: &str,
+    headers: &[(String, String)],
+) -> Option<u16> {
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+    let mut request = format!("GET {path} HTTP/1.1\r\n");
+    for (name, value) in headers {
+        request.push_str(&format!("{name}: {value}\r\n"));
+    }
+    request.push_str("\r\n");
+    stream.write_all(request.as_bytes()).await.ok()?;
+    let mut raw = Vec::new();
+    let mut chunk = [0u8; 4096];
+    // The head, then the body of `Content-Length`.
+    loop {
+        let n = timeout(TIMEOUT, stream.read(&mut chunk))
+            .await
+            .expect("an answer in time")
+            .ok()?;
+        if n == 0 {
+            return None;
+        }
+        raw.extend_from_slice(&chunk[..n]);
+        let Some(end) = raw.windows(4).position(|w| w == b"\r\n\r\n") else {
+            continue;
+        };
+        let head = String::from_utf8_lossy(&raw[..end]).to_ascii_lowercase();
+        let length = head
+            .lines()
+            .find_map(|line| line.strip_prefix("content-length:"))
+            .and_then(|value| value.trim().parse::<usize>().ok())
+            .unwrap_or(0);
+        if raw.len() >= end + 4 + length {
+            return head.split(' ').nth(1).and_then(|code| code.parse().ok());
+        }
+    }
+}
+
+/// A new connection that gets an answer to `GET <path>`. A connection that ended a moment ago can
+/// still hold its permit, so it tries again until [`TIMEOUT`].
+async fn answered(port: u16, path: &str, headers: &[(String, String)]) -> (TcpStream, u16) {
+    let deadline = std::time::Instant::now() + TIMEOUT;
+    loop {
+        let mut stream = TcpStream::connect(("127.0.0.1", port))
+            .await
+            .expect("a connection");
+        if let Some(status) = try_request_on(&mut stream, path, headers).await {
+            return (stream, status);
+        }
+        assert!(std::time::Instant::now() < deadline, "no connection got in");
+        tokio::task::yield_now().await;
+    }
+}
+
+/// Reads until the listener closes the connection, and returns the time that took.
+async fn closed_after(stream: &mut TcpStream) -> Duration {
+    use tokio::io::AsyncReadExt;
+
+    let started = std::time::Instant::now();
+    let mut sink = [0u8; 1024];
+    loop {
+        match timeout(TIMEOUT, stream.read(&mut sink))
+            .await
+            .expect("the listener closes the connection in time")
+        {
+            Ok(0) | Err(_) => return started.elapsed(),
+            Ok(_) => {}
+        }
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn unpaired_clients_cannot_hold_the_connections_of_the_core() {
+    let h = Harness::start_layout();
+    let (phone, port) =
+        PhoneService::start_dev_with(h.handle.clone(), 0, SMALL).expect("the listener");
+    let rig = Rig { h, phone, port };
+    let connect = || TcpStream::connect(("127.0.0.1", port));
+
+    // Two clients that send nothing take the permits of unpaired clients. A third one is closed at
+    // once, long before the wait for its headers ends.
+    let mut first = connect().await.expect("a connection");
+    let mut second = connect().await.expect("a connection");
+    let mut third = connect().await.expect("a connection");
+    assert!(closed_after(&mut third).await < SMALL.header_wait);
+    // The silent ones are closed when the wait for their headers ends.
+    assert!(closed_after(&mut first).await >= SMALL.header_wait / 2);
+    closed_after(&mut second).await;
+
+    // The permits came back: a client gets an answer again.
+    let host = vec![("Host".to_owned(), rig.host())];
+    let (mut again, status) = answered(port, "/", &host).await;
+    assert_eq!(status, 200);
+    // A connection that waits after its answer is closed too.
+    closed_after(&mut again).await;
+
+    // A pairing whose body does not come ends after its wait.
+    let mut slow = connect().await.expect("a connection");
+    {
+        use tokio::io::AsyncWriteExt;
+        let head = format!(
+            "POST /api/pair HTTP/1.1\r\nHost: {}\r\nOrigin: {}\r\nContent-Type: application/json\r\n\
+             Content-Length: 100\r\n\r\n{{\"code\"",
+            rig.host(),
+            rig.origin()
+        );
+        slow.write_all(head.as_bytes())
+            .await
+            .expect("the start of the request goes");
+    }
+    let mut answer = Vec::new();
+    {
+        use tokio::io::AsyncReadExt;
+        let _ = timeout(TIMEOUT, slow.read_to_end(&mut answer))
+            .await
+            .expect("an answer in time");
+    }
+    let answer = String::from_utf8_lossy(&answer);
+    assert!(answer.starts_with("HTTP/1.1 408"), "{answer}");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn the_connection_of_a_paired_phone_does_not_count_as_unpaired() {
+    let h = Harness::start_layout();
+    let (phone, port) =
+        PhoneService::start_dev_with(h.handle.clone(), 0, SMALL).expect("the listener");
+    let rig = Rig { h, phone, port };
+    let (token, _) = rig.paired().await;
+    let connect = || TcpStream::connect(("127.0.0.1", port));
+
+    // The phone shows its cookie, and its connection gives back the permit of an unpaired client.
+    let (_paired, status) = answered(port, "/api/me", &rig.headers(&token)).await;
+    assert_eq!(status, 200);
+    // Two unpaired clients still get in, and each gets an answer.
+    let host = vec![("Host".to_owned(), rig.host())];
+    let mut first = connect().await.expect("a connection");
+    let mut second = connect().await.expect("a connection");
+    assert_eq!(request_on(&mut first, "/", &host).await, 200);
+    assert_eq!(request_on(&mut second, "/", &host).await, 200);
+    // The limit of all connections holds: the fourth one is closed at once.
+    let mut fourth = connect().await.expect("a connection");
+    assert!(closed_after(&mut fourth).await < SMALL.header_wait);
+}

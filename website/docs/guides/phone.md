@@ -97,6 +97,9 @@ on battery sleeps in all cases.
   reach the port. The connections and each `POST` also need that address in `Origin`.
 - **A scope of its own.** The calls of a phone have the scope `phone`. The
   [methods](/docs/reference/api/methods) page tells which methods each scope permits.
+- **Limits.** The listener takes at most 128 connections at a time, and at most 16 of them without
+  the cookie of a paired phone. Each request must send its headers in 15 s, and a pairing its body
+  in 10 s. Thus a device that is not paired cannot use up the connections of the core.
 - **No logs of secrets.** The listener logs no token, no code and no query.
 
 Each device in your tailnet can open the page, but only a paired phone can see the desk. Remove a

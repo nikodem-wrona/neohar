@@ -329,6 +329,10 @@ pub fn run() {
         }
     };
     config::init_logging(&config);
+    // The default soft limit of macOS is 256 open files. The panes, the links and the connections
+    // of the phones share them.
+    let files = nh_web::raise_fd_limit();
+    tracing::debug!(?files, "the soft limit of open files");
     let host = Arc::new(TauriHost::new(config.nh_path.clone()));
     let device = match config::device(&config) {
         Ok(device) => device,

@@ -18,13 +18,21 @@
 //! Every request needs the host of the public origin in `Host`, so that a page of another site
 //! cannot reach the port through DNS rebinding. A development run also takes `127.0.0.1:<port>`.
 //! Nothing here logs a token, a code or a query.
+//!
+//! **Limits.** Every device of the tailnet and every local user can open connections, so the
+//! listener bounds what they hold in the process of the core ([`crate::Limits`]): at most 128
+//! connections, of which at most 16 have not yet shown the cookie of a paired phone; 15 s for the
+//! headers of each request, also between two requests of a connection; and 10 s for the body of
+//! `POST /api/pair`. A connection over a limit is closed at once. A WebSocket of a paired phone
+//! counts no more after its upgrade.
 
 use std::{
     convert::Infallible,
     sync::{
-        Arc, PoisonError, RwLock,
+        Arc, Mutex, PoisonError, RwLock,
         atomic::{AtomicU64, Ordering},
     },
+    time::Duration,
 };
 
 use bytes::Bytes;
@@ -36,7 +44,7 @@ use hyper::{
     server::conn::http1,
     service::service_fn,
 };
-use hyper_util::rt::TokioIo;
+use hyper_util::rt::{TokioIo, TokioTimer};
 use nh_core::{
     ClientInfo, CoreHandle, ErrorCode, Origin,
     phones::{PairRefusal, PhoneIdentity},
@@ -46,7 +54,7 @@ use serde::Deserialize;
 use serde_json::json;
 use tokio::{
     net::{TcpListener, TcpStream},
-    sync::{broadcast, watch},
+    sync::{OwnedSemaphorePermit, Semaphore, broadcast, watch},
 };
 use tokio_tungstenite::{
     WebSocketStream,
@@ -68,6 +76,9 @@ const COOKIE_AGE: u32 = 34_560_000;
 
 /// The largest body of `POST /api/pair`.
 const PAIR_BODY_MAX: usize = 4096;
+
+/// The pause after a failed accept, for example when the process has no free file descriptor.
+const ACCEPT_PAUSE: Duration = Duration::from_millis(100);
 
 /// The policy of every page. `'wasm-unsafe-eval'` lets the page compile the decoder of
 /// the frames, and it allows no script from a string.
@@ -99,6 +110,31 @@ pub(crate) struct Server {
     pub stop: watch::Receiver<bool>,
     pub fonts: Arc<FontSlot>,
     pub machines: Arc<MachineSlot>,
+    pub admission: Admission,
+}
+
+/// The limits of the connections of one listener, with their permits.
+pub(crate) struct Admission {
+    limits: crate::Limits,
+    all: Arc<Semaphore>,
+    unpaired: Arc<Semaphore>,
+}
+
+impl Admission {
+    pub(crate) fn new(limits: crate::Limits) -> Self {
+        Self {
+            limits,
+            all: Arc::new(Semaphore::new(limits.connections)),
+            unpaired: Arc::new(Semaphore::new(limits.unpaired)),
+        }
+    }
+
+    /// The permits of a new connection, or `None` when it is over a limit.
+    fn admit(&self) -> Option<(OwnedSemaphorePermit, OwnedSemaphorePermit)> {
+        let all = Arc::clone(&self.all).try_acquire_owned().ok()?;
+        let unpaired = Arc::clone(&self.unpaired).try_acquire_owned().ok()?;
+        Some((all, unpaired))
+    }
 }
 
 /// What the checks of a request compare with.
@@ -127,23 +163,47 @@ pub(crate) async fn accept(listener: TcpListener, server: Arc<Server>) {
         tokio::select! {
             () = &mut stop => return,
             accepted = listener.accept() => {
-                let Ok((stream, _)) = accepted else {
+                let stream = match accepted {
+                    Ok((stream, _)) => stream,
+                    Err(error) => {
+                        // Without a pause, an error that stays (no free file descriptor) turns
+                        // the loop into a busy loop.
+                        tracing::warn!(%error, "the phone listener cannot accept a connection");
+                        tokio::time::sleep(ACCEPT_PAUSE).await;
+                        continue;
+                    }
+                };
+                let Some(permits) = server.admission.admit() else {
+                    tracing::debug!("a phone connection over the limit is closed");
+                    drop(stream);
                     continue;
                 };
-                tokio::spawn(connection(stream, Arc::clone(&server)));
+                tokio::spawn(connection(stream, Arc::clone(&server), permits));
             }
         }
     }
 }
 
-async fn connection(stream: TcpStream, server: Arc<Server>) {
+async fn connection(
+    stream: TcpStream,
+    server: Arc<Server>,
+    (_all, unpaired): (OwnedSemaphorePermit, OwnedSemaphorePermit),
+) {
     let _ = stream.set_nodelay(true);
     let stop = stopped(server.stop.clone());
+    let header_wait = server.admission.limits.header_wait;
+    // The permit of an unpaired connection goes back at the first request with a valid cookie.
+    let unpaired = Arc::new(Mutex::new(Some(unpaired)));
     let service = service_fn(move |request| {
-        let server = Arc::clone(&server);
-        async move { Ok::<_, Infallible>(handle(&server, request).await) }
+        let (server, unpaired) = (Arc::clone(&server), Arc::clone(&unpaired));
+        async move {
+            release_when_paired(&server, &unpaired, request.headers()).await;
+            Ok::<_, Infallible>(handle(&server, request).await)
+        }
     });
     let served = http1::Builder::new()
+        .timer(TokioTimer::new())
+        .header_read_timeout(header_wait)
         .serve_connection(TokioIo::new(stream), service)
         .with_upgrades();
     tokio::select! {
@@ -153,6 +213,33 @@ async fn connection(stream: TcpStream, server: Arc<Server>) {
             }
         }
         () = stop => {}
+    }
+}
+
+/// Gives back the permit of an unpaired connection when a request has the cookie of a paired
+/// phone. It looks up the cookie only while the connection holds the permit.
+async fn release_when_paired(
+    server: &Server,
+    unpaired: &Mutex<Option<OwnedSemaphorePermit>>,
+    headers: &HeaderMap,
+) {
+    let holds = unpaired
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+        .is_some();
+    if !holds {
+        return;
+    }
+    let Some(token) = token_of(headers) else {
+        return;
+    };
+    if server.core.phone_of_token(&token).await.is_some() {
+        drop(
+            unpaired
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner)
+                .take(),
+        );
     }
 }
 
@@ -486,11 +573,15 @@ async fn pair(server: &Server, request: Request<Incoming>) -> Response<Body> {
     if !server.checks.origin_allowed(request.headers()) {
         return refused(StatusCode::FORBIDDEN, "not allowed");
     }
-    let Ok(body) = Limited::new(request.into_body(), PAIR_BODY_MAX)
-        .collect()
-        .await
-    else {
-        return refused(StatusCode::PAYLOAD_TOO_LARGE, "the body is too large");
+    let body = tokio::time::timeout(
+        server.admission.limits.pair_body_wait,
+        Limited::new(request.into_body(), PAIR_BODY_MAX).collect(),
+    )
+    .await;
+    let body = match body {
+        Ok(Ok(body)) => body,
+        Ok(Err(_)) => return refused(StatusCode::PAYLOAD_TOO_LARGE, "the body is too large"),
+        Err(_) => return refused(StatusCode::REQUEST_TIMEOUT, "the body did not come in time"),
     };
     let Ok(body) = serde_json::from_slice::<PairBody>(&body.to_bytes()) else {
         return refused(StatusCode::BAD_REQUEST, "the body is {code, name}");

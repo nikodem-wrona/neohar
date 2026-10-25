@@ -27,6 +27,8 @@ hyper-util.workspace = true
 nh-core = { path = "../nh-core", default-features = false }
 nh-proto = { path = "../nh-proto", features = ["api"] }
 p256.workspace = true
+# `raise_fd_limit`: the soft limit of open files of the app and of `nh daemon`.
+rustix.workspace = true
 rustls.workspace = true
 serde.workspace = true
 serde_json.workspace = true
