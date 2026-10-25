@@ -32,6 +32,7 @@ These parts of neohar are in scope:
 - **The link to remote machines over ssh**: `nh daemon`, `nh bridge` and `nh askpass`. The app does not trust the core of a remote machine. That core must stay limited to its own panes: it must not open, read or start anything on your Mac, it must not write your clipboard or take your keyboard without an action of yours, and its HTML must not escape the sandbox of the webview. A way around one of these limits is in scope.
 - **The webview sandbox**: the three commands of the webview, the content security policy, and the `nh://` URLs.
 - **Deep links** (`neohar://`): any web page can open one, so a link must not answer a request or give a pane the focus.
+- **Other users of the same machine**: an attack from another local user, for example a socket, a directory or a port of `127.0.0.1` that this user makes before neohar does.
 
 These items are not in scope:
 
