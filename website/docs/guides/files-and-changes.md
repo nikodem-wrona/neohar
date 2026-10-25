@@ -67,6 +67,9 @@ without git: it looks for `.git` in the folder and in the folders above it.
 - `nh git trust` trusts the repository of the current directory, and `nh git untrust` takes the
   trust back. An `nh git` command in a repository that you do not trust fails with
   `permission_denied`.
+- In a neohar pane, `nh git trust` and `nh git untrust` fail with `permission_denied`. An agent
+  that wrote the settings of a repository must not trust them itself. Run the command in a
+  terminal outside neohar, or click **Trust**.
 - A paired phone can also trust a repository, because it can type commands into a pane.
 
 ## The Git view

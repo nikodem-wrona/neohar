@@ -23,7 +23,9 @@ In a neohar pane, some commands are refused with `permission_denied`. The core f
 - `interaction.answer` and `interaction.dismiss`.
 - `policy.add` and `policy.remove`.
 - `phone.pair_begin` and `phone.publish`.
+- `git.trust` and `git.untrust`.
 - `config.set` of a key in `approvals`, `policy`, `phone` or `machines`, and of `agents.shims` and `events.audit_retention`.
+- `pane.paste`, `pane.send_bytes`, `agent.prompt`, `agent.reply` and `agent.interrupt` to a pane whose agent waits for an answer to an approval, a question or a plan. Input to a pane that waits for nothing works.
 
 Run these commands in a terminal outside neohar, or use the app. Other commands work in a pane, for example `nh config set ui.font_size 14` and `nh integration install`. This check is not a sandbox: [SECURITY.md](https://github.com/nikodem-wrona/neohar/blob/main/SECURITY.md) tells its limits.
 

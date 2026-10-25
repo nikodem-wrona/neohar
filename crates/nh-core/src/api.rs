@@ -359,9 +359,13 @@ pub(crate) struct Conn {
     out: Option<tokio::sync::mpsc::Sender<Vec<u8>>>,
     /// The projections and the events that the client follows.
     subs: Arc<Table>,
-    /// Whether the client runs inside a pane of this core ([`crate::in_pane`]). The core reads
-    /// the parents of the client once, at the first call that needs it.
+    /// Set once the client was found inside a pane of this core ([`crate::in_pane`]). A client
+    /// that is not inside is asked again at each call that needs it: the core can still be on its
+    /// way up, and the panes of the core change.
     in_pane: OnceLock<bool>,
+    /// The parents and the session of the client. The core reads them once, at the first call
+    /// that needs them.
+    lineage: OnceLock<crate::in_pane::Lineage>,
 }
 
 impl Conn {
@@ -374,19 +378,29 @@ impl Conn {
             out: None,
             subs: Arc::default(),
             in_pane: OnceLock::new(),
+            lineage: OnceLock::new(),
         }
     }
 
     /// Whether the client runs inside a pane of the core. A client whose process the system does
-    /// not tell is not: this check is a second line, and the CLI must work without it.
+    /// not tell is not: this check is a second line, and the CLI must work without it. Only a
+    /// "yes" is kept. Before the core is up, or before it found the holders of its panes again, a
+    /// "no" can be wrong, so the core asks again at the next call.
     fn in_pane(&self, state: &ApiState) -> bool {
-        *self.in_pane.get_or_init(|| {
-            let (Some(pid), Some(core)) = (self.pid, state.core()) else {
-                return false;
-            };
-            let panes = crate::in_pane::Panes::of(&core);
-            crate::in_pane::runs_in_pane(pid, &panes)
-        })
+        if let Some(known) = self.in_pane.get() {
+            return *known;
+        }
+        let (Some(pid), Some(core)) = (self.pid, state.core()) else {
+            return false;
+        };
+        let lineage = self
+            .lineage
+            .get_or_init(|| crate::in_pane::Lineage::of(pid));
+        let inside = lineage.in_panes(&crate::in_pane::Panes::of(&core));
+        if inside {
+            let _ = self.in_pane.set(true);
+        }
+        inside
     }
 
     /// Passes the outcomes of a gate to the client as `adapter.gate_result` lines.
@@ -419,6 +433,7 @@ async fn connection(stream: UnixStream, state: Arc<ApiState>) {
         out: Some(out_tx.clone()),
         subs: Arc::default(),
         in_pane: OnceLock::new(),
+        lineage: OnceLock::new(),
     };
     let in_flight = Arc::new(Semaphore::new(MAX_IN_FLIGHT));
     loop {
@@ -579,6 +594,9 @@ struct PendingCall {
     origin: Origin,
     method: String,
     params: Value,
+    /// The client runs inside a pane, and the call types into this target. The call runs only
+    /// when the target waits for no answer ([`crate::in_pane::waits_for_answer`]).
+    input: Option<crate::in_pane::Target>,
 }
 
 fn answer(id: &Value, result: Result<Value, RpcError>) -> Vec<u8> {
@@ -628,11 +646,20 @@ fn route(line: &[u8], state: &ApiState, conn: &Conn) -> Routed {
         let outcome = adapter(&request.method, &request.params, line.len(), state);
         return Routed::Reply(request.id.map(|id| answer(&id, outcome)));
     }
+    // A program in a pane may not type into a pane that waits for an answer: a key answers the
+    // dialog of the harness. The check needs the state actor, so the call does it.
+    let input = if matches!(origin.scope, Scope::Cli | Scope::Dev) {
+        crate::in_pane::input_target(&request.method, &request.params)
+            .filter(|_| conn.in_pane(state))
+    } else {
+        None
+    };
     Routed::Call(PendingCall {
         id: request.id,
         origin,
         method: request.method,
         params: request.params,
+        input,
     })
 }
 
@@ -649,6 +676,7 @@ fn spawn_call(
         origin,
         method,
         params,
+        input,
     } = call;
     // An early refusal goes through the queue like every other reply, on a task, because the queue
     // can be full.
@@ -696,9 +724,24 @@ fn spawn_call(
                 }
             }
         } else {
-            let result = CoreHandle::from_inner(core)
-                .call_as(origin, &method, params)
-                .await;
+            let allowed = match input {
+                Some(target) => {
+                    let checked = crate::in_pane::waits_for_answer(&core, &method, target).await;
+                    if checked.is_err() {
+                        tracing::warn!(%method, "input from inside a pane to a waiting pane was refused");
+                    }
+                    checked
+                }
+                None => Ok(()),
+            };
+            let result = match allowed {
+                Ok(()) => {
+                    CoreHandle::from_inner(core)
+                        .call_as(origin, &method, params)
+                        .await
+                }
+                Err(error) => Err(error),
+            };
             if let Some(id) = id {
                 let _ = out.send(answer(&id, result)).await;
             }
@@ -948,12 +991,39 @@ mod tests {
         }
         // Outside a pane, the CLI may answer.
         let outside = Conn::none();
-        outside.in_pane.set(false).expect("not read yet");
         let line = br#"{"jsonrpc":"2.0","id":1,"method":"interaction.answer","params":{}}"#;
         assert_eq!(
             route_line(line, &outside).expect("a call"),
             "interaction.answer"
         );
+    }
+
+    #[test]
+    fn input_from_inside_a_pane_is_checked_against_its_target() {
+        let state = ApiState::default();
+        let line = br#"{"jsonrpc":"2.0","id":1,"method":"pane.send_bytes","params":{"pane":"w1:p2","input_id":1,"bytes":"MQ0="}}"#;
+        let input_of = |conn: &Conn| match route(line, &state, conn) {
+            Routed::Call(call) => call.input,
+            _ => panic!("a call for the core"),
+        };
+        let inside = Conn::none();
+        inside.in_pane.set(true).expect("not read yet");
+        assert!(
+            matches!(input_of(&inside), Some(crate::in_pane::Target::Pane(_))),
+            "the call checks its target first"
+        );
+        assert_eq!(input_of(&Conn::none()), None, "outside a pane, no check");
+    }
+
+    #[test]
+    fn a_no_is_not_kept_before_the_core_is_up() {
+        // The core is not up yet: the answer is "no" for now, and the core asks again later.
+        let state = ApiState::default();
+        let mut conn = Conn::none();
+        conn.pid = Some(i32::try_from(std::process::id()).expect("a pid"));
+        assert!(!conn.in_pane(&state));
+        assert_eq!(conn.in_pane.get(), None, "a no is not kept");
+        assert!(conn.lineage.get().is_none(), "nothing was read yet");
     }
 
     #[test]
