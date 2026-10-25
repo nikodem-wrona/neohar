@@ -433,3 +433,119 @@ async fn phone_url_replaces_tailscale() {
     );
     assert!(fake.calls().is_empty(), "{:?}", fake.calls());
 }
+
+/// Waits until the runs of the fake that change the mapping satisfy `pred`.
+async fn changes_until(fake: &Fake, what: &str, pred: impl Fn(&[String]) -> bool) -> Vec<String> {
+    let deadline = Instant::now() + TIMEOUT;
+    loop {
+        let changes = fake.changes();
+        if pred(&changes) {
+            return changes;
+        }
+        assert!(Instant::now() < deadline, "waited for {what}: {changes:?}");
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+}
+
+const OFF: &str = "serve --yes --https=8443 off";
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn the_mapping_lives_only_as_long_as_the_listener() {
+    let h = Harness::start_layout();
+    let fake = Fake::new(&h);
+    fake.write("status.json", RUNNING);
+    let phone = PhoneService::start_with(h.handle.clone(), fake.cli());
+    let port = enable(&h).await;
+    status_until(&h, "Tailscale that runs", |s| {
+        state_of(s) == Some(TailscaleState::Running)
+    })
+    .await;
+    h.call("phone.publish", json!({})).await;
+    let publish = format!("serve --bg --yes --https=8443 http://127.0.0.1:{port}");
+    assert_eq!(fake.changes(), std::slice::from_ref(&publish));
+
+    // The listener stops: the port is free for any local user, so the mapping goes.
+    h.call(
+        "config.set",
+        json!({ "key": "phone.enabled", "value": false }),
+    )
+    .await;
+    changes_until(&fake, "the removal", |c| {
+        c.last().map(String::as_str) == Some(OFF)
+    })
+    .await;
+    assert_eq!(fake.serve(), json!({}));
+
+    // The listener serves again: the mapping that the person asked for comes back.
+    h.call(
+        "config.set",
+        json!({ "key": "phone.enabled", "value": true }),
+    )
+    .await;
+    changes_until(&fake, "the mapping again", |c| {
+        c.len() == 3 && c.last() == Some(&publish)
+    })
+    .await;
+    status_until(&h, "a published listener", |s| {
+        s.tailscale.as_ref().is_some_and(|t| t.published)
+    })
+    .await;
+
+    // A quit of the app or of the daemon removes it too, before the stop ends.
+    drop(phone);
+    let changes = fake.changes();
+    assert_eq!(changes.last().map(String::as_str), Some(OFF), "{changes:?}");
+
+    // A new service publishes again, until `phone.unpublish`.
+    let phone = PhoneService::start_with(h.handle.clone(), fake.cli());
+    changes_until(&fake, "the mapping after a restart", |c| {
+        c.len() == 5 && c.last() == Some(&publish)
+    })
+    .await;
+    h.call("phone.unpublish", json!({})).await;
+    assert_eq!(fake.serve(), json!({}));
+    drop(phone);
+    let _phone = PhoneService::start_with(h.handle.clone(), fake.cli());
+    status_until(&h, "a listener that is not published", |s| {
+        s.tailscale.as_ref().is_some_and(|t| !t.published)
+    })
+    .await;
+    h.call("doctor.run", json!({})).await;
+    assert_eq!(fake.changes().len(), 6, "{:?}", fake.changes());
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_port_that_another_process_holds_loses_its_mapping() {
+    let h = Harness::start_layout();
+    let fake = Fake::new(&h);
+    fake.write("status.json", RUNNING);
+    // Another local user listens on the port, and a crash of neohar left the mapping to it.
+    let other = std::net::TcpListener::bind("127.0.0.1:0").expect("a port");
+    let port = other.local_addr().expect("an address").port();
+    fake.write(
+        "serve.json",
+        &json!({
+            "TCP": { "8443": { "HTTPS": true } },
+            "Web": { "studio.example.ts.net:8443": {
+                "Handlers": { "/": { "Proxy": format!("http://127.0.0.1:{port}") } }
+            } }
+        })
+        .to_string(),
+    );
+    let _phone = PhoneService::start_with(h.handle.clone(), fake.cli());
+    h.call("config.set", json!({ "key": "phone.port", "value": port }))
+        .await;
+    h.call(
+        "config.set",
+        json!({ "key": "phone.enabled", "value": true }),
+    )
+    .await;
+    let status = status_until(&h, "a port that is not free", |s| {
+        s.hint.as_deref().is_some_and(|h| h.contains("is not free"))
+    })
+    .await;
+    assert!(!status.listening);
+    changes_until(&fake, "the removal", |c| c == [OFF.to_owned()]).await;
+    assert_eq!(fake.serve(), json!({}));
+    drop(other);
+}

@@ -41,6 +41,11 @@ neohar runs `tailscale serve` and maps the HTTPS port 8443 of the tailnet (`phon
 listener. It never runs `tailscale funnel`, so the page stays inside your tailnet. It never changes
 a mapping that serves something else. `nh phone unpublish` removes the mapping.
 
+The mapping lives only as long as the listener. neohar removes it when the listener stops: when
+you quit the app or `nh daemon`, and when `phone.enabled` goes off. It also removes it when another
+process holds `phone.port`. neohar adds the mapping again each time the listener starts, until you
+unpublish. After a crash, the mapping stays until the listener starts again.
+
 If your Mac has an HTTPS address of another kind, set `phone.url` to it and do not publish.
 
 ## Pair a phone
@@ -79,6 +84,12 @@ on battery sleeps in all cases.
 
 - **Loopback only.** The listener accepts connections only on `127.0.0.1`. Tailscale brings the
   HTTPS requests of the tailnet to it.
+- **Other users of the Mac.** Each user of the Mac can listen on a free port of `127.0.0.1`. If
+  the mapping goes to a port that neohar does not hold, the requests of your phone, with its
+  cookie, go to that user. Thus neohar removes the mapping when the listener stops or does not get
+  its port. The mapping goes to a TCP port and not to a Unix socket in your private runtime
+  directory: the Tailscale app of the App Store runs in a sandbox, and it may not reach that
+  socket. On a Mac with other users, quit neohar cleanly, and remove a phone that you do not use.
 - **Pairing.** Each pairing gives the phone a cookie with a random token. The cookie is
   `HttpOnly`, `Secure` and `SameSite=Strict`. The core keeps only a hash of the token.
 - **Checks on each request.** Every route that is not a file of the app needs the cookie. Every

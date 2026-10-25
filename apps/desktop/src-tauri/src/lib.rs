@@ -561,6 +561,11 @@ pub fn run() {
                 app.state::<Lifecycle>()
                     .quitting
                     .store(true, Ordering::SeqCst);
+                // The mapping of `tailscale serve` must not outlive the listener: another user
+                // of this Mac could then take its port and get the cookies of the phones.
+                if let Some(phone) = app.try_state::<nh_web::PhoneService>() {
+                    phone.shutdown();
+                }
                 match backend::of(app) {
                     Some(Backend::Local(handle)) => {
                         if std::env::var_os("NEOHAR_STOP_ON_EXIT").is_some() {

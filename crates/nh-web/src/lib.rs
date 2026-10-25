@@ -13,6 +13,14 @@
 //! `doctor.run`. `phone.publish` and `phone.unpublish` change the mapping of `tailscale serve`
 //! through the [`nh_core::phones::PhoneNetwork`] that the service gives the core.
 //!
+//! **The mapping lives only as long as the listener.** Any local user can listen on a free port
+//! of `127.0.0.1`. A mapping to a port that neohar does not hold would bring the cookie of a
+//! paired phone to that user. So the service removes the mapping when the listener stops (a quit,
+//! `phone.enabled` off, another port) and when the port is not free. `phone.publish` leaves the
+//! file `<data>/phone/published`, and while it is there the service adds the mapping again each
+//! time the listener serves. `phone.unpublish` removes the file. After a crash the mapping stays
+//! until the next start of the listener.
+//!
 //! A phone pairs with a code of the offer of `phone.pair_begin` (`POST /api/pair`) and gets a
 //! cookie with a token. Every route that is not a file of the app needs the cookie. `/rpc` and each
 //! `POST` also need the public origin in `Origin`, and every request needs its host in `Host`.
@@ -67,6 +75,13 @@ const READING: &str = "neohar reads the state of Tailscale.";
 
 /// How often the service reads Tailscale while the listener uses it.
 const POLL: Duration = Duration::from_secs(60);
+
+/// The file in the directory of the phones that says that the person published the listener
+/// with Tailscale and did not unpublish it.
+const PUBLISHED_MARK: &str = "published";
+
+/// How long a stop of the service waits for the removal of the mapping.
+const WITHDRAW_WAIT: Duration = Duration::from_secs(5);
 
 /// Where one listener serves.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -241,11 +256,38 @@ impl PhoneService {
     }
 }
 
+impl PhoneService {
+    /// Stops the listener and removes its mapping of `tailscale serve`, and waits for that for
+    /// at most [`WITHDRAW_WAIT`]. The app calls it when it quits, because its state is never
+    /// dropped. A second call does nothing.
+    pub fn shutdown(&self) {
+        let Some(port) = self.inner.stop(OFF) else {
+            return;
+        };
+        if self.inner.dev_port.is_some() {
+            return;
+        }
+        let (done, wait) = std::sync::mpsc::channel();
+        let inner = Arc::clone(&self.inner);
+        self.inner.core.runtime().spawn(async move {
+            inner.withdraw(port).await;
+            let _ = done.send(());
+        });
+        if wait.recv_timeout(WITHDRAW_WAIT).is_err() {
+            tracing::warn!(
+                port,
+                "the mapping of tailscale serve was not removed in time; it goes to a port that \
+                 nothing of neohar holds now"
+            );
+        }
+    }
+}
+
 impl Drop for PhoneService {
     fn drop(&mut self) {
         self.inner.core.release_phone_network(&self.network);
         self.inner.core.release_push_out(&self.push_out);
-        self.inner.stop(OFF);
+        self.shutdown();
     }
 }
 
@@ -406,6 +448,10 @@ impl Inner {
         if running.as_ref().map(|r| r.listen) != listen {
             if let Some(old) = running.take() {
                 let _ = old.stop.send(true);
+                // Nothing of neohar holds the old port now.
+                if !old.listen.dev {
+                    self.withdraw_later(old.port);
+                }
             }
             if let Some(listen) = listen {
                 match self.listen(listen) {
@@ -416,6 +462,11 @@ impl Inner {
                     Err(error) => {
                         tracing::warn!(port = listen.port, %error, "the phone listener does not start");
                         drop(running);
+                        // Another process holds the port. A mapping to it would bring the
+                        // requests of the phones, with their cookies, to that process.
+                        if !listen.dev {
+                            self.withdraw_later(listen.port);
+                        }
                         self.set_status(status_off(
                             &format!("Port {} of 127.0.0.1 is not free: {error}", listen.port),
                             "The phone listener does not run.",
@@ -450,16 +501,77 @@ impl Inner {
         }
     }
 
-    fn stop(&self, hint: &str) {
+    /// Stops the listener. Returns the port that it had, or `None` when it did not run.
+    fn stop(&self, hint: &str) -> Option<u16> {
         let old = self
             .running
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
-            .take();
-        if let Some(old) = old {
-            let _ = old.stop.send(true);
-            self.core
-                .set_phone_status(status_off(hint, "The phone listener is off."));
+            .take()?;
+        let _ = old.stop.send(true);
+        self.core
+            .set_phone_status(status_off(hint, "The phone listener is off."));
+        Some(old.port)
+    }
+
+    /// Whether the person published the listener and did not unpublish it.
+    fn wants_published(&self) -> bool {
+        self.core.phone_dir().join(PUBLISHED_MARK).is_file()
+    }
+
+    /// Keeps or removes the mark of [`Inner::wants_published`].
+    fn set_wants_published(&self, wanted: bool) {
+        let dir = self.core.phone_dir();
+        let mark = dir.join(PUBLISHED_MARK);
+        let result = if wanted {
+            std::fs::create_dir_all(&dir).and_then(|()| std::fs::write(&mark, b""))
+        } else {
+            match std::fs::remove_file(&mark) {
+                Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(()),
+                other => other,
+            }
+        };
+        if let Err(error) = result {
+            tracing::warn!(%error, path = %mark.display(), "the mark of the publish is not kept");
+        }
+    }
+
+    /// [`Inner::withdraw`] on the runtime of the core, without a wait.
+    fn withdraw_later(self: &Arc<Self>, port: u16) {
+        let inner = Arc::clone(self);
+        self.core
+            .runtime()
+            .spawn(async move { inner.withdraw(port).await });
+    }
+
+    /// Removes the mapping of `phone.https_port` when it goes to `port` of `127.0.0.1`, which no
+    /// listener of neohar holds now. The mark of the publish stays, so the mapping comes back with
+    /// the listener. It does nothing in a development run or with `phone.url`.
+    async fn withdraw(self: &Arc<Self>, port: u16) {
+        let _one = self.busy.lock().await;
+        if self.dev_port.is_some() {
+            return;
+        }
+        let phone = self.core.config().config().phone.clone();
+        if !phone.url.trim().is_empty() {
+            return;
+        }
+        // A new listener on the same port serves again: its mapping stays.
+        if self.port() == Some(port) {
+            return;
+        }
+        let env = self.core.login_env();
+        let facts = tailscale::read(&self.cli, &env, phone.https_port, port).await;
+        if !facts.status.published {
+            return;
+        }
+        tracing::info!(
+            https_port = phone.https_port,
+            port,
+            "tailscale serve removes the mapping to a port that the phone listener does not hold"
+        );
+        if let Err(error) = tailscale::unpublish(&facts, &env).await {
+            tracing::warn!(%error, port, "tailscale serve does not remove the mapping");
         }
     }
 
@@ -509,16 +621,34 @@ impl Inner {
         self.reconcile();
     }
 
-    /// Reads Tailscale again, when the listener uses it.
+    /// Reads Tailscale again, when the listener uses it. While the person wants the listener
+    /// published, it adds the mapping again when it is missing: the service removes it each time
+    /// the listener stops.
     async fn refresh(self: &Arc<Self>) {
         let _one = self.busy.lock().await;
-        let facts = match self.tailscale_ports() {
-            Some((https, port)) => {
-                Some(tailscale::read(&self.cli, &self.core.login_env(), https, port).await)
-            }
-            None => None,
+        let Some((https, port)) = self.tailscale_ports() else {
+            self.keep(None);
+            return;
         };
-        self.keep(facts);
+        let env = self.core.login_env();
+        let mut facts = tailscale::read(&self.cli, &env, https, port).await;
+        if facts.status.published {
+            // A mapping of an earlier version of neohar, which did not keep the mark.
+            if !self.wants_published() {
+                self.set_wants_published(true);
+            }
+        } else if self.wants_published() && facts.refusal().is_none() {
+            tracing::info!(
+                https_port = https,
+                port,
+                "tailscale serve publishes the phone listener again"
+            );
+            if let Err(error) = tailscale::publish(&facts, &env).await {
+                tracing::warn!(%error, "tailscale serve does not publish the phone listener");
+            }
+            facts = tailscale::read(&self.cli, &env, https, port).await;
+        }
+        self.keep(Some(facts));
     }
 
     /// `phone.publish`: the mapping of `phone.https_port` to the listener.
@@ -550,6 +680,7 @@ impl Inner {
         let env = self.core.login_env();
         let facts = tailscale::read(&self.cli, &env, phone.https_port, port).await;
         if facts.status.published {
+            self.set_wants_published(true);
             self.keep(Some(facts));
             return Ok(());
         }
@@ -575,7 +706,10 @@ impl Inner {
                  127.0.0.1:{port}.",
                 phone.https_port
             ))),
-            Ok(()) => Ok(()),
+            Ok(()) => {
+                self.set_wants_published(true);
+                Ok(())
+            }
         }
     }
 
@@ -588,6 +722,8 @@ impl Inner {
                 "A development run serves 127.0.0.1 only and does not publish.",
             ));
         }
+        // The listener does not publish itself again from now on.
+        self.set_wants_published(false);
         let phone = self.core.config().config().phone.clone();
         let port = self.port().unwrap_or(phone.port);
         let env = self.core.login_env();
