@@ -11,7 +11,7 @@
 use std::sync::Arc;
 
 use block2::RcBlock;
-use nh_core::host::HostNotification;
+use nh_core::host::{HostNotification, NotificationAction};
 use nh_proto::api::common::Urgency;
 use objc2::{
     AnyThread, DefinedClass, define_class, msg_send,
@@ -31,6 +31,8 @@ use super::{Click, Permission, Response};
 
 /// The category of an approval: it has the buttons.
 const APPROVAL: &str = "nh.approval";
+/// The category of an approval that the banner does not show enough to allow: it has Deny only.
+const DENY_ONLY: &str = "nh.deny-only";
 /// The category of the other notifications: a click opens the card.
 const PLAIN: &str = "nh.open";
 const ALLOW: &str = "nh.allow";
@@ -113,6 +115,17 @@ unsafe impl Send for Live {}
 // SAFETY: see above.
 unsafe impl Sync for Live {}
 
+/// The category for the buttons that the core asks for: Allow and Deny, Deny only, or none.
+fn category(actions: &[NotificationAction]) -> &'static str {
+    if actions.contains(&NotificationAction::Allow) {
+        APPROVAL
+    } else if actions.contains(&NotificationAction::Deny) {
+        DENY_ONLY
+    } else {
+        PLAIN
+    }
+}
+
 pub struct Platform {
     live: Option<Live>,
 }
@@ -140,17 +153,24 @@ fn categories() -> Retained<NSSet<UNNotificationCategory>> {
     );
     let approval = UNNotificationCategory::categoryWithIdentifier_actions_intentIdentifiers_options(
         &string(APPROVAL),
-        &NSArray::from_retained_slice(&[allow, deny]),
+        &NSArray::from_retained_slice(&[allow, deny.clone()]),
         &NSArray::new(),
         UNNotificationCategoryOptions::empty(),
     );
+    let deny_only =
+        UNNotificationCategory::categoryWithIdentifier_actions_intentIdentifiers_options(
+            &string(DENY_ONLY),
+            &NSArray::from_retained_slice(&[deny]),
+            &NSArray::new(),
+            UNNotificationCategoryOptions::empty(),
+        );
     let plain = UNNotificationCategory::categoryWithIdentifier_actions_intentIdentifiers_options(
         &string(PLAIN),
         &NSArray::new(),
         &NSArray::new(),
         UNNotificationCategoryOptions::empty(),
     );
-    NSSet::from_retained_slice(&[approval, plain])
+    NSSet::from_retained_slice(&[approval, deny_only, plain])
 }
 
 impl Platform {
@@ -203,11 +223,7 @@ impl Platform {
         let content = UNMutableNotificationContent::new();
         content.setTitle(&string(&notification.title));
         content.setBody(&string(&notification.body));
-        content.setCategoryIdentifier(&string(if notification.actions.is_empty() {
-            PLAIN
-        } else {
-            APPROVAL
-        }));
+        content.setCategoryIdentifier(&string(category(&notification.actions)));
         content.setInterruptionLevel(match notification.urgency {
             Urgency::Low => UNNotificationInterruptionLevel::Passive,
             Urgency::Normal | Urgency::High => UNNotificationInterruptionLevel::Active,

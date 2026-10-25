@@ -71,6 +71,10 @@ for you.** Looking means that the window has the focus and the pane has the keyb
 
 - A held request gives a card in the Inbox, a count in the attention line and the Dock, a tray
   entry and a notification.
+- A notification and the tray have **Allow** only for a low or medium risk and a command that
+  they show whole, on one line of at most 80 characters. Otherwise they have **Deny**, and a
+  click shows the card. A notification is about one request: when another request comes first,
+  a new notification replaces it.
 - Click into the pane and neohar lets the request go, so the dialog of the harness is what you
   answer. Claude Code draws its dialog also while neohar holds the request. Codex shows "Running
   hook" until neohar answers or lets go.

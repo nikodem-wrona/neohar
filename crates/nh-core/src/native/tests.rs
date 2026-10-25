@@ -110,12 +110,113 @@ async fn a_host_with_buttons_gets_allow_and_deny_for_an_approval() {
         ..Options::default()
     })
     .await;
-    ask(&f, "toolu_1", "pnpm test").await;
+    ask(&f, "toolu_1", "git status").await;
     let posted = posts(&f);
     assert_eq!(
         posted[0].1.actions,
         [NotificationAction::Allow, NotificationAction::Deny]
     );
+}
+
+#[tokio::test]
+async fn a_banner_that_does_not_show_enough_to_allow_offers_deny_only() {
+    let long = format!("echo ok{}&& ls", " ".repeat(80));
+    // A high risk, an unknown risk, a cut command, and a command on two lines.
+    for command in ["rm -rf build", "pnpm test", long.as_str(), "echo ok\nls"] {
+        let (f, _run) = started(Options {
+            actions: true,
+            ..Options::default()
+        })
+        .await;
+        let id = ask(&f, "toolu_1", command).await;
+        let posted = posts(&f);
+        assert_eq!(
+            posted[0].1.actions,
+            [NotificationAction::Deny],
+            "{command:?}"
+        );
+        let tray = trays(&f).pop().expect("a tray");
+        assert!(!tray.entries[0].allow, "{command:?}");
+        assert_eq!(tray.entries[0].always, None, "{command:?}");
+        // The core refuses an allow from the banner or the tray, also from an old host.
+        for via in ["notification", "tray"] {
+            let refused = call(
+                &f,
+                "interaction.answer",
+                json!({"interaction": id.to_string(), "decision": allow(), "via": via}),
+            )
+            .await;
+            assert!(refused.is_err(), "{command:?} via {via}");
+        }
+        // Deny works from there.
+        call(
+            &f,
+            "interaction.answer",
+            json!({"interaction": id.to_string(), "decision": deny("no"), "via": "notification"}),
+        )
+        .await
+        .expect("a deny from the banner");
+    }
+}
+
+#[tokio::test]
+async fn the_tray_offers_allow_always_with_the_rule_of_the_request() {
+    let (f, _run) = started(Options::default()).await;
+    let id = ask(&f, "toolu_1", "git status --short").await;
+    let tray = trays(&f).pop().expect("a tray");
+    assert!(tray.entries[0].allow);
+    assert_eq!(tray.entries[0].always.as_deref(), Some("git status:*"));
+    let always = json!({"kind": "approval", "behavior": "allow", "always": true});
+    call(
+        &f,
+        "interaction.answer",
+        json!({"interaction": id.to_string(), "decision": always, "via": "tray"}),
+    )
+    .await
+    .expect("allow always from the tray");
+}
+
+#[tokio::test]
+async fn a_new_first_request_gets_a_new_notification() {
+    let (f, _run) = started(Options {
+        actions: true,
+        ..Options::default()
+    })
+    .await;
+    let first = ask(&f, "toolu_1", "git status").await;
+    // A high risk comes first now. The banner about `git status` must not answer it.
+    let second = ask(&f, "toolu_2", "rm -rf build").await;
+    let posted = posts(&f);
+    assert_eq!(posted.len(), 2, "{posted:?}");
+    assert_eq!(posted[0].1.interaction, Some(first));
+    assert_eq!(posted[1].1.interaction, Some(second));
+    assert_ne!(posted[0].0, posted[1].0, "a new notification");
+    assert_eq!(withdrawn(&f), [posted[0].0]);
+    assert!(
+        updates(&f)
+            .iter()
+            .all(|(_, n)| n.interaction == Some(first)),
+        "no update moves a notification to another request"
+    );
+}
+
+#[tokio::test]
+async fn a_click_on_a_banner_never_replaces_a_decision() {
+    let (f, _run) = started(Options {
+        actions: true,
+        ..Options::default()
+    })
+    .await;
+    let id = ask(&f, "toolu_1", "git status").await;
+    // The same client decides first from a card, then a click on the banner comes late.
+    answer(&f, id, deny("no")).await.expect("the card answers");
+    let late = call(
+        &f,
+        "interaction.answer",
+        json!({"interaction": id.to_string(), "decision": allow(), "via": "notification"}),
+    )
+    .await;
+    assert!(late.is_err(), "the decision of the card stays");
 }
 
 #[tokio::test]

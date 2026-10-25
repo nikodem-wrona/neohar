@@ -257,7 +257,8 @@ async fn with_two_clients_the_first_answer_wins_and_the_late_one_sees_who_answer
     }))
     .await;
     let (_laptop, laptop_host) = attach_client(&f, LAPTOP, "laptop").await;
-    let id = ask(&f, "toolu_1", "pnpm test").await;
+    // A low risk that the text shows whole, so the banner has Allow.
+    let id = ask(&f, "toolu_1", "git status").await;
     // Both clients show the notification with its buttons.
     assert_eq!(notified(&f.host).len(), 1);
     assert_eq!(notified(&laptop_host).len(), 1);

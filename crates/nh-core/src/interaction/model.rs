@@ -321,6 +321,32 @@ impl Interaction {
             .and_then(|facts| facts.pattern.as_deref())
     }
 
+    /// Whether the title shows all of the command of an approval: one line of at most 80
+    /// characters, with single spaces. Then a surface that shows only the title hides nothing.
+    pub fn title_is_whole(&self) -> bool {
+        let InteractionPayload::Approval(payload) = &self.payload else {
+            return false;
+        };
+        let Some(command) = &payload.command else {
+            return false;
+        };
+        let text = command.display.text.trim();
+        !text.is_empty()
+            && text.split_whitespace().collect::<Vec<_>>().join(" ") == text
+            && self.title == format!("Run `{text}`")
+    }
+
+    /// Whether a surface that shows only the title (a notification, the tray) may offer Allow: an
+    /// open approval that a client can answer, with a low or medium risk, and a title that shows
+    /// all of the command.
+    pub fn allow_outside_card(&self) -> bool {
+        self.kind == InteractionKind::Approval
+            && self.state == InteractionState::Open
+            && self.answerable
+            && matches!(self.risk, Risk::Low | Risk::Medium)
+            && self.title_is_whole()
+    }
+
     fn ended(&mut self, state: InteractionState, now: Timestamp) {
         self.state = state;
         self.resolved_at = Some(now);
@@ -351,12 +377,15 @@ impl Interaction {
     /// A client decides (`interaction.answer`). The first decision wins. The client that decided
     /// may replace its decision while the state is `decision_recorded`, and no other client may.
     pub fn answer(&mut self, decision: Decision, by: &str, via: Via) -> Result<Step, Refusal> {
+        // A notification and the tray show the request as it was when they showed it: open, with
+        // no decision. A click on them never replaces a decision.
+        let outside = matches!(via, Via::Notification | Via::Tray);
         match self.state {
             InteractionState::Open => {}
             // The client that decided may replace its decision until the decision is sent. Another
             // client is late: the first decision wins.
             InteractionState::DecisionRecorded
-                if self.delivery.decided_by.as_deref() == Some(by) => {}
+                if self.delivery.decided_by.as_deref() == Some(by) && !outside => {}
             InteractionState::DecisionRecorded
             | InteractionState::Delivering
             | InteractionState::Delivered
@@ -372,7 +401,7 @@ impl Interaction {
         if !self.answerable {
             return Err(Refusal::NotAnswerable);
         }
-        self.validate(&decision)?;
+        self.validate(&decision, outside)?;
         let rev = self.delivery.rev + 1;
         self.delivery.rev = rev;
         self.delivery.decision = Some(decision);
@@ -403,7 +432,8 @@ impl Interaction {
     }
 
     /// Checks a decision against the kind, the options and the channels of the interaction.
-    fn validate(&self, decision: &Decision) -> Result<(), Refusal> {
+    /// `outside` is a decision from a surface that shows only the title.
+    fn validate(&self, decision: &Decision, outside: bool) -> Result<(), Refusal> {
         let invalid = |text: &str| Err(Refusal::Invalid(text.to_owned()));
         match (&self.payload, decision) {
             (InteractionPayload::Approval(_), Decision::Approval(d)) => {
@@ -411,6 +441,11 @@ impl Interaction {
                 if d.always && self.always_rule().is_none() {
                     return invalid(
                         "no rule covers only this request, so it has no \"always\": allow it once",
+                    );
+                }
+                if outside && d.behavior == Behavior::Allow && !self.allow_outside_card() {
+                    return invalid(
+                        "open the card to allow this request: its risk is high or unknown, or the title does not show all of the command",
                     );
                 }
                 Ok(())

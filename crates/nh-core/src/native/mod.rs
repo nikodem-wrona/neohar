@@ -9,6 +9,12 @@
 //! - A run has at most one notification at a time, and a run posts at most one in each window of
 //!   [`COALESCE`]. A second interaction of the run changes the text of the notification that
 //!   shows. If the run has none and posted one lately, the post waits for the end of the window.
+//! - A notification is about one interaction for all of its life. When the most urgent
+//!   interaction of the run changes, the core withdraws the notification and posts a new one, so
+//!   a click on a banner that the person read never answers another request.
+//! - A notification and the tray offer Allow only for an approval at a low or medium risk whose
+//!   text shows all of the command ([`Interaction::allow_outside_card`]). The others get Deny and
+//!   Open. The tray offers "Allow always" only with the rule that it adds.
 //! - The notification goes when the interaction ends, and when its pane gets the focus. The
 //!   latter is the release of a held hook: the harness shows its own dialog.
 //! - The badge is the number of rows of `attention`. The tray lists the open interactions
@@ -294,10 +300,16 @@ pub(crate) fn summary(state: &mut State, host: &dyn Host) {
             .open()
             .into_iter()
             .filter(|i| i.answerable && i.state == InteractionState::Open)
-            .map(|i| TrayEntry {
-                label: tray_label(state, i),
-                interaction: Some(i.id),
-                approval: i.kind == InteractionKind::Approval,
+            .map(|i| {
+                let (label, cut) = tray_label(state, i);
+                let allow = !cut && i.allow_outside_card();
+                TrayEntry {
+                    label,
+                    interaction: Some(i.id),
+                    approval: i.kind == InteractionKind::Approval,
+                    allow,
+                    always: i.always_rule().filter(|_| allow).map(str::to_owned),
+                }
             })
             .collect(),
         badge,
@@ -364,7 +376,8 @@ fn via_name(via: Option<Via>) -> String {
 /// The longest label of a line of the tray, in characters. A command can be long.
 const LABEL_MAX: usize = 80;
 
-fn tray_label(state: &State, interaction: &Interaction) -> String {
+/// The label of a line of the tray, and whether it was cut.
+fn tray_label(state: &State, interaction: &Interaction) -> (String, bool) {
     let label = match interaction
         .run
         .and_then(|run| state.runs.by_id.get(&run))
@@ -374,10 +387,10 @@ fn tray_label(state: &State, interaction: &Interaction) -> String {
         None => interaction.title.clone(),
     };
     if label.chars().count() <= LABEL_MAX {
-        return label;
+        return (label, false);
     }
     let cut: String = label.chars().take(LABEL_MAX - 1).collect();
-    format!("{cut}…")
+    (format!("{cut}…"), true)
 }
 
 fn harness_name(harness: Harness) -> &'static str {
@@ -414,6 +427,14 @@ fn refresh_run(state: &mut State, host: &dyn Host, run: RunId) {
         return;
     };
     match current {
+        // Another interaction comes first now. The banner that shows is about the old one, so it
+        // goes, and a new notification with a new id is about the new one.
+        Some(notice) if notice.shown.interaction != text.interaction => {
+            host.withdraw_notification(notice.id);
+            let id = host.notify(text.clone());
+            state.native.posted.insert(run, now_ms());
+            state.native.notices.insert(run, Notice { id, shown: text });
+        }
         Some(notice) => {
             if notice.shown != text {
                 host.update_notification(notice.id, text.clone());
@@ -511,10 +532,13 @@ fn describe(
     } else {
         top.title.clone()
     };
-    let actions = if caps.actions && top.kind == InteractionKind::Approval && top.answerable {
+    let actions = if !caps.actions || top.kind != InteractionKind::Approval || !top.answerable {
+        Vec::new()
+    } else if top.allow_outside_card() {
         vec![NotificationAction::Allow, NotificationAction::Deny]
     } else {
-        Vec::new()
+        // The banner does not show enough to allow: the person opens the card for that.
+        vec![NotificationAction::Deny]
     };
     HostNotification {
         title: format!("{who} {what}"),

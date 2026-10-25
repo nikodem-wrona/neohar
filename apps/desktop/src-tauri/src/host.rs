@@ -21,8 +21,8 @@ use std::{
 use nh_core::{
     Host,
     host::{
-        HostNotification, NotificationCapabilities, NotificationPermission, OpenRefused, PathOpen,
-        SecretAnswered, SecretQuestion, TrayModel, WindowSpec,
+        HostNotification, NotificationAction, NotificationCapabilities, NotificationPermission,
+        OpenRefused, PathOpen, SecretAnswered, SecretQuestion, TrayModel, WindowSpec,
     },
 };
 use nh_proto::api::ids::{InteractionId, NotificationId, PaneId, WindowId};
@@ -45,9 +45,10 @@ pub struct TauriHost {
     /// The text to write if the app is not up yet. It is written when the handle comes.
     waiting: Mutex<Vec<String>>,
     notifier: OnceLock<Notifier>,
-    /// The interaction that each notification on the screen is about now, and the machine whose
-    /// core posted it. A click names the notification, and the core may have changed the
-    /// interaction since it was posted.
+    /// The interaction that each notification on the screen is about, the buttons that it has,
+    /// and the machine whose core posted it. A click names the notification. A notification
+    /// keeps its interaction: an update to another one loses the buttons, so a click on the
+    /// banner that the person read never answers another request.
     shown: Mutex<HashMap<String, Shown>>,
     /// The badge that each machine asked for. The dock shows the sum.
     badges: Mutex<BTreeMap<String, u32>>,
@@ -73,6 +74,41 @@ struct Shown {
     pane: Option<PaneId>,
     /// The machine of the core that posted it (`local` for the core of this Mac).
     machine: String,
+    /// The buttons that the notification has. A click on another one answers nothing.
+    actions: Vec<NotificationAction>,
+}
+
+/// What the host keeps of a notification that the core posts or updates, and the buttons that it
+/// shows. An update that names another interaction than the one on the screen shows no buttons:
+/// the person may read the old text when they click.
+fn remember(
+    known: Option<&Shown>,
+    machine: &str,
+    notification: &HostNotification,
+) -> (Shown, Vec<NotificationAction>) {
+    let same = known.is_none_or(|known| known.interaction == notification.interaction);
+    let actions = if same {
+        notification.actions.clone()
+    } else {
+        Vec::new()
+    };
+    let shown = Shown {
+        interaction: notification.interaction,
+        pane: notification.pane,
+        machine: machine.to_owned(),
+        actions: actions.clone(),
+    };
+    (shown, actions)
+}
+
+/// The decision of a click on a button, or `None` when the notification did not offer that
+/// button when it was posted.
+fn choice_of(click: Click, offered: &[NotificationAction]) -> Option<Choice> {
+    match click {
+        Click::Allow if offered.contains(&NotificationAction::Allow) => Some(Choice::Allow),
+        Click::Deny if offered.contains(&NotificationAction::Deny) => Some(Choice::Deny),
+        _ => None,
+    }
 }
 
 /// The title of a notification of a machine: the label comes first, so that the person sees which
@@ -197,6 +233,10 @@ fn respond(app: &AppHandle, response: Response) {
         .as_ref()
         .map_or_else(|| LOCAL.to_owned(), |known| known.machine.clone());
     let pane = shown.as_ref().and_then(|known| known.pane);
+    let offered = shown
+        .as_ref()
+        .map(|known| known.actions.clone())
+        .unwrap_or_default();
     let interaction = shown
         .and_then(|known| known.interaction)
         .map(|id| id.to_string());
@@ -208,14 +248,12 @@ fn respond(app: &AppHandle, response: Response) {
             (None, None) => reach::reveal_next(app),
         },
         Click::Allow | Click::Deny => {
-            let Some(interaction) = interaction else {
+            // A button that the notification did not offer shows the card instead.
+            let (Some(interaction), Some(choice)) =
+                (interaction, choice_of(response.click, &offered))
+            else {
                 reach::reveal_next(app);
                 return;
-            };
-            let choice = if response.click == Click::Allow {
-                Choice::Allow
-            } else {
-                Choice::Deny
             };
             reach::answer(app, &machine, interaction, choice, "notification");
         }
@@ -260,17 +298,12 @@ impl TauriHost {
         let id = next_id();
         let identifier = notifier::identifier(id);
         notification.title = title_for(machine, &notification.title);
+        let (shown, actions) = remember(None, machine, &notification);
+        notification.actions = actions;
         self.shown
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
-            .insert(
-                identifier.clone(),
-                Shown {
-                    interaction: notification.interaction,
-                    pane: notification.pane,
-                    machine: machine.to_owned(),
-                },
-            );
+            .insert(identifier.clone(), shown);
         if let Some(notifier) = self.notifier.get() {
             notifier.post(&identifier, &notification);
         }
@@ -285,17 +318,12 @@ impl TauriHost {
     ) {
         let identifier = notifier::identifier(id);
         notification.title = title_for(machine, &notification.title);
-        self.shown
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner)
-            .insert(
-                identifier.clone(),
-                Shown {
-                    interaction: notification.interaction,
-                    pane: notification.pane,
-                    machine: machine.to_owned(),
-                },
-            );
+        {
+            let mut known = self.shown.lock().unwrap_or_else(PoisonError::into_inner);
+            let (shown, actions) = remember(known.get(&identifier), machine, &notification);
+            notification.actions = actions;
+            known.insert(identifier.clone(), shown);
+        }
         if let Some(notifier) = self.notifier.get() {
             notifier.post(&identifier, &notification);
         }
@@ -548,6 +576,38 @@ mod tests {
     }
 
     #[test]
+    fn a_button_answers_only_the_request_that_the_notification_showed_with_it() {
+        let (one, two) = (
+            InteractionId::new(ulid::Ulid::from_parts(1, 1)),
+            InteractionId::new(ulid::Ulid::from_parts(1, 2)),
+        );
+        let mut first = notification("one", Some(one));
+        first.actions = vec![NotificationAction::Allow, NotificationAction::Deny];
+        let (posted, buttons) = remember(None, LOCAL, &first);
+        assert_eq!(buttons, first.actions);
+        assert_eq!(
+            choice_of(Click::Allow, &posted.actions),
+            Some(Choice::Allow)
+        );
+        // An update of the text of the same request keeps the buttons.
+        let (again, buttons) = remember(Some(&posted), LOCAL, &first);
+        assert_eq!(buttons, first.actions);
+        assert_eq!(again.interaction, Some(one));
+        // An update that names another request loses them: a click shows the card.
+        let mut other = notification("two", Some(two));
+        other.actions = first.actions.clone();
+        let (moved, buttons) = remember(Some(&posted), LOCAL, &other);
+        assert!(buttons.is_empty());
+        assert_eq!(choice_of(Click::Allow, &moved.actions), None);
+        assert_eq!(choice_of(Click::Deny, &moved.actions), None);
+        // A notification with Deny only does not take Allow.
+        let deny_only = [NotificationAction::Deny];
+        assert_eq!(choice_of(Click::Allow, &deny_only), None);
+        assert_eq!(choice_of(Click::Deny, &deny_only), Some(Choice::Deny));
+        assert_eq!(choice_of(Click::Open, &deny_only), None);
+    }
+
+    #[test]
     fn the_badge_is_the_sum_of_the_badges_of_all_machines() {
         let mut badges = BTreeMap::new();
         assert_eq!(total_badge(&badges), 0);
@@ -566,6 +626,8 @@ mod tests {
                 interaction: None,
                 label: format!("entry {badge}"),
                 approval: false,
+                allow: false,
+                always: None,
             }],
             badge,
         };

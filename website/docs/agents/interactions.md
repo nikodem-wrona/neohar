@@ -165,7 +165,9 @@ a rule that does not fit the request itself are never eligible. Nothing is appli
 the `[[policy.rule]]` block.
 
 **Allow always** needs an eligible fingerprint and the native channel. The interaction shows its rule
-in `always_rule`, and the core refuses `always` without it.
+in `always_rule`, and the core refuses `always` without it. A notification or the tray can allow only
+an open request at a low or medium risk whose title shows the whole command. A click there never
+replaces a decision.
 
 ## Not built
 

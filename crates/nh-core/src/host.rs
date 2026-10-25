@@ -31,7 +31,8 @@ pub struct HostNotification {
     pub actions: Vec<NotificationAction>,
 }
 
-/// An action of a notification: allow or deny.
+/// An action of a notification: allow or deny. The core offers Allow only for a request that
+/// the text shows whole, at a low or medium risk.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum NotificationAction {
     Allow,
@@ -61,8 +62,12 @@ pub enum NotificationPermission {
 pub struct TrayEntry {
     pub label: String,
     pub interaction: Option<InteractionId>,
-    /// An approval has a submenu: Allow, Allow always and Deny. The other kinds have Open.
+    /// An approval has a submenu with Deny and Open. The other kinds have Open.
     pub approval: bool,
+    /// The submenu has Allow: the label shows the whole request, at a low or medium risk.
+    pub allow: bool,
+    /// The submenu has "Allow always" with this rule, such as `pnpm test:*`.
+    pub always: Option<String>,
 }
 
 /// The menu of the tray: the open interactions, and the count for the badge.

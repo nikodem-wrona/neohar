@@ -163,6 +163,8 @@ fn a_new_client_gets_the_badge_the_tray_and_the_open_notifications() {
             label: "Claude Code: Run `pnpm test`".to_owned(),
             interaction: Some(interaction(7)),
             approval: true,
+            allow: true,
+            always: Some("pnpm test:*".to_owned()),
         }],
         badge: 2,
     };

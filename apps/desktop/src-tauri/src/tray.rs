@@ -2,9 +2,10 @@
 //!
 //! The core sends the whole model each time: the open interactions in the order of
 //! `interaction.next`, and the number for the badge. The host builds the menu again. An approval
-//! has a submenu with Allow, Allow always and Deny. The other interactions have one line that
-//! opens the card. The last items quit the app: the one that keeps the agents, and the one that
-//! stops everything.
+//! has a submenu with Deny and Open. It has Allow only when the core says that the label shows the
+//! whole request at a low or medium risk, and "Allow `<rule>` always" only with the rule that the
+//! core sends. The other interactions have one line that opens the card. The last items quit the
+//! app: the one that keeps the agents, and the one that stops everything.
 //!
 //! The tray has one section for each machine that has a model. With one machine it
 //! looks as it did. With several, a line with the label of the machine opens each section, and
@@ -31,6 +32,8 @@ const ALWAYS: &str = "tray:always:";
 const DENY: &str = "tray:deny:";
 const OPEN: &str = "tray:open:";
 const SHOW: &str = "tray:show";
+/// The longest rule that the item "Allow always" shows. A longer one gets no item.
+const RULE_MAX: usize = 60;
 
 /// The icon, once it exists. The app builds it on the first model.
 #[derive(Default)]
@@ -56,6 +59,13 @@ fn parse_entry<'a>(id: &'a str, prefix: &str) -> Option<(&'a str, &'a str)> {
     id.strip_prefix(prefix)?.split_once(':')
 }
 
+/// The text of the item "Allow always" for a rule, or `None` when the item cannot show the whole
+/// rule.
+fn always_text(rule: &str) -> Option<String> {
+    (!rule.is_empty() && rule.chars().count() <= RULE_MAX && !rule.chars().any(char::is_control))
+        .then(|| format!("Allow `{rule}` always"))
+}
+
 fn build_menu(app: &AppHandle, sections: &[(String, TrayModel)]) -> tauri::Result<Menu<Wry>> {
     let menu = Menu::new(app)?;
     let any = sections.iter().any(|(_, model)| !model.entries.is_empty());
@@ -72,13 +82,12 @@ fn build_menu(app: &AppHandle, sections: &[(String, TrayModel)]) -> tauri::Resul
             if entry.approval {
                 let sub =
                     Submenu::with_id(app, format!("tray:sub:{machine}:{id}"), &entry.label, true)?;
-                sub.append(&item(app, entry_id(ALLOW, machine, &id), "Allow", true)?)?;
-                sub.append(&item(
-                    app,
-                    entry_id(ALWAYS, machine, &id),
-                    "Allow always",
-                    true,
-                )?)?;
+                if entry.allow {
+                    sub.append(&item(app, entry_id(ALLOW, machine, &id), "Allow", true)?)?;
+                    if let Some(text) = entry.always.as_deref().and_then(always_text) {
+                        sub.append(&item(app, entry_id(ALWAYS, machine, &id), &text, true)?)?;
+                    }
+                }
                 sub.append(&item(app, entry_id(DENY, machine, &id), "Deny", true)?)?;
                 sub.append(&PredefinedMenuItem::separator(app)?)?;
                 sub.append(&item(app, entry_id(OPEN, machine, &id), "Open", true)?)?;
@@ -194,5 +203,16 @@ mod tests {
             parse_entry(&entry_id(OPEN, "local", "x"), OPEN),
             Some(("local", "x"))
         );
+    }
+
+    #[test]
+    fn the_item_allow_always_shows_the_whole_rule_or_is_not_there() {
+        assert_eq!(
+            always_text("pnpm test:*").as_deref(),
+            Some("Allow `pnpm test:*` always")
+        );
+        assert_eq!(always_text(""), None);
+        assert_eq!(always_text(&"x".repeat(RULE_MAX + 1)), None);
+        assert_eq!(always_text("a\nb"), None);
     }
 }

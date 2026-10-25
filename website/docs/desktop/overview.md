@@ -144,9 +144,9 @@ the host draws it and reports a click as an API call. An answer from any surface
 
 | Surface | What it does |
 |---|---|
-| Notifications (macOS) | One per run for an interaction on an unfocused pane, at most one post in 10 s, updated in place. Approvals get Allow and Deny; a click on the body shows the card. Withdrawn when the interaction ends or its pane gets the focus. A late click posts "Already answered". Needs an app bundle (`UNUserNotificationCenter`) |
+| Notifications (macOS) | One per run for an interaction on an unfocused pane, at most one post in 10 s, updated in place while the same interaction comes first. When another interaction comes first, a new notification replaces it, so a button never answers a request that the person did not read. Approvals get Allow and Deny at a low or medium risk with the whole command in the text, and Deny only otherwise; a click on the body shows the card. The host keeps the buttons of each notification and ignores a click on a button that it did not offer. Withdrawn when the interaction ends or its pane gets the focus. A late click posts "Already answered". Needs an app bundle (`UNUserNotificationCenter`) |
 | Dock badge | The number of runs in `attention` |
-| Menu-bar inbox | Open interactions in the order of `interaction.next`; approvals have Allow, Allow always, Deny and Open. One section for each machine. The two quit items |
+| Menu-bar inbox | Open interactions in the order of `interaction.next`; approvals have Deny and Open, Allow under the rule of the notifications, and "Allow `<rule>` always" when the core sends the rule. One section for each machine. The two quit items |
 | Global hotkey | `ui.global_hotkey` (default `ctrl+alt+cmd+n`): show the app and the card that waits longest. Changes without a restart |
 | Deep links | `neohar://pane/` and `neohar://interaction/`, with an optional machine before the name (`neohar://pane/studio/w3:p5`). A link shows, it never answers |
 | Machines menu | For each machine: New window, Connect, Disconnect ([remote machines](/docs/guides/remote-machines)) |

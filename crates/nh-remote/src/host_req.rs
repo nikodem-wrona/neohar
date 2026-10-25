@@ -106,6 +106,13 @@ pub struct TrayLine {
     pub label: String,
     pub interaction: Option<String>,
     pub approval: bool,
+    /// The core offers Allow. A core of an earlier version sends no field, and then the tray
+    /// offers only Deny and Open.
+    #[serde(default)]
+    pub allow: bool,
+    /// The rule of "Allow always", when the core offers it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub always: Option<String>,
 }
 
 /// The menu of the tray.
@@ -167,6 +174,8 @@ impl From<&TrayModel> for Tray {
                     label: e.label.clone(),
                     interaction: e.interaction.map(|i| i.to_string()),
                     approval: e.approval,
+                    allow: e.allow,
+                    always: e.always.clone(),
                 })
                 .collect(),
             badge: tray.badge,
@@ -576,6 +585,8 @@ fn tray_model(tray: Tray) -> Result<TrayModel, String> {
                     .transpose()
                     .map_err(|e| e.to_string())?,
                 approval: e.approval,
+                allow: e.allow,
+                always: e.always,
             })
         })
         .collect::<Result<Vec<_>, String>>()?;
