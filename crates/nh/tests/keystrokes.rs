@@ -24,8 +24,9 @@ labels=("Yes" "Yes, and always allow access to this folder" "No")
 ptr=0
 draw() {
   printf '\033[2J\033[H'
-  echo " Bash command"
   echo "──────────────────────────────────────────"
+  echo " Bash command"
+  echo "╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌"
   echo " touch note.txt"
   echo "╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌"
   echo " Do you want to proceed?"
@@ -37,7 +38,9 @@ draw() {
   echo
   echo " Esc to cancel"
 }
-stty -echo raw
+# Keys one at a time, with no echo. The output keeps its processing, so a line ends with a carriage
+# return and the dialog is drawn as the harness draws it. Enter reads as an empty key.
+stty -echo -icanon min 1 time 0
 draw
 while true; do
   IFS= read -rsn1 key || exit 1
@@ -161,7 +164,15 @@ async fn dump(core: &Harness) -> String {
         .call("interaction.list", json!({"open_only": false}))
         .await;
     let runs = agents(core).await;
-    format!("{listed}\n{runs:?}")
+    let mut screen = String::new();
+    if let Some(pane) = runs.first().and_then(|r| r["pane"].as_str()) {
+        let mut client = core_support::client::Client::connect(&core.api_socket()).await;
+        let read = client
+            .ok("pane.read", json!({"pane": pane, "visible": true}))
+            .await;
+        screen = read["text"].as_str().unwrap_or("").to_owned();
+    }
+    format!("{listed}\n{runs:?}\nSCREEN:\n{screen}")
 }
 
 /// Starts the session, so that the run is bound and its version is known, and waits for the

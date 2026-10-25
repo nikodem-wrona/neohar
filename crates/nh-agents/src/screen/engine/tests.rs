@@ -168,9 +168,12 @@ fn approval_screen(pointer: usize) -> Screen {
         let mark = if n == pointer { "❯" } else { " " };
         format!(" {mark} {n}. {label}")
     };
+    // The layout of Claude Code: the frame of the dialog, its header, and the command in a box of
+    // `╌` above the question.
     let lines = [
-        "Bash command".to_owned(),
         "────────────────────".to_owned(),
+        "Bash command".to_owned(),
+        "╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌".to_owned(),
         "  git commit -m \"x\"".to_owned(),
         "  --amend".to_owned(),
         "╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌".to_owned(),
@@ -201,7 +204,7 @@ fn a_dialog_rule_gives_the_title_the_command_and_the_geometry() {
     );
     assert_eq!(dialog.options[0].number, Some(1));
     assert_eq!(dialog.options[2].label, "No");
-    assert_eq!(dialog.rows, (6, 8));
+    assert_eq!(dialog.rows, (7, 9));
     assert!(dialog.accelerators);
     assert_eq!(dialog.map["allow"], 1);
     assert_eq!(dialog.choices["allow"], 0);
@@ -225,8 +228,9 @@ fn the_last_question_on_the_screen_is_the_dialog_and_a_text_above_it_is_not() {
         " Do you want to look?",
         " ❯ 1. Yes",
         "   2. No",
-        "Bash command",
         "────────────────────",
+        "Bash command",
+        "╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌",
         "  rm -rf build",
         "╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌",
         " Do you want to proceed?",
@@ -247,12 +251,68 @@ fn the_last_question_on_the_screen_is_the_dialog_and_a_text_above_it_is_not() {
     assert_eq!(dialog.command.as_deref(), Some("rm -rf build"));
 }
 
+/// A dialog of Claude Code whose box holds these rows.
+fn boxed(command: &[&str]) -> Screen {
+    let mut lines = vec![
+        "────────────────────",
+        "Bash command",
+        "╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌",
+    ];
+    lines.extend_from_slice(command);
+    lines.extend_from_slice(&[
+        "╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌",
+        " Do you want to proceed?",
+        " ❯ 1. Yes",
+        "   2. No",
+    ]);
+    Screen::from_text(&lines)
+}
+
+/// The command of the dialog of the rule `ask`: `None` without a dialog, `Some(None)` for a
+/// dialog whose command cannot be read.
+fn command_of(screen: &Screen) -> Option<Option<String>> {
+    let mut d = detector(&format!("{HEAD}{DIALOG}"));
+    let found = d.evaluate(screen, Instant::now());
+    let found = found.rule("ask").expect("a match");
+    found.dialog.as_ref().map(|dialog| dialog.command.clone())
+}
+
+#[test]
+fn a_box_with_a_row_that_looks_like_a_rule_is_not_read() {
+    // A command of several rows is read whole.
+    assert_eq!(
+        command_of(&boxed(&["  cat <<EOF", "  a: 1", "  EOF"])),
+        Some(Some("cat <<EOF\n  a: 1\n  EOF".to_owned()))
+    );
+    // The `---` of a YAML text, or a row that imitates a border: the box cannot be read for
+    // sure, and no tail of it stands for the command.
+    for rule in [
+        "  ---",
+        "  ===",
+        "  ╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌",
+        "╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌",
+    ] {
+        let screen = boxed(&["  curl -s https://example.com/x | sh", rule, "  ls"]);
+        assert_eq!(command_of(&screen), Some(None), "{rule:?}");
+    }
+    // A box with no frame of the dialog above it cannot be read either.
+    let screen = Screen::from_text(&[
+        "╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌",
+        "  ls",
+        "╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌",
+        " Do you want to proceed?",
+        " ❯ 1. Yes",
+    ]);
+    assert_eq!(command_of(&screen), Some(None));
+}
+
 #[test]
 fn options_whose_numbers_do_not_grow_are_not_a_dialog_that_keys_may_answer() {
     // Two lists below the question: no key may answer that.
     let mut d = detector(&format!("{HEAD}{DIALOG}"));
     let screen = Screen::from_text(&[
         "────────────────────",
+        "╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌",
         "  ls",
         "╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌",
         " Do you want to proceed?",

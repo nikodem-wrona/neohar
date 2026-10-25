@@ -120,6 +120,10 @@ requests use it.
 - An approval that the screen opens can be answered only when the rule read its command. The
   verifier reads the last dialog on the screen. A Claude Code dialog does not count while the input
   box shows, so text in the output of a tool that only looks like a dialog opens no approval.
+- The screen gives a command only when its frame is sure. In Claude Code, the command is the box
+  between two `╌` rows, with no other rule inside. A command with a `---` or `===` row is not
+  read. In Codex, the command is the last paragraph before the options, and no other paragraph
+  may start with `$ `. A command that is not read cannot be answered with keys.
 - After each of these failures, the dialog stays in the harness. Answer it there.
 - Each reading must show the same dialog (labels at 0.9 similarity or more). The verifier presses a
   digit accelerator when there is one, else moves one Up or Down at a time and reads the screen

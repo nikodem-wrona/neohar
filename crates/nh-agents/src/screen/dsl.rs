@@ -220,10 +220,11 @@ pub struct TitleFrom {
 /// Where the command of an approval is on the screen.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum CommandFrom {
-    /// The lines above the question, between the rules that frame them.
+    /// The lines above the question, between the two rules of the same kind that frame them. A
+    /// box with another rule inside, or with a third rule of its kind above it, is not read.
     BoxAboveQuestion,
-    /// The line that starts with `$ ` between the question and the options, and the lines that
-    /// continue it up to an empty line.
+    /// The last paragraph between the question and the options, when it starts with `$ `. A
+    /// second paragraph or row that starts with `$ ` makes the command unreadable.
     ShellBelowQuestion,
 }
 

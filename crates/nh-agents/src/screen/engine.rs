@@ -5,7 +5,7 @@
 //! `hold_ms` counts only after it stayed true for that long, so a spinner that blinks does not
 //! flip the state. The detector gives every rule that holds, and the arbiter picks.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::ops::RangeInclusive;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -366,28 +366,46 @@ fn is_rule_line(text: &str) -> bool {
         && t.chars().filter(|c| !c.is_whitespace()).count() >= 3
 }
 
-/// The lines above row `question`: the rules directly above it are skipped, and the text goes up to
-/// the next rule.
+/// The characters of a rule line, or `None` for a line that is not a rule. Two rules of the same
+/// kind are made of the same characters.
+fn rule_kind(text: &str) -> Option<BTreeSet<char>> {
+    is_rule_line(text).then(|| text.chars().filter(|c| !c.is_whitespace()).collect())
+}
+
+/// The text of the box above row `question`, or `None` when the box cannot be read for sure.
+///
+/// The row directly above the question is the lower border of the box (Claude Code draws `╌`).
+/// The upper border is the next row of the same kind, and the text between the two is the command.
+/// A command can have rows that look like rules, for example the `---` of a YAML text, or a row
+/// of `╌` that imitates a border. So the box is read only when:
+///
+/// - no row between the borders is a rule of another kind, and
+/// - above the upper border, the next rule is of another kind (the frame of the dialog). A rule of
+///   the kind of the borders there means that the upper border was a row of the command.
 fn box_above(screen: &Screen, normalize: Normalize, question: u16, trim: bool) -> Option<String> {
-    let mut y = question;
+    let row = |y: u16| normalize.apply(&screen.row_text(y));
+    let lower = question.checked_sub(1)?;
+    let border = rule_kind(&row(lower))?;
     let mut lines: Vec<String> = Vec::new();
-    // The rules that frame the box, directly above the question.
-    while y > 0 {
-        y -= 1;
-        let text = normalize.apply(&screen.row_text(y));
-        if is_rule_line(&text) {
-            continue;
+    let mut y = lower;
+    let upper = loop {
+        y = y.checked_sub(1)?;
+        let text = row(y);
+        match rule_kind(&text) {
+            Some(kind) if kind == border => break y,
+            Some(_) => return None,
+            None => lines.push(text),
         }
-        y += 1;
-        break;
-    }
-    while y > 0 {
-        y -= 1;
-        let text = normalize.apply(&screen.row_text(y));
-        if is_rule_line(&text) {
+    };
+    let mut y = upper;
+    loop {
+        y = y.checked_sub(1)?;
+        if let Some(kind) = rule_kind(&row(y)) {
+            if kind == border {
+                return None;
+            }
             break;
         }
-        lines.push(text);
     }
     lines.reverse();
     let text = lines.join("\n");
@@ -395,23 +413,38 @@ fn box_above(screen: &Screen, normalize: Normalize, question: u16, trim: bool) -
     (!text.is_empty()).then_some(text)
 }
 
-/// The command between the question (row `question`) and the options (row `end`): the first line
-/// that starts with `$ `, without the `$ `, and the lines below it up to an empty line.
+/// The command between the question (row `question`) and the options (row `end`), or `None` when
+/// it cannot be read for sure.
+///
+/// Empty rows split the rows between the two into paragraphs. The command is the last paragraph:
+/// its first row starts with `$ `, and the rows after it continue the command. A text above it,
+/// for example the reason that the model wrote, can hold a row that starts with `$ ` too. So the
+/// command is read only when no other paragraph starts with `$ `, and no row of the command after
+/// its first starts with `$ `.
 fn shell_below(rows: &[(u16, String)], question: u16, end: u16, trim: bool) -> Option<String> {
-    let mut lines: Vec<&str> = Vec::new();
+    let mut paragraphs: Vec<Vec<&str>> = vec![Vec::new()];
     for (_, text) in rows.iter().filter(|(y, _)| *y > question && *y < end) {
-        if lines.is_empty() {
-            if let Some(rest) = text.trim_start().strip_prefix("$ ") {
-                lines.push(rest);
-            }
-            continue;
-        }
         if text.trim().is_empty() {
-            break;
+            paragraphs.push(Vec::new());
+        } else if let Some(paragraph) = paragraphs.last_mut() {
+            paragraph.push(text);
         }
-        lines.push(text);
     }
-    let text = lines.join("\n");
+    paragraphs.retain(|paragraph| !paragraph.is_empty());
+    let shell = |text: &str| text.trim_start().starts_with("$ ");
+    let (command, before) = paragraphs.split_last()?;
+    let (first, rest) = command.split_first()?;
+    let first = first.trim_start().strip_prefix("$ ")?;
+    let others = before
+        .iter()
+        .any(|paragraph| paragraph.first().is_some_and(|row| shell(row)));
+    if others || rest.iter().any(|row| shell(row)) {
+        return None;
+    }
+    let text = std::iter::once(first)
+        .chain(rest.iter().copied())
+        .collect::<Vec<_>>()
+        .join("\n");
     let text = if trim { text.trim().to_owned() } else { text };
     (!text.is_empty()).then_some(text)
 }
