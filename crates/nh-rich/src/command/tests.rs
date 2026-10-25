@@ -743,6 +743,110 @@ fn a_config_option_of_git_that_runs_a_program_is_high() {
 }
 
 #[test]
+fn an_option_that_runs_a_program_is_high_also_for_a_program_that_only_reads() {
+    check(
+        Risk::High,
+        &[
+            "fd x -x sh -c evil",
+            "fd x -X rm",
+            "fd x --exec sh",
+            "fd x --exec-batch=sh",
+            "fd -Hx sh",
+            "fdfind x -x sh",
+            "rg foo --pre=./x.sh",
+            "rg foo --pre ./x.sh",
+            "rg foo --pre-glob '*.pdf' --pre ./x.sh",
+            "bat --pager='sh -c evil' README.md",
+            "sort --compress-program=./x in.txt",
+            "ack --pager=./x foo",
+            "ag --pager ./x foo",
+            "man -P ./x ls",
+            "man --pager=./x ls",
+            "less '+!sh' README.md",
+            "less '+|./x' README.md",
+            "tar -xf a.tar --to-command=./x",
+            "tar --use-compress-program=./x -xf a.tar",
+            "tar -I ./x -xf a.tar",
+            "tar --checkpoint=1 --checkpoint-action=exec=./x -cf a.tar src",
+            "zip -T -TT ./x a.zip src",
+            "find . -name '*.rs' -exec wc -l {} +",
+            "find . -ok cat {} \\;",
+            "git grep -O./x foo",
+            "git grep --open-files-in-pager=./x foo",
+            "awk 'BEGIN { system(\"sh\") }'",
+            "awk '{ print | \"sh\" }' file",
+            "awk '{ print > \"/tmp/x\" }' file",
+            "sed 's/a/b/e' file",
+            "sed 's/a/b/gw out.txt' file",
+            "sed -n '1e id' file",
+            "sed '$w out.txt' file",
+            "sed -e 'p' -e '/x/w out' file",
+            "sed 's,a,b,e' file",
+        ],
+    );
+    // The same programs without those options only read.
+    check(
+        Risk::Low,
+        &[
+            "fd main",
+            "fd -e rs main",
+            "rg foo src",
+            "bat README.md",
+            "sort in.txt",
+            "less +F README.md",
+            "find . -name '*.rs'",
+            "git grep foo",
+            "awk '{ print $1 }' file",
+            "awk '$3 > 100' file",
+            "sed -n 1,5p file.txt",
+            "sed 's/a/b/g' file",
+            "sed 's/e/w/' file",
+            "sed '/x/d' file",
+        ],
+    );
+}
+
+#[test]
+fn an_option_that_writes_a_file_has_the_checks_of_a_write() {
+    // Outside the workspace or to a file with secrets: high.
+    check(
+        Risk::High,
+        &[
+            "sort -o ~/.zshrc in.txt",
+            "sort -o/etc/x in.txt",
+            "tree -o /tmp/x",
+            "git log --output=/tmp/x",
+            "git diff --output ~/.zshrc",
+            "xxd in.bin /tmp/out",
+            "xxd -r -p in.hex ~/.ssh/authorized_keys",
+            "uniq in.txt /etc/x",
+            "curl -o ~/.zshrc http://localhost:3000/x",
+            "curl -sSLo /tmp/x http://localhost:3000/x",
+            "wget -O /tmp/x http://localhost:3000/x",
+            "find . -fprint /tmp/list",
+            "less -o /tmp/log README.md",
+            "base64 -d -o ~/.zshrc in.txt",
+            "yq -i '.a = 1' ~/.config/x.yaml",
+        ],
+    );
+    // In the workspace: the change of a file, not a read.
+    check(
+        Risk::Unknown,
+        &[
+            "sort -o out.txt in.txt",
+            "git log --output=log.txt",
+            "xxd -c 16 in.bin out.hex",
+            "uniq in.txt out.txt",
+            "find . -fprint list.txt",
+        ],
+    );
+    check(
+        Risk::Low,
+        &["xxd -c 16 in.bin", "uniq -c in.txt", "git log --oneline"],
+    );
+}
+
+#[test]
 fn an_invisible_character_makes_a_command_high_and_shows_as_an_escape() {
     let command = explain_in("echo photo\u{202E}gnp.command", WORKSPACE);
     assert_eq!(command.risk, Risk::High);

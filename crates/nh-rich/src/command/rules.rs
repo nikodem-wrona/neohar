@@ -442,6 +442,7 @@ impl Analyzer<'_, '_> {
                 "The command changes the schema of a database.",
             );
         }
+        self.options(name, args, verdict);
         match name {
             "cd" | "pushd" => {
                 verdict.add(Risk::Low, "The command changes the directory only.");
@@ -561,15 +562,99 @@ impl Analyzer<'_, '_> {
                 );
             }
             _ if tables::READ_ONLY.contains(&name) => {
-                if name == "sort" && has_flag(args, &['o'], &["output"]) {
-                    verdict.add(Risk::Unknown, "The command writes a file.");
-                } else {
-                    verdict.add(Risk::Low, "The command only reads.");
-                }
+                verdict.add(Risk::Low, "The command only reads.");
             }
             _ if tables::RUNNERS.contains(&name) => self.runner(name, args, verdict),
             _ => verdict.add(Risk::Unknown, "neohar has no rule for this command."),
         }
+    }
+
+    /// Options that make a program run another program or write a file, also a program that
+    /// otherwise only reads: `fd -x`, `rg --pre`, `bat --pager`, `sort -o`, `curl -o`. A program
+    /// that an option runs is `high`. A file that an option writes has the checks of a write.
+    fn options(&mut self, name: &str, args: &[&Word], verdict: &mut Verdict) {
+        let runs = tables::RUNS_BY_OPTION
+            .iter()
+            .find(|(program, _, _)| *program == name)
+            .is_some_and(|(_, short, long)| has_flag(args, short, long));
+        let words = texts(args);
+        let special = match name {
+            // `less +'!sh'` and `less +'|cmd'` run a command of the pager when it starts.
+            "less" | "more" => words
+                .iter()
+                .any(|w| w.starts_with('+') && w.contains(['!', '|'])),
+            "tar" | "gtar" | "bsdtar" => words
+                .iter()
+                .any(|w| w.starts_with("--checkpoint-action") && w.contains("exec")),
+            "zip" => words.contains(&"-TT"),
+            "awk" | "gawk" | "mawk" | "nawk" => {
+                let scripts = operands_after(args, &["-v", "-F", "-f"]);
+                scripts.first().is_some_and(|script| awk_runs(&script.text))
+            }
+            "sed" | "gsed" => {
+                let given = option_values(args, &["-e", "--expression"]);
+                if given.is_empty() && has_flag(args, &['f'], &["file"]) {
+                    verdict.add(
+                        Risk::Unknown,
+                        "The command runs a sed script that neohar did not read.",
+                    );
+                }
+                let first = operands_after(args, &["-e", "--expression", "-f", "--file", "-l"])
+                    .into_iter()
+                    .find(|w| !w.text.is_empty())
+                    .cloned();
+                let scripts: Vec<Word> = if given.is_empty() {
+                    first.into_iter().collect()
+                } else {
+                    given
+                };
+                scripts
+                    .iter()
+                    .any(|script| sed_runs_or_writes(&script.text))
+            }
+            _ => false,
+        };
+        if runs || special {
+            verdict.add(
+                Risk::High,
+                format!(
+                    "The command {name} runs another program or writes a file through an option."
+                ),
+            );
+        }
+        let mut written: Vec<Word> = tables::WRITES_BY_OPTION
+            .iter()
+            .find(|(program, _)| *program == name)
+            .map(|(_, flags)| option_values(args, flags))
+            .unwrap_or_default();
+        match name {
+            // `xxd in out` and `uniq in out` write their second operand.
+            "xxd" => written.extend(
+                operands_after(
+                    args,
+                    &[
+                        "-c", "-g", "-l", "-o", "-s", "-n", "-cols", "-len", "-seek", "-offset",
+                    ],
+                )
+                .get(1)
+                .map(|w| (*w).clone()),
+            ),
+            "uniq" => written.extend(
+                operands_after(args, &["-f", "-s", "-w"])
+                    .get(1)
+                    .map(|w| (*w).clone()),
+            ),
+            "yq" if has_flag(args, &['i'], &["inplace"]) => written.extend(
+                operands(args)
+                    .get(1..)
+                    .unwrap_or(&[])
+                    .iter()
+                    .map(|w| (*w).clone()),
+            ),
+            _ => {}
+        }
+        let targets: Vec<&Word> = written.iter().collect();
+        self.write_targets(&targets, verdict);
     }
 
     /// Programs that run another program: `env`, `time`, `xargs` and the like.
@@ -721,6 +806,10 @@ impl Analyzer<'_, '_> {
             .iter()
             .position(|t| matches!(*t, "-exec" | "-execdir" | "-ok" | "-okdir"))
         {
+            verdict.add(
+                Risk::High,
+                "The command runs another command on each file that it finds.",
+            );
             let end = texts[at..]
                 .iter()
                 .position(|t| matches!(*t, ";" | "+"))
@@ -737,10 +826,10 @@ impl Analyzer<'_, '_> {
             }
             return;
         }
-        if texts
-            .iter()
-            .any(|t| matches!(*t, "-fprint" | "-fprint0" | "-fprintf" | "-fls"))
-        {
+        let lists = option_values(args, &["-fprint", "-fprint0", "-fprintf", "-fls"]);
+        if !lists.is_empty() {
+            let targets: Vec<&Word> = lists.iter().collect();
+            self.write_targets(&targets, verdict);
             verdict.add(
                 Risk::Unknown,
                 "The command writes a list of files to a file.",
@@ -911,7 +1000,25 @@ impl Analyzer<'_, '_> {
                 }
             }
             s if tables::GIT_READ_ONLY.contains(&s) => {
-                verdict.add(Risk::Low, "The command only reads the repository.");
+                let written = option_values(&rest, &["--output"]);
+                if s == "grep"
+                    && rest.iter().any(|w| {
+                        w.text == "-O"
+                            || w.text.starts_with("-O")
+                            || w.text.starts_with("--open-files-in-pager")
+                    })
+                {
+                    verdict.add(
+                        Risk::High,
+                        "The command opens the files in a program that an option names.",
+                    );
+                }
+                if written.is_empty() {
+                    verdict.add(Risk::Low, "The command only reads the repository.");
+                } else {
+                    let targets: Vec<&Word> = written.iter().collect();
+                    self.write_targets(&targets, verdict);
+                }
             }
             _ => verdict.add(Risk::Unknown, "neohar has no rule for this git command."),
         }
@@ -1622,6 +1729,160 @@ fn cargo_split<'a>(args: &[&'a Word]) -> (Option<&'a str>, Vec<&'a Word>) {
         }
     }
     (None, Vec::new())
+}
+
+/// The values of the options in `flags`: `-o file`, `-ofile`, `-sSo file`, `--output file` and
+/// `--output=file`. A flag of more than one letter after one dash (`-fprint`) takes the next word.
+fn option_values(args: &[&Word], flags: &[&str]) -> Vec<Word> {
+    let short = |c: char| {
+        flags
+            .iter()
+            .any(|f| f.len() == 2 && f.ends_with(c) && f.starts_with('-'))
+    };
+    let value = |arg: &Word, text: &str| Word {
+        text: text.to_owned(),
+        ..arg.clone()
+    };
+    let mut out = Vec::new();
+    let mut at = 0;
+    while let Some(arg) = args.get(at) {
+        let text = arg.text.as_str();
+        if text == "--" {
+            break;
+        }
+        let next = args.get(at + 1).map(|w| (*w).clone());
+        if flags.contains(&text) {
+            out.extend(next);
+            at += 2;
+            continue;
+        }
+        if let Some((flag, rest)) = text.split_once('=')
+            && flag.starts_with("--")
+            && flags.contains(&flag)
+        {
+            out.push(value(arg, rest));
+        } else if let Some(cluster) = text.strip_prefix('-')
+            && !cluster.starts_with('-')
+            && cluster.chars().count() > 1
+        {
+            let mut chars = cluster.chars();
+            let first = chars.next().unwrap_or('-');
+            if short(first) {
+                // `-ofile`: the value is in the same word.
+                out.push(value(arg, &cluster[first.len_utf8()..]));
+            } else if cluster.chars().all(|c| c.is_ascii_alphabetic())
+                && cluster.chars().last().is_some_and(short)
+            {
+                // `-sSo file`: the last flag of the cluster takes the next word.
+                out.extend(next);
+                at += 2;
+                continue;
+            }
+        }
+        at += 1;
+    }
+    out
+}
+
+/// The operands of a program, without the values of the options in `with_value`.
+fn operands_after<'a>(args: &[&'a Word], with_value: &[&str]) -> Vec<&'a Word> {
+    let mut out = Vec::new();
+    let mut at = 0;
+    let mut ended = false;
+    while let Some(arg) = args.get(at) {
+        let text = arg.text.as_str();
+        if ended || !text.starts_with('-') || text == "-" {
+            out.push(*arg);
+        } else if text == "--" {
+            ended = true;
+        } else if with_value.contains(&text) {
+            at += 1;
+        }
+        at += 1;
+    }
+    out
+}
+
+/// Whether an awk program can run a command or write a file: `system()`, `getline` from a
+/// command, a pipe, or `print > "file"`.
+fn awk_runs(script: &str) -> bool {
+    if script.contains("system") || script.contains("getline") || script.contains('|') {
+        return true;
+    }
+    script.match_indices('>').any(|(at, _)| {
+        script[at + 1..]
+            .trim_start_matches(['>', ' '])
+            .starts_with('"')
+    })
+}
+
+/// Whether a sed script runs a command or writes a file: the commands `e`, `w` and `W`, and the
+/// flags `e` and `w` of `s`. The reader is simple and over-warns.
+fn sed_runs_or_writes(script: &str) -> bool {
+    let chars: Vec<char> = script.chars().collect();
+    // The position after the closing `delim`, from `from`. A backslash escapes a character.
+    let skip = |from: usize, delim: char| {
+        let mut i = from;
+        while let Some(&c) = chars.get(i) {
+            if c == '\\' {
+                i += 2;
+            } else if c == delim {
+                return i + 1;
+            } else {
+                i += 1;
+            }
+        }
+        chars.len()
+    };
+    let mut i = 0;
+    let mut command = true;
+    while let Some(&c) = chars.get(i) {
+        if !command {
+            command = matches!(c, ';' | '\n' | '{' | '}');
+            i += 1;
+            continue;
+        }
+        match c {
+            // Space, separators and addresses come before a command.
+            ' ' | '\t' | '\n' | ';' | '{' | '}' | '!' | ',' | '~' | '+' | '$' | '0'..='9' => {
+                i += 1;
+            }
+            '/' => i = skip(i + 1, '/'),
+            '\\' => {
+                let delim = chars.get(i + 1).copied().unwrap_or('/');
+                i = skip(i + 2, delim);
+            }
+            'e' | 'w' | 'W' => return true,
+            's' | 'y' => {
+                let Some(&delim) = chars.get(i + 1) else {
+                    return false;
+                };
+                let mut j = skip(skip(i + 2, delim), delim);
+                if c == 's' {
+                    while let Some(&flag) = chars.get(j) {
+                        match flag {
+                            'e' | 'w' => return true,
+                            'g' | 'p' | 'i' | 'I' | 'm' | 'M' | '0'..='9' => j += 1,
+                            _ => break,
+                        }
+                    }
+                }
+                i = j;
+                command = false;
+            }
+            // Text, a file to read or a label: to the end of the line.
+            'a' | 'i' | 'c' | 'r' | 'R' | 'b' | 't' | 'T' | ':' => {
+                while chars.get(i).is_some_and(|&c| c != '\n') {
+                    i += 1;
+                }
+            }
+            _ => {
+                i += 1;
+                command = false;
+            }
+        }
+    }
+    false
 }
 
 /// Takes the flags off the front of the arguments of a wrapper. A flag in `with_value` takes the

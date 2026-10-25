@@ -139,8 +139,11 @@ here-documents, and scores each command `low`, `unknown`, `medium` or `high`. Th
 highest. `high` covers `rm -r`, force pushes, `git reset --hard`, `curl … | sh`, `sudo`, writes
 outside the workspace, secret files and hosts outside the allowlist (only this machine is on it, and
 no setting fills it yet). `high` also covers git options that run a program (`-c core.fsmonitor=…`,
-`--exec-path=…`) and invisible characters such as U+202E. The check of a path follows the symbolic
-links of the part of the path that exists. Read-only commands and the project's own test, lint and
+`--exec-path=…`) and invisible characters such as U+202E. An option that runs a program is `high`,
+also for a program that only reads otherwise: `fd -x`, `rg --pre`, `bat --pager`, `find -exec`,
+`tar --to-command`, `sed 's/a/b/e'`. A file that an option writes (`sort -o`, `git log --output`,
+`curl -o`) has the checks of a write. The check of a path follows the symbolic links of the part of
+the path that exists. Read-only commands and the project's own test, lint and
 build scripts are `low`; anything unread is `unknown`. Risk orders the inbox, and Enter never
 answers a high-risk card. Titles, commands and paths show invisible characters as escapes such as
 `<U+202E>`.

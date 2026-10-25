@@ -174,6 +174,8 @@ pub(super) const RUNS_ANY: &[&str] = &[
     "nix-shell",
     // Programs that run a command or a script of their own language from their arguments.
     "find",
+    "fd",
+    "fdfind",
     "awk",
     "gawk",
     "mawk",
@@ -275,6 +277,70 @@ pub(super) const RUNS_ANY_SUB: &[(&str, &str)] = &[
     ("git", "send-email"),
     ("git", "credential"),
     ("git", "hook"),
+];
+
+/// The long options of tar that run a program.
+const TAR_RUNS: &[&str] = &[
+    "to-command",
+    "use-compress-program",
+    "info-script",
+    "new-volume-script",
+    "rsh-command",
+    "rmt-command",
+];
+
+/// Options that make a program run another program, by program: the letters of the short flags
+/// and the names of the long ones. A program that only reads otherwise is no exception.
+pub(super) const RUNS_BY_OPTION: &[(&str, &[char], &[&str])] = &[
+    ("fd", &['x', 'X'], &["exec", "exec-batch"]),
+    ("fdfind", &['x', 'X'], &["exec", "exec-batch"]),
+    ("rg", &[], &["pre", "pre-glob"]),
+    ("bat", &[], &["pager"]),
+    ("batcat", &[], &["pager"]),
+    ("sort", &[], &["compress-program"]),
+    ("ack", &[], &["pager"]),
+    ("ag", &[], &["pager"]),
+    ("man", &['P', 'H'], &["pager", "html"]),
+    ("zip", &[], &["unzip-command"]),
+    ("tar", &['I', 'F'], TAR_RUNS),
+    ("gtar", &['I', 'F'], TAR_RUNS),
+    ("bsdtar", &['I'], TAR_RUNS),
+];
+
+/// Options that name a file that a program writes, by program.
+pub(super) const WRITES_BY_OPTION: &[(&str, &[&str])] = &[
+    ("sort", &["-o", "--output"]),
+    ("tree", &["-o"]),
+    ("less", &["-o", "-O", "--log-file", "--LOG-FILE"]),
+    ("more", &["-o", "-O", "--log-file", "--LOG-FILE"]),
+    ("sdiff", &["-o", "--output"]),
+    ("base64", &["-o", "--output"]),
+    (
+        "curl",
+        &[
+            "-o",
+            "--output",
+            "-c",
+            "--cookie-jar",
+            "-D",
+            "--dump-header",
+            "--trace",
+            "--trace-ascii",
+            "--stderr",
+            "--libcurl",
+        ],
+    ),
+    (
+        "wget",
+        &[
+            "-O",
+            "--output-document",
+            "-o",
+            "--output-file",
+            "-a",
+            "--append-output",
+        ],
+    ),
 ];
 
 /// Programs that read and change nothing.
