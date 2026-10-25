@@ -205,7 +205,8 @@ fn payload() -> Value {
     json!({
         "hook_event_name": "PermissionRequest",
         "tool_name": "Bash",
-        "tool_input": {"command": "touch note.txt", "description": "Create a note"},
+        // A low risk that the title shows whole, so a notification and the tray offer Allow.
+        "tool_input": {"command": "git status", "description": "Show the status"},
         "permission_mode": "default",
     })
 }
