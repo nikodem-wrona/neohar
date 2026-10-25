@@ -123,8 +123,12 @@ reason = "tests are safe"
 
 - `pnpm test:*` matches `pnpm test` and `pnpm test:unit`, not `pnpm testing`. A `*` is allowed only
   at the end.
-- An allow never matches a line that runs more than one command (`;`, `|`, `&&`, `>`, `$(`). A deny
-  matches if any part matches.
+- An allow matches only a plain line: letters, digits, `_./:=@%+,-`, spaces, and quoted strings
+  of the same characters. Any other character (`;`, `|`, `&`, `>`, `$`, `(`, `*`, `~`, a new line,
+  a character that is not ASCII) sends the request to you.
+- An allow never decides a request of high risk. The card shows the rule in a note.
+- A deny matches if any part matches. It also compares each command after it removes the quotes,
+  the path of the program and wrappers such as `env`, `sudo` and `timeout`.
 - A deny always wins over an allow.
 - A rule decides only for a bound run of a validated version that neohar holds. A rule is not a
   sandbox: a harness that asks for nothing (`--dangerously-skip-permissions`, `-a never`) sends

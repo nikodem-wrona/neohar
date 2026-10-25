@@ -69,8 +69,8 @@ fn glob_of(paths: &[String]) -> Option<String> {
 /// The facts of a request. `argv` is the first command of a shell line, as the card shows it.
 pub fn facts_of(subject: &Subject, risk: Risk, argv: &[String]) -> Facts {
     let (pattern, key, mut eligible) = if let Some(line) = &subject.command {
-        // A new line is white space, so the check for many commands reads the raw text.
-        let compound = matcher::is_compound(line);
+        // A new line is white space, so the check of the characters reads the raw text.
+        let compound = !matcher::is_plain(line);
         let line = matcher::normalize(line);
         let prefix = if compound { None } else { rule_prefix(argv) };
         let eligible = !compound && prefix.is_some();

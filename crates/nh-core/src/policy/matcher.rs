@@ -2,9 +2,13 @@
 //!
 //! The matcher is pure: it reads a rule and the facts of a request, and it gives a verdict. A
 //! command is normalized (trimmed, runs of white space collapsed) and nothing else. An `allow`
-//! rule never matches a command line with many commands, a redirection or a substitution. A
-//! `deny` rule matches such a line when it matches any segment of it. A deny always beats an
-//! allow.
+//! rule matches only a plain command line ([`is_plain`]): words of letters, digits and
+//! `_./:=@%+,-`, and quoted strings of the same characters. Any other character can make the
+//! shell run more than the first words say (`;`, `|`, `$(`, a glob qualifier of zsh such as
+//! `*(e:…:)`, a process substitution such as `=(…)`), so such a line goes to a person. A `deny`
+//! rule matches a line when it matches the line or any command in it, also after the quotes,
+//! the path of the program and the wrappers such as `env` are taken off ([`deny_candidates`]). A
+//! deny always beats an allow.
 
 use nh_proto::api::{calls::system::PolicyDecision, common::Harness};
 
@@ -113,36 +117,175 @@ pub fn normalize(text: &str) -> String {
     text.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
-/// Whether a line does more than its first words say: many commands, a redirection, a
-/// substitution or a new line.
-pub fn is_compound(line: &str) -> bool {
-    line.contains(['\n', '\r', ';', '|', '&', '>', '<', '`']) || line.contains("$(")
+/// A character that the shell takes as it is, outside and inside quotes.
+fn plain_char(c: char) -> bool {
+    c.is_ascii_alphanumeric()
+        || matches!(c, '_' | '.' | '/' | ':' | '=' | '@' | '%' | '+' | ',' | '-')
 }
 
-/// The commands of a line, split on the operators of [`is_compound`]. A line without operators
-/// has one segment.
+/// Whether a line is one command that the shell runs as its words say: words of letters, digits
+/// and `_./:=@%+,-`, spaces and tabs, and strings in single or double quotes of the same
+/// characters and spaces. Every other character (`;`, `|`, `&`, `<`, `>`, `$`, `` ` ``, `(`, `)`,
+/// `{`, `}`, `*`, `?`, `[`, `]`, `~`, `!`, `\`, `#`, `^`, a new line, a character that is not
+/// ASCII) can run another command or change the words, so a line with one is not plain.
+pub fn is_plain(line: &str) -> bool {
+    let mut quote: Option<char> = None;
+    for c in line.chars() {
+        match quote {
+            Some(open) if c == open => quote = None,
+            Some(_) if plain_char(c) || c == ' ' || c == '\t' => {}
+            Some(_) => return false,
+            None if c == '\'' || c == '"' => quote = Some(c),
+            None if plain_char(c) || c == ' ' || c == '\t' => {}
+            None => return false,
+        }
+    }
+    quote.is_none()
+}
+
+/// The characters that end a command, or start one inside another, for a deny.
+fn ends_command(c: char) -> bool {
+    matches!(
+        c,
+        '\n' | '\r' | ';' | '|' | '&' | '>' | '<' | '`' | '(' | ')' | '{' | '}'
+    )
+}
+
+/// The commands of a line, split on the characters that end a command or start one inside
+/// another: `;`, `|`, `&`, `<`, `>`, `` ` ``, brackets and braces, and a new line. A line without
+/// them has one segment.
 pub fn segments(line: &str) -> Vec<String> {
     let mut out = Vec::new();
     let mut current = String::new();
-    let mut chars = line.chars().peekable();
     let flush = |current: &mut String, out: &mut Vec<String>| {
-        let text = normalize(current);
+        // `$(` and `=(` leave their first character behind.
+        let text = normalize(current.trim_end_matches(['$', '=']));
         if !text.is_empty() {
             out.push(text);
         }
         current.clear();
     };
-    while let Some(c) = chars.next() {
-        match c {
-            '\n' | '\r' | ';' | '|' | '&' | '>' | '<' | '`' | ')' => flush(&mut current, &mut out),
-            '$' if chars.peek() == Some(&'(') => {
-                chars.next();
-                flush(&mut current, &mut out);
-            }
-            other => current.push(other),
+    for c in line.chars() {
+        if ends_command(c) {
+            flush(&mut current, &mut out);
+        } else {
+            current.push(c);
         }
     }
     flush(&mut current, &mut out);
+    out
+}
+
+/// Words that come before a program and are not the program: the reserved words of the shell
+/// and the modifiers of zsh.
+const BEFORE_PROGRAM: &[&str] = &[
+    "!",
+    "if",
+    "then",
+    "else",
+    "elif",
+    "while",
+    "until",
+    "do",
+    "time",
+    "coproc",
+    "noglob",
+    "nocorrect",
+    "-",
+];
+
+/// Programs that run the words after them as a command.
+const WRAPPERS: &[&str] = &[
+    "env",
+    "sudo",
+    "doas",
+    "su",
+    "pkexec",
+    "runuser",
+    "nice",
+    "nohup",
+    "timeout",
+    "gtimeout",
+    "stdbuf",
+    "unbuffer",
+    "xargs",
+    "parallel",
+    "time",
+    "watch",
+    "caffeinate",
+    "exec",
+    "command",
+    "builtin",
+    "eval",
+    "sh",
+    "bash",
+    "zsh",
+    "dash",
+    "ksh",
+    "fish",
+    "chroot",
+    "setsid",
+    "flock",
+    "ionice",
+    "taskset",
+    "script",
+    "arch",
+    "sandbox-exec",
+    "find",
+    "ssh",
+];
+
+fn is_assignment(word: &str) -> bool {
+    word.split_once('=').is_some_and(|(name, _)| {
+        name.starts_with(|c: char| c.is_ascii_alphabetic() || c == '_')
+            && name.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_')
+    })
+}
+
+fn basename(word: &str) -> &str {
+    word.rsplit('/').next().unwrap_or(word)
+}
+
+/// The command lines that a deny compares with its pattern: each segment of the line as it is,
+/// and each segment with the quotes and backslashes taken out of its words, with the reserved
+/// words and the variables in front taken off, and with the program by its name and not its path.
+/// After a wrapper (`env`, `sudo`, `timeout`, `sh -c`), each run of words to the end is a command
+/// too. A deny matches more than the command runs, never less.
+pub fn deny_candidates(line: &str) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    let add = |words: &[String], out: &mut Vec<String>| {
+        if let Some((first, rest)) = words.split_first() {
+            let mut text = basename(first).to_owned();
+            for word in rest {
+                text.push(' ');
+                text.push_str(word);
+            }
+            if !out.contains(&text) {
+                out.push(text);
+            }
+        }
+    };
+    for segment in segments(line) {
+        if !out.contains(&segment) {
+            out.push(segment.clone());
+        }
+        let words: Vec<String> = segment
+            .split_whitespace()
+            .map(|w| w.replace(['\'', '"', '\\'], ""))
+            .filter(|w| !w.is_empty())
+            .collect();
+        let start = words
+            .iter()
+            .position(|w| !BEFORE_PROGRAM.contains(&w.as_str()) && !is_assignment(w))
+            .unwrap_or(words.len());
+        let words = &words[start..];
+        add(words, &mut out);
+        if let Some(at) = words.iter().position(|w| WRAPPERS.contains(&basename(w))) {
+            for from in at + 1..words.len() {
+                add(&words[from..], &mut out);
+            }
+        }
+    }
     out
 }
 
@@ -209,14 +352,14 @@ impl Rule {
             let Some(raw) = subject.command.as_deref() else {
                 return false;
             };
-            // The white space collapses in `line`, and a new line is white space. The checks for
-            // many commands read the raw text, or `pnpm test` and a second command on the next
+            // The white space collapses in `line`, and a new line is white space. The check of
+            // the characters reads the raw text, or `pnpm test` and a second command on the next
             // line would look like one command.
             let line = normalize(raw);
             return if allow {
-                !is_compound(raw) && pattern.fits(&line)
+                is_plain(raw) && pattern.fits(&line)
             } else {
-                pattern.fits(&line) || segments(raw).iter().any(|s| pattern.fits(s))
+                pattern.fits(&line) || deny_candidates(raw).iter().any(|s| pattern.fits(s))
             };
         }
         if !self.paths.is_empty() {
