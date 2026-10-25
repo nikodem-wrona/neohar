@@ -38,7 +38,8 @@ nh phone publish
 ```
 
 neohar runs `tailscale serve` and maps the HTTPS port 8443 of the tailnet (`phone.https_port`) to the
-listener. It never runs `tailscale funnel`, so the page stays inside your tailnet. It never changes
+listener. It never runs `tailscale funnel`, so the page stays inside your tailnet. If a Funnel is
+on that port, the listener refuses every request until you turn the Funnel off. It never changes
 a mapping that serves something else. `nh phone unpublish` removes the mapping.
 
 The mapping lives only as long as the listener. neohar removes it when the listener stops: when

@@ -114,10 +114,12 @@ impl Facts {
     }
 
     /// The public origin that Tailscale gives the listener: `https://<name>:<https_port>`. `None`
-    /// when Tailscale does not run, gives no name, or gives no HTTPS certificate.
+    /// when Tailscale does not run, gives no name, or gives no HTTPS certificate. Also `None` when
+    /// a Funnel is on the HTTPS port: the port is then on the internet, so every request but the
+    /// files of the app fails until the person turns the Funnel off.
     pub fn origin(&self) -> Option<String> {
         let status = &self.status;
-        if status.state != TailscaleState::Running || !status.https {
+        if status.state != TailscaleState::Running || !status.https || status.funnel {
             return None;
         }
         let name = status.name.as_deref()?;
@@ -572,6 +574,11 @@ mod tests {
         facts.status.published = false;
         assert!(facts.hint().is_some_and(|h| h.contains("Funnel")));
         assert!(facts.refusal().is_some());
+        assert_eq!(facts.origin(), None, "a Funnel closes the listener");
+        // Also when the mapping is the one of neohar.
+        facts.status.published = true;
+        assert_eq!(facts.origin(), None);
+        assert!(facts.hint().is_some_and(|h| h.contains("Funnel")));
 
         let mut facts = running();
         facts.taken = true;

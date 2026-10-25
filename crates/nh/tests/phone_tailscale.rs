@@ -302,6 +302,13 @@ async fn a_funnel_on_the_port_fails_in_the_doctor_and_stops_the_pairing() {
         status.hint.as_deref().is_some_and(|h| h.contains("Funnel")),
         "{status:?}"
     );
+    // The port is on the internet: the listener has no origin, so every check fails.
+    assert_eq!(status.origin, None, "{status:?}");
+    assert!(
+        status.summary.contains("No phone can reach it"),
+        "{status:?}"
+    );
+    assert_eq!(get_root(port, "studio.example.ts.net:8443").await, 403);
     let refused = h.handle.rpc("phone.pair_begin", json!({})).await;
     assert_eq!(refused.expect_err("a Funnel").code, ErrorCode::Unsupported);
     assert!(
