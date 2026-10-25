@@ -118,4 +118,4 @@ Not proven yet: GPU time of a draw, 120 Hz, the renderer on Linux, and the link 
 - **Redaction.** `nh-redact` masks secrets in event payloads, logs and debug bundles. Scrollback and snapshots stay on disk as they are, with mode 0600.
 - **Links.** ssh authenticates the person. A client accepts only limited host requests from a remote core.
 - **The phone listener.** It is off by default. With `phone.enabled` on, the core listens on `127.0.0.1:47310` (`phone.port`), never on another address. `tailscale serve` puts that port on the tailnet with HTTPS. A phone pairs with a code and gets a cookie; every route except the pairing and the files of the phone app needs that cookie.
-- **Not containment.** Any process of the same user can read a pane token. Builds are ad-hoc signed for local use.
+- **Not containment.** Any process of the same user can read a pane token. Builds and the DMG of a release are ad-hoc signed and not notarized.

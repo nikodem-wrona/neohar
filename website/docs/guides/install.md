@@ -1,16 +1,34 @@
 ---
 title: Install the app
-description: "Build neohar.app from source, install it in ~/Applications, connect Claude Code and Codex, check the install, and update or remove it."
+description: "Download neohar or build it from source, connect Claude Code and Codex, check the install, and update or remove it."
 sidebar_position: 1
 ---
 
-There is no download of neohar yet. You build the app from the repository on your Mac. The build
-has an ad-hoc signature: it runs on the Mac that built it and is not notarized, because there is no
-Apple Developer ID yet. The app is for macOS only for now.
+Each release of neohar has a DMG for Apple silicon. You can also build the app from the repository
+on your Mac. Both have an ad-hoc signature and are not notarized, because there is no Apple
+Developer ID yet. The app is for macOS only for now.
 
 To run a development build from the working tree, see [Setup](/docs/getting-started/setup).
 
-## Build and install
+## Download
+
+1. Download `neohar_<version>_aarch64.dmg` from the
+   [latest release](https://github.com/nikodem-wrona/neohar/releases/latest).
+2. Open the DMG and drag `neohar.app` to the Applications folder.
+3. Eject the DMG.
+4. Remove the quarantine attribute that macOS gave to the download:
+
+   ```bash
+   xattr -dr com.apple.quarantine /Applications/neohar.app
+   ```
+
+Apple did not notarize the app, so without step 4 macOS refuses to open it. The command removes the
+check by Apple for this app only. Use it only for a DMG from the releases of this repository.
+
+Open neohar from the Applications folder, not from the DMG. Each launch points `~/.local/bin/nh` at
+the `nh` inside the app, and the hooks call that path. An app in the DMG has a temporary path.
+
+## Build from source
 
 You need the Xcode Command Line Tools (`xcode-select --install`), git and
 [mise](https://mise.jdx.dev). Run each command from the root of the repository.
@@ -41,7 +59,8 @@ hooks again.
 ## The first launch
 
 ```bash
-open ~/Applications/neohar.app
+open /Applications/neohar.app     # a download
+open ~/Applications/neohar.app    # a build from source
 ```
 
 - macOS asks if neohar can show notifications. Allow it if you want to answer approvals from a
@@ -96,6 +115,12 @@ fails. [Troubleshooting](/docs/guides/troubleshooting) has the common problems.
 
 ## Update
 
+For a download, quit neohar with **Quit neohar (agents keep running)** (`⌘Q`). Download the DMG of
+the new release and drag `neohar.app` to the Applications folder to replace the old app. Do step 4
+of [Download](#download) again, then open neohar.
+
+For a build from source, build the new app first:
+
 ```bash
 git pull && mise install && bun install && mise run build:app
 ```
@@ -121,5 +146,6 @@ agents, choose **Quit and stop everything…** (`⌘⌥Q`) before you install.
 
 1. Remove the hooks while neohar runs: `nh integration uninstall all`.
 2. Stop every pane: **Quit and stop everything…** (`⌘⌥Q`). A plain quit leaves them running.
-3. Remove the app and the symlink: `rm -rf ~/Applications/neohar.app` and `rm ~/.local/bin/nh`.
+3. Remove the app and the symlink: `rm -rf /Applications/neohar.app` (or
+   `~/Applications/neohar.app` for a build from source) and `rm ~/.local/bin/nh`.
 4. If you want the data gone too, remove the three paths of the table above. This cannot be undone.

@@ -40,7 +40,7 @@ These items are not in scope:
 - Claude Code, Codex and their permission systems. Report a problem in a harness to Anthropic or to OpenAI.
 - Tailscale, OpenSSH and macOS.
 - An attack that needs code that already runs as your macOS user.
-- The ad-hoc signature of the builds. It is a known limit: there is no notarized build.
+- The ad-hoc signature of the builds and of the DMG of a release. It is a known limit: there is no notarized build.
 - The timing of the keys that you type in a window of a remote machine. A person who watches the network can see it, because the link sends each key at once and ssh does not hide the timing of a session without a terminal. [Remote machines](website/docs/guides/remote-machines.md) tells more.
 
 ## Limits of the approval gate

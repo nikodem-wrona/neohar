@@ -1,6 +1,6 @@
 ---
 title: "mise tasks"
-description: "All 47 tasks of mise.toml: what each one does, what it depends on and the commands it runs."
+description: "All 48 tasks of mise.toml: what each one does, what it depends on and the commands it runs."
 sidebar_position: 6
 toc_max_heading_level: 3
 ---
@@ -68,6 +68,7 @@ mise installs these tools at these versions (`mise install`):
 | [`build:web`](#build-web) | Build the phone app into target/web-dist. The builds of nh and of the app put it into the binary with NEOHAR_WEB_DIST |  |
 | [`build:sidecar`](#build-sidecar) | Build nh in release, with the phone app, and copy it to the sidecar path of the bundle (apps/desktop/src-tauri/binaries) |  |
 | [`build:app`](#build-app) | Build the ad-hoc signed neohar.app with the nh sidecar and the phone app (local). The bundle is under target/release/bundle/macos | the ad-hoc signed neohar.app; mise run app:install copies it to ~/Applications |
+| [`build:dmg`](#build-dmg) | Build the ad-hoc signed neohar.app and its DMG for a release (release workflow). The DMG is under target/release/bundle/dmg |  |
 | [`app:dev`](#app-dev) | Open the app with the shell, built from the working tree (local). Config and data are under target/dev-run, the sockets under /tmp/nhdev-$UID | open the app built from the working tree (config and data under target/dev-run, sockets under /tmp/nhdev-$UID) |
 | [`app:dev:client`](#app-dev-client) | Start nh daemon for the dev session and open the app as its client through link.sock (local). A quit of the app leaves the daemon running; Enter opens the app again, q stops the daemon and its panes |  |
 | [`app:install`](#app-install) | Copy the ad-hoc signed neohar.app of build:app to ~/Applications (local). It keeps an installed app unless you pass --yes: mise run app:install -- --yes |  |
@@ -411,6 +412,16 @@ Build the ad-hoc signed neohar.app with the nh sidecar and the phone app (local)
 
 ```bash
 cargo tauri build --bundles app -c src-tauri/tauri.bundle.conf.json
+```
+
+### `build:dmg` {#build-dmg}
+
+Build the ad-hoc signed neohar.app and its DMG for a release (release workflow). The DMG is under target/release/bundle/dmg
+
+**Depends on:** [`build:wasm`](#build-wasm), [`build:web`](#build-web), [`build:sidecar`](#build-sidecar) · **Directory:** `apps/desktop` · **Environment:** `NEOHAR_WEB_DIST={{config_root}}/target/web-dist`
+
+```bash
+cargo tauri build --bundles app,dmg -c src-tauri/tauri.bundle.conf.json
 ```
 
 ### `app:dev` {#app-dev}

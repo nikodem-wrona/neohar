@@ -118,8 +118,9 @@ field.
 | Crash or `SIGKILL` | Holders survive and the next launch reattaches ([holders](/docs/architecture/holders)) |
 
 **Build variants.** `tauri.conf.json` is the base: no window (the host opens them) and the CSP.
-`tauri.bundle.conf.json` adds the bundle, the `nh` sidecar and the ad-hoc signature. The cargo
-feature `selftest` adds the sandbox check of `mise run test:host`.
+`tauri.bundle.conf.json` adds the bundle, the `nh` sidecar and the ad-hoc signature.
+`mise run build:dmg` also makes the DMG of a release. The cargo feature `selftest` adds the sandbox
+check of `mise run test:host`.
 
 ## The transport
 
@@ -173,5 +174,6 @@ Notifications, the tray and the hotkey are built and checked on macOS only.
 ## Not built
 
 - The updater, Developer ID signing and notarization.
+- A DMG for Intel Macs.
 - Notifications on Linux and Windows, and checks of the other surfaces there.
 - The resend of unconfirmed input after a reconnect (no remote webview yet).

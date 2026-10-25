@@ -118,7 +118,7 @@ The maintainer makes the releases. A coding agent makes a release only when the 
 3. Run `mise run check` and `mise run test`.
 4. Push the commit and the tag together: `git push --atomic origin main vX.Y.Z`.
 
-The tag starts `.github/workflows/release.yml`. The workflow makes sure that the tag is on the release commit on `main`. Then it runs the CI workflow on the tag, and it publishes the GitHub release with the section of `CHANGELOG.md` as its text. GitHub refuses a change or a deletion of a tag `v*`. If a release has a bug, make a new patch release.
+The tag starts `.github/workflows/release.yml`. The workflow makes sure that the tag is on the release commit on `main`. Then it runs the CI workflow on the tag. At the same time, `mise run build:dmg` makes the DMG of the app on macOS. When both pass, the workflow publishes the GitHub release with the section of `CHANGELOG.md` as its text and the DMG as its file. GitHub refuses a change or a deletion of a tag `v*`. If a release has a bug, make a new patch release.
 
 The release script writes the section of `CHANGELOG.md` from the commits since the last tag. The breaking changes come first. Then `feat` goes to "Added", `perf` and `revert` go to "Changed", and `fix` goes to "Fixed". The other types do not show. Text that you write under `## [Unreleased]`, for example a note about an update, goes to the top of the next release.
 
