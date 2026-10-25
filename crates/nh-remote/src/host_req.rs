@@ -106,12 +106,14 @@ pub struct TrayLine {
     pub label: String,
     pub interaction: Option<String>,
     pub approval: bool,
-    /// The core offers Allow. A core of an earlier version sends no field, and then the tray
-    /// offers only Deny and Open.
-    #[serde(default)]
+    /// The core offers Allow.
+    ///
+    /// `postcard` writes no field names, so every field is always present, and a field that
+    /// `serde` skips makes the message unreadable. A core of an earlier version sends lines
+    /// without `allow` and `always`: this client cannot read that `SetTray`, refuses it, and keeps
+    /// its last tray. Nothing else of the link changes.
     pub allow: bool,
     /// The rule of "Allow always", when the core offers it.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub always: Option<String>,
 }
 
@@ -795,7 +797,9 @@ impl HostGuard {
                         .map_err(|e| e.to_string())?,
                     approval: e.approval,
                     allow: e.allow && whole,
-                    always: e.always && whole,
+                    always: e.always.filter(|rule| {
+                        whole && rule.chars().count() <= self.limits.tray_label_chars
+                    }),
                 })
             })
             .collect::<Result<Vec<_>, String>>()?;
@@ -1236,6 +1240,8 @@ mod tests {
                     label: format!("{n} {}", "é".repeat(300)),
                     interaction: None,
                     approval: false,
+                    allow: false,
+                    always: None,
                 })
                 .collect(),
             badge: 60,
@@ -1256,6 +1262,37 @@ mod tests {
         assert_eq!(cut("short".to_owned(), 200), "short");
         assert_eq!(cut("abc".to_owned(), 3), "abc");
         assert_eq!(cut("abcd".to_owned(), 3), "ab…");
+    }
+
+    #[test]
+    fn a_tray_line_that_the_guard_cuts_has_no_allow_items() {
+        let (guard, host) = guard();
+        let line = |label: String| TrayLine {
+            label,
+            interaction: Some(InteractionId::new(Ulid::from(9u128)).to_string()),
+            approval: true,
+            allow: true,
+            always: Some("pnpm test:*".to_owned()),
+        };
+        let tray = Tray {
+            entries: vec![
+                line("Run `pnpm test`".to_owned()),
+                line(format!("Run `pnpm test {}`", "x".repeat(300))),
+            ],
+            badge: 2,
+        };
+        assert_eq!(
+            guard.handle(&bytes(&HostRequest::SetTray { tray })),
+            HostOutcome::Done
+        );
+        let calls = host.calls();
+        let [HostCall::SetTray(model)] = &calls[..] else {
+            panic!("expected the tray: {calls:?}");
+        };
+        assert!(model.entries[0].allow);
+        assert_eq!(model.entries[0].always.as_deref(), Some("pnpm test:*"));
+        assert!(!model.entries[1].allow);
+        assert_eq!(model.entries[1].always, None);
     }
 
     #[test]
