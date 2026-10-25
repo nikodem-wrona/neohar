@@ -56,6 +56,10 @@ pub struct TauriHost {
     trays: Mutex<BTreeMap<String, TrayModel>>,
     /// The machines in the order of `config.toml`, `local` first: the order of the tray.
     order: Mutex<Vec<String>>,
+    /// A rebuild of the menu of the tray waits for its time or for the main thread.
+    tray_waits: AtomicBool,
+    /// When the menu of the tray was last built.
+    tray_shown: Mutex<Option<std::time::Instant>>,
     /// The system refused notifications.
     denied: AtomicBool,
 }
@@ -154,6 +158,8 @@ impl TauriHost {
             badges: Mutex::new(BTreeMap::new()),
             trays: Mutex::new(BTreeMap::new()),
             order: Mutex::new(Vec::new()),
+            tray_waits: AtomicBool::new(false),
+            tray_shown: Mutex::new(None),
             denied: AtomicBool::new(false),
         }
     }
@@ -406,13 +412,59 @@ impl TauriHost {
         }
     }
 
+    /// Builds the menu of the tray again on the main thread, at most once in
+    /// [`TRAY_REBUILD_EVERY`]. A core of a machine can send a new tray at any rate. While a
+    /// rebuild waits, a new model only changes what that rebuild shows.
     fn show_tray(&self) {
-        let sections = tray_sections(
-            &self.trays.lock().unwrap_or_else(PoisonError::into_inner),
-            &self.order.lock().unwrap_or_else(PoisonError::into_inner),
+        if self.tray_waits.swap(true, Ordering::SeqCst) {
+            return;
+        }
+        let Some(app) = self.app.get().cloned() else {
+            self.tray_waits.store(false, Ordering::SeqCst);
+            return;
+        };
+        let wait = tray_wait(
+            *self
+                .tray_shown
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner),
+            std::time::Instant::now(),
         );
-        self.run_on_main(move |app| crate::tray::show(app, &sections));
+        tauri::async_runtime::spawn(async move {
+            if !wait.is_zero() {
+                tokio::time::sleep(wait).await;
+            }
+            let handle = app.clone();
+            let ran = app.run_on_main_thread(move || {
+                let Some(host) = handle.try_state::<std::sync::Arc<TauriHost>>() else {
+                    return;
+                };
+                host.tray_waits.store(false, Ordering::SeqCst);
+                *host
+                    .tray_shown
+                    .lock()
+                    .unwrap_or_else(PoisonError::into_inner) = Some(std::time::Instant::now());
+                let sections = tray_sections(
+                    &host.trays.lock().unwrap_or_else(PoisonError::into_inner),
+                    &host.order.lock().unwrap_or_else(PoisonError::into_inner),
+                );
+                crate::tray::show(&handle, &sections);
+            });
+            if let Err(error) = ran {
+                tracing::warn!(%error, "the rebuild of the tray did not start");
+            }
+        });
     }
+}
+
+/// The shortest time between two rebuilds of the menu of the tray.
+const TRAY_REBUILD_EVERY: std::time::Duration = std::time::Duration::from_millis(250);
+
+/// How long a rebuild of the tray waits, after the last one at `last`.
+fn tray_wait(last: Option<std::time::Instant>, now: std::time::Instant) -> std::time::Duration {
+    last.map_or(std::time::Duration::ZERO, |last| {
+        TRAY_REBUILD_EVERY.saturating_sub(now.saturating_duration_since(last))
+    })
 }
 
 impl Host for TauriHost {
@@ -617,6 +669,24 @@ mod tests {
         assert_eq!(total_badge(&badges), 5);
         badges.insert("lab".to_owned(), u32::MAX);
         assert_eq!(total_badge(&badges), u32::MAX);
+    }
+
+    #[test]
+    fn the_tray_is_built_at_most_four_times_a_second() {
+        let now = std::time::Instant::now();
+        assert_eq!(tray_wait(None, now), std::time::Duration::ZERO);
+        let just = now.checked_sub(std::time::Duration::from_millis(50));
+        if let Some(just) = just {
+            assert_eq!(
+                tray_wait(Some(just), now),
+                std::time::Duration::from_millis(200)
+            );
+        }
+        assert_eq!(tray_wait(Some(now), now), TRAY_REBUILD_EVERY);
+        let long_ago = now.checked_sub(std::time::Duration::from_secs(1));
+        if let Some(long_ago) = long_ago {
+            assert_eq!(tray_wait(Some(long_ago), now), std::time::Duration::ZERO);
+        }
     }
 
     #[test]

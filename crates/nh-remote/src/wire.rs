@@ -8,8 +8,15 @@
 //! The writer never waits for a peer that has stopped reading after the link is down: each write
 //! races the signal of the down link, and the writes after `Bye` have [`DRAIN_WITHIN`]. Then the
 //! tasks end, the stream closes, and the peer gets the end of the stream when it reads again.
+//!
+//! A peer that stops reading and keeps sending (for example `Ping` after `Ping`) does not make
+//! this side keep its answers without end. Only a `Pong` with the random nonce of one of the last
+//! pings of this side counts, and a peer that does not read never sees those. The queue of the
+//! writer has a limit ([`Sizes::queue`] messages, and the largest message plus [`QUEUE_SLACK`]
+//! bytes): a message over it calls the link down.
 
 use std::{
+    collections::VecDeque,
     pin::Pin,
     sync::{
         Arc, Mutex, PoisonError,
@@ -33,6 +40,17 @@ use crate::{
 /// that does not read in this time does not keep the link.
 pub(crate) const DRAIN_WITHIN: Duration = Duration::from_secs(1);
 
+/// The bytes that the queue of the writer may hold in addition to one message of the largest size.
+pub(crate) const QUEUE_SLACK: usize = 64 << 20;
+
+/// The most messages in the queue of the writer, by default. A link carries frames that wait for
+/// acks and blobs that wait for credits, so a peer that reads never comes near it.
+pub const MAX_QUEUED: usize = 1 << 16;
+
+/// The number of the last pings whose `Pong` counts. With a ping each 5 s, it covers more than
+/// the 15 s after which a link is down.
+const PINGS_KEPT: usize = 4;
+
 /// The size limits of the messages of one side (`codec::MAX_MESSAGE`, `codec::MAX_FROM_CORE`).
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct Sizes {
@@ -40,6 +58,9 @@ pub(crate) struct Sizes {
     pub recv: usize,
     /// The largest message that the other side reads. This side does not send a larger one.
     pub send: usize,
+    /// The most messages that wait for the writer. One more calls the link down: the other side
+    /// does not read.
+    pub queue: usize,
 }
 
 /// The times of a link. Tests make them short.
@@ -81,15 +102,27 @@ pub(crate) struct Wire {
     /// A `Bye` is queued: the writer sends what waits, then ends the stream.
     closing: AtomicBool,
     started: Instant,
-    /// The time of the last `Pong`, in milliseconds since `started`.
+    /// The time of the last `Pong` that counted, in milliseconds since `started`.
     last_pong_ms: AtomicU64,
-    /// The last ping that waits for its `Pong`: its nonce and when it went.
-    ping: Mutex<Option<(u64, Instant)>>,
+    /// The last pings that wait for their `Pong`: the random nonce of each and when it went.
+    pings: Mutex<VecDeque<(u64, Instant)>>,
     /// The last round-trip time in microseconds, plus one. Zero is "not measured yet".
     rtt_us: AtomicU64,
-    nonce: AtomicU64,
     timing: LinkTiming,
     sizes: Sizes,
+}
+
+/// A random nonce for a ping. A peer must read the ping to answer it.
+fn random_nonce() -> u64 {
+    let mut bytes = [0u8; 8];
+    if getrandom::fill(&mut bytes).is_err() {
+        // No random source: the time still differs from ping to ping.
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_or(0, |d| d.as_nanos());
+        return u64::try_from(now & u128::from(u64::MAX)).unwrap_or(u64::MAX);
+    }
+    u64::from_le_bytes(bytes)
 }
 
 fn lock<T>(mutex: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
@@ -98,14 +131,32 @@ fn lock<T>(mutex: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
 
 impl Wire {
     /// Queues a message. Returns `false` when the link is down or ends, or when the message is
-    /// larger than the other side reads.
+    /// larger than the other side reads. A message over the limit of the queue calls the link
+    /// down: the other side does not read what this side sends.
     pub fn send(&self, msg: &LinkMsg) -> bool {
         if self.is_down() || self.closing.load(Ordering::SeqCst) {
             return false;
         }
         match encode_within(msg, self.sizes.send) {
             Ok(out) => {
-                lock(&self.scheduler).push(out);
+                let mut scheduler = lock(&self.scheduler);
+                let bytes = scheduler.queued_bytes().saturating_add(out.bytes.len());
+                if scheduler.len() >= self.sizes.queue
+                    || bytes > self.sizes.send.saturating_add(QUEUE_SLACK)
+                {
+                    let (messages, waiting) = (scheduler.len(), scheduler.queued_bytes());
+                    *scheduler = Scheduler::default();
+                    drop(scheduler);
+                    tracing::warn!(
+                        messages,
+                        bytes = waiting,
+                        "the other side of a link does not read, and the link ends"
+                    );
+                    self.set_down("the other side does not read what this side sends");
+                    return false;
+                }
+                scheduler.push(out);
+                drop(scheduler);
                 self.wake.notify_one();
                 true
             }
@@ -165,16 +216,30 @@ impl Wire {
         u64::try_from(self.started.elapsed().as_millis()).unwrap_or(u64::MAX)
     }
 
+    /// A `Pong` came. It counts only with the nonce of one of the last pings of this side.
     fn pong(&self, nonce: u64) {
+        let mut pings = lock(&self.pings);
+        let Some(index) = pings.iter().position(|(sent, _)| *sent == nonce) else {
+            return;
+        };
+        let at = pings[index].1;
+        // The older pings are answered too: a `Pong` comes after the ones before it.
+        pings.drain(..=index);
+        drop(pings);
         self.last_pong_ms.store(self.now_ms(), Ordering::Relaxed);
-        let mut ping = lock(&self.ping);
-        if let Some((sent, at)) = *ping
-            && sent == nonce
-        {
-            let us = u64::try_from(at.elapsed().as_micros()).unwrap_or(u64::MAX - 1);
-            self.rtt_us.store(us + 1, Ordering::Relaxed);
-            *ping = None;
+        let us = u64::try_from(at.elapsed().as_micros()).unwrap_or(u64::MAX - 1);
+        self.rtt_us.store(us + 1, Ordering::Relaxed);
+    }
+
+    /// Notes a ping that goes now, and gives its nonce.
+    fn next_ping(&self) -> u64 {
+        let nonce = random_nonce();
+        let mut pings = lock(&self.pings);
+        if pings.len() >= PINGS_KEPT {
+            pings.pop_front();
         }
+        pings.push_back((nonce, Instant::now()));
+        nonce
     }
 }
 
@@ -198,9 +263,8 @@ where
         closing: AtomicBool::new(false),
         started: Instant::now(),
         last_pong_ms: AtomicU64::new(0),
-        ping: Mutex::new(None),
+        pings: Mutex::default(),
         rtt_us: AtomicU64::new(0),
-        nonce: AtomicU64::new(1),
         timing,
         sizes,
     });
@@ -422,8 +486,7 @@ async fn pinger(wire: Arc<Wire>) {
             wire.set_down("no Pong came for the time of the limit");
             return;
         }
-        let nonce = wire.nonce.fetch_add(1, Ordering::Relaxed);
-        *lock(&wire.ping) = Some((nonce, Instant::now()));
+        let nonce = wire.next_ping();
         wire.send(&LinkMsg::Ping {
             nonce,
             sent_at_ms: now,
@@ -511,10 +574,18 @@ mod tests {
     const SIZES: Sizes = Sizes {
         recv: MAX_MESSAGE,
         send: MAX_MESSAGE,
+        queue: MAX_QUEUED,
     };
 
     /// A link whose peer sends nothing and reads nothing.
     fn stalled(down_after: Duration) -> (Arc<Wire>, Arc<AtomicBool>, tokio::io::DuplexStream) {
+        stalled_with(down_after, SIZES)
+    }
+
+    fn stalled_with(
+        down_after: Duration,
+        sizes: Sizes,
+    ) -> (Arc<Wire>, Arc<AtomicBool>, tokio::io::DuplexStream) {
         let dropped = Arc::new(AtomicBool::new(false));
         let (read, peer) = tokio::io::duplex(1024);
         let timing = LinkTiming {
@@ -522,8 +593,100 @@ mod tests {
             down_after,
             hello_within: Duration::from_secs(5),
         };
-        let (wire, _rx) = start(read, Stalled(Arc::clone(&dropped)), timing, SIZES);
+        let (wire, _rx) = start(read, Stalled(Arc::clone(&dropped)), timing, sizes);
         (wire, dropped, peer)
+    }
+
+    /// Writes messages to a link as its peer does.
+    async fn write_to(peer: &mut tokio::io::DuplexStream, messages: &[LinkMsg]) {
+        let mut scheduler = Scheduler::default();
+        for msg in messages {
+            scheduler.push(crate::codec::encode(msg).expect("encodes"));
+        }
+        let mut bytes = Vec::new();
+        while scheduler.next_part(&mut bytes) {}
+        // The link may be down and stop reading: then the rest does not matter.
+        let _ = peer.write_all(&bytes).await;
+    }
+
+    #[tokio::test]
+    async fn a_pong_counts_only_with_the_nonce_of_a_ping_of_this_side() {
+        // The writer does not write, so the peer never sees a ping of this side. Its pongs carry
+        // nonces that it guesses, and they do not keep the link up.
+        let (wire, _dropped, mut peer) = stalled(Duration::from_millis(200));
+        let guesses = async {
+            for nonce in (0..u64::MAX).step_by(8) {
+                let pongs: Vec<LinkMsg> = (0..8)
+                    .map(|n| LinkMsg::Pong {
+                        nonce: nonce + n,
+                        sent_at_ms: 0,
+                    })
+                    .collect();
+                write_to(&mut peer, &pongs).await;
+                tokio::time::sleep(Duration::from_millis(10)).await;
+            }
+        };
+        let reason = tokio::select! {
+            reason = tokio::time::timeout(Duration::from_secs(5), wire.wait_down()) => {
+                reason.expect("down in time")
+            }
+            () = guesses => unreachable!("the guesses never end"),
+        };
+        assert!(reason.contains("Pong"), "{reason}");
+        // The pong of a ping of this side counts, also the one of an older ping.
+        let (wire, _dropped, _peer) = stalled(Duration::from_secs(60));
+        let first = wire.next_ping();
+        let second = wire.next_ping();
+        assert_ne!(first, second);
+        assert!(wire.rtt().is_none());
+        wire.pong(first);
+        assert!(wire.rtt().is_some());
+        assert_eq!(lock(&wire.pings).len(), 1, "the newer ping still waits");
+        wire.pong(first);
+        assert_eq!(lock(&wire.pings).len(), 1, "a pong counts once");
+    }
+
+    #[tokio::test]
+    async fn a_peer_that_pings_and_does_not_read_ends_the_link_at_the_limit_of_the_queue() {
+        let sizes = Sizes { queue: 64, ..SIZES };
+        let (wire, dropped, mut peer) = stalled_with(Duration::from_secs(60), sizes);
+        // Each ping gets a pong, and the pongs wait for a writer that never writes. The writer
+        // takes one batch of at most 16 KiB before its write waits, so the peer sends more.
+        let pings: Vec<LinkMsg> = (0..5_000)
+            .map(|nonce| LinkMsg::Ping {
+                nonce,
+                sent_at_ms: 0,
+            })
+            .collect();
+        // The link stops reading when it is down, so the write of the peer can wait for ever.
+        tokio::spawn(async move { write_to(&mut peer, &pings).await });
+        let reason = tokio::time::timeout(Duration::from_secs(5), wire.wait_down())
+            .await
+            .expect("down in time");
+        assert!(reason.contains("does not read"), "{reason}");
+        until_dropped(&dropped, Duration::from_secs(5)).await;
+        assert!(lock(&wire.scheduler).is_empty(), "the queue is free");
+        assert!(!wire.send(&LinkMsg::Bye {
+            reason: "late".to_owned()
+        }));
+    }
+
+    #[test]
+    fn the_queue_counts_the_bytes_that_wait() {
+        let mut scheduler = Scheduler::default();
+        let frame = crate::codec::encode(&LinkMsg::Frame {
+            stream: 1,
+            bytes: (0..=255u8).cycle().take(40_000).collect(),
+        })
+        .expect("encodes");
+        let size = frame.bytes.len();
+        scheduler.push(frame);
+        assert_eq!((scheduler.len(), scheduler.queued_bytes()), (1, size));
+        let mut out = Vec::new();
+        assert!(scheduler.next_part(&mut out));
+        assert_eq!(scheduler.queued_bytes(), size - PART_SIZE.min(size));
+        while scheduler.next_part(&mut out) {}
+        assert_eq!((scheduler.len(), scheduler.queued_bytes()), (0, 0));
     }
 
     async fn until_dropped(dropped: &AtomicBool, within: Duration) {
@@ -567,6 +730,7 @@ mod tests {
         let sizes = Sizes {
             recv: MAX_MESSAGE,
             send: 1024,
+            queue: MAX_QUEUED,
         };
         let (wire, _rx) = start(read, write, LinkTiming::default(), sizes);
         assert!(!wire.send(&LinkMsg::Frame {

@@ -109,15 +109,28 @@ pub fn encode_within(msg: &LinkMsg, limit: usize) -> Result<Outgoing, CodecError
 #[derive(Debug, Default)]
 pub struct Scheduler {
     queues: [VecDeque<Outgoing>; 4],
+    /// The bytes of the queued messages that are not sent yet.
+    bytes: usize,
 }
 
 impl Scheduler {
     pub fn push(&mut self, out: Outgoing) {
+        self.bytes = self.bytes.saturating_add(out.bytes.len());
         self.queues[out.class.index()].push_back(out);
     }
 
     pub fn is_empty(&self) -> bool {
         self.queues.iter().all(VecDeque::is_empty)
+    }
+
+    /// The number of messages that wait, in all classes.
+    pub fn len(&self) -> usize {
+        self.queues.iter().map(VecDeque::len).sum()
+    }
+
+    /// The bytes of the messages that wait and are not sent yet.
+    pub fn queued_bytes(&self) -> usize {
+        self.bytes
     }
 
     /// Appends the next part to `wire`: the length and the body. Returns `false` when no part
@@ -147,6 +160,7 @@ impl Scheduler {
         let len = u32::try_from(body.len()).unwrap_or(u32::MAX);
         wire.extend_from_slice(&len.to_le_bytes());
         wire.extend_from_slice(&body);
+        self.bytes = self.bytes.saturating_sub(end - head.sent);
         head.sent = end;
         if !more {
             queue.pop_front();

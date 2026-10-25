@@ -394,15 +394,14 @@ fn open_native(app: &AppHandle, label: &str, id: &str, bounds: Option<Bounds>) {
         return;
     }
     let url = WebviewUrl::App(format!("index.html?window={id}").into());
+    let machine = machines::machine_of(label).map_or(machines::LOCAL, |(m, _)| m);
     let mut builder = WebviewWindowBuilder::new(app, label, url)
         .title("neohar")
+        // A remote core adds rows when it wants. Its new window must not take the keyboard from
+        // the window where the person types.
+        .focused(machine == machines::LOCAL)
         .initialization_script(gesture_script())
-        .on_navigation(navigation_guard(
-            app.clone(),
-            machines::machine_of(label)
-                .map_or(machines::LOCAL, |(m, _)| m)
-                .to_owned(),
-        ));
+        .on_navigation(navigation_guard(app.clone(), machine.to_owned()));
     // On macOS the window has no title bar of its own. The page moves the window by its command
     // line (`data-tauri-drag-region`), and leaves room at its left for the three buttons. The
     // settings window keeps its title bar.
@@ -558,6 +557,8 @@ async fn run(
     let device = backend.device().map(|d| d.to_string());
     let mut rows = Rows::new();
     let mut first = true;
+    // The rows over the limit of windows, at the last message.
+    let mut dropped = 0;
     while let Some(message) = rx.recv().await {
         if !apply(&mut rows, &message) {
             // The core no longer has the patches. Subscribe again for a snapshot.
@@ -578,10 +579,20 @@ async fn run(
         }
         // A core of this Mac gives the rows without an owner to the app. A remote core
         // does not: a row without an owner there is for the tools of that machine.
-        let wanted: Vec<(String, String, Option<Bounds>)> = rows
-            .iter()
-            .filter(|(_, row)| is_mine(row, device.as_deref(), local))
-            .map(|(id, row)| (machines::label_of(&machine, id), id.clone(), row.bounds))
+        let (rows_shown, over) = shown_rows(&rows, device.as_deref(), local);
+        if over != dropped {
+            dropped = over;
+            if over > 0 {
+                tracing::warn!(
+                    machine,
+                    over,
+                    "a machine has more windows than the app opens for one machine"
+                );
+            }
+        }
+        let wanted: Vec<(String, String, Option<Bounds>)> = rows_shown
+            .into_iter()
+            .map(|(id, bounds)| (machines::label_of(&machine, &id), id, bounds))
             .collect();
         let (shown, of) = (app.clone(), machine.clone());
         let _ = app.run_on_main_thread(move || {
@@ -605,6 +616,39 @@ async fn run(
             }
         }
     }
+}
+
+/// The most native windows of one remote machine. Its core can add rows without end, and each
+/// row would be a webview of this Mac.
+const MAX_REMOTE_WINDOWS: usize = 16;
+
+/// The rows that the app opens as native windows, by id in order, and the number of rows over the
+/// limit. A row must be one of this device, and its id must be a window id in its usual form:
+/// else its label would name no window of a machine, and its calls would go to the core of this
+/// Mac. A remote machine gets at most [`MAX_REMOTE_WINDOWS`]: the oldest rows, by their ULIDs.
+fn shown_rows(
+    rows: &Rows,
+    device: Option<&str>,
+    local: bool,
+) -> (Vec<(String, Option<Bounds>)>, usize) {
+    let mut shown: Vec<(String, Option<Bounds>)> = rows
+        .iter()
+        .filter(|(id, row)| {
+            is_mine(row, device, local)
+                && id
+                    .parse::<WindowId>()
+                    .is_ok_and(|window| window.to_string() == **id)
+        })
+        .map(|(id, row)| (id.clone(), row.bounds))
+        .collect();
+    shown.sort_by(|a, b| a.0.cmp(&b.0));
+    let over = if local {
+        0
+    } else {
+        shown.len().saturating_sub(MAX_REMOTE_WINDOWS)
+    };
+    shown.truncate(shown.len() - over);
+    (shown, over)
 }
 
 /// Whether no row of the projection is a row of this device.
@@ -740,6 +784,31 @@ mod tests {
         // `resync` is not a message that changes the rows.
         assert!(!apply(&mut rows, &json!({ "type": "resync" })));
         assert_eq!(rows.len(), 1);
+    }
+
+    #[test]
+    fn a_remote_machine_gets_at_most_sixteen_windows_with_window_ids() {
+        let me = "01ARZ3NDEKTSV4RRFFQ69G5FAX";
+        let row = || Row {
+            bounds: None,
+            client: Some(me.to_owned()),
+        };
+        let id = |n: u128| WindowId::new(ulid::Ulid::from_parts(1, n)).to_string();
+        let mut rows = Rows::new();
+        for n in 0..40 {
+            rows.insert(id(n), row());
+        }
+        // An id that is no window id would give a label that names no machine.
+        for bad in ["x", "../settings", "settings", &id(1).to_ascii_lowercase()] {
+            rows.insert(bad.to_owned(), row());
+        }
+        let (shown, over) = shown_rows(&rows, Some(me), false);
+        assert_eq!((shown.len(), over), (16, 24));
+        let ids: Vec<String> = shown.into_iter().map(|(id, _)| id).collect();
+        assert_eq!(ids, (0..16).map(id).collect::<Vec<_>>(), "the oldest rows");
+        // The core of this Mac has no limit, but the ids must be window ids there too.
+        let (shown, over) = shown_rows(&rows, Some(me), true);
+        assert_eq!((shown.len(), over), (40, 0));
     }
 
     #[test]

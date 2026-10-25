@@ -396,6 +396,50 @@ async fn a_small_message_that_decompresses_over_the_limit_of_the_client_ends_the
 }
 
 #[tokio::test]
+async fn a_welcome_with_a_long_or_odd_text_is_refused() {
+    let welcome = Welcome {
+        core_version: "1.0.0".to_owned(),
+        machine_uuid: "m".to_owned(),
+        session_uuid: "s".to_owned(),
+        hostname: "studio".to_owned(),
+        core_epoch: "e".to_owned(),
+    };
+    for bad in [
+        Welcome {
+            core_version: "9".repeat(1 << 20),
+            ..welcome.clone()
+        },
+        Welcome {
+            hostname: "h".repeat(256),
+            ..welcome.clone()
+        },
+        Welcome {
+            core_version: "1.0.0\u{1b}[2J".to_owned(),
+            ..welcome.clone()
+        },
+    ] {
+        let (mut core, read, write) = fake_core();
+        let connect = LinkClient::connect(
+            read,
+            write,
+            client_hello(),
+            Arc::new(RecordingHost::new(PathBuf::from("/bin/nh"), true)),
+            ClientOptions::default(),
+        );
+        let accept = async {
+            assert!(matches!(core.recv().await, Some(LinkMsg::Hello(_))));
+            core.send(&LinkMsg::Welcome(bad)).await;
+        };
+        let (outcome, ()) = tokio::join!(connect, accept);
+        let error = outcome.expect_err("refused");
+        assert!(
+            matches!(error, nh_remote::LinkError::Unexpected(_)),
+            "{error}"
+        );
+    }
+}
+
+#[tokio::test]
 async fn a_core_that_sends_no_welcome_does_not_keep_the_client_waiting() {
     let (mut core, read, write) = fake_core();
     let options = ClientOptions {

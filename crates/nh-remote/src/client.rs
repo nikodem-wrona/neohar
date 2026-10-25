@@ -56,6 +56,10 @@ pub struct ClientOptions {
     pub max_message: usize,
     /// The largest blob. A larger one fails with `too_large`.
     pub max_blob: usize,
+    /// The most messages that wait to go to the core. A core that stops reading and keeps
+    /// sending (pings, host requests) makes the client queue an answer to each; one more ends
+    /// the link.
+    pub max_queued: usize,
 }
 
 /// The largest blob that a client takes: the app keeps at most this much in its cache of blobs.
@@ -68,8 +72,34 @@ impl Default for ClientOptions {
             limits: HostLimits::default(),
             max_message: MAX_FROM_CORE,
             max_blob: MAX_BLOB,
+            max_queued: crate::wire::MAX_QUEUED,
         }
     }
+}
+
+/// The longest texts of a `Welcome`. The app shows the version and the host name, and keeps them
+/// in the projection `machines`.
+const WELCOME_LIMITS: [(&str, usize); 5] = [
+    ("core_version", 64),
+    ("machine_uuid", 64),
+    ("session_uuid", 64),
+    ("hostname", 255),
+    ("core_epoch", 64),
+];
+
+/// Whether each text of a `Welcome` is within its limit and has no control character.
+fn welcome_fits(welcome: &Welcome) -> bool {
+    let texts = [
+        &welcome.core_version,
+        &welcome.machine_uuid,
+        &welcome.session_uuid,
+        &welcome.hostname,
+        &welcome.core_epoch,
+    ];
+    texts
+        .iter()
+        .zip(WELCOME_LIMITS)
+        .all(|(text, (_, limit))| text.len() <= limit && !text.chars().any(char::is_control))
 }
 
 /// Why a link does not open.
@@ -186,6 +216,7 @@ impl LinkClient {
         let sizes = Sizes {
             recv: options.max_message,
             send: MAX_MESSAGE,
+            queue: options.max_queued,
         };
         let (wire, mut rx) = start(read, write, options.timing, sizes);
         wire.send(&LinkMsg::Hello(Hello {
@@ -203,7 +234,15 @@ impl LinkClient {
         let welcome = loop {
             let first = tokio::time::timeout_at(deadline, rx.recv()).await;
             match first {
-                Ok(Some(Incoming::Msg(LinkMsg::Welcome(welcome)))) => break welcome,
+                Ok(Some(Incoming::Msg(LinkMsg::Welcome(welcome)))) => {
+                    if !welcome_fits(&welcome) {
+                        wire.close("a text of Welcome is over its limit");
+                        return Err(LinkError::Unexpected(
+                            "a Welcome with a text over its limit",
+                        ));
+                    }
+                    break welcome;
+                }
                 Ok(Some(Incoming::Msg(LinkMsg::Refused { reason }))) => {
                     wire.set_down("refused");
                     return Err(LinkError::Refused(reason));

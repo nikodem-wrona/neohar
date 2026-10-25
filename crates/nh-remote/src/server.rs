@@ -310,6 +310,7 @@ async fn connection(core: CoreHandle, stream: UnixStream, shared: Arc<Shared>, t
     let sizes = Sizes {
         recv: MAX_MESSAGE,
         send: MAX_FROM_CORE,
+        queue: crate::wire::MAX_QUEUED,
     };
     let (wire, mut rx) = start(read, write, timing, sizes);
     let id = shared.next.fetch_add(1, Ordering::Relaxed);
