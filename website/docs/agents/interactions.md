@@ -153,8 +153,10 @@ answers a high-risk card. Titles, commands and paths show invisible characters a
 ends with the core). A rule has `decision`, `harness`, `tool`, `command` (`pnpm test:*` fits the
 command with any arguments) or `paths` (globs), `workspace` and `reason`. Any matching deny beats any
 allow. An allow fits only a plain line: letters, digits, `_./:=@%+,-`, spaces and quoted strings of
-the same characters. A deny also compares each command of the line after it removes the quotes, the
-path of the program and wrappers such as `env`. A rule decides at once only for an approval whose
+the same characters. A deny also compares each command of the line after it removes the quotes and
+the path of the program. A wrapper in the place of the program (`env`, `sudo`, `timeout`, `sh -c`,
+`find -exec`) adds the command that it runs. A word in an argument is not a program, so a deny of
+`rm:*` does not match `git commit -m "time to rm"`. A rule decides at once only for an approval whose
 hook is held, on a bound run with `gate`, in a mode other than `observe`, and an allow never decides
 a high risk. The decision has `decided_by: policy` and no notification. Otherwise the rule only
 annotates the card. An unknown key makes a rule invalid.

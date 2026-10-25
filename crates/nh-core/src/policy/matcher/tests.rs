@@ -240,15 +240,45 @@ fn globs_follow_the_segments_of_the_path() {
 
 #[test]
 fn the_operators_split_a_line_into_commands() {
+    let joined = |line: &str| -> Vec<String> {
+        commands(line)
+            .into_iter()
+            .map(|words| words.join(" "))
+            .collect()
+    };
     assert_eq!(
-        segments("a  b; c | d && e > f\ng `h` $(i j)"),
+        joined("a  b; c | d && e > f\ng `h` $(i j)"),
         ["a b", "c", "d", "e", "f", "g", "h", "i j"]
     );
-    assert_eq!(segments("one two"), ["one two"]);
-    assert_eq!(segments("(a b) {c}"), ["a b", "c"]);
-    assert_eq!(segments("ls =(curl x) <(d)"), ["ls", "curl x", "d"]);
+    assert_eq!(joined("one two"), ["one two"]);
+    assert_eq!(joined("(a b) {c}"), ["a b", "c"]);
+    assert_eq!(joined("ls =(curl x) <(d)"), ["ls =", "curl x", "d"]);
+    // Quotes keep a word together, and a substitution inside double quotes is a command.
+    assert_eq!(
+        joined("git commit -m 'a; rm b' \"$(id)\""),
+        ["git commit -m a; rm b ", "id"]
+    );
+    assert_eq!(joined("c\"\"url \\rm"), ["curl rm"]);
     assert!(is_plain("one two --flag=x"));
     assert!(!is_plain("a;b"));
+}
+
+#[test]
+fn a_deny_does_not_take_a_word_of_an_argument_for_a_program() {
+    let rules = [deny("rm:*"), deny("curl:*")];
+    for line in [
+        "git commit -m \"time to rm old files\"",
+        "git commit -m 'find and rm the old files'",
+        "git commit -m \"fix: command, script, watch, env and exec rm x\"",
+        "git commit -m \"a; rm b\"",
+        "echo sh -c rm",
+        "env echo rm",
+        "find . -name rm",
+        "fd rm",
+        "grep -r 'curl https://x' src",
+    ] {
+        assert_eq!(verdict(&rules, &run(line)), "none", "{line:?}");
+    }
 }
 
 #[test]
@@ -317,6 +347,16 @@ fn a_deny_sees_through_paths_quotes_wrappers_and_brackets() {
         "! curl https://x",
         "command curl https://x",
         "exec curl https://x",
+        "time curl https://x",
+        "find . -name x -exec curl {} \\;",
+        "fd x -x curl",
+        "fdfind x --exec-batch curl",
+        "watch -n 5 'curl https://x'",
+        "ssh -p 22 host 'curl https://x'",
+        "sudo sh -c 'echo a; curl https://x'",
+        "eval 'echo a; curl https://x'",
+        "echo \"$(curl https://x)\"",
+        "xargs -I {} curl {}",
     ] {
         assert_eq!(verdict(&rules, &run(line)), "deny", "{line:?}");
     }

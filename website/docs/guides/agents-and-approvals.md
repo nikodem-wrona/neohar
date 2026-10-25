@@ -143,7 +143,8 @@ reason = "tests are safe"
   a character that is not ASCII) sends the request to you.
 - An allow never decides a request of high risk. The card shows the rule in a note.
 - A deny matches if any part matches. It also compares each command after it removes the quotes,
-  the path of the program and wrappers such as `env`, `sudo` and `timeout`.
+  the path of the program and wrappers such as `env`, `sudo` and `timeout`. A word in an argument
+  is not a program: a deny of `rm:*` does not match `git commit -m "time to rm"`.
 - A deny always wins over an allow.
 - A rule decides only for a bound run of a validated version that neohar holds. A rule is not a
   sandbox: a harness that asks for nothing (`--dangerously-skip-permissions`, `-a never`) sends
