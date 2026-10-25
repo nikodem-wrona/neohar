@@ -154,6 +154,14 @@ proptest! {
     fn random_markdown_and_html_never_make_forbidden_html(text in plan()) {
         let html = markdown(&text).html;
         support::assert_safe(&html);
+        // A client that cleans the HTML of a core again keeps it as it is.
+        prop_assert_eq!(nh_rich::markdown::clean(&html), html);
+    }
+
+    /// HTML that a hostile core sends as its own is safe after the client cleans it.
+    #[test]
+    fn the_client_makes_any_html_of_a_core_safe(text in plan()) {
+        support::assert_safe(&nh_rich::markdown::clean(&text));
     }
 
     #[test]

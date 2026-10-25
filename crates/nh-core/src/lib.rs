@@ -81,6 +81,8 @@ pub use host::{
 };
 /// The redaction of secrets. The host wraps the writers of its logger with it.
 pub use nh_redact as redact;
+/// The rich content. A link client cleans the HTML of a remote core again with it.
+pub use nh_rich as rich;
 pub use projection::{MessageSink, ProjectionHub, SubscriptionId};
 pub use render::FrameSink;
 pub use router::HostRouter;

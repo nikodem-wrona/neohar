@@ -16,6 +16,10 @@
 //! - An image has a `src` only when it is `nh://blob/<name>`. Nothing is loaded from the network.
 //! - A `class` has only the values that this crate writes: `hl-<class>` on a `span`, and
 //!   `language-<name>` on `pre` and `code`. A page cannot use the CSS classes of the UI.
+//!
+//! A client does not trust the HTML of a core on another machine, because that core can send any
+//! text as its HTML. [`clean`] applies the same lists again to HTML that a core made, and
+//! [`clean_html_fields`] does it for each field `html` of a value of the API.
 
 use std::{borrow::Cow, collections::HashSet, sync::OnceLock};
 
@@ -156,36 +160,82 @@ const DROP_CONTENT: &[&str] = &[
     "math", "title", "textarea", "select", "option", "button", "head",
 ];
 
+/// The cleaner of the HTML that `pulldown-cmark` makes from a text.
 fn sanitizer() -> &'static Builder<'static> {
     static BUILDER: OnceLock<Builder<'static>> = OnceLock::new();
     BUILDER.get_or_init(|| {
-        let mut builder = Builder::empty();
-        builder
-            .tags(TAGS.iter().copied().collect())
-            .clean_content_tags(DROP_CONTENT.iter().copied().collect())
-            .tag_attributes(
-                [
-                    ("a", ["href", "title"].into_iter().collect::<HashSet<_>>()),
-                    ("img", ["src", "alt", "title"].into_iter().collect()),
-                    ("code", ["class"].into_iter().collect()),
-                    ("pre", ["class"].into_iter().collect()),
-                    ("span", ["class"].into_iter().collect()),
-                    ("td", ["style"].into_iter().collect()),
-                    ("th", ["style"].into_iter().collect()),
-                    ("ol", ["start"].into_iter().collect()),
-                ]
-                .into_iter()
-                .collect(),
-            )
-            // `nh` is for the image sources that pass the filter below. A link with the scheme
-            // `nh` does not pass it.
-            .url_schemes(["http", "https", "mailto", "nh"].into_iter().collect())
-            .url_relative(UrlRelative::Deny)
-            .link_rel(Some("noopener noreferrer"))
-            .strip_comments(true)
-            .attribute_filter(filter_attribute);
+        let mut builder = lists();
+        builder.attribute_filter(filter_attribute);
         builder
     })
+}
+
+/// The cleaner of HTML that a core made: a link is already `nh://open?url=…`.
+fn cleaner() -> &'static Builder<'static> {
+    static BUILDER: OnceLock<Builder<'static>> = OnceLock::new();
+    BUILDER.get_or_init(|| {
+        let mut builder = lists();
+        builder.attribute_filter(filter_made_attribute);
+        builder
+    })
+}
+
+/// Cleans HTML that a core made with [`markdown`] again, with the same lists. A client calls it
+/// for the HTML of a core on another machine, which can send any text. The HTML of [`markdown`]
+/// does not change: `clean(&markdown(t).html)` is `markdown(t).html`.
+pub fn clean(html: &str) -> String {
+    cleaner().clean(html).to_string()
+}
+
+/// Cleans the text of each field `html` in a value of the API, at any depth, with [`clean`].
+/// Every type of the API that carries HTML has it in a field `html` (`Markdown`,
+/// `TimelineItemText`), and the UI inserts only such a field. Returns the number of fields that
+/// it cleaned.
+pub fn clean_html_fields(value: &mut serde_json::Value) -> usize {
+    use serde_json::Value;
+    match value {
+        Value::Object(map) => map
+            .iter_mut()
+            .map(|(key, field)| match field {
+                Value::String(html) if key == "html" => {
+                    *html = clean(html);
+                    1
+                }
+                other => clean_html_fields(other),
+            })
+            .sum(),
+        Value::Array(items) => items.iter_mut().map(clean_html_fields).sum(),
+        _ => 0,
+    }
+}
+
+/// The lists of tags and attributes of both cleaners, without the last gate for each attribute.
+fn lists() -> Builder<'static> {
+    let mut builder = Builder::empty();
+    builder
+        .tags(TAGS.iter().copied().collect())
+        .clean_content_tags(DROP_CONTENT.iter().copied().collect())
+        .tag_attributes(
+            [
+                ("a", ["href", "title"].into_iter().collect::<HashSet<_>>()),
+                ("img", ["src", "alt", "title"].into_iter().collect()),
+                ("code", ["class"].into_iter().collect()),
+                ("pre", ["class"].into_iter().collect()),
+                ("span", ["class"].into_iter().collect()),
+                ("td", ["style"].into_iter().collect()),
+                ("th", ["style"].into_iter().collect()),
+                ("ol", ["start"].into_iter().collect()),
+            ]
+            .into_iter()
+            .collect(),
+        )
+        // `nh` is for the image sources that pass the filter below. A link with the scheme
+        // `nh` does not pass it.
+        .url_schemes(["http", "https", "mailto", "nh"].into_iter().collect())
+        .url_relative(UrlRelative::Deny)
+        .link_rel(Some("noopener noreferrer"))
+        .strip_comments(true);
+    builder
 }
 
 /// The last gate for each attribute. It runs after the lists of ammonia.
@@ -206,6 +256,41 @@ fn filter_attribute<'a>(element: &str, attribute: &str, value: &'a str) -> Optio
         }
         _ => Some(Cow::Borrowed(value)),
     }
+}
+
+/// The last gate for HTML that a core made: a link must be `nh://open?url=…` with an address that
+/// [`open_link`] takes. The other attributes have the gate of [`filter_attribute`].
+fn filter_made_attribute<'a>(
+    element: &str,
+    attribute: &str,
+    value: &'a str,
+) -> Option<Cow<'a, str>> {
+    match (element, attribute) {
+        ("a", "href") => made_link(value).and_then(|target| open_link(&target).map(Cow::Owned)),
+        _ => filter_attribute(element, attribute, value),
+    }
+}
+
+/// The address in a link that [`open_link`] made: `nh://open?url=` and the percent-encoded
+/// address, with nothing after it.
+fn made_link(value: &str) -> Option<String> {
+    let encoded = value.strip_prefix("nh://open?url=")?;
+    let mut bytes = Vec::with_capacity(encoded.len());
+    let mut rest = encoded.bytes();
+    while let Some(byte) = rest.next() {
+        match byte {
+            b'%' => {
+                let high = char::from(rest.next()?).to_digit(16)?;
+                let low = char::from(rest.next()?).to_digit(16)?;
+                bytes.push(u8::try_from(high * 16 + low).ok()?);
+            }
+            b if b.is_ascii_alphanumeric() || matches!(b, b'-' | b'.' | b'_' | b'~') => {
+                bytes.push(b);
+            }
+            _ => return None,
+        }
+    }
+    String::from_utf8(bytes).ok()
 }
 
 /// `nh://open?url=…` for a link that goes to the web or to a mail address.

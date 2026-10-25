@@ -3,7 +3,8 @@
 //! [`LinkClient`] runs over any pair of byte streams: a Unix socket ([`LinkClient::connect_unix`]),
 //! or the stdio of ssh. Its methods mirror what a host needs of a [`nh_core::CoreHandle`]:
 //! `call`, `subscribe`, `stream` and `blob`. It answers the host requests of the core through the
-//! local [`Host`] that it gets at connect, within the limits of its [`HostLimits`].
+//! local [`Host`] that it gets at connect, within the limits of its [`HostLimits`]. It cleans the
+//! HTML in each result and projection message again, because the core can be hostile.
 //!
 //! The client keeps nothing of the remote machine on disk. For a reconnect, the client host makes
 //! a new `LinkClient`, and these calls fail with `link_down` until it does.
@@ -301,9 +302,9 @@ impl LinkClient {
             return Err(link_down());
         }
         match rx.await {
-            Ok(Outcome::Ok(bytes)) => {
-                serde_json::from_slice(&bytes).map_err(|e| RpcError::internal(e.to_string()))
-            }
+            Ok(Outcome::Ok(bytes)) => serde_json::from_slice(&bytes)
+                .map(untrusted)
+                .map_err(|e| RpcError::internal(e.to_string())),
             Ok(Outcome::Err(bytes)) => Err(error_of(&bytes)),
             Err(_) => Err(link_down()),
         }
@@ -554,6 +555,15 @@ impl LinkClient {
     }
 }
 
+/// A result or a projection message of the core, as the client passes it on. The core can be on
+/// another machine, and the webview inserts the text of each field `html` as HTML. Thus the client
+/// cleans each one again with the rules of the core (`nh_rich::markdown::clean`), and a core
+/// cannot put a form, a style or a refresh into a window of this Mac.
+fn untrusted(mut value: Value) -> Value {
+    nh_core::rich::markdown::clean_html_fields(&mut value);
+    value
+}
+
 /// The error in the JSON of a `Reply`.
 fn error_of(bytes: &[u8]) -> RpcError {
     let value: Value = serde_json::from_slice(bytes).unwrap_or(Value::Null);
@@ -627,7 +637,7 @@ fn handle(inner: &Inner, msg: LinkMsg) {
                 tracing::debug!("a projection message of the link is not JSON");
                 return;
             };
-            if !sink.send(message) {
+            if !sink.send(untrusted(message)) {
                 lock(&inner.subs).remove(&sub);
                 lock(&inner.sub_ids).retain(|_, s| *s != sub);
                 inner.wire.send(&LinkMsg::Unsubscribe { sub });
