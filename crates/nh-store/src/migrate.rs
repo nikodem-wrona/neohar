@@ -42,6 +42,11 @@ const MIGRATIONS: &[Migration] = &[
         sql: include_str!("../migrations/0017_git_repos.sql"),
         rebuilds_tables: false,
     },
+    Migration {
+        version: 18,
+        sql: include_str!("../migrations/0018_git_trust.sql"),
+        rebuilds_tables: false,
+    },
 ];
 
 /// The schema version that this build writes.

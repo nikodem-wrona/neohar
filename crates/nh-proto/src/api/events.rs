@@ -276,12 +276,21 @@ wire! {
         pub common_dir: String,
     }
 
+    /// The payload of `git.trusted` and `git.untrusted`: the person trusts a repository, or takes
+    /// the trust back.
+    pub struct GitTrustEvent {
+        /// The path that the person gave.
+        pub path: String,
+        /// The common git directory of the repository: the key of the trust.
+        pub common_dir: String,
+    }
+
     /// The payload of `git.switched`, `git.unstashed`, `git.fetched` and `git.pulled`: a write of
     /// the Git view that worked. A write that failed appends no event.
     pub struct GitWrite {
         /// The worktree, or the common git directory for a fetch.
         pub path: String,
-        /// The git command, for example `git switch main`.
+        /// The git command, for example `git switch --end-of-options main`.
         pub command: String,
         /// The branch before a switch.
         #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -435,6 +444,8 @@ events! {
     PolicyAdded = "policy.added" (PolicyEvent);
     PolicyRemoved = "policy.removed" (PolicyEvent);
     GitRepoAdded = "git.repo_added" (GitRepoAdded);
+    GitTrusted = "git.trusted" (GitTrustEvent);
+    GitUntrusted = "git.untrusted" (GitTrustEvent);
     GitSwitched = "git.switched" (GitWrite);
     GitUnstashed = "git.unstashed" (GitWrite);
     GitFetched = "git.fetched" (GitWrite);

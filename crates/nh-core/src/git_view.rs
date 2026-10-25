@@ -12,6 +12,12 @@
 //! `git.log`, `git.show` and `git.diff` take a `path` in a worktree, and give the rows that the
 //! projections have. The core runs the `git` program as the Changes tab does
 //! ([`crate::changes::git::Git`]), so the configuration of the person applies.
+//!
+//! The core runs git only in a repository that the person trusts (`git.trust`,
+//! [`crate::changes::trust`]). For another one, `git_head:<window>` has `trust` and the other
+//! projections have no rows, and a call answers `permission_denied`. `git_repos` finds the
+//! repositories with the walk of the trust, which runs no git. Each look, call and fetch first
+//! reads the settings of the repository again, and asks again when they changed.
 
 mod agents;
 mod read;
@@ -42,7 +48,8 @@ use nh_proto::api::{
     methods::{Call, Method},
     model::{
         ChangeRow, ChangeTotals, GitAgent, GitAgentState, GitBranchValue, GitCommit, GitHead,
-        GitJob, GitRepoSource, GitRepoValue, GitStash, GitWorktreeValue, WorkspaceValue,
+        GitJob, GitRepoSource, GitRepoValue, GitStash, GitTrustAsk, GitWorktreeValue,
+        WorkspaceValue,
     },
     projections::{Projection, SINGLETON_KEY},
     rich::{self, DiffStats},
@@ -62,6 +69,7 @@ use crate::{
     changes::{
         self, DIFF_INPUT, MAX_ROWS,
         git::{ChangeKind, ChangedFile, Git, GitError, Record},
+        trust::{self, Access, Trusts},
     },
     config::ConfigStore,
     error::RpcError,
@@ -98,6 +106,8 @@ pub(crate) fn handles(method: &str) -> bool {
         Some(
             Method::GitFollow
                 | Method::GitRepoAdd
+                | Method::GitTrust
+                | Method::GitUntrust
                 | Method::GitRepos
                 | Method::GitStatus
                 | Method::GitWorktrees
@@ -148,6 +158,8 @@ pub(crate) async fn run(inner: &Arc<Inner>, call: Call, origin: Origin) -> Resul
             service.repo_add(absolute(&p.path)?).await?;
             json_of(&Empty {})
         }
+        Call::GitTrust(p) => json_of(&service.trusts.trust(&absolute(&p.path)?).await?),
+        Call::GitUntrust(p) => json_of(&service.trusts.untrust(&absolute(&p.path)?).await?),
         Call::GitRepos(_) => json_of(&GitRepoList {
             repos: service.repo_rows().await,
         }),
@@ -276,8 +288,12 @@ struct Follow {
     folder: PathBuf,
     /// The core knows the place of `folder`.
     resolved: bool,
-    /// `None`: the folder is not in a git worktree, or the core does not know yet.
+    /// `None`: the folder is not in a git worktree, the person must trust its repository first, or
+    /// the core does not know yet. Git runs only for a follow with a place.
     place: Option<Place>,
+    /// The person must trust the repository first. The follow then has no place, no watch and no
+    /// rows.
+    ask: Option<GitTrustAsk>,
     watches: Vec<watch::DirWatch>,
     look: Option<Look>,
     /// Why the last look failed.
@@ -299,6 +315,7 @@ impl Follow {
             folder,
             resolved: false,
             place: None,
+            ask: None,
             watches: Vec::new(),
             look: None,
             error: None,
@@ -397,6 +414,8 @@ pub(crate) struct GitViewService {
     config: Arc<ConfigStore>,
     /// How a fetch from a click asks a question of ssh or git. `None` in the tests.
     askpass: Option<Askpass>,
+    /// The repositories that git may run in.
+    trusts: Arc<Trusts>,
 }
 
 /// Whether a window follows one of the projections of its Git view.
@@ -493,7 +512,20 @@ fn head_value(
         changes: count.totals.clone(),
         diff_stats: count.stats,
         error: error.map(str::to_owned),
+        trust: None,
     }
+}
+
+/// The head of a Git view whose repository waits for a trust: the worktree and the repository of
+/// the walk, and the prompt.
+fn asking(head: &mut GitHead, ask: &GitTrustAsk) {
+    let root = Path::new(&ask.path);
+    let common_dir = Path::new(&ask.common_dir);
+    head.worktree = Some(ask.path.clone());
+    head.worktree_name = Some(read::last_part(root));
+    head.repo = Some(ask.common_dir.clone());
+    head.repo_name = Some(read::repo_name(common_dir));
+    head.trust = Some(ask.clone());
 }
 
 /// The rows of `git_worktrees`: the main worktree first, then the others in the order of git. A
@@ -698,6 +730,7 @@ impl GitViewService {
         jobs: Arc<Jobs>,
         config: Arc<ConfigStore>,
         askpass: Option<Askpass>,
+        trusts: Arc<Trusts>,
     ) -> Arc<Self> {
         Arc::new(Self {
             handle,
@@ -709,11 +742,13 @@ impl GitViewService {
             jobs,
             config,
             askpass,
+            trusts,
         })
     }
 
     /// The projections. A window that follows one of its Git projections starts its Git view,
-    /// and a client that follows `git_repos` starts the list of the repositories.
+    /// and a client that follows `git_repos` starts the list of the repositories. A change of a
+    /// trust finds the worktrees of the windows of that repository again.
     pub(crate) fn bind_projections(self: &Arc<Self>, hub: &Arc<ProjectionHub>) {
         let _ = self.hub.set(Arc::clone(hub));
         let service = Arc::downgrade(self);
@@ -730,10 +765,101 @@ impl GitViewService {
                 _ => {}
             }
         }));
+        let service = Arc::downgrade(self);
+        self.trusts.on_change(Box::new(move |common_dir| {
+            if let Some(service) = service.upgrade() {
+                service.trust_changed(common_dir);
+            }
+        }));
+    }
+
+    /// The trust of a repository changed: each window that shows it finds its worktree again.
+    fn trust_changed(self: &Arc<Self>, common_dir: &Path) {
+        let windows: Vec<WindowId> = {
+            let mut state = lock(&self.state);
+            state
+                .follows
+                .iter_mut()
+                .filter(|(_, follow)| {
+                    follow
+                        .place
+                        .as_ref()
+                        .is_some_and(|place| place.common_dir == common_dir)
+                        || follow
+                            .ask
+                            .as_ref()
+                            .is_some_and(|ask| Path::new(&ask.common_dir) == common_dir)
+                })
+                .map(|(window, follow)| {
+                    follow.resolved = false;
+                    *window
+                })
+                .collect()
+        };
+        for window in windows {
+            self.start_window(window);
+        }
+    }
+
+    /// The trust of the repository of a window ended, or its settings changed: the head asks, and
+    /// the place, the rows and the watches go.
+    fn ask_window(&self, window: WindowId, place: &Place, ask: GitTrustAsk) {
+        let Some(hub) = self.hub.get() else {
+            return;
+        };
+        let placed = self.placed();
+        let mut guard = lock(&self.state);
+        let state = &mut *guard;
+        let Some(follow) = state.follows.get_mut(&window) else {
+            return;
+        };
+        if follow.place.as_ref() != Some(place) {
+            return;
+        }
+        let rows = changes::keys(&follow.count.rows);
+        follow.place = None;
+        follow.ask = Some(ask);
+        follow.look = None;
+        follow.error = None;
+        follow.count = Count::default();
+        follow.watches = Vec::new();
+        changes::set_rows(hub, Projection::GitChanges(window), &rows, &[]);
+        publish(
+            hub,
+            window,
+            follow,
+            &placed,
+            now_ms(),
+            true,
+            Work::default(),
+        );
+    }
+
+    /// Whether git may run in the repository of `place` now. A refusal makes the head of each
+    /// window of `place` ask, and is `permission_denied`.
+    async fn gate(&self, place: &Place) -> Result<(), RpcError> {
+        match self.trusts.gate(&place.common_dir, &place.root).await {
+            Ok(None) => Ok(()),
+            Ok(Some(refusal)) => {
+                let ask = trust::ask_for(&place.root, &place.common_dir, refusal);
+                let windows: Vec<WindowId> = lock(&self.state)
+                    .follows
+                    .iter()
+                    .filter(|(_, follow)| follow.place.as_ref() == Some(place))
+                    .map(|(window, _)| *window)
+                    .collect();
+                for window in windows {
+                    self.ask_window(window, place, ask.clone());
+                }
+                Err(trust::untrusted(&ask))
+            }
+            Err(error) => Err(git_failed(&error)),
+        }
     }
 
     /// The state actor, for the store and the events.
     pub(crate) fn bind_actor(&self, actor: ActorHandle) {
+        self.trusts.bind_actor(actor.clone());
         let _ = self.actor.set(actor);
     }
 
@@ -865,7 +991,11 @@ impl GitViewService {
             }
             folder
         };
-        let place = read::place(&self.git, &folder).await.ok();
+        let (place, ask) = match self.trusts.access(&folder).await {
+            Access::None => (None, None),
+            Access::Ask(ask) => (None, Some(ask)),
+            Access::Open(place) => (Some(place), None),
+        };
         let Some(hub) = self.hub.get() else {
             return;
         };
@@ -881,13 +1011,14 @@ impl GitViewService {
                 return;
             }
             follow.resolved = true;
-            if follow.place == place {
+            if follow.place == place && follow.ask == ask {
                 let work = state_work(&state.work, follow.place.as_ref());
                 publish(hub, window, follow, &placed, now_ms(), true, work);
                 return;
             }
             let rows = changes::keys(&follow.count.rows);
             follow.place.clone_from(&place);
+            follow.ask = ask;
             follow.look = None;
             follow.error = None;
             follow.count = Count::default();
@@ -930,7 +1061,8 @@ impl GitViewService {
     }
 
     /// Looks at the worktree of a window now, and publishes its rows. A look of a worktree that
-    /// the window left changes nothing.
+    /// the window left changes nothing. A look first reads the settings of the repository again:
+    /// when they changed after the trust, the head asks again.
     async fn look_window(&self, window: WindowId, depth: Depth) {
         let place = lock(&self.state)
             .follows
@@ -940,6 +1072,12 @@ impl GitViewService {
             return;
         };
         let seq = self.next_seq();
+        if let Err(error) = self.gate(&place).await {
+            if error.code != ErrorCode::PermissionDenied {
+                self.look_failed(window, &place, seq, error.message);
+            }
+            return;
+        }
         let (look, count) = match depth {
             Depth::Full => {
                 let (look, count) = tokio::join!(self.look(&place), self.count(&place.root));
@@ -1002,6 +1140,26 @@ impl GitViewService {
         }
         let work = state_work(&state.work, follow.place.as_ref());
         publish(hub, window, follow, &placed, now_ms(), true, work);
+    }
+
+    /// A look that could not start: the head says why, and keeps the values of the look before.
+    fn look_failed(&self, window: WindowId, place: &Place, seq: u64, error: String) {
+        let Some(hub) = self.hub.get() else {
+            return;
+        };
+        let placed = self.placed();
+        let mut guard = lock(&self.state);
+        let state = &mut *guard;
+        let Some(follow) = state.follows.get_mut(&window) else {
+            return;
+        };
+        if follow.place.as_ref() != Some(place) || seq <= follow.look_seq {
+            return;
+        }
+        follow.look_seq = seq;
+        follow.error = Some(error);
+        let work = state_work(&state.work, follow.place.as_ref());
+        publish(hub, window, follow, &placed, now_ms(), false, work);
     }
 
     /// Looks at a window in a moment. A burst of causes is one look, as deep as the deepest
@@ -1130,6 +1288,8 @@ impl GitViewService {
     // --- calls -------------------------------------------------------------------------------
 
     /// The worktree of a call: the one of the Git view of `window`, or the one that holds `path`.
+    /// A repository that the person does not trust, or whose settings changed after the trust, is
+    /// `permission_denied`.
     async fn at(
         &self,
         inner: &Inner,
@@ -1148,20 +1308,31 @@ impl GitViewService {
             (Some(window), None) => {
                 inner.render.require_window(window)?;
                 check_owner(inner, origin, window)?;
-                let state = lock(&self.state);
-                if let Some(Some(place)) = state.follows.get(&window).map(|f| f.place.clone()) {
-                    let folder = state.follows[&window].folder.clone();
+                let (shown, named) = {
+                    let state = lock(&self.state);
+                    let shown = state
+                        .follows
+                        .get(&window)
+                        .and_then(|follow| Some((follow.folder.clone(), follow.place.clone()?)));
+                    (shown, state.folders.get(&window).cloned())
+                };
+                if let Some((folder, place)) = shown {
+                    self.gate(&place).await?;
                     return Ok((folder, place));
                 }
-                state.folders.get(&window).cloned().ok_or_else(|| {
+                named.ok_or_else(|| {
                     RpcError::new(ErrorCode::NotFound, "the window follows no git worktree")
                 })?
             }
         };
-        let place = read::place(&self.git, &folder).await.map_err(|_| {
-            RpcError::new(ErrorCode::NotFound, "the folder is not in a git worktree")
-        })?;
-        Ok((folder, place))
+        match self.trusts.access(&folder).await {
+            Access::Open(place) => Ok((folder, place)),
+            Access::Ask(ask) => Err(trust::untrusted(&ask)),
+            Access::None => Err(RpcError::new(
+                ErrorCode::NotFound,
+                "the folder is not in a git worktree",
+            )),
+        }
     }
 
     /// `git.status`: the head and the changes, as the projections have them.
@@ -1474,7 +1645,9 @@ impl GitViewService {
         out
     }
 
-    /// The rows of `git_repos`. A folder that the core did not look at yet gets its look.
+    /// The rows of `git_repos`. A folder that the core did not look at yet gets its look: the walk
+    /// of the trust, which runs no git, so a repository that the person does not trust has a row
+    /// too.
     async fn repo_rows(&self) -> Vec<GitRepoValue> {
         let candidates = self.candidates().await;
         let missing: Vec<PathBuf> = {
@@ -1486,14 +1659,16 @@ impl GitViewService {
                 .cloned()
                 .collect()
         };
-        let looks =
-            futures_util::future::join_all(missing.iter().map(|f| read::place(&self.git, f))).await;
+        let looks: Vec<Option<trust::Found>> = missing
+            .iter()
+            .map(|folder| trust::discover(folder))
+            .collect();
         let placed = self.placed();
         let mut state = lock(&self.state);
         for (folder, look) in missing.into_iter().zip(looks) {
-            let found = look.ok().map(|place| Found {
-                common_dir: place.common_dir,
-                root: place.root,
+            let found = look.map(|found| Found {
+                common_dir: found.common_dir,
+                root: found.root,
             });
             state.repos.found.insert(folder, found);
         }
@@ -1506,11 +1681,12 @@ impl GitViewService {
         repo_rows_of(&candidates, &state.repos.found, &placed)
     }
 
-    /// `git.repo_add`: `git_repos` keeps the repository that holds `path`.
+    /// `git.repo_add`: `git_repos` keeps the repository that holds `path`. The walk of the trust
+    /// finds it, and runs no git.
     async fn repo_add(self: &Arc<Self>, path: PathBuf) -> Result<(), RpcError> {
-        let place = read::place(&self.git, &path)
-            .await
-            .map_err(|_| RpcError::new(ErrorCode::NotFound, "the path is not in a git worktree"))?;
+        let place = trust::discover(&path).ok_or_else(|| {
+            RpcError::new(ErrorCode::NotFound, "the path is not in a git worktree")
+        })?;
         let actor = self
             .actor
             .get()
@@ -1592,7 +1768,7 @@ fn publish(
         .as_ref()
         .map(|place| agents::agents_in(&place.root, &roots, placed))
         .unwrap_or_default();
-    let head = head_value(
+    let mut head = head_value(
         &follow.folder,
         follow.place.as_ref(),
         follow.look.as_ref(),
@@ -1601,6 +1777,9 @@ fn publish(
         Live { agents, work },
         now,
     );
+    if let Some(ask) = &follow.ask {
+        asking(&mut head, ask);
+    }
     if let Ok(json) = serde_json::to_value(head) {
         hub.set_singleton(Projection::GitHead(window), json);
     }

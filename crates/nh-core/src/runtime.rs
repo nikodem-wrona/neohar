@@ -462,8 +462,13 @@ impl Core {
             Arc::clone(&router) as Arc<dyn Host>,
         );
         control.set_discovery(Arc::clone(&discovery));
-        let changes =
-            crate::changes::ChangesService::new(runtime.handle().clone(), &config.base_env);
+        // The Changes tab and the Git view run git only in the repositories that the person trusts.
+        let trusts = crate::changes::trust::Trusts::new(&config.base_env);
+        let changes = crate::changes::ChangesService::new(
+            runtime.handle().clone(),
+            &config.base_env,
+            Arc::clone(&trusts),
+        );
         changes.bind_projections(projections.hub());
         // A fetch from a click asks its questions through `nh askpass` and this API socket.
         let git_view = crate::git_view::GitViewService::new(
@@ -476,6 +481,7 @@ impl Core {
                 socket: api_socket.path().to_owned(),
                 session: config.session.clone(),
             }),
+            trusts,
         );
         git_view.bind_projections(projections.hub());
         let render = Arc::new(RenderServer::new(

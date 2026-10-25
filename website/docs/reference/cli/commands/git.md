@@ -20,6 +20,8 @@ Usage: nh git [OPTIONS] <COMMAND>
 Commands:
   repos      List the git repositories that neohar knows: of the workspaces, the panes and the ones you added
   add        Add the repository of a folder, or of the current directory, to the Repository menu
+  trust      Trust the repository of a folder, or of the current directory: neohar runs git in it only after you trust it
+  untrust    Take back the trust of the repository of a folder, or of the current directory
   status     Show the branch, its upstream, the agents and the changed files of the worktree of the current directory
   worktrees  List the worktrees of the repository with their branches and agents
   branches   List the local and remote branches: the current one, the recent ones, then the others
@@ -68,6 +70,52 @@ Add the repository of a folder, or of the current directory, to the Repository m
 Add the repository of a folder, or of the current directory, to the Repository menu
 
 Usage: nh git add [OPTIONS] [PATH]
+
+Arguments:
+  [PATH]  An absolute path in a git worktree.
+
+Options:
+      --session <NAME>     The session to talk to. The default is $NEOHAR_SESSION, or `default`
+      --socket <PATH>      The API socket to use. It wins over --session and $NEOHAR_SOCKET
+      --machine <LABEL>    Run the command on this machine of config.toml, over ssh. A handle such as studio/w3:p5 does the same
+      --json               Print JSON. This is the default when stdout is not a terminal
+      --timeout <SECONDS>  How long to wait for the core to answer, in seconds [default: 30]
+  -h, --help               Print help
+```
+
+## `nh git trust` {#git-trust}
+
+Trust the repository of a folder, or of the current directory: neohar runs git in it only after you trust it
+
+**API method:** [`git.trust`](/docs/reference/api/methods/git#git-trust)
+
+```text
+Trust the repository of a folder, or of the current directory: neohar runs git in it only after you trust it
+
+Usage: nh git trust [OPTIONS] [PATH]
+
+Arguments:
+  [PATH]  An absolute path in a git worktree, for example `path` of `trust`.
+
+Options:
+      --session <NAME>     The session to talk to. The default is $NEOHAR_SESSION, or `default`
+      --socket <PATH>      The API socket to use. It wins over --session and $NEOHAR_SOCKET
+      --machine <LABEL>    Run the command on this machine of config.toml, over ssh. A handle such as studio/w3:p5 does the same
+      --json               Print JSON. This is the default when stdout is not a terminal
+      --timeout <SECONDS>  How long to wait for the core to answer, in seconds [default: 30]
+  -h, --help               Print help
+```
+
+## `nh git untrust` {#git-untrust}
+
+Take back the trust of the repository of a folder, or of the current directory
+
+**API method:** [`git.untrust`](/docs/reference/api/methods/git#git-untrust)
+
+```text
+Take back the trust of the repository of a folder, or of the current directory
+
+Usage: nh git untrust [OPTIONS] [PATH]
 
 Arguments:
   [PATH]  An absolute path in a git worktree.

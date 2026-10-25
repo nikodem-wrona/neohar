@@ -464,6 +464,11 @@ export interface ChangesHead {
    * in a git worktree.
    */
   root?: string | null;
+  /**
+   * The core runs no git command in the repository until the person trusts it. Then
+   * `root` is the root of the worktree, and the head has no branch and no count.
+   */
+  trust?: GitTrustAsk | null;
 }
 
 /** How a check of the doctor came out. */
@@ -1186,6 +1191,11 @@ export interface GitHead {
   repo_name?: string | null;
   /** The stash that a switch left for the branch of `HEAD`, the newest one. */
   stash?: GitStash | null;
+  /**
+   * The core runs no git command in the repository until the person trusts it. Then the
+   * head has the worktree and the repository, and no branch, no count and no rows.
+   */
+  trust?: GitTrustAsk | null;
   /** The upstream of the branch, for example `origin/main`. */
   upstream?: string | null;
   /** The upstream is gone from its remote. */
@@ -1371,6 +1381,53 @@ export interface GitSwitch {
   window?: WindowId | null;
 }
 
+/**
+ * `git.trust`: the person trusts the git repository that holds `path`. The core then runs git
+ * in it and in its worktrees. It keeps the settings of the repository that name a program,
+ * and asks again when they change. A trust again keeps the settings of now.
+ */
+export interface GitTrust {
+  /** An absolute path in a git worktree, for example `path` of `trust`. */
+  path: string;
+}
+
+/**
+ * `trust` of `changes_head` and `git_head`: the settings of a repository can name programs
+ * that git runs, so the core runs git in a repository only after the person trusts it
+ * (`git.trust`).
+ */
+export interface GitTrustAsk {
+  /** The keys of the settings that changed after the trust, for example `core.fsmonitor`. */
+  changed?: string[];
+  /** The common git directory: the key of the trust, which its worktrees share. */
+  common_dir: string;
+  /** The root of the worktree that holds the folder. `git.trust` takes it. */
+  path: string;
+  reason: GitTrustReason;
+}
+
+/**
+ * The payload of `git.trusted` and `git.untrusted`: the person trusts a repository, or takes
+ * the trust back.
+ */
+export interface GitTrustEvent {
+  /** The common git directory of the repository: the key of the trust. */
+  common_dir: string;
+  /** The path that the person gave. */
+  path: string;
+}
+
+/** Why the core runs no git command in a repository. */
+export type GitTrustReason = 'new' | 'changed';
+
+/** The repository of `git.trust` or `git.untrust`. */
+export interface GitTrustResult {
+  /** The common git directory: the key of the trust, which its worktrees share. */
+  common_dir: string;
+  /** The root of the worktree that holds the path. */
+  root: string;
+}
+
 /** `git.unstash`: puts the changes of a stash back into the worktree, and drops the stash. */
 export interface GitUnstash {
   /** Put the changes back also when an agent works in the worktree. */
@@ -1381,6 +1438,15 @@ export interface GitUnstash {
   stash: string;
   /** The worktree that the Git view of this window shows. */
   window?: WindowId | null;
+}
+
+/**
+ * `git.untrust`: the person takes back the trust of the git repository that holds `path`.
+ * The core runs no git command in it until the person trusts it again.
+ */
+export interface GitUntrust {
+  /** An absolute path in a git worktree. */
+  path: string;
 }
 
 /** The rows of `git_worktrees:<window>` for a worktree, in their order. */
@@ -1421,7 +1487,7 @@ export interface GitWrite {
   agents?: RunId[];
   /** The fetch ran in the background, not from a click. */
   background?: boolean;
-  /** The git command, for example `git switch main`. */
+  /** The git command, for example `git switch --end-of-options main`. */
   command: string;
   /** The branch before a switch. */
   from?: string | null;
@@ -3627,6 +3693,8 @@ export interface MethodMap {
   'changes.diff': { params: ChangesDiff; result: FileDiff };
   'git.follow': { params: GitFollow; result: Empty };
   'git.repo_add': { params: GitRepoAdd; result: Empty };
+  'git.trust': { params: GitTrust; result: GitTrustResult };
+  'git.untrust': { params: GitUntrust; result: GitTrustResult };
   'git.repos': { params: Empty; result: GitRepoList };
   'git.status': { params: GitPlace; result: GitStatus };
   'git.worktrees': { params: GitPlace; result: GitWorktreeList };
@@ -3785,6 +3853,8 @@ export type UiMethod =
   | 'changes.diff'
   | 'git.follow'
   | 'git.repo_add'
+  | 'git.trust'
+  | 'git.untrust'
   | 'git.repos'
   | 'git.status'
   | 'git.worktrees'
@@ -3897,6 +3967,8 @@ export type CliMethod =
   | 'interaction.next'
   | 'interaction.reveal'
   | 'git.repo_add'
+  | 'git.trust'
+  | 'git.untrust'
   | 'git.repos'
   | 'git.status'
   | 'git.worktrees'
@@ -4039,6 +4111,8 @@ export const METHOD_SCOPES: { readonly [M in Method]: readonly Scope[] } = {
   'changes.diff': ['ui', 'phone'],
   'git.follow': ['ui', 'phone'],
   'git.repo_add': ['ui', 'cli', 'phone'],
+  'git.trust': ['ui', 'cli', 'phone'],
+  'git.untrust': ['ui', 'cli', 'phone'],
   'git.repos': ['ui', 'cli', 'phone'],
   'git.status': ['ui', 'cli', 'phone'],
   'git.worktrees': ['ui', 'cli', 'phone'],
@@ -4241,6 +4315,8 @@ export interface EventPayloadMap {
   'policy.added': PolicyEvent;
   'policy.removed': PolicyEvent;
   'git.repo_added': GitRepoAdded;
+  'git.trusted': GitTrustEvent;
+  'git.untrusted': GitTrustEvent;
   'git.switched': GitWrite;
   'git.unstashed': GitWrite;
   'git.fetched': GitWrite;

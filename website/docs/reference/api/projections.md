@@ -424,6 +424,7 @@ Type: string.
 | `diff_stats` | [`DiffStats`](/docs/reference/api/types#diffstats) \| `null` |  | The lines of all changed files. |
 | `folder` | string | yes | The folder that the window named. |
 | `root` | string \| `null` |  | The root of the git worktree that holds the folder, or `None` when the folder is not in a git worktree. |
+| `trust` | [`GitTrustAsk`](/docs/reference/api/types#gittrustask) \| `null` |  | The core runs no git command in the repository until the person trusts it. Then `root` is the root of the worktree, and the head has no branch and no count. |
 
 ## `phones` {#phones}
 
@@ -520,6 +521,7 @@ Type: string.
 | `repo` | string \| `null` |  | The key of the repository in `git_repos`: its common git directory. |
 | `repo_name` | string \| `null` |  |  |
 | `stash` | [`GitStash`](/docs/reference/api/types#gitstash) \| `null` |  | The stash that a switch left for the branch of `HEAD`, the newest one. |
+| `trust` | [`GitTrustAsk`](/docs/reference/api/types#gittrustask) \| `null` |  | The core runs no git command in the repository until the person trusts it. Then the head has the worktree and the repository, and no branch, no count and no rows. |
 | `upstream` | string \| `null` |  | The upstream of the branch, for example `origin/main`. |
 | `upstream_gone` | boolean |  | The upstream is gone from its remote. Default: `false`. |
 | `worktree` | string \| `null` |  | The root of the worktree that holds the folder, or `None` when the folder is not in a git worktree. |

@@ -458,6 +458,8 @@ methods! {
     // git
     GitFollow "git.follow" UI (GitFollow) -> Empty;
     GitRepoAdd "git.repo_add" BOTH (GitRepoAdd) -> Empty;
+    GitTrust "git.trust" BOTH (GitTrust) -> GitTrustResult;
+    GitUntrust "git.untrust" BOTH (GitUntrust) -> GitTrustResult;
     GitRepos "git.repos" BOTH (Empty) -> GitRepoList;
     GitStatus "git.status" BOTH (GitPlace) -> GitStatus;
     GitWorktrees "git.worktrees" BOTH (GitPlace) -> GitWorktreeList;
@@ -672,6 +674,8 @@ mod tests {
                 &[
                     "follow",
                     "repo_add",
+                    "trust",
+                    "untrust",
                     "repos",
                     "status",
                     "worktrees",

@@ -13,6 +13,7 @@ import type {
   GitCommit,
   GitHead,
   GitRepoValue,
+  GitTrustAsk,
   GitWorktreeValue,
 } from '@neohar/transport';
 import { harnessName } from '../agents/badge';
@@ -95,8 +96,12 @@ export function lastPart(path: string): string {
   return trimmed.slice(trimmed.lastIndexOf('/') + 1) || path;
 }
 
-/** The text of the branch of the head: its name, or the commit of a detached `HEAD`. */
+/**
+ * The text of the branch of the head: its name, or the commit of a detached `HEAD`. A repository
+ * that waits for a trust has no branch that the core read.
+ */
 export function branchTitle(head: GitHead): string {
+  if (head.trust) return '—';
   if (head.branch) return head.branch;
   return head.commit ? `Detached at ${head.commit}` : 'No commit yet';
 }
@@ -210,6 +215,44 @@ export function questionOf(code: string, message: string, details: unknown): Git
     return { kind: 'worktree', text: message, worktree };
   }
   return null;
+}
+
+/** The words of the prompt of a repository that the core runs no git command in. */
+export interface TrustPromptText {
+  title: string;
+  /** Why the core asks, one sentence for each line. */
+  lines: string[];
+  /** The settings that changed after the trust, or `null`. */
+  changed: string | null;
+}
+
+/**
+ * The prompt of `trust` of `changes_head` or `git_head`, from its reason: the person never
+ * trusted the repository, or a setting that names a program changed after the trust.
+ */
+export function trustPrompt(ask: GitTrustAsk): TrustPromptText {
+  const advice = 'Trust a repository only when you know where it comes from.';
+  if (ask.reason === 'changed') {
+    const keys = ask.changed ?? [];
+    return {
+      title: 'The settings of this repository changed',
+      lines: [
+        'Git can run programs that the settings of this repository name.',
+        'neohar runs git in this repository again only after you trust it again.',
+        advice,
+      ],
+      changed: keys.length > 0 ? `Changed: ${keys.join(', ')}` : null,
+    };
+  }
+  return {
+    title: 'Do you trust this repository?',
+    lines: [
+      'Git can run programs that the settings of this repository name.',
+      'neohar runs git in this repository only after you trust it.',
+      advice,
+    ],
+    changed: null,
+  };
 }
 
 /** A row of a diff in the Git view: the header of a hunk, or one line. */

@@ -2560,6 +2560,12 @@ test('the Changes tab shows the changes of the worktree of the folder, and the d
         ],
       },
     });
+    // The core runs no git in a repository that the person did not trust: the tab asks first.
+    const prompt = panel.getByTestId('trust-prompt');
+    await expect(prompt).toContainText('Do you trust this repository?');
+    await expect(prompt.locator('.trust-path')).toHaveText(repo);
+    await prompt.getByRole('button', { name: 'Trust' }).click();
+    await expect(prompt).toHaveCount(0);
     await expect(panel.locator('.changes-branch-name')).toHaveText('main');
     await expect(panel.locator('.changes-root')).toHaveText(repo);
     await expect(panel).toContainText('No changes yet.');

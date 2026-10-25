@@ -79,13 +79,16 @@ fn paths(changes: &Changes) -> Vec<String> {
 async fn the_root_and_the_git_directory_of_a_repository_are_found() {
     let (git, dir) = repo("root").await;
     std::fs::create_dir_all(dir.join("sub")).expect("a directory");
-    assert_eq!(git.repo_root(&dir.join("sub")).await.expect("a root"), dir);
+    assert_eq!(
+        git.place(&dir.join("sub")).await.expect("a place").root,
+        dir
+    );
     assert_eq!(
         git.git_dir(&dir).await.expect("a git directory"),
         dir.join(".git")
     );
     let outside = folder("not-a-repo");
-    assert!(git.repo_root(&outside).await.is_err());
+    assert!(git.place(&outside).await.is_err());
 }
 
 #[tokio::test]
@@ -410,7 +413,7 @@ async fn git_uses_no_bare_repository_that_a_clone_commits() {
     write(&dir, "evil/config", config.as_bytes());
     commit(&git, &dir, "an embedded repository").await;
     let evil = dir.join("evil");
-    assert!(git.repo_root(&evil).await.is_err());
+    assert!(git.place(&evil).await.is_err());
     assert!(git.uncommitted(&evil).await.is_err());
     assert_empty(&marks);
 }

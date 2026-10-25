@@ -9,8 +9,14 @@
 //! with the folder that it named last. A count runs the commands of [`git::Git::uncommitted`],
 //! and its first [`MAX_ROWS`] files go into `changes_for:<window>`. A count that fails keeps the
 //! values of the count before and sets `error`.
+//!
+//! The core runs git only in a repository that the person trusts ([`trust`]). For another one,
+//! the head has `trust` and no rows, and the core watches nothing. A trust, or its end, finds the
+//! worktree of each window of the repository again. A count first reads the settings of the
+//! repository again, and when they changed, the head asks again.
 
 pub(crate) mod git;
+pub(crate) mod trust;
 
 use std::{
     collections::{HashMap, HashSet},
@@ -28,7 +34,7 @@ use nh_proto::api::{
     common::Empty,
     ids::WindowId,
     methods::{Call, Method},
-    model::{ChangeRow, ChangeStatus, ChangeTotals, ChangesHead},
+    model::{ChangeRow, ChangeStatus, ChangeTotals, ChangesHead, GitTrustAsk},
     projections::{Projection, SINGLETON_KEY},
     rich::{self, DiffStats},
 };
@@ -36,7 +42,10 @@ use serde::Serialize;
 use serde_json::{Value, to_value};
 use tokio::runtime::Handle;
 
-use self::git::{ChangeKind, ChangedFile, Changes, Git};
+use self::{
+    git::{ChangeKind, ChangedFile, Changes, Git},
+    trust::{Access, Trusts},
+};
 use crate::{
     ErrorCode, actor::Origin, error::RpcError, projection::ProjectionHub, runtime::Inner, watch,
     window_calls::check_owner,
@@ -104,6 +113,15 @@ struct Counted {
     seq: u64,
 }
 
+/// A row of the last count of a window, with its worktree.
+struct Row {
+    root: PathBuf,
+    common_dir: PathBuf,
+    file: ChangedFile,
+    /// The full name of `HEAD` in the count.
+    head: Option<String>,
+}
+
 /// The Changes tab of one window that follows now.
 struct Follow {
     /// The folder of the head.
@@ -113,6 +131,10 @@ struct Follow {
     /// The root of the worktree, as the system names it. `None`: the folder is not in a git
     /// worktree, or the core does not know yet.
     root: Option<PathBuf>,
+    /// The common git directory of the repository, for a change of its trust.
+    common_dir: Option<PathBuf>,
+    /// The person must trust the repository first. The follow then has no watch and no rows.
+    ask: Option<GitTrustAsk>,
     watches: Vec<watch::DirWatch>,
     counted: Counted,
     stats: Option<DiffStats>,
@@ -125,11 +147,24 @@ impl Follow {
             folder,
             resolved: false,
             root: None,
+            common_dir: None,
+            ask: None,
             watches: Vec::new(),
             counted: Counted::default(),
             stats: None,
             branch: None,
         }
+    }
+
+    /// Forgets the count and the watches, for another worktree or a prompt. Returns the keys of
+    /// the rows before.
+    fn clear(&mut self) -> Vec<String> {
+        let before = keys(&self.counted.rows);
+        self.branch = None;
+        self.counted = Counted::default();
+        self.stats = None;
+        self.watches = Vec::new();
+        before
     }
 }
 
@@ -170,6 +205,8 @@ impl Windows {
 pub(crate) struct ChangesService {
     handle: Handle,
     git: Git,
+    /// The repositories that git may run in.
+    trusts: Arc<Trusts>,
     /// The number of the last count.
     count_seq: AtomicU64,
     windows: Mutex<Windows>,
@@ -284,6 +321,7 @@ fn publish_head(hub: &ProjectionHub, window: WindowId, follow: &Follow) {
         branch: follow.branch.clone(),
         changes: follow.counted.totals.clone(),
         diff_stats: follow.stats,
+        trust: follow.ask.clone(),
     };
     if let Ok(json) = serde_json::to_value(head) {
         hub.set_singleton(Projection::ChangesHead(window), json);
@@ -292,10 +330,15 @@ fn publish_head(hub: &ProjectionHub, window: WindowId, follow: &Follow) {
 
 impl ChangesService {
     /// `base_env` is the environment of the git commands. It must have a `PATH`.
-    pub(crate) fn new(handle: Handle, base_env: &[(String, String)]) -> Arc<Self> {
+    pub(crate) fn new(
+        handle: Handle,
+        base_env: &[(String, String)],
+        trusts: Arc<Trusts>,
+    ) -> Arc<Self> {
         Arc::new(Self {
             handle,
             git: Git::new(base_env.to_vec()),
+            trusts,
             count_seq: AtomicU64::new(0),
             windows: Mutex::new(Windows::default()),
             hub: OnceLock::new(),
@@ -303,7 +346,8 @@ impl ChangesService {
     }
 
     /// The projections. A window that follows `changes_for:<window>` or
-    /// `changes_head:<window>` starts its Changes tab.
+    /// `changes_head:<window>` starts its Changes tab. A change of a trust finds the worktrees of
+    /// the windows of that repository again.
     pub(crate) fn bind_projections(self: &Arc<Self>, hub: &Arc<ProjectionHub>) {
         let _ = self.hub.set(Arc::clone(hub));
         let service = Arc::downgrade(self);
@@ -315,6 +359,50 @@ impl ChangesService {
                 service.window_followed(window);
             }
         }));
+        let service = Arc::downgrade(self);
+        self.trusts.on_change(Box::new(move |common_dir| {
+            if let Some(service) = service.upgrade() {
+                service.trust_changed(common_dir);
+            }
+        }));
+    }
+
+    /// The trust of a repository changed: each window that shows it finds its worktree again.
+    fn trust_changed(self: &Arc<Self>, common_dir: &Path) {
+        let windows: Vec<WindowId> = {
+            let mut windows = lock(&self.windows);
+            windows
+                .follows
+                .iter_mut()
+                .filter(|(_, follow)| follow.common_dir.as_deref() == Some(common_dir))
+                .map(|(window, follow)| {
+                    follow.resolved = false;
+                    *window
+                })
+                .collect()
+        };
+        for window in windows {
+            self.start_window(window);
+        }
+    }
+
+    /// The trust of the repository of a window ended, or its settings changed: the head asks,
+    /// and the rows and the watches go.
+    fn ask_window(&self, window: WindowId, root: &Path, ask: GitTrustAsk) {
+        let Some(hub) = self.hub.get() else {
+            return;
+        };
+        let mut windows = lock(&self.windows);
+        let Some(follow) = windows.follows.get_mut(&window) else {
+            return;
+        };
+        if follow.root.as_deref() != Some(root) {
+            return;
+        }
+        let before = follow.clear();
+        follow.ask = Some(ask);
+        set_rows(hub, Projection::ChangesFor(window), &before, &[]);
+        publish_head(hub, window, follow);
     }
 
     /// `changes.follow`: the window shows the changes of the worktree that holds `folder`. The
@@ -392,7 +480,15 @@ impl ChangesService {
             }
             folder
         };
-        let root = self.root_of(&folder).await;
+        let (root, common_dir, ask) = match self.trusts.access(&folder).await {
+            Access::None => (None, None, None),
+            Access::Ask(ask) => (
+                Some(PathBuf::from(&ask.path)),
+                Some(PathBuf::from(&ask.common_dir)),
+                Some(ask),
+            ),
+            Access::Open(place) => (Some(place.root), Some(place.common_dir), None),
+        };
         let Some(hub) = self.hub.get() else {
             return;
         };
@@ -406,18 +502,20 @@ impl ChangesService {
                 return;
             }
             follow.resolved = true;
-            if follow.root == root {
+            follow.common_dir = common_dir;
+            if follow.root == root && follow.ask == ask {
                 publish_head(hub, window, follow);
                 return;
             }
-            let before = keys(&follow.counted.rows);
-            follow.branch = None;
+            let before = follow.clear();
             follow.root.clone_from(&root);
-            follow.counted = Counted::default();
-            follow.stats = None;
-            follow.watches = Vec::new();
+            follow.ask = ask;
             set_rows(hub, Projection::ChangesFor(window), &before, &[]);
             publish_head(hub, window, follow);
+            // A prompt has no watch and no count.
+            if follow.ask.is_some() {
+                return;
+            }
         }
         let Some(root) = root else {
             return;
@@ -442,29 +540,32 @@ impl ChangesService {
         self.count_window(window).await;
     }
 
-    /// The root of the worktree that holds a folder. `None` for a folder that is not in a git
-    /// worktree, or that is gone.
-    async fn root_of(&self, folder: &Path) -> Option<PathBuf> {
-        let root = self.git.repo_root(folder).await.ok()?;
-        Some(std::fs::canonicalize(&root).unwrap_or(root))
-    }
-
     /// Counts the changes of the worktree of a window now, and sets its rows and its head. A
-    /// count of a worktree that the window left changes nothing.
+    /// count of a worktree that the window left changes nothing. A count first reads the settings
+    /// of the repository again: when they changed after the trust, the head asks again.
     async fn count_window(&self, window: WindowId) {
-        let root = lock(&self.windows)
-            .follows
-            .get(&window)
-            .and_then(|follow| follow.root.clone());
-        let Some(root) = root else {
+        let found = lock(&self.windows).follows.get(&window).and_then(|follow| {
+            if follow.ask.is_some() {
+                return None;
+            }
+            Some((follow.root.clone()?, follow.common_dir.clone()?))
+        });
+        let Some((root, common_dir)) = found else {
             return;
         };
         let seq = self.count_seq.fetch_add(1, Ordering::Relaxed) + 1;
-        let result = self
-            .git
-            .uncommitted(&root)
-            .await
-            .map_err(|error| error.to_string());
+        let result = match self.trusts.gate(&common_dir, &root).await {
+            Ok(None) => self
+                .git
+                .uncommitted(&root)
+                .await
+                .map_err(|error| error.to_string()),
+            Ok(Some(refusal)) => {
+                self.ask_window(window, &root, trust::ask_for(&root, &common_dir, refusal));
+                return;
+            }
+            Err(error) => Err(error.to_string()),
+        };
         let Some(hub) = self.hub.get() else {
             return;
         };
@@ -472,7 +573,7 @@ impl ChangesService {
         let Some(follow) = windows.follows.get_mut(&window) else {
             return;
         };
-        if follow.root.as_ref() != Some(&root) || seq < follow.counted.seq {
+        if follow.root.as_ref() != Some(&root) || follow.ask.is_some() || seq < follow.counted.seq {
             return;
         }
         follow.counted.seq = seq;
@@ -535,23 +636,39 @@ impl ChangesService {
                 self.window_row(window, &path)?
             }
         };
-        let (root, file, head) = found.ok_or_else(not_a_change)?;
+        let Row {
+            root,
+            common_dir,
+            file,
+            head,
+        } = found.ok_or_else(not_a_change)?;
+        // The settings of the repository can change after the count.
+        match self.trusts.gate(&common_dir, &root).await {
+            Ok(None) => {}
+            Ok(Some(refusal)) => {
+                let ask = trust::ask_for(&root, &common_dir, refusal);
+                let error = trust::untrusted(&ask);
+                self.ask_window(window, &root, ask);
+                return Err(error);
+            }
+            Err(error) => return Err(RpcError::new(ErrorCode::GitFailed, error.to_string())),
+        }
         self.diff_of(&root, path, &file, head, nh_rich::diff::MAX_LINES)
             .await
     }
 
-    /// The row of `path` in the last count of a window, with the root and `HEAD`.
-    fn window_row(
-        &self,
-        window: WindowId,
-        path: &str,
-    ) -> Result<Option<(PathBuf, ChangedFile, Option<String>)>, RpcError> {
+    /// The row of `path` in the last count of a window, with the root and `HEAD`. A window whose
+    /// repository waits for a trust has no row: the answer is `permission_denied`.
+    fn window_row(&self, window: WindowId, path: &str) -> Result<Option<Row>, RpcError> {
         let windows = lock(&self.windows);
         let follow = windows
             .follows
             .get(&window)
             .ok_or_else(|| RpcError::new(ErrorCode::NotFound, "the window follows no changes"))?;
-        let Some(root) = &follow.root else {
+        if let Some(ask) = &follow.ask {
+            return Err(trust::untrusted(ask));
+        }
+        let (Some(root), Some(common_dir)) = (&follow.root, &follow.common_dir) else {
             return Ok(None);
         };
         Ok(follow
@@ -559,7 +676,12 @@ impl ChangesService {
             .rows
             .iter()
             .find(|(key, _)| key == path)
-            .map(|(_, file)| (root.clone(), file.clone(), follow.counted.head.clone())))
+            .map(|(_, file)| Row {
+                root: root.clone(),
+                common_dir: common_dir.clone(),
+                file: file.clone(),
+                head: follow.counted.head.clone(),
+            }))
     }
 
     /// The diff of one row of a count, from `HEAD` to the worktree, with at most `limit` lines.

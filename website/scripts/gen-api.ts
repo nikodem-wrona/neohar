@@ -77,7 +77,7 @@ const namespaces: Record<string, string> = {
   interaction: 'What agents ask a person: approvals, questions, plan reviews and notices.',
   harness: 'Claude Code and Codex on this machine: discovery, version and login state.',
   changes: 'The Changes tab: the changes of a git worktree from HEAD, and the diff of one file.',
-  git: 'The Git view: repositories, worktrees, branches, changes and history, and switch, fetch and pull.',
+  git: 'The Git view: repositories and their trust, worktrees, branches, changes and history, and switch, fetch and pull.',
   phone:
     'The phones that supervise this machine: the offer of a pairing, names and removal, and the mapping of tailscale serve.',
   events: 'Subscriptions to the event log, from a cursor.',

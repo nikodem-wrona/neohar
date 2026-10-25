@@ -1,6 +1,6 @@
 ---
 title: "git.*"
-description: "The Git view: repositories, worktrees, branches, changes and history, and switch, fetch and pull."
+description: "The Git view: repositories and their trust, worktrees, branches, changes and history, and switch, fetch and pull."
 sidebar_position: 16
 toc_max_heading_level: 2
 ---
@@ -12,12 +12,14 @@ Do not edit it by hand. Change the source and run `bun run gen` in `website/`.
 
 :::
 
-The Git view: repositories, worktrees, branches, changes and history, and switch, fetch and pull.
+The Git view: repositories and their trust, worktrees, branches, changes and history, and switch, fetch and pull.
 
 | Method | Scopes | Params | Result |
 |---|---|---|---|
 | [`git.follow`](#git-follow) | `ui` `phone` | [`GitFollow`](/docs/reference/api/types#gitfollow) | [`Empty`](/docs/reference/api/types#empty) |
 | [`git.repo_add`](#git-repo-add) | `ui` `cli` `phone` | [`GitRepoAdd`](/docs/reference/api/types#gitrepoadd) | [`Empty`](/docs/reference/api/types#empty) |
+| [`git.trust`](#git-trust) | `ui` `cli` `phone` | [`GitTrust`](/docs/reference/api/types#gittrust) | [`GitTrustResult`](/docs/reference/api/types#gittrustresult) |
+| [`git.untrust`](#git-untrust) | `ui` `cli` `phone` | [`GitUntrust`](/docs/reference/api/types#gituntrust) | [`GitTrustResult`](/docs/reference/api/types#gittrustresult) |
 | [`git.repos`](#git-repos) | `ui` `cli` `phone` | [`Empty`](/docs/reference/api/types#empty) | [`GitRepoList`](/docs/reference/api/types#gitrepolist) |
 | [`git.status`](#git-status) | `ui` `cli` `phone` | [`GitPlace`](/docs/reference/api/types#gitplace) | [`GitStatus`](/docs/reference/api/types#gitstatus) |
 | [`git.worktrees`](#git-worktrees) | `ui` `cli` `phone` | [`GitPlace`](/docs/reference/api/types#gitplace) | [`GitWorktreeList`](/docs/reference/api/types#gitworktreelist) |
@@ -70,6 +72,56 @@ An object with no fields: `{}`.
 [`Empty`](/docs/reference/api/types#empty)
 
 An object with no fields: `{}`.
+
+## `git.trust` {#git-trust}
+
+**Scopes:** `ui` `cli` `phone` — the UI, over the `rpc` command of the Tauri host or the WebSocket; the CLI and any other client on the API socket; a paired phone, over the listener of the phone.
+
+**Command line:** [`nh git trust`](/docs/reference/cli/commands/git#git-trust)
+
+`git.trust`: the person trusts the git repository that holds `path`. The core then runs git in it and in its worktrees. It keeps the settings of the repository that name a program, and asks again when they change. A trust again keeps the settings of now.
+
+### Params
+
+[`GitTrust`](/docs/reference/api/types#gittrust)
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `path` | string | yes | An absolute path in a git worktree, for example `path` of `trust`. |
+
+### Result
+
+[`GitTrustResult`](/docs/reference/api/types#gittrustresult)
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `common_dir` | string | yes | The common git directory: the key of the trust, which its worktrees share. |
+| `root` | string | yes | The root of the worktree that holds the path. |
+
+## `git.untrust` {#git-untrust}
+
+**Scopes:** `ui` `cli` `phone` — the UI, over the `rpc` command of the Tauri host or the WebSocket; the CLI and any other client on the API socket; a paired phone, over the listener of the phone.
+
+**Command line:** [`nh git untrust`](/docs/reference/cli/commands/git#git-untrust)
+
+`git.untrust`: the person takes back the trust of the git repository that holds `path`. The core runs no git command in it until the person trusts it again.
+
+### Params
+
+[`GitUntrust`](/docs/reference/api/types#gituntrust)
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `path` | string | yes | An absolute path in a git worktree. |
+
+### Result
+
+[`GitTrustResult`](/docs/reference/api/types#gittrustresult)
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `common_dir` | string | yes | The common git directory: the key of the trust, which its worktrees share. |
+| `root` | string | yes | The root of the worktree that holds the path. |
 
 ## `git.repos` {#git-repos}
 

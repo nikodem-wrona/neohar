@@ -542,12 +542,16 @@ impl GitViewService {
         Ok(())
     }
 
-    /// `git.fetch`, and a fetch in the background.
+    /// `git.fetch`, and a fetch in the background. A fetch in the background first reads the
+    /// settings of the repository again, as a call does.
     pub(super) async fn fetch(
         self: &Arc<Self>,
         place: Place,
         background: bool,
     ) -> Result<JobId, RpcError> {
+        if background {
+            self.gate(&place).await?;
+        }
         let look = self.look(&place).await.map_err(|e| git_failed(&e))?;
         let remote = read::fetch_remote(
             look.current().and_then(|branch| branch.remote.as_deref()),

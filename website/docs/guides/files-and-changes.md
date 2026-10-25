@@ -37,6 +37,7 @@ It is read-only.
 | Folder | The changes |
 |---|---|
 | A git worktree, such as the main checkout | What is not committed, from `HEAD`, with the new files |
+| A git repository that you do not trust | The path of the repository and a **Trust** button. See [Trust a repository](#trust-a-repository) |
 | A folder outside git | "This folder is not in a git repository." |
 
 Each row has a status letter, the folder and name, and the lines added and removed. Click a row (or
@@ -44,6 +45,29 @@ press Enter) to open its diff under it. The tab counts again a short time after 
 changes, at most once in 2 seconds.
 
 **Open in Git view** in the head of the tab shows the same worktree in the Git view.
+
+## Trust a repository
+
+The settings of a git repository can name programs that git runs, for example a filter or
+`core.fsmonitor`. A repository from an archive, a shared folder or a clone can bring such
+settings. Thus neohar runs no git command in a repository until you trust it.
+
+Until then, the Changes tab and the Git view show the path of the repository and a **Trust**
+button. They do not show its branch, its changes or its history. neohar finds the repository
+without git: it looks for `.git` in the folder and in the folders above it.
+
+- Click **Trust** only when you know where the repository comes from. Then neohar reads the
+  repository and shows its changes.
+- A trust is for the whole repository, with all its worktrees. neohar keeps it after a restart.
+- neohar keeps the settings of the repository that name a program at the time of the trust: the
+  local settings, and the files that they include. Before each look, neohar reads them again.
+  When one of them changes, for example because an agent wrote `.git/config`, the tab and the
+  view ask again and name the changed settings. Your global settings, for example in
+  `~/.gitconfig`, do not count.
+- `nh git trust` trusts the repository of the current directory, and `nh git untrust` takes the
+  trust back. An `nh git` command in a repository that you do not trust fails with
+  `permission_denied`.
+- A paired phone can also trust a repository, because it can type commands into a pane.
 
 ## The Git view
 
@@ -59,7 +83,9 @@ To open it, use one of these:
 - Right-click a strip of the board, and click **Show in Git view**.
 
 The view opens on the worktree of the folder of the window: the folder of the pane with the focus,
-else the root of the workspace. A strip opens it on the folder of the pane of its agent.
+else the root of the workspace. A strip opens it on the folder of the pane of its agent. For a
+repository that you do not trust, the view shows the prompt of
+[Trust a repository](#trust-a-repository) in place of the changes and the history.
 
 | Part | What it shows |
 |---|---|
@@ -78,7 +104,7 @@ Claude Code makes them under `.claude/worktrees/`, has its own agents.
 The reads never write the index, so a commit of an agent at the same time does not fail.
 
 The settings of a repository cannot change these rules of neohar for each git command of the
-Changes tab, the Git view and `nh git`:
+Changes tab, the Git view and `nh git`, also in a repository that you trust:
 
 - Git runs no `core.fsmonitor` program, and it uses no bare repository that it finds in a folder.
 - A remote cannot use the `ext::` transport.
@@ -106,11 +132,12 @@ When you switch back to a branch with a stash of its changes, a line offers **Re
 
 A fetch from the button asks for a passphrase or a token in a sheet of the app, as an ssh link
 does. The view also fetches in the background every 10 minutes, but only for the repositories that
-a window shows. A fetch in the background never asks: when it needs a secret, it stops, and the
+a window shows and that you trust. A fetch in the background never asks: when it needs a secret, it stops, and the
 view says "The fetch needs your passphrase or a token. Click Fetch." To change the interval, set
 `git.fetch_minutes`. The value 0 turns the fetch in the background off.
 
 The `nh git` commands give the same rows and writes for the folder of your shell: `nh git status`,
 `nh git worktrees`, `nh git branches`, `nh git log`, `nh git show`, `nh git diff`, `nh git repos`,
-`nh git add`, `nh git switch`, `nh git unstash`, `nh git fetch` and `nh git pull`. A write that
-asks in the view answers with `confirm_required` in the CLI, and `--force` writes anyway.
+`nh git add`, `nh git trust`, `nh git untrust`, `nh git switch`, `nh git unstash`, `nh git fetch`
+and `nh git pull`. A write that asks in the view answers with `confirm_required` in the CLI, and
+`--force` writes anyway.

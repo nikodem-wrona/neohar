@@ -42,7 +42,7 @@ pub use degraded::Fault;
 pub use degraded::PROBE_INTERVAL_MS;
 pub use drift_rows::DriftRow;
 pub use events::{EventsRead, Retention, Swept, TruncatedReason, Tx, is_audit_kind};
-pub use git_rows::GitRepoRow;
+pub use git_rows::{GitRepoRow, GitTrustRow};
 pub use interaction_rows::{DeliveryRow, InteractionRow};
 pub use layout::{GroupRow, LayoutRows, LoadedPane, PaneSlot, TabRow, WindowRow, WorkspaceRow};
 pub use migrate::SCHEMA_VERSION;

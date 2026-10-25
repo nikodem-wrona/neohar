@@ -6,12 +6,14 @@
 // follows the projections only while this tab shows, and the core watches the worktree only while
 // a window follows them. A diff loads when the person opens its row, and again when the stamp of
 // the row changes. The page has no timer, and the view is read-only. "Open in Git view" shows the
-// same worktree in the Git view, with its branches and its history.
+// same worktree in the Git view, with its branches and its history. A repository that the person
+// does not trust has `trust` in the head, and the tab shows the prompt of `TrustPrompt` instead.
 
 import { type ChangeRow, type ChangesHead, RpcError } from '@neohar/transport';
 import { createEffect, createMemo, createSignal, For, on, onCleanup, Show } from 'solid-js';
 import { useApp } from '../app/context';
 import { windowFolder } from '../files/folder';
+import { TrustPrompt } from '../git/TrustPrompt';
 import { DiffHunks } from '../rich/Diff';
 import { createProjectionStore, type ProjectionStore } from '../stores';
 import {
@@ -146,8 +148,15 @@ export function ChangesPanel() {
         <Show when={head()} fallback={<p class="drawer-empty">Counting…</p>}>
           {(shown) => (
             <Show
-              when={shown().root}
-              fallback={<p class="drawer-empty">This folder is not in a git repository.</p>}
+              when={!shown().trust && shown().root}
+              fallback={
+                <Show
+                  when={shown().trust}
+                  fallback={<p class="drawer-empty">This folder is not in a git repository.</p>}
+                >
+                  {(ask) => <TrustPrompt ask={ask()} />}
+                </Show>
+              }
             >
               {(root) => (
                 <>

@@ -13,6 +13,9 @@
 // fetches or pulls (`git.fetch`, `git.pull`). The core decides when a write must ask first: a
 // working agent, changes to bring or to leave, a branch that another worktree has out. The view
 // shows its question and calls again with the answer.
+//
+// The core runs git only in a repository that the person trusts. For another one, `git_head` has
+// `trust`, and the view shows the prompt of `TrustPrompt` in place of the changes and the history.
 
 import {
   type ChangeRow,
@@ -21,7 +24,17 @@ import {
   type Params,
   RpcError,
 } from '@neohar/transport';
-import { createEffect, createMemo, createSignal, on, onCleanup, onMount, Show } from 'solid-js';
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  Match,
+  on,
+  onCleanup,
+  onMount,
+  Show,
+  Switch,
+} from 'solid-js';
 import { useApp } from '../app/context';
 import { showPane } from '../app/show';
 import { windowFolder } from '../files/folder';
@@ -30,6 +43,7 @@ import { type GitAnswer, GitConfirm } from './GitConfirm';
 import { GitChanges } from './GitChanges';
 import { GitHistory } from './GitHistory';
 import { GitMenu, type MenuGroup } from './Menu';
+import { TrustPrompt } from './TrustPrompt';
 import {
   agentsLabel,
   agentsText,
@@ -336,54 +350,57 @@ export function GitView() {
         fallback={<p class="git-empty git-center">Looking for the repository…</p>}
       >
         {(current) => (
-          <Show
-            when={current().worktree}
-            fallback={
+          <Switch>
+            <Match when={!current().worktree}>
               <p class="git-empty git-center">
                 The folder {current().folder} is not in a git repository. Pick one in the Repository
                 menu.
               </p>
-            }
-          >
-            <div class="git-body">
-              <div class="git-tabs" role="tablist" aria-label="Changes or history">
-                <button
-                  type="button"
-                  role="tab"
-                  class="git-tab"
-                  classList={{ selected: side() === 'changes' }}
-                  aria-selected={side() === 'changes'}
-                  onClick={() => setSide('changes')}
-                >
-                  Changes
-                  <Show when={current().changes}>
-                    {(totals) => <span class="git-count">{totals().files}</span>}
-                  </Show>
-                </button>
-                <button
-                  type="button"
-                  role="tab"
-                  class="git-tab"
-                  classList={{ selected: side() === 'history' }}
-                  aria-selected={side() === 'history'}
-                  onClick={() => setSide('history')}
-                >
-                  History
-                </button>
+            </Match>
+            <Match when={current().trust}>
+              {(ask) => <TrustPrompt ask={ask()} class="git-center" />}
+            </Match>
+            <Match when={current().worktree}>
+              <div class="git-body">
+                <div class="git-tabs" role="tablist" aria-label="Changes or history">
+                  <button
+                    type="button"
+                    role="tab"
+                    class="git-tab"
+                    classList={{ selected: side() === 'changes' }}
+                    aria-selected={side() === 'changes'}
+                    onClick={() => setSide('changes')}
+                  >
+                    Changes
+                    <Show when={current().changes}>
+                      {(totals) => <span class="git-count">{totals().files}</span>}
+                    </Show>
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    class="git-tab"
+                    classList={{ selected: side() === 'history' }}
+                    aria-selected={side() === 'history'}
+                    onClick={() => setSide('history')}
+                  >
+                    History
+                  </button>
+                </div>
+                <Show when={side() === 'changes'}>
+                  <GitChanges
+                    rows={rows()}
+                    subject={subject()}
+                    truncated={current().changes?.truncated ?? false}
+                    counted={current().changes !== undefined}
+                  />
+                </Show>
+                <Show when={side() === 'history'}>
+                  <GitHistory head={current().commit ?? null} subject={subject()} />
+                </Show>
               </div>
-              <Show when={side() === 'changes'}>
-                <GitChanges
-                  rows={rows()}
-                  subject={subject()}
-                  truncated={current().changes?.truncated ?? false}
-                  counted={current().changes !== undefined}
-                />
-              </Show>
-              <Show when={side() === 'history'}>
-                <GitHistory head={current().commit ?? null} subject={subject()} />
-              </Show>
-            </div>
-          </Show>
+            </Match>
+          </Switch>
         )}
       </Show>
     </section>

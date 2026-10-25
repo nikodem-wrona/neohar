@@ -7,6 +7,12 @@
 //! A write that changes the files of a worktree (`git.switch`, `git.pull`, `git.unstash`) asks
 //! first when an agent works in it: without `force`, it answers `confirm_required` with the
 //! agents in `details`. One write at a time runs in a worktree, and a second one is `busy`.
+//!
+//! The settings of a repository can name programs that git runs, so the core runs no git command
+//! in a repository until the person trusts it (`git.trust`). Until then, `changes_head` and
+//! `git_head` have `trust`, and a call answers `permission_denied` with
+//! `{"kind": "untrusted", "trust"}` in `details`. When the settings that name a program change
+//! after the trust, the core asks again.
 
 use crate::api::{
     common::wire,
@@ -38,6 +44,29 @@ wire! {
     pub struct GitRepoAdd {
         /// An absolute path in a git worktree.
         pub path: String,
+    }
+
+    /// `git.trust`: the person trusts the git repository that holds `path`. The core then runs git
+    /// in it and in its worktrees. It keeps the settings of the repository that name a program,
+    /// and asks again when they change. A trust again keeps the settings of now.
+    pub struct GitTrust {
+        /// An absolute path in a git worktree, for example `path` of `trust`.
+        pub path: String,
+    }
+
+    /// `git.untrust`: the person takes back the trust of the git repository that holds `path`.
+    /// The core runs no git command in it until the person trusts it again.
+    pub struct GitUntrust {
+        /// An absolute path in a git worktree.
+        pub path: String,
+    }
+
+    /// The repository of `git.trust` or `git.untrust`.
+    pub struct GitTrustResult {
+        /// The root of the worktree that holds the path.
+        pub root: String,
+        /// The common git directory: the key of the trust, which its worktrees share.
+        pub common_dir: String,
     }
 
     /// The worktree of a read: the one that the Git view of `window` follows, or the one that

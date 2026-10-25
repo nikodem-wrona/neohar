@@ -33,6 +33,7 @@ These parts of neohar are in scope:
 - **The webview sandbox**: the three commands of the webview, the content security policy, and the `nh://` URLs.
 - **Deep links** (`neohar://`): any web page can open one, so a link must not answer a request or give a pane the focus.
 - **Other users of the same machine**: an attack from another local user, for example a socket, a directory or a port of `127.0.0.1` that this user makes before neohar does.
+- **The git commands of the Changes tab and the Git view**: the trust of a repository, and the settings that neohar gives to each git command.
 
 These items are not in scope:
 
@@ -58,3 +59,7 @@ neohar keeps its data in `state.db` and in the scrollback archive, in the data d
 - The interactions keep their payload: the command, the input of the tool, a diff with the contents of files, and the last lines of the pane. When an interaction ends, neohar removes the secrets that it can find from the stored payload and decision (`nh-redact`). The redaction can miss a secret. An open interaction keeps its full payload, because the core needs it to deliver the answer after a restart.
 - neohar deletes the ended interactions and their delivery records when they are older than `events.audit_retention` (90 days by default).
 - The scrollback of each pane, and its search index, stay on disk with no limit by default. Set `scrollback.max_bytes_per_pane` in `config.toml` to limit the archive of each pane. The text of the scrollback is not redacted.
+
+## Git repositories
+
+The settings of a git repository can name programs that git runs. Thus neohar runs no git command in a repository until you trust it: the Changes tab and the Git view show a **Trust** button. Trust a repository only when you know where it comes from. When a setting that names a program changes after the trust, neohar asks again. [Trust a repository](website/docs/guides/files-and-changes.md#trust-a-repository) gives the details.

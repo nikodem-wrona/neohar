@@ -559,6 +559,22 @@ pub const VERBS: &[Verb] = &[
     ),
     special(
         "git",
+        "trust",
+        "git.trust",
+        "Trust the repository of a folder, or of the current directory: neohar runs git in it only after you trust it",
+        &["path"],
+        Custom::List,
+    ),
+    special(
+        "git",
+        "untrust",
+        "git.untrust",
+        "Take back the trust of the repository of a folder, or of the current directory",
+        &["path"],
+        Custom::List,
+    ),
+    special(
+        "git",
         "status",
         "git.status",
         "Show the branch, its upstream, the agents and the changed files of the worktree of the current directory",

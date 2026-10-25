@@ -638,6 +638,35 @@ wire! {
         /// The lines of all changed files.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         pub diff_stats: Option<DiffStats>,
+        /// The core runs no git command in the repository until the person trusts it. Then
+        /// `root` is the root of the worktree, and the head has no branch and no count.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub trust: Option<GitTrustAsk>,
+    }
+
+    /// Why the core runs no git command in a repository.
+    #[derive(Copy, Eq)]
+    #[serde(rename_all = "snake_case")]
+    pub enum GitTrustReason {
+        /// The person did not trust the repository, or took the trust back.
+        New,
+        /// A setting of the repository that names a program changed after the trust.
+        Changed,
+    }
+
+    /// `trust` of `changes_head` and `git_head`: the settings of a repository can name programs
+    /// that git runs, so the core runs git in a repository only after the person trusts it
+    /// (`git.trust`).
+    #[derive(Eq)]
+    pub struct GitTrustAsk {
+        /// The root of the worktree that holds the folder. `git.trust` takes it.
+        pub path: String,
+        /// The common git directory: the key of the trust, which its worktrees share.
+        pub common_dir: String,
+        pub reason: GitTrustReason,
+        /// The keys of the settings that changed after the trust, for example `core.fsmonitor`.
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        pub changed: Vec<String>,
     }
 
     /// The login state of a harness on this machine. `unknown` means that the probe
@@ -1041,6 +1070,10 @@ wire! {
         /// of the look before.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         pub error: Option<String>,
+        /// The core runs no git command in the repository until the person trusts it. Then the
+        /// head has the worktree and the repository, and no branch, no count and no rows.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub trust: Option<GitTrustAsk>,
     }
 
     /// `git_worktrees:<window>`: a worktree of the repository of the Git view. The key is

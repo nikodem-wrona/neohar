@@ -198,9 +198,17 @@ fn text(path: &Path) -> String {
     path.display().to_string()
 }
 
+/// The person trusts the repository of the setup (`git.trust`). Its worktrees share the trust.
+async fn trusted(s: Setup) -> Setup {
+    s.core
+        .call("git.trust", json!({"path": text(&s.repo)}))
+        .await;
+    s
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_window_that_follows_a_folder_sees_its_repository_worktrees_and_branches() {
-    let s = start("follow");
+    let s = trusted(start("follow")).await;
     let window = s.core.call("window.open", json!({})).await["window"]
         .as_str()
         .expect("a window")
@@ -369,7 +377,7 @@ async fn a_window_that_follows_a_folder_sees_its_repository_worktrees_and_branch
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn the_reads_of_the_cli_take_a_path_and_the_repositories_keep_the_added_ones() {
-    let s = start("cli");
+    let s = trusted(start("cli")).await;
     let status = s
         .core
         .call("git.status", json!({"path": text(&s.topic)}))
@@ -468,7 +476,7 @@ async fn until_status(core: &Harness, path: &Path, what: &str, done: impl Fn(&Va
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_switch_takes_or_leaves_the_changes_and_refuses_a_branch_of_another_worktree() {
-    let s = start("switch");
+    let s = trusted(start("switch")).await;
     let at = |branch: &str| json!({"path": text(&s.repo), "branch": branch});
     git(&s.repo, &["branch", "other"]);
 
@@ -567,7 +575,7 @@ async fn a_switch_takes_or_leaves_the_changes_and_refuses_a_branch_of_another_wo
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_fetch_and_a_pull_run_as_jobs_and_a_diverged_branch_is_refused() {
-    let s = start("pull");
+    let s = trusted(start("pull")).await;
     git(&s.repo, &["push", "-q", "origin", "main"]);
     // Another clone pushes a commit, so the main worktree is behind after a fetch.
     let other = s.base.join("other");
@@ -625,6 +633,7 @@ async fn a_fetch_and_a_pull_run_as_jobs_and_a_diverged_branch_is_refused() {
     let lone = s.base.join("lone");
     std::fs::create_dir_all(&lone).expect("a folder");
     git(&lone, &["init", "-q", "-b", "main"]);
+    s.core.call("git.trust", json!({"path": text(&lone)})).await;
     let refused = s
         .core
         .handle
@@ -667,7 +676,7 @@ async fn signal(core: &Harness, token: &str, event: &str, payload: Value) {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_write_under_a_working_agent_asks_first_and_force_writes_anyway() {
-    let s = start("guard");
+    let s = trusted(start("guard")).await;
     git(&s.repo, &["branch", "other"]);
     let script = s.base.join("waiter.py");
     let token_file = s.base.join("token");
@@ -782,4 +791,109 @@ async fn a_write_under_a_working_agent_asks_first_and_force_writes_anyway() {
         st["head"]["branch"] == "main"
     })
     .await;
+}
+
+/// A call on a repository that the person does not trust: its error, with the prompt.
+async fn refused(core: &Harness, method: &str, params: Value) -> Value {
+    let error = core
+        .handle
+        .rpc(method, params)
+        .await
+        .expect_err("the repository is not trusted");
+    assert_eq!(
+        error.code,
+        ErrorCode::PermissionDenied,
+        "{method}: {}",
+        error.message
+    );
+    assert_eq!(error.details["kind"], "untrusted", "{}", error.details);
+    error.details["trust"].clone()
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn the_view_runs_git_only_in_a_trusted_repository_and_the_trust_lasts() {
+    let mut s = start("trust");
+    let marks = s.base.join("markers");
+    std::fs::create_dir_all(&marks).expect("a folder");
+    let ran = || std::fs::read_dir(&marks).expect("markers").count();
+    let window = s.core.call("window.open", json!({})).await["window"]
+        .as_str()
+        .expect("a window")
+        .to_owned();
+    let mut head = Follower::new(&s.core, &format!("git_head:{window}")).await;
+    s.core
+        .call(
+            "git.follow",
+            json!({"window": window, "path": text(&s.topic)}),
+        )
+        .await;
+
+    // Before the trust: the head asks, a read is refused, and the repository is in the list.
+    let topic = text(&s.topic);
+    head.until("the prompt", WAIT, |items| {
+        items.get("_").is_some_and(|h| {
+            h["trust"]["reason"] == "new"
+                && h["worktree"] == topic.as_str()
+                && h["branch"].is_null()
+        })
+    })
+    .await;
+    let trust = refused(&s.core, "git.status", json!({"path": text(&s.repo)})).await;
+    assert_eq!(trust["path"], text(&s.repo));
+    assert_eq!(trust["common_dir"], text(&s.repo.join(".git")));
+    refused(&s.core, "git.log", json!({"window": window})).await;
+    s.core
+        .call("git.repo_add", json!({"path": text(&s.repo)}))
+        .await;
+    assert_eq!(ran(), 0);
+
+    // A trust of one worktree is a trust of the repository, and the head shows the branch.
+    let trusted = s
+        .core
+        .call("git.trust", json!({"path": text(&s.topic)}))
+        .await;
+    assert_eq!(trusted["common_dir"], text(&s.repo.join(".git")));
+    head.until("the head after the trust", WAIT, |items| {
+        items
+            .get("_")
+            .is_some_and(|h| h["trust"].is_null() && h["branch"] == "topic")
+    })
+    .await;
+    s.core
+        .call("git.status", json!({"path": text(&s.repo)}))
+        .await;
+
+    // The store keeps the trust, and a new core uses it.
+    drop(head);
+    s.core.crash().await;
+    s.core.restart();
+    let status = s
+        .core
+        .call("git.status", json!({"path": text(&s.repo)}))
+        .await;
+    assert_eq!(status["head"]["branch"], "main", "{status}");
+    let rows = s.core.db().git_trust().expect("the trusts");
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0].common_dir, text(&s.repo.join(".git")));
+
+    // A setting that runs a program changes after the trust: the calls refuse, and name it. The
+    // fetch does not run the program.
+    let program = format!("touch {}/uploadpack; git-upload-pack", marks.display());
+    git(&s.repo, &["config", "remote.origin.uploadpack", &program]);
+    let trust = refused(&s.core, "git.fetch", json!({"path": text(&s.repo)})).await;
+    assert_eq!(trust["reason"], "changed");
+    assert_eq!(trust["changed"], json!(["remote.origin.uploadpack"]));
+    assert_eq!(ran(), 0);
+
+    // The end of the trust: the calls refuse again.
+    git(&s.repo, &["config", "--unset", "remote.origin.uploadpack"]);
+    s.core
+        .call("git.status", json!({"path": text(&s.repo)}))
+        .await;
+    s.core
+        .call("git.untrust", json!({"path": text(&s.repo)}))
+        .await;
+    let trust = refused(&s.core, "git.branches", json!({"path": text(&s.topic)})).await;
+    assert_eq!(trust["reason"], "new");
+    assert!(s.core.db().git_trust().expect("the trusts").is_empty());
 }

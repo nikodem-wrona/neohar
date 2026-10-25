@@ -1,6 +1,6 @@
 ---
 title: "Events"
-description: "The 54 kinds of events in the event outbox."
+description: "The 56 kinds of events in the event outbox."
 sidebar_position: 4
 ---
 
@@ -65,6 +65,8 @@ The core appends an event in the same SQLite transaction as the state change tha
 | [`policy.added`](#policy-added) | 1 | [`PolicyEvent`](/docs/reference/api/types#policyevent) |
 | [`policy.removed`](#policy-removed) | 1 | [`PolicyEvent`](/docs/reference/api/types#policyevent) |
 | [`git.repo_added`](#git-repo-added) | 1 | [`GitRepoAdded`](/docs/reference/api/types#gitrepoadded) |
+| [`git.trusted`](#git-trusted) | 1 | [`GitTrustEvent`](/docs/reference/api/types#gittrustevent) |
+| [`git.untrusted`](#git-untrusted) | 1 | [`GitTrustEvent`](/docs/reference/api/types#gittrustevent) |
 | [`git.switched`](#git-switched) | 1 | [`GitWrite`](/docs/reference/api/types#gitwrite) |
 | [`git.unstashed`](#git-unstashed) | 1 | [`GitWrite`](/docs/reference/api/types#gitwrite) |
 | [`git.fetched`](#git-fetched) | 1 | [`GitWrite`](/docs/reference/api/types#gitwrite) |
@@ -688,6 +690,28 @@ The core appends an event in the same SQLite transaction as the state change tha
 | `common_dir` | string | yes | The common git directory of the repository. |
 | `path` | string | yes | The path that the person gave. |
 
+### `git.trusted` {#git-trusted}
+
+**Version:** 1
+
+[`GitTrustEvent`](/docs/reference/api/types#gittrustevent)
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `common_dir` | string | yes | The common git directory of the repository: the key of the trust. |
+| `path` | string | yes | The path that the person gave. |
+
+### `git.untrusted` {#git-untrusted}
+
+**Version:** 1
+
+[`GitTrustEvent`](/docs/reference/api/types#gittrustevent)
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `common_dir` | string | yes | The common git directory of the repository: the key of the trust. |
+| `path` | string | yes | The path that the person gave. |
+
 ### `git.switched` {#git-switched}
 
 **Version:** 1
@@ -698,7 +722,7 @@ The core appends an event in the same SQLite transaction as the state change tha
 |---|---|---|---|
 | `agents` | [`RunId`](/docs/reference/api/types#runid)[] |  | The agents in the worktree at that time. |
 | `background` | boolean |  | The fetch ran in the background, not from a click. Default: `false`. |
-| `command` | string | yes | The git command, for example `git switch main`. |
+| `command` | string | yes | The git command, for example `git switch --end-of-options main`. |
 | `from` | string \| `null` |  | The branch before a switch. |
 | `path` | string | yes | The worktree, or the common git directory for a fetch. |
 | `stash` | string \| `null` |  | The stash that a switch made or that `git.unstash` put back. |
@@ -714,7 +738,7 @@ The core appends an event in the same SQLite transaction as the state change tha
 |---|---|---|---|
 | `agents` | [`RunId`](/docs/reference/api/types#runid)[] |  | The agents in the worktree at that time. |
 | `background` | boolean |  | The fetch ran in the background, not from a click. Default: `false`. |
-| `command` | string | yes | The git command, for example `git switch main`. |
+| `command` | string | yes | The git command, for example `git switch --end-of-options main`. |
 | `from` | string \| `null` |  | The branch before a switch. |
 | `path` | string | yes | The worktree, or the common git directory for a fetch. |
 | `stash` | string \| `null` |  | The stash that a switch made or that `git.unstash` put back. |
@@ -730,7 +754,7 @@ The core appends an event in the same SQLite transaction as the state change tha
 |---|---|---|---|
 | `agents` | [`RunId`](/docs/reference/api/types#runid)[] |  | The agents in the worktree at that time. |
 | `background` | boolean |  | The fetch ran in the background, not from a click. Default: `false`. |
-| `command` | string | yes | The git command, for example `git switch main`. |
+| `command` | string | yes | The git command, for example `git switch --end-of-options main`. |
 | `from` | string \| `null` |  | The branch before a switch. |
 | `path` | string | yes | The worktree, or the common git directory for a fetch. |
 | `stash` | string \| `null` |  | The stash that a switch made or that `git.unstash` put back. |
@@ -746,7 +770,7 @@ The core appends an event in the same SQLite transaction as the state change tha
 |---|---|---|---|
 | `agents` | [`RunId`](/docs/reference/api/types#runid)[] |  | The agents in the worktree at that time. |
 | `background` | boolean |  | The fetch ran in the background, not from a click. Default: `false`. |
-| `command` | string | yes | The git command, for example `git switch main`. |
+| `command` | string | yes | The git command, for example `git switch --end-of-options main`. |
 | `from` | string \| `null` |  | The branch before a switch. |
 | `path` | string | yes | The worktree, or the common git directory for a fetch. |
 | `stash` | string \| `null` |  | The stash that a switch made or that `git.unstash` put back. |

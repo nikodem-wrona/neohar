@@ -1,6 +1,6 @@
 ---
 title: "Methods"
-description: "All 151 JSON-RPC methods of the core, by namespace."
+description: "All 153 JSON-RPC methods of the core, by namespace."
 sidebar_label: "Methods"
 ---
 
@@ -11,15 +11,15 @@ Do not edit it by hand. Change the source and run `bun run gen` in `website/`.
 
 :::
 
-The core has 151 methods in 30 namespaces. A method name is `<namespace>.<verb>`. Each method lists its callers (scopes); a caller that is not on the list gets [`permission_denied`](/docs/reference/api/errors#permission-denied).
+The core has 153 methods in 30 namespaces. A method name is `<namespace>.<verb>`. Each method lists its callers (scopes); a caller that is not on the list gets [`permission_denied`](/docs/reference/api/errors#permission-denied).
 
 | Scope | Who | Methods |
 |---|---|---|
-| `ui` | the UI, over the `rpc` command of the Tauri host or the WebSocket | 132 |
-| `cli` | the CLI and any other client on the API socket | 105 |
+| `ui` | the UI, over the `rpc` command of the Tauri host or the WebSocket | 134 |
+| `cli` | the CLI and any other client on the API socket | 107 |
 | `pane` | a hook shim, with the token of a pane | 4 |
 | `dev` | development and test builds only | 4 |
-| `phone` | a paired phone, over the listener of the phone | 128 |
+| `phone` | a paired phone, over the listener of the phone | 130 |
 
 | Namespace | What it is for | Methods |
 |---|---|---|
@@ -38,7 +38,7 @@ The core has 151 methods in 30 namespaces. A method name is `<namespace>.<verb>`
 | [`harness`](/docs/reference/api/methods/harness) | Claude Code and Codex on this machine: discovery, version and login state. | [`harness.refresh`](/docs/reference/api/methods/harness#harness-refresh) |
 | [`interaction`](/docs/reference/api/methods/interaction) | What agents ask a person: approvals, questions, plan reviews and notices. | [`interaction.list`](/docs/reference/api/methods/interaction#interaction-list), [`interaction.show`](/docs/reference/api/methods/interaction#interaction-show), [`interaction.answer`](/docs/reference/api/methods/interaction#interaction-answer), [`interaction.dismiss`](/docs/reference/api/methods/interaction#interaction-dismiss), [`interaction.next`](/docs/reference/api/methods/interaction#interaction-next), [`interaction.reveal`](/docs/reference/api/methods/interaction#interaction-reveal) |
 | [`changes`](/docs/reference/api/methods/changes) | The Changes tab: the changes of a git worktree from HEAD, and the diff of one file. | [`changes.follow`](/docs/reference/api/methods/changes#changes-follow), [`changes.diff`](/docs/reference/api/methods/changes#changes-diff) |
-| [`git`](/docs/reference/api/methods/git) | The Git view: repositories, worktrees, branches, changes and history, and switch, fetch and pull. | [`git.follow`](/docs/reference/api/methods/git#git-follow), [`git.repo_add`](/docs/reference/api/methods/git#git-repo-add), [`git.repos`](/docs/reference/api/methods/git#git-repos), [`git.status`](/docs/reference/api/methods/git#git-status), [`git.worktrees`](/docs/reference/api/methods/git#git-worktrees), [`git.branches`](/docs/reference/api/methods/git#git-branches), [`git.log`](/docs/reference/api/methods/git#git-log), [`git.show`](/docs/reference/api/methods/git#git-show), [`git.diff`](/docs/reference/api/methods/git#git-diff), [`git.switch`](/docs/reference/api/methods/git#git-switch), [`git.unstash`](/docs/reference/api/methods/git#git-unstash), [`git.fetch`](/docs/reference/api/methods/git#git-fetch), [`git.pull`](/docs/reference/api/methods/git#git-pull) |
+| [`git`](/docs/reference/api/methods/git) | The Git view: repositories and their trust, worktrees, branches, changes and history, and switch, fetch and pull. | [`git.follow`](/docs/reference/api/methods/git#git-follow), [`git.repo_add`](/docs/reference/api/methods/git#git-repo-add), [`git.trust`](/docs/reference/api/methods/git#git-trust), [`git.untrust`](/docs/reference/api/methods/git#git-untrust), [`git.repos`](/docs/reference/api/methods/git#git-repos), [`git.status`](/docs/reference/api/methods/git#git-status), [`git.worktrees`](/docs/reference/api/methods/git#git-worktrees), [`git.branches`](/docs/reference/api/methods/git#git-branches), [`git.log`](/docs/reference/api/methods/git#git-log), [`git.show`](/docs/reference/api/methods/git#git-show), [`git.diff`](/docs/reference/api/methods/git#git-diff), [`git.switch`](/docs/reference/api/methods/git#git-switch), [`git.unstash`](/docs/reference/api/methods/git#git-unstash), [`git.fetch`](/docs/reference/api/methods/git#git-fetch), [`git.pull`](/docs/reference/api/methods/git#git-pull) |
 | [`phone`](/docs/reference/api/methods/phone) | The phones that supervise this machine: the offer of a pairing, names and removal, and the mapping of tailscale serve. | [`phone.pair_begin`](/docs/reference/api/methods/phone#phone-pair-begin), [`phone.pair_cancel`](/docs/reference/api/methods/phone#phone-pair-cancel), [`phone.remove`](/docs/reference/api/methods/phone#phone-remove), [`phone.rename`](/docs/reference/api/methods/phone#phone-rename), [`phone.publish`](/docs/reference/api/methods/phone#phone-publish), [`phone.unpublish`](/docs/reference/api/methods/phone#phone-unpublish), [`phone.push_subscribe`](/docs/reference/api/methods/phone#phone-push-subscribe), [`phone.push_unsubscribe`](/docs/reference/api/methods/phone#phone-push-unsubscribe), [`phone.push_test`](/docs/reference/api/methods/phone#phone-push-test), [`phone.visible`](/docs/reference/api/methods/phone#phone-visible), [`phone.window`](/docs/reference/api/methods/phone#phone-window) |
 | [`events`](/docs/reference/api/methods/events) | Subscriptions to the event log, from a cursor. | [`events.subscribe`](/docs/reference/api/methods/events#events-subscribe), [`events.unsubscribe`](/docs/reference/api/methods/events#events-unsubscribe) |
 | [`projection`](/docs/reference/api/methods/projection) | Subscriptions to projections: a snapshot, then keyed patches. | [`projection.subscribe`](/docs/reference/api/methods/projection#projection-subscribe), [`projection.unsubscribe`](/docs/reference/api/methods/projection#projection-unsubscribe), [`projection.versions`](/docs/reference/api/methods/projection#projection-versions) |

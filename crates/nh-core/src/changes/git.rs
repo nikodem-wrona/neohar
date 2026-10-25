@@ -165,6 +165,17 @@ struct Ran {
     status: std::process::ExitStatus,
 }
 
+/// Where a folder is in git.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct Place {
+    /// The root of the worktree that holds the folder.
+    pub root: PathBuf,
+    /// The git directory of that worktree.
+    pub git_dir: PathBuf,
+    /// The git directory that all worktrees of the repository share.
+    pub common_dir: PathBuf,
+}
+
 /// What happened to a file between `HEAD` and the worktree.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum ChangeKind {
@@ -411,10 +422,39 @@ impl Git {
         }
     }
 
-    /// The root of the repository that holds `path`.
-    pub async fn repo_root(&self, path: &Path) -> Result<PathBuf, GitError> {
-        let out = self.run(path, &["rev-parse", "--show-toplevel"]).await?;
-        Ok(PathBuf::from(out.trim()))
+    /// The worktree and the git directories of a folder, as the system names them.
+    pub async fn place(&self, folder: &Path) -> Result<Place, GitError> {
+        let out = self
+            .run(
+                folder,
+                &[
+                    "rev-parse",
+                    "--path-format=absolute",
+                    "--show-toplevel",
+                    "--absolute-git-dir",
+                    "--git-common-dir",
+                ],
+            )
+            .await?;
+        let mut lines = out.lines().map(str::trim);
+        let (Some(root), Some(git_dir), Some(common_dir)) =
+            (lines.next(), lines.next(), lines.next())
+        else {
+            return Err(GitError::Failed {
+                args: "rev-parse".to_owned(),
+                status: "0".to_owned(),
+                stderr: format!("an answer of {} lines", out.lines().count()),
+            });
+        };
+        let canonical = |path: &str| {
+            let path = PathBuf::from(path);
+            std::fs::canonicalize(&path).unwrap_or(path)
+        };
+        Ok(Place {
+            root: canonical(root),
+            git_dir: canonical(git_dir),
+            common_dir: canonical(common_dir),
+        })
     }
 
     /// The git directory of a worktree: `.git` of the main worktree, or the directory under

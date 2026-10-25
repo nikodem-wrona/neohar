@@ -1,5 +1,11 @@
 import { expect, test } from 'bun:test';
-import type { GitAgent, GitBranchValue, GitHead, GitWorktreeValue } from '@neohar/transport';
+import type {
+  GitAgent,
+  GitBranchValue,
+  GitHead,
+  GitTrustAsk,
+  GitWorktreeValue,
+} from '@neohar/transport';
 import {
   agentLabel,
   agentsLabel,
@@ -16,6 +22,7 @@ import {
   moveIndex,
   questionOf,
   trackText,
+  trustPrompt,
   visibleRows,
   worktreeFacts,
 } from './model';
@@ -98,6 +105,36 @@ test('the head names its branch, or the commit of a detached HEAD', () => {
   expect(branchTitle(head)).toBe('main');
   expect(branchTitle({ ...head, branch: null })).toBe('Detached at 0123456');
   expect(branchTitle({ folder: '/w/app' })).toBe('No commit yet');
+  // A repository that waits for a trust has no branch that the core read.
+  expect(
+    branchTitle({
+      folder: '/w/app',
+      trust: { path: '/w/app', common_dir: '/w/app/.git', reason: 'new' },
+    }),
+  ).toBe('—');
+});
+
+test('the prompt of a trust says why the core asks', () => {
+  const ask: GitTrustAsk = { path: '/w/app', common_dir: '/w/app/.git', reason: 'new' };
+  const first = trustPrompt(ask);
+  expect(first.title).toBe('Do you trust this repository?');
+  expect(first.lines).toEqual([
+    'Git can run programs that the settings of this repository name.',
+    'neohar runs git in this repository only after you trust it.',
+    'Trust a repository only when you know where it comes from.',
+  ]);
+  expect(first.changed).toBeNull();
+  const again = trustPrompt({
+    ...ask,
+    reason: 'changed',
+    changed: ['core.fsmonitor', 'remote.origin.uploadpack'],
+  });
+  expect(again.title).toBe('The settings of this repository changed');
+  expect(again.lines[1]).toBe(
+    'neohar runs git in this repository again only after you trust it again.',
+  );
+  expect(again.changed).toBe('Changed: core.fsmonitor, remote.origin.uploadpack');
+  expect(trustPrompt({ ...ask, reason: 'changed' }).changed).toBeNull();
 });
 
 test('the labels of a commit are its branches, then its tags', () => {

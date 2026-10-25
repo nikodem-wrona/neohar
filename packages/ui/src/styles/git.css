@@ -549,6 +549,63 @@
     text-align: center;
   }
 
+  /* The prompt of a repository that the core runs no git command in, in the Changes tab of the
+     drawer and in the Git view. */
+  .trust-prompt {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--s1);
+  }
+
+  .trust-prompt.git-center {
+    align-items: center;
+    max-width: 560px;
+    margin: 0 auto;
+  }
+
+  .trust-title {
+    margin: 0;
+    font-size: inherit;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .trust-path {
+    max-width: 100%;
+    margin: 0;
+    overflow: hidden;
+    color: var(--text-dim);
+    font-family: var(--font-data);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .trust-text,
+  .trust-changed {
+    margin: 0;
+    color: var(--text-dim);
+  }
+
+  .trust-changed {
+    color: var(--text);
+    font-family: var(--font-data);
+    overflow-wrap: anywhere;
+  }
+
+  .trust-button {
+    margin-top: var(--s1);
+    padding: 3px 12px;
+    border: 1px solid var(--accent);
+    background: var(--accent);
+    color: var(--on-signal);
+    font-weight: 600;
+  }
+
+  .trust-button:hover {
+    filter: brightness(1.08);
+  }
+
   /* The link of the Changes tab of the drawer. */
   .changes-open-git {
     margin-left: 1ch;

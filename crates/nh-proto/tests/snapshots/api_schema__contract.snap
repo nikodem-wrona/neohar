@@ -1317,6 +1317,17 @@ expression: document()
             "string",
             "null"
           ]
+        },
+        "trust": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GitTrustAsk"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The core runs no git command in the repository until the person trusts it. Then\n`root` is the root of the worktree, and the head has no branch and no count."
         }
       },
       "required": [
@@ -3528,6 +3539,17 @@ expression: document()
           ],
           "description": "The stash that a switch left for the branch of `HEAD`, the newest one."
         },
+        "trust": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GitTrustAsk"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The core runs no git command in the repository until the person trusts it. Then the\nhead has the worktree and the repository, and no branch, no count and no rows."
+        },
         "upstream": {
           "description": "The upstream of the branch, for example `origin/main`.",
           "type": [
@@ -3967,6 +3989,99 @@ expression: document()
       ],
       "type": "object"
     },
+    "GitTrust": {
+      "description": "`git.trust`: the person trusts the git repository that holds `path`. The core then runs git\nin it and in its worktrees. It keeps the settings of the repository that name a program,\nand asks again when they change. A trust again keeps the settings of now.",
+      "properties": {
+        "path": {
+          "description": "An absolute path in a git worktree, for example `path` of `trust`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "path"
+      ],
+      "type": "object"
+    },
+    "GitTrustAsk": {
+      "description": "`trust` of `changes_head` and `git_head`: the settings of a repository can name programs\nthat git runs, so the core runs git in a repository only after the person trusts it\n(`git.trust`).",
+      "properties": {
+        "changed": {
+          "description": "The keys of the settings that changed after the trust, for example `core.fsmonitor`.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "common_dir": {
+          "description": "The common git directory: the key of the trust, which its worktrees share.",
+          "type": "string"
+        },
+        "path": {
+          "description": "The root of the worktree that holds the folder. `git.trust` takes it.",
+          "type": "string"
+        },
+        "reason": {
+          "$ref": "#/$defs/GitTrustReason"
+        }
+      },
+      "required": [
+        "path",
+        "common_dir",
+        "reason"
+      ],
+      "type": "object"
+    },
+    "GitTrustEvent": {
+      "description": "The payload of `git.trusted` and `git.untrusted`: the person trusts a repository, or takes\nthe trust back.",
+      "properties": {
+        "common_dir": {
+          "description": "The common git directory of the repository: the key of the trust.",
+          "type": "string"
+        },
+        "path": {
+          "description": "The path that the person gave.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "path",
+        "common_dir"
+      ],
+      "type": "object"
+    },
+    "GitTrustReason": {
+      "description": "Why the core runs no git command in a repository.",
+      "oneOf": [
+        {
+          "const": "new",
+          "description": "The person did not trust the repository, or took the trust back.",
+          "type": "string"
+        },
+        {
+          "const": "changed",
+          "description": "A setting of the repository that names a program changed after the trust.",
+          "type": "string"
+        }
+      ]
+    },
+    "GitTrustResult": {
+      "description": "The repository of `git.trust` or `git.untrust`.",
+      "properties": {
+        "common_dir": {
+          "description": "The common git directory: the key of the trust, which its worktrees share.",
+          "type": "string"
+        },
+        "root": {
+          "description": "The root of the worktree that holds the path.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "root",
+        "common_dir"
+      ],
+      "type": "object"
+    },
     "GitUnstash": {
       "description": "`git.unstash`: puts the changes of a stash back into the worktree, and drops the stash.",
       "properties": {
@@ -4000,6 +4115,19 @@ expression: document()
       },
       "required": [
         "stash"
+      ],
+      "type": "object"
+    },
+    "GitUntrust": {
+      "description": "`git.untrust`: the person takes back the trust of the git repository that holds `path`.\nThe core runs no git command in it until the person trusts it again.",
+      "properties": {
+        "path": {
+          "description": "An absolute path in a git worktree.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "path"
       ],
       "type": "object"
     },
@@ -4099,7 +4227,7 @@ expression: document()
           "type": "boolean"
         },
         "command": {
-          "description": "The git command, for example `git switch main`.",
+          "description": "The git command, for example `git switch --end-of-options main`.",
           "type": "string"
         },
         "from": {
@@ -11143,6 +11271,20 @@ expression: document()
       "v": 1
     },
     {
+      "kind": "git.trusted",
+      "payload": {
+        "$ref": "#/$defs/GitTrustEvent"
+      },
+      "v": 1
+    },
+    {
+      "kind": "git.untrusted",
+      "payload": {
+        "$ref": "#/$defs/GitTrustEvent"
+      },
+      "v": 1
+    },
+    {
       "kind": "git.switched",
       "payload": {
         "$ref": "#/$defs/GitWrite"
@@ -12414,6 +12556,34 @@ expression: document()
       },
       "result": {
         "$ref": "#/$defs/Empty"
+      },
+      "scopes": [
+        "ui",
+        "cli",
+        "phone"
+      ]
+    },
+    {
+      "name": "git.trust",
+      "params": {
+        "$ref": "#/$defs/GitTrust"
+      },
+      "result": {
+        "$ref": "#/$defs/GitTrustResult"
+      },
+      "scopes": [
+        "ui",
+        "cli",
+        "phone"
+      ]
+    },
+    {
+      "name": "git.untrust",
+      "params": {
+        "$ref": "#/$defs/GitUntrust"
+      },
+      "result": {
+        "$ref": "#/$defs/GitTrustResult"
       },
       "scopes": [
         "ui",

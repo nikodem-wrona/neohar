@@ -55,6 +55,12 @@ fn start(name: &str) -> Setup {
     Setup { core, base, repo }
 }
 
+/// The person trusts the repository of a folder (`git.trust`).
+async fn trust(core: &Harness, path: &Path) {
+    core.call("git.trust", json!({ "path": path.display().to_string() }))
+        .await;
+}
+
 /// How long a test waits for the core to reach a state. On a busy Mac, macOS checks each new
 /// binary, and git can take seconds. The core sets up the two watches of a worktree one after
 /// the other, and on macOS `fseventsd` sets up the watches of all processes one at a time. Under
@@ -174,7 +180,9 @@ async fn a_window_that_follows_a_folder_sees_the_changes_of_its_worktree() {
             .await;
     };
 
-    // A folder in a checkout: the changes go from HEAD, so a clean checkout has none.
+    // A folder in a checkout that the person trusts: the changes go from HEAD, so a clean checkout
+    // has none.
+    trust(&s.core, &s.repo).await;
     std::fs::create_dir_all(s.repo.join("src")).expect("a folder");
     follow(&s.repo.join("src")).await;
     let repo = s.repo.display().to_string();
@@ -241,6 +249,7 @@ async fn a_window_that_follows_a_folder_sees_the_changes_of_its_worktree() {
     std::fs::create_dir_all(&other).expect("a repository");
     git(&other, &["init", "-q", "-b", "trunk"]);
     std::fs::write(other.join("notes.md"), "x\n").expect("a file");
+    trust(&s.core, &other).await;
     follow(&other).await;
     let other_root = other.display().to_string();
     head.until("the head of the other repository", WAIT, |head| {
@@ -290,4 +299,102 @@ async fn a_window_that_follows_a_folder_sees_the_changes_of_its_worktree() {
         .await
         .expect_err("no window");
     assert_eq!(refused.code, ErrorCode::NotFound, "{}", refused.message);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_repository_runs_no_git_until_the_person_trusts_it_and_asks_again_after_a_change() {
+    let s = start("trust");
+    let marks = s.base.join("markers");
+    std::fs::create_dir_all(&marks).expect("a folder");
+    let ran = || {
+        std::fs::read_dir(&marks)
+            .expect("markers")
+            .filter_map(Result::ok)
+            .map(|entry| entry.file_name().to_string_lossy().into_owned())
+            .collect::<Vec<_>>()
+    };
+    // Settings that run programs: an fsmonitor, and a clean filter for each file. A file has a
+    // change, so a count runs the filter.
+    let fsmonitor = format!("touch {}/fsmonitor; false", marks.display());
+    let clean = format!("touch {}/clean; cat", marks.display());
+    git(&s.repo, &["config", "core.fsmonitor", &fsmonitor]);
+    git(&s.repo, &["config", "filter.evil.clean", &clean]);
+    std::fs::write(s.repo.join(".gitattributes"), "* filter=evil\n").expect("a file");
+    std::fs::write(s.repo.join("a.txt"), "one\ntwo\nthree\n").expect("a change");
+
+    let window = s.core.call("window.open", json!({})).await["window"]
+        .as_str()
+        .expect("a window")
+        .to_owned();
+    let mut head = Follower::new(&s.core, &format!("changes_head:{window}")).await;
+    let mut rows = Follower::new(&s.core, &format!("changes_for:{window}")).await;
+    s.core
+        .call(
+            "changes.follow",
+            json!({"window": window, "path": s.repo.display().to_string()}),
+        )
+        .await;
+
+    // The head asks, with the repository and no count. No program ran.
+    let repo = s.repo.display().to_string();
+    head.until("the prompt", WAIT, |head| {
+        head["trust"]["reason"] == "new"
+            && head["trust"]["path"] == repo.as_str()
+            && head["root"] == repo.as_str()
+            && head["changes"].is_null()
+    })
+    .await;
+    let refused = s
+        .core
+        .handle
+        .rpc("changes.diff", json!({"window": window, "path": "a.txt"}))
+        .await
+        .expect_err("not trusted");
+    assert_eq!(
+        (refused.code, refused.details["kind"].as_str()),
+        (ErrorCode::PermissionDenied, Some("untrusted")),
+        "{}",
+        refused.message
+    );
+    assert!(rows.items.is_empty());
+    assert_eq!(ran(), Vec::<String>::new());
+
+    // The person trusts it: the core counts. The filter runs now, as git runs it for the person.
+    trust(&s.core, &s.repo).await;
+    head.until("the count after the trust", WAIT, |head| {
+        head["trust"].is_null() && head["changes"]["files"] == 2
+    })
+    .await;
+    rows.until("the change is a row", WAIT, |row| row["path"] == "a.txt")
+        .await;
+    assert!(
+        !ran().contains(&"fsmonitor".to_owned()),
+        "the fsmonitor never runs"
+    );
+
+    // An agent adds a setting that runs a program: the head asks again and names it.
+    git(
+        &s.repo,
+        &["config", "core.sshCommand", "ssh -o ProxyCommand=true"],
+    );
+    std::fs::write(s.repo.join("a.txt"), "one\ntwo\nthree\nfour\n").expect("a change");
+    head.until("the prompt after the change", WAIT, |head| {
+        head["trust"]["reason"] == "changed"
+            && head["trust"]["changed"] == json!(["core.sshcommand"])
+    })
+    .await;
+    rows.until_all("no rows", WAIT, serde_json::Map::is_empty)
+        .await;
+
+    // A trust again counts, and the end of the trust asks again.
+    trust(&s.core, &s.repo).await;
+    head.until("the count after the second trust", WAIT, |head| {
+        head["trust"].is_null() && head["changes"]["files"] == 2
+    })
+    .await;
+    s.core.call("git.untrust", json!({"path": repo})).await;
+    head.until("the prompt after the end of the trust", WAIT, |head| {
+        head["trust"]["reason"] == "new"
+    })
+    .await;
 }

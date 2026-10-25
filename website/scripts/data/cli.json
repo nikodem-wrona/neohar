@@ -646,6 +646,20 @@
   {
     "path": [
       "git",
+      "trust"
+    ],
+    "about": "Trust the repository of a folder, or of the current directory: neohar runs git in it only after you trust it"
+  },
+  {
+    "path": [
+      "git",
+      "untrust"
+    ],
+    "about": "Take back the trust of the repository of a folder, or of the current directory"
+  },
+  {
+    "path": [
+      "git",
       "status"
     ],
     "about": "Show the branch, its upstream, the agents and the changed files of the worktree of the current directory"

@@ -14,51 +14,11 @@ use std::{
 
 use nh_proto::api::model::GitBranchKind;
 
+pub(crate) use crate::changes::git::Place;
 use crate::changes::git::{Git, GitError, Record, parse_diff_index};
-
-/// Where a folder is in git.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) struct Place {
-    /// The root of the worktree that holds the folder.
-    pub root: PathBuf,
-    /// The git directory of that worktree.
-    pub git_dir: PathBuf,
-    /// The git directory that all worktrees of the repository share.
-    pub common_dir: PathBuf,
-}
 
 fn canonical(path: PathBuf) -> PathBuf {
     std::fs::canonicalize(&path).unwrap_or(path)
-}
-
-/// The worktree and the git directories of a folder.
-pub(crate) async fn place(git: &Git, folder: &Path) -> Result<Place, GitError> {
-    let out = git
-        .run(
-            folder,
-            &[
-                "rev-parse",
-                "--path-format=absolute",
-                "--show-toplevel",
-                "--absolute-git-dir",
-                "--git-common-dir",
-            ],
-        )
-        .await?;
-    let mut lines = out.lines().map(str::trim);
-    let (Some(root), Some(git_dir), Some(common_dir)) = (lines.next(), lines.next(), lines.next())
-    else {
-        return Err(GitError::Failed {
-            args: "rev-parse".to_owned(),
-            status: "0".to_owned(),
-            stderr: format!("an answer of {} lines", out.lines().count()),
-        });
-    };
-    Ok(Place {
-        root: canonical(PathBuf::from(root)),
-        git_dir: canonical(PathBuf::from(git_dir)),
-        common_dir: canonical(PathBuf::from(common_dir)),
-    })
 }
 
 /// The name of a repository: the folder of its main worktree, or of a bare repository without
