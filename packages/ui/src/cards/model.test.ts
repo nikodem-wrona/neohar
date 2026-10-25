@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'bun:test';
 import type { InteractionValue } from '@neohar/transport';
 import {
-  APPROVAL_BUTTONS,
   answeredBy,
+  approvalButtons,
   approvalDecision,
+  buttonForKey,
   canAnswer,
   defaultChoice,
   displayOnly,
@@ -34,17 +35,27 @@ const card = (over: Partial<InteractionValue> = {}): InteractionValue =>
   }) as InteractionValue;
 
 describe('the buttons of an approval', () => {
-  it('are Allow, Allow always, Deny and Deny and stop, in this order', () => {
-    expect(APPROVAL_BUTTONS.map((b) => b.label)).toEqual([
+  it('are Allow, Allow always with its rule, Deny and Deny and stop, in this order', () => {
+    const buttons = approvalButtons(card({ always_rule: 'pnpm test:*' }));
+    expect(buttons.map((b) => b.label)).toEqual([
       'Allow',
-      'Allow always',
+      'Allow `pnpm test:*` always',
       'Deny',
       'Deny and stop',
     ]);
-    expect(APPROVAL_BUTTONS.filter((b) => b.refuses).map((b) => b.id)).toEqual([
-      'deny',
-      'deny_stop',
-    ]);
+    expect(buttons.map((b) => b.key)).toEqual([1, 2, 3, 4]);
+    expect(buttons.filter((b) => b.refuses).map((b) => b.id)).toEqual(['deny', 'deny_stop']);
+  });
+
+  it('have no Allow always without a rule from the core, and keep their keys', () => {
+    for (const over of [{}, { always_rule: null }, { always_rule: '' }]) {
+      const buttons = approvalButtons(card(over));
+      expect(buttons.map((b) => b.id)).toEqual(['allow', 'deny', 'deny_stop']);
+      expect(buttons.map((b) => b.key)).toEqual([1, 3, 4]);
+      // Key 2 names nothing, so it cannot allow by accident.
+      expect(buttonForKey(buttons, '2')).toBeUndefined();
+      expect(buttonForKey(buttons, '3')?.id).toBe('deny');
+    }
   });
 
   it('select Deny for a high risk and Allow for the others', () => {

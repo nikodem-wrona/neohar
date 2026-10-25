@@ -104,9 +104,10 @@ The how-to for the last two and for the Git view is in
 [files, changes and Git](/docs/guides/files-and-changes).
 
 **Cards.** An approval shows the command with highlight spans, why the risk, the directory, the
-diff and the last lines of the pane, with Allow, Allow always, Deny, and Deny and stop. The keys 1
-to 4 name the four answers. At a high risk Deny is preselected, a number only selects its button,
-and only Enter on a button answers. A question has options and free text, a plan review has
+diff and the last lines of the pane, with Allow, "Allow `<rule>` always" (only when the core sends
+`always_rule`), Deny, and Deny and stop. The keys 1 to 4 name the four answers, and a key stays
+with its button when "Allow always" is not there. At a high risk Deny is preselected, a number
+only selects its button, and only Enter on a button answers. A question has options and free text, a plan review has
 the plan and a feedback box, and a notice has Open and Dismiss. A card never changes itself after
 a click: it sends `interaction.answer {via: "card"}` and then shows the delivery state from the
 projection ("Delivered. Answered by …", "Couldn't confirm your answer reached …"). The mechanism

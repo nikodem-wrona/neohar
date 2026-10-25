@@ -27,7 +27,8 @@ pub(crate) fn hook_output(
     let decision = interaction.delivery.decision.as_ref()?;
     match (&interaction.payload, decision) {
         (InteractionPayload::Approval(payload), Decision::Approval(d)) => {
-            Some(approval(harness, payload, d, persist_allowed).to_string())
+            let rule = interaction.always_rule();
+            Some(approval(harness, payload, d, rule, persist_allowed).to_string())
         }
         (InteractionPayload::PlanReview(_), Decision::PlanReview(d)) => {
             plan(d).map(|v| v.to_string())
@@ -43,34 +44,40 @@ fn permission(decision: Value) -> Value {
     json!({"hookSpecificOutput": {"hookEventName": "PermissionRequest", "decision": decision}})
 }
 
+/// The tool of Claude Code whose rules take the pattern of a command, `Bash(pnpm test:*)`.
+const CLAUDE_SHELL: &str = "Bash";
+
+/// `rule` is the pattern that "Allow always" adds ([`Interaction::always_rule`]).
 fn approval(
     harness: Harness,
     payload: &ApprovalPayload,
     decision: &ApprovalDecision,
+    rule: Option<&str>,
     persist_allowed: bool,
 ) -> Value {
     match decision.behavior {
         Behavior::Allow => {
             let mut out = json!({"behavior": "allow"});
-            // Only Claude Code takes a rule with the answer. For Codex, "always" is a
-            // rule of neohar, and the answer to the hook is a plain allow.
-            if decision.always && harness == Harness::Claude {
+            // Only Claude Code takes a rule with the answer, and only a rule for a shell command
+            // with its pattern: a rule with no `ruleContent` allows every call of the tool. For
+            // the other tools and for Codex, "always" is the rule of neohar, and the answer to the
+            // hook is a plain allow. A path rule of Claude Code reads its pattern from another
+            // directory and follows other links, so it is not the rule that the person saw.
+            let content = rule.filter(|_| {
+                decision.always
+                    && harness == Harness::Claude
+                    && payload.tool == CLAUDE_SHELL
+                    && payload.command.is_some()
+            });
+            if let Some(content) = content {
                 let destination = if decision.persist && persist_allowed {
                     "localSettings"
                 } else {
                     "session"
                 };
-                let mut rule = json!({"toolName": payload.tool});
-                if let Some(prefix) = payload
-                    .command
-                    .as_ref()
-                    .and_then(|c| nh_rich::command::rule_prefix(&c.argv))
-                {
-                    rule["ruleContent"] = json!(prefix);
-                }
                 out["updatedPermissions"] = json!([{
                     "type": "addRules",
-                    "rules": [rule],
+                    "rules": [{"toolName": payload.tool, "ruleContent": content}],
                     "behavior": "allow",
                     "destination": destination,
                 }]);

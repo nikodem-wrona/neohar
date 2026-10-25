@@ -519,10 +519,59 @@ fn a_release_to_observe_drops_the_native_channel_and_the_deadline() {
     assert!(interaction.release_to_observe(at(1_600)).is_empty());
 }
 
+/// The facts of an approval that a rule may cover.
+fn eligible_facts() -> Facts {
+    Facts {
+        fingerprint: "0123456789abcdef".to_owned(),
+        harness: nh_proto::api::common::Harness::Claude,
+        tool: "Bash".to_owned(),
+        pattern: Some("pnpm test:*".to_owned()),
+        workspace: "/w".to_owned(),
+        eligible: true,
+    }
+}
+
+#[test]
+fn allow_always_needs_a_rule_that_covers_only_the_request() {
+    let always = Decision::Approval(ApprovalDecision {
+        behavior: Behavior::Allow,
+        always: true,
+        persist: false,
+        message: None,
+        stop: false,
+    });
+    let try_always = |facts: Option<Facts>, channels: Vec<AnswerChannel>| {
+        let mut interaction = open_approval();
+        interaction.facts = facts;
+        interaction.channels = channels;
+        let rule = interaction.always_rule().map(str::to_owned);
+        let shown = interaction.value().always_rule;
+        assert_eq!(rule, shown, "the API shows the rule that the core takes");
+        (rule, interaction.answer(always.clone(), "ui", Via::Card))
+    };
+    // No facts, or facts that no rule may cover.
+    let (rule, refused) = try_always(None, vec![AnswerChannel::Native]);
+    assert_eq!(rule, None);
+    assert!(matches!(refused, Err(Refusal::Invalid(_))));
+    let mut wide = eligible_facts();
+    wide.eligible = false;
+    wide.pattern = None;
+    let (_, refused) = try_always(Some(wide), vec![AnswerChannel::Native]);
+    assert!(matches!(refused, Err(Refusal::Invalid(_))));
+    // A key in the dialog of the harness would pick the rule of the harness.
+    let (rule, refused) = try_always(Some(eligible_facts()), vec![AnswerChannel::Keystroke]);
+    assert_eq!(rule, None);
+    assert!(matches!(refused, Err(Refusal::Invalid(_))));
+    let (rule, taken) = try_always(Some(eligible_facts()), vec![AnswerChannel::Native]);
+    assert_eq!(rule.as_deref(), Some("pnpm test:*"));
+    assert!(taken.is_ok());
+}
+
 #[test]
 fn approval_decisions_are_checked() {
     let bad = |d: ApprovalDecision| {
         let mut interaction = open_approval();
+        interaction.facts = Some(eligible_facts());
         interaction.answer(Decision::Approval(d), "ui", Via::Card)
     };
     let base = ApprovalDecision {

@@ -1,9 +1,10 @@
 //! The fingerprint of an approval.
 //!
 //! `hash(harness, tool, normalized command prefix | path glob, workspace)`. Every answered approval
-//! stores one with its decision. A fingerprint also says whether a rule may be suggested for it: not
-//! for a high risk, a line with many commands, a destructive program, or a path that touches `.git`,
-//! `.env*`, keys or credentials.
+//! stores one with its decision. A fingerprint also says whether a rule may be suggested for it,
+//! and "Allow always" made from it: not for a high risk, a line that is not plain (many commands,
+//! a substitution, a glob), a program that destroys data or runs any code, a path that touches
+//! `.git`, `.env*`, keys or credentials, or a rule that would not allow the request itself.
 
 use std::path::Path;
 
@@ -11,7 +12,7 @@ use nh_proto::api::common::{Harness, Risk};
 use nh_rich::command::{is_credential_path, rule_prefix};
 use serde::{Deserialize, Serialize};
 
-use super::matcher::{self, Subject};
+use super::matcher::{self, CommandPattern, Subject};
 
 /// What the core remembers about an approval, from the moment it opens.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -66,15 +67,26 @@ fn glob_of(paths: &[String]) -> Option<String> {
     Some(format!("{}/**", common.join("/")))
 }
 
+/// Whether a rule with `pattern` would allow the request itself, as the matcher reads it. A rule
+/// that does not (`cargo test:*` for `FOO=1 cargo test`) is no rule for it.
+fn covers(pattern: &str, subject: &Subject) -> bool {
+    match &subject.command {
+        Some(line) => CommandPattern::parse(pattern)
+            .is_ok_and(|p| matcher::is_plain(line) && p.fits(&matcher::normalize(line))),
+        None => subject
+            .paths
+            .iter()
+            .all(|path| matcher::glob_matches(pattern, path)),
+    }
+}
+
 /// The facts of a request. `argv` is the first command of a shell line, as the card shows it.
 pub fn facts_of(subject: &Subject, risk: Risk, argv: &[String]) -> Facts {
     let (pattern, key, mut eligible) = if let Some(line) = &subject.command {
         // A new line is white space, so the check of the characters reads the raw text.
-        let compound = !matcher::is_plain(line);
-        let line = matcher::normalize(line);
-        let prefix = if compound { None } else { rule_prefix(argv) };
-        let eligible = !compound && prefix.is_some();
-        let key = prefix.clone().unwrap_or(line);
+        let prefix = rule_prefix(argv).filter(|p| covers(p, subject));
+        let eligible = prefix.is_some();
+        let key = prefix.clone().unwrap_or_else(|| matcher::normalize(line));
         (prefix, key, eligible)
     } else if !subject.paths.is_empty() {
         let inside = subject.paths.iter().all(|p| !p.starts_with('/'));
@@ -85,7 +97,7 @@ pub fn facts_of(subject: &Subject, risk: Risk, argv: &[String]) -> Facts {
             None
         };
         let key = glob.clone().unwrap_or_else(|| subject.paths.join("\n"));
-        let eligible = inside && clean && glob.is_some();
+        let eligible = inside && clean && glob.as_deref().is_some_and(|g| covers(g, subject));
         (glob, key, eligible)
     } else {
         (None, String::new(), false)

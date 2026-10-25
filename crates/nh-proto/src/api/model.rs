@@ -522,6 +522,11 @@ wire! {
         pub answerable: bool,
         /// The channels that this kind has for this run.
         pub channels: Vec<AnswerChannel>,
+        /// The rule that "Allow always" adds, such as `pnpm test:*` or `src/app/**`. Only an
+        /// approval that a rule may cover, with an answer through the hook, has it. Without it
+        /// the core refuses "always".
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub always_rule: Option<String>,
     }
 }
 

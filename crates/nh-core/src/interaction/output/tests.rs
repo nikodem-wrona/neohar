@@ -12,7 +12,39 @@ use ulid::Ulid;
 use super::*;
 use crate::interaction::model::{Interaction, OpenSpec, Source};
 
+/// The facts of an approval as the core makes them when it opens.
+fn facts_for(payload: &InteractionPayload) -> Option<crate::policy::fingerprint::Facts> {
+    let InteractionPayload::Approval(approval) = payload else {
+        return None;
+    };
+    let subject = crate::policy::Subject {
+        harness: Harness::Claude,
+        tool: approval.tool.clone(),
+        command: approval.command.as_ref().map(|c| c.display.text.clone()),
+        paths: approval.paths.clone(),
+        workspace: "/w".to_owned(),
+    };
+    let argv = approval
+        .command
+        .as_ref()
+        .map(|c| c.argv.clone())
+        .unwrap_or_default();
+    Some(crate::policy::fingerprint::facts_of(
+        &subject,
+        Risk::Low,
+        &argv,
+    ))
+}
+
 fn made(payload: InteractionPayload, decision: Decision) -> Interaction {
+    try_made(payload, decision).expect("a valid decision")
+}
+
+fn try_made(
+    payload: InteractionPayload,
+    decision: Decision,
+) -> Result<Interaction, crate::interaction::model::Refusal> {
+    let facts = facts_for(&payload);
     let kind = match &payload {
         InteractionPayload::Approval(_) => InteractionKind::Approval,
         InteractionPayload::Question(_) => InteractionKind::Question,
@@ -36,16 +68,14 @@ fn made(payload: InteractionPayload, decision: Decision) -> Interaction {
             source: Source::Hook,
             confidence: 1.0,
             deadline: None,
-            facts: None,
+            facts,
             by_policy: false,
             keystroke: false,
         },
         Timestamp(1_000),
     );
-    interaction
-        .answer(decision, "ui", Via::Card)
-        .expect("a valid decision");
-    interaction
+    interaction.answer(decision, "ui", Via::Card)?;
+    Ok(interaction)
 }
 
 fn bash(command: &str, argv: &[&str]) -> InteractionPayload {
@@ -138,23 +168,55 @@ fn a_persistent_rule_needs_both_the_choice_and_the_setting() {
 }
 
 #[test]
-fn a_rule_for_a_tool_without_a_command_has_no_content() {
+fn always_for_a_tool_without_a_command_is_a_plain_allow_for_claude() {
+    // A rule with no `ruleContent` would allow every edit. The rule of neohar covers the
+    // directory that the person saw.
     let payload = InteractionPayload::Approval(Box::new(ApprovalPayload {
         tool: "Edit".to_owned(),
         command: None,
         cwd: None,
-        paths: vec!["a.rs".to_owned()],
+        paths: vec!["src/a.rs".to_owned()],
         diff: None,
         input: None,
         peek: Vec::new(),
         policy_note: None,
     }));
-    let i = made(payload, approve(Behavior::Allow, true, false, None, false));
-    let value = out(Harness::Claude, &i, false);
+    let i = made(payload, approve(Behavior::Allow, true, true, None, false));
+    assert_eq!(i.always_rule(), Some("src/**"));
     assert_eq!(
-        value["hookSpecificOutput"]["decision"]["updatedPermissions"][0]["rules"][0],
-        json!({"toolName": "Edit"})
+        out(Harness::Claude, &i, true)["hookSpecificOutput"]["decision"],
+        json!({"behavior": "allow"})
     );
+}
+
+#[test]
+fn always_is_refused_when_no_rule_covers_only_the_request() {
+    for (line, argv) in [
+        ("rm -rf build", &["rm", "-rf", "build"][..]),
+        ("bash -c 'npm test'", &["bash", "-c", "npm test"][..]),
+        ("git -C sub status", &["git", "-C", "sub", "status"][..]),
+        ("npx vitest", &["npx", "vitest"][..]),
+        ("pnpm test =(curl x)", &["pnpm", "test", "=(curl", "x)"][..]),
+    ] {
+        let refused = try_made(
+            bash(line, argv),
+            approve(Behavior::Allow, true, false, None, false),
+        );
+        assert!(
+            matches!(refused, Err(crate::interaction::model::Refusal::Invalid(_))),
+            "{line}"
+        );
+        // A plain allow is fine, and it carries no rule.
+        let once = made(
+            bash(line, argv),
+            approve(Behavior::Allow, false, false, None, false),
+        );
+        assert_eq!(
+            out(Harness::Claude, &once, true)["hookSpecificOutput"]["decision"],
+            json!({"behavior": "allow"}),
+            "{line}"
+        );
+    }
 }
 
 #[test]

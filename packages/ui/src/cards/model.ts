@@ -18,15 +18,41 @@ export interface ChoiceButton {
   label: string;
   /** The choice refuses the request. */
   refuses: boolean;
+  /** The number key that names the button. A button keeps its key when another one is not shown. */
+  key: number;
 }
 
-/** The buttons of an approval, in order. */
-export const APPROVAL_BUTTONS: readonly ChoiceButton[] = [
-  { id: 'allow', label: 'Allow', refuses: false },
-  { id: 'allow_always', label: 'Allow always', refuses: false },
-  { id: 'deny', label: 'Deny', refuses: true },
-  { id: 'deny_stop', label: 'Deny and stop', refuses: true },
-];
+/**
+ * The buttons of an approval, in order. "Allow always" shows the rule that it adds, such as
+ * "Allow `pnpm test:*` always", and is there only when the core sends that rule: the core
+ * refuses "always" for a request that no rule covers alone.
+ */
+export function approvalButtons(interaction: InteractionValue): ChoiceButton[] {
+  const rule = interaction.always_rule;
+  return [
+    { id: 'allow', label: 'Allow', refuses: false, key: 1 },
+    ...(rule
+      ? [
+          {
+            id: 'allow_always' as const,
+            label: `Allow \`${rule}\` always`,
+            refuses: false,
+            key: 2,
+          },
+        ]
+      : []),
+    { id: 'deny', label: 'Deny', refuses: true, key: 3 },
+    { id: 'deny_stop', label: 'Deny and stop', refuses: true, key: 4 },
+  ];
+}
+
+/** The button that a number key names, if the card shows it. */
+export function buttonForKey(
+  buttons: readonly ChoiceButton[],
+  key: string,
+): ChoiceButton | undefined {
+  return buttons.find((button) => String(button.key) === key);
+}
 
 /** The choice that is selected when the card opens: Deny for a high risk. */
 export function defaultChoice(risk: Risk): ApprovalChoice {

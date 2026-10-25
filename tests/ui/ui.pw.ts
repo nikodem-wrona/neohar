@@ -2272,13 +2272,17 @@ test('the keys 1 to 4 answer an approval at a low risk and select a button at a 
     await page.keyboard.press('Enter');
     await expect.poll(answers).toBe(before + 1);
 
-    // At a low risk, a number answers at once: 2 is "Allow always".
+    // At a low risk, a number answers at once. No rule covers `ls -la` alone, so the card has no
+    // "Allow always", and 2 names nothing.
     await low.focus();
+    await expect(low.getByRole('button', { name: /always/ })).toHaveCount(0);
     await page.keyboard.press('2');
+    await page.keyboard.press('1');
     await expect.poll(answers).toBe(before + 2);
     const sent = (await calls('interaction.answer')).slice(-2).map((call) => call.params);
     expect(JSON.stringify(sent[0])).toContain('deny');
-    expect(JSON.stringify(sent[1])).toContain('always');
+    expect(JSON.stringify(sent[1])).toContain('allow');
+    expect(JSON.stringify(sent[1])).not.toContain('always');
   } finally {
     await stop();
     await rm(dir, { recursive: true, force: true });

@@ -607,9 +607,10 @@ fn the_policy_hint_names_the_rule() {
         hint("git status").as_deref(),
         Some("A rule for `git status:*` can allow this command.")
     );
+    // A command of one word gets only itself.
     assert_eq!(
-        hint("ls -la").as_deref(),
-        Some("A rule for `ls:*` can allow this command.")
+        hint("ls").as_deref(),
+        Some("A rule for `ls` can allow this command.")
     );
     assert_eq!(
         hint("cargo test -p x").as_deref(),
@@ -624,6 +625,97 @@ fn the_policy_hint_names_the_rule() {
     assert_eq!(hint("echo 'abc"), None);
     assert_eq!(hint(""), None);
     assert_eq!(hint("sudo ls"), None);
+    // An option as the second word: `ls:*` would allow every call of the program.
+    assert_eq!(hint("ls -la"), None);
+}
+
+/// The prefix of a rule as `rule_prefix` gives it for the words of a command.
+fn prefix(command: &str) -> Option<String> {
+    let words: Vec<String> = command.split_whitespace().map(str::to_owned).collect();
+    rule_prefix(&words)
+}
+
+#[test]
+fn a_rule_never_covers_more_programs_than_the_command_runs() {
+    for command in [
+        // An option before the subcommand: the rule would be for every call of the program.
+        "git -C sub status",
+        "git -c core.fsmonitor=x status",
+        "cargo --config x test",
+        // Shells, interpreters and wrappers run what their arguments name.
+        "bash -c npm",
+        "sh script.sh",
+        "zsh",
+        "env FOO=1 cargo test",
+        "timeout 60 cargo test",
+        "nice cargo build",
+        "nohup cargo run",
+        "xargs rm",
+        "exec cargo test",
+        "command ls",
+        "builtin cd",
+        "eval x",
+        "time cargo test",
+        "watch ls",
+        "stdbuf -oL make",
+        "caffeinate make",
+        "doas ls",
+        "python3 -m pytest",
+        "python3.12 manage.py test",
+        "node script.js",
+        "deno run x",
+        "ruby x.rb",
+        "perl x.pl",
+        "php artisan test",
+        "lua x.lua",
+        "osascript x",
+        "find . -name x",
+        "awk x",
+        "ssh host",
+        "open x.app",
+        // Runners of packages from a registry.
+        "npx vitest",
+        "bunx vitest",
+        "uvx ruff",
+        "bun x vitest",
+        "pnpm dlx create-app",
+        "pnpm exec vitest",
+        "npm exec vitest",
+        "npm install left-pad",
+        "yarn dlx create-app",
+        "pipx run black",
+        "uv run pytest",
+        "go run main.go",
+        "docker run alpine",
+        // Subcommands of git that run a program that an option names.
+        "git config core.pager x",
+        "git grep x",
+        "git fetch origin",
+        "git push origin main",
+        // A program by its path, and a word with other characters.
+        "./gradlew build",
+        "/tmp/x/pnpm test",
+        "pnpm te*",
+        "pnpm $x",
+        "pnpm te(x)",
+    ] {
+        assert_eq!(prefix(command), None, "{command}");
+    }
+    let table = [
+        ("pnpm test", "pnpm test:*"),
+        ("pnpm test:unit --watch", "pnpm test:*"),
+        ("npm test", "npm test:*"),
+        ("npm run build", "npm run build:*"),
+        ("npm run", "npm run"),
+        ("cargo test -p x", "cargo test:*"),
+        ("git status", "git status:*"),
+        ("git", "git"),
+        ("make", "make"),
+        ("make test", "make test:*"),
+    ];
+    for (command, expected) in table {
+        assert_eq!(prefix(command).as_deref(), Some(expected), "{command}");
+    }
 }
 
 #[test]

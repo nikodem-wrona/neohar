@@ -86,7 +86,7 @@ for you.** Looking means that the window has the focus and the pane has the keyb
 
 | Card | Answers |
 |---|---|
-| Approval | **Allow**, **Allow always** (a session rule too), **Deny** (type a reason first if you want), **Deny and stop**. Keys `1` to `4` pick them |
+| Approval | **Allow**, **Allow `<rule>` always** (a session rule too), **Deny** (type a reason first if you want), **Deny and stop**. Keys `1` to `4` pick them |
 | Question | Choose the options, or type your own answer, then **Answer** |
 | Plan | **Approve**, or **Request changes** with feedback |
 
@@ -95,6 +95,17 @@ risk, Deny starts selected, a number key only selects, and Enter on the button a
 only" means the agent is not linked to its pane: answer in the pane, or run `nh agent link`.
 Invisible characters, such as the direction control U+202E, show as escapes like `<U+202E>`,
 and they make the risk high.
+
+**Allow always** shows the rule that it adds, for example "Allow `pnpm test:*` always". The card
+offers it only when one rule covers the request and no more. A command of one word gets a rule
+for that word only. There is no **Allow always** for these requests:
+
+- A high risk, or a line that is not plain (see [Policy rules](#policy-rules)).
+- A program that runs other code: a shell, an interpreter, a wrapper such as `env` or `timeout`,
+  or a package runner such as `npx` or `pnpm dlx`.
+- An option before the subcommand (`git -C sub status`), or a program by its path.
+- A path in `.git`, a `.env` file, keys or credentials.
+- A request that the harness answers in its own dialog: its rule is the rule of the harness.
 
 Under the card, neohar says what became of your answer: delivered, answered in the pane, or
 "Couldn't confirm your answer reached …". In that last case, look at the pane: neohar never sends

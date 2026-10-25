@@ -5240,6 +5240,13 @@ expression: document()
     "InteractionValue": {
       "description": "`interactions`: an approval, a question, a plan review or a notice. The core renders the\npayload once, when the interaction opens.",
       "properties": {
+        "always_rule": {
+          "description": "The rule that \"Allow always\" adds, such as `pnpm test:*` or `src/app/**`. Only an\napproval that a rule may cover, with an answer through the hook, has it. Without it\nthe core refuses \"always\".",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "answerable": {
           "description": "A client can answer it now. A run that is only suggested is not answerable.",
           "type": "boolean"

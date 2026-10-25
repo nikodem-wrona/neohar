@@ -225,41 +225,63 @@ pub fn real_path(path: &Path) -> std::path::PathBuf {
     paths::real(path)
 }
 
-/// The prefix that a rule for this command would match, such as `pnpm test:*`: the program, its
-/// subcommand, and `:*`. `None` for a program that no rule should allow.
+/// The pattern of the rule that would allow this command and calls like it: the program, its
+/// subcommand and `:*`, such as `pnpm test:*`. A command of one word gets only itself, such as
+/// `ls`, because `ls:*` would allow every call of the program.
+///
+/// `None` when no rule may cover the command: a program that destroys data or acts as another
+/// user, a program that runs code that its arguments name (a shell, an interpreter, a wrapper such
+/// as `env` or `timeout`, a runner of packages such as `npx`), a program by its path, and a second
+/// word that is an option (`git -C x status`), a path, or a word with other characters than
+/// letters, digits and `_-+@:.`.
 pub fn rule_prefix(argv: &[String]) -> Option<String> {
-    let program = rules::basename(argv.first()?);
-    if program.is_empty()
-        || tables::HIGH_PROGRAMS.contains(&program)
-        || tables::NO_RULE.contains(&program)
-        || program.starts_with("mkfs.")
-    {
+    let program = argv.first()?.as_str();
+    if !is_rule_word(program) || !may_have_rule(program) {
         return None;
     }
-    let second = argv.get(1).map(String::as_str).filter(|w| {
-        !w.starts_with('-') && !w.contains('/') && !w.contains('=') && !w.starts_with('.')
-    });
+    let Some(second) = argv.get(1).map(String::as_str) else {
+        return Some(program.to_owned());
+    };
+    if !is_rule_word(second) || tables::RUNS_ANY_SUB.contains(&(program, second)) {
+        return None;
+    }
+    let first_part = |word: &str| word.split(':').next().unwrap_or(word).to_owned();
     let prefix = match (program, second) {
-        ("npm" | "pnpm" | "yarn" | "bun", Some("run" | "run-script")) => {
-            let script = argv
-                .get(2)
-                .map(String::as_str)
-                .filter(|w| !w.starts_with('-'));
-            match script {
-                Some(script) => format!(
-                    "{program} run {}",
-                    script.split(':').next().unwrap_or(script)
-                ),
-                None => format!("{program} run"),
+        ("npm" | "pnpm" | "yarn" | "bun", "run" | "run-script") => {
+            match argv.get(2).map(String::as_str) {
+                // `npm run` lists the scripts. The rule is only that.
+                None => return Some(format!("{program} {second}")),
+                Some(script) if is_rule_word(script) => {
+                    format!("{program} run {}", first_part(script))
+                }
+                Some(_) => return None,
             }
         }
-        ("pnpm" | "yarn" | "bun", Some(script)) => {
-            format!("{program} {}", script.split(':').next().unwrap_or(script))
-        }
-        (_, Some(sub)) => format!("{program} {sub}"),
-        (_, None) => program.to_owned(),
+        ("pnpm" | "yarn" | "bun", script) => format!("{program} {}", first_part(script)),
+        (_, sub) => format!("{program} {sub}"),
     };
     Some(format!("{prefix}:*"))
+}
+
+/// A word that a rule may name: letters, digits and `_-+@:.`, and not an option or a hidden name.
+fn is_rule_word(word: &str) -> bool {
+    !word.is_empty()
+        && !word.starts_with(['-', '.', ':'])
+        && word
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | '+' | '@' | ':' | '.'))
+}
+
+/// Whether a rule may name the program at all.
+fn may_have_rule(program: &str) -> bool {
+    // `python3.12` and `node20` are `python` and `node`.
+    let lower = program.to_ascii_lowercase();
+    let unversioned = lower.trim_end_matches(|c: char| c.is_ascii_digit() || c == '.');
+    !(tables::HIGH_PROGRAMS.contains(&program)
+        || tables::NO_RULE.contains(&program)
+        || tables::RUNS_ANY.contains(&lower.as_str())
+        || tables::RUNS_ANY.contains(&unversioned)
+        || program.starts_with("mkfs."))
 }
 
 /// A rule in words, such as "A rule for `pnpm test:*` can allow this command."

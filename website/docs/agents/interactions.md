@@ -159,8 +159,13 @@ annotates the card. An unknown key makes a rule invalid.
 **Fingerprints**. Each answered
 approval stores a fingerprint of harness, tool, command prefix or path glob, and workspace.
 `policy.suggest` proposes an allow rule for a fingerprint approved at least 5 times in 30 days with no
-denial. High risk, chained commands, destructive programs and secret paths are never eligible.
-Nothing is applied: the person pastes the `[[policy.rule]]` block.
+denial. High risk, lines that are not plain, destructive programs, programs that run other code
+(shells, interpreters, wrappers, package runners), an option before the subcommand, secret paths, and
+a rule that does not fit the request itself are never eligible. Nothing is applied: the person pastes
+the `[[policy.rule]]` block.
+
+**Allow always** needs an eligible fingerprint and the native channel. The interaction shows its rule
+in `always_rule`, and the core refuses `always` without it.
 
 ## Not built
 

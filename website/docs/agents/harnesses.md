@@ -30,8 +30,12 @@ A `PermissionRequest` has no `tool_use_id`, so the adapter takes the id of the l
 **Native answers**. The core builds the hook JSON in
 [`output.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-core/src/interaction/output.rs):
 
-- Allow: `decision.behavior = "allow"`. Allow always adds `updatedPermissions` with `addRules` and
-  `{toolName, ruleContent}`; with wrong field names Claude Code silently ignores the whole reply.
+- Allow: `decision.behavior = "allow"`. Allow always for a `Bash` command adds
+  `updatedPermissions` with `addRules` and `{toolName, ruleContent}`, with the rule that the card
+  shows. With wrong field names Claude Code silently ignores the whole reply. A rule always has
+  `ruleContent`: a rule without it allows every call of the tool. For the other tools, Allow
+  always is a plain allow plus a neohar session rule. A path rule of Claude Code reads its pattern
+  from another directory and follows other links, so it is not the rule that the card shows.
   The destination is `session`, and `localSettings` only when the client asks to save **and**
   `approvals.claude.persist_always = true`.
 - Deny: `behavior = "deny"` with a message. Deny and stop adds `interrupt: true`; no `Stop` hook

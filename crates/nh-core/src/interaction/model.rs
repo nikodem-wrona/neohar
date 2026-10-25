@@ -300,7 +300,25 @@ impl Interaction {
             },
             answerable: self.answerable && !self.is_final(),
             channels: self.channels.clone(),
+            always_rule: self
+                .always_rule()
+                .filter(|_| self.answerable && !self.is_final())
+                .map(str::to_owned),
         }
+    }
+
+    /// The rule that "Allow always" adds: the pattern of an approval that a rule may cover
+    /// ([`Facts`]). The decision must go through the hook: a key in the dialog of the harness
+    /// would pick the rule of the harness, which the person did not see.
+    pub fn always_rule(&self) -> Option<&str> {
+        if self.kind != InteractionKind::Approval || !self.channels.contains(&AnswerChannel::Native)
+        {
+            return None;
+        }
+        self.facts
+            .as_ref()
+            .filter(|facts| facts.eligible)
+            .and_then(|facts| facts.pattern.as_deref())
     }
 
     fn ended(&mut self, state: InteractionState, now: Timestamp) {
@@ -388,7 +406,15 @@ impl Interaction {
     fn validate(&self, decision: &Decision) -> Result<(), Refusal> {
         let invalid = |text: &str| Err(Refusal::Invalid(text.to_owned()));
         match (&self.payload, decision) {
-            (InteractionPayload::Approval(_), Decision::Approval(d)) => validate_approval(d),
+            (InteractionPayload::Approval(_), Decision::Approval(d)) => {
+                validate_approval(d)?;
+                if d.always && self.always_rule().is_none() {
+                    return invalid(
+                        "no rule covers only this request, so it has no \"always\": allow it once",
+                    );
+                }
+                Ok(())
+            }
             (InteractionPayload::Question(payload), Decision::Question(d)) => {
                 validate_question(payload, d)
             }

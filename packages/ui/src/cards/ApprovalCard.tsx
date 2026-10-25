@@ -1,9 +1,10 @@
 // The card of an approval: the command with its highlighted words, the
 // directory, the risk and the reasons for it, the hint of the policy, the diff, the other input of
-// the tool as text, and the last lines of the pane. The buttons are Allow, Allow always, Deny and
-// Deny and stop. A high risk selects Deny, and Enter never answers it. The keys 1 to 4
-// name the buttons in their order. At a low or medium risk a number answers. At a high risk it
-// only selects its button and gives it the focus, so the answer takes a second key on the button.
+// the tool as text, and the last lines of the pane. The buttons are Allow, "Allow `<rule>` always"
+// when the core sends a rule, Deny and Deny and stop. A high risk selects Deny, and Enter never
+// answers it. The keys 1 to 4 name the buttons; a button keeps its key when "Allow always" is not
+// there. At a low or medium risk a number answers. At a high risk it only selects its button and
+// gives it the focus, so the answer takes a second key on the button.
 
 import type { InteractionValue } from '@neohar/transport';
 import { createSignal, For, Show } from 'solid-js';
@@ -13,9 +14,10 @@ import { sendAnswer } from './answer';
 import { CardFrame } from './CardFrame';
 import { useCardHost } from './host';
 import {
-  APPROVAL_BUTTONS,
   type ApprovalChoice,
+  approvalButtons,
   approvalDecision,
+  buttonForKey,
   canAnswer,
   defaultChoice,
   enterAnswers,
@@ -35,6 +37,7 @@ export function ApprovalCard(props: {
   const [busy, setBusy] = createSignal(false);
   const [error, setError] = createSignal<string | null>(null);
   const command = () => props.payload.command;
+  const shownButtons = () => approvalButtons(props.interaction);
   const buttons = new Map<ApprovalChoice, HTMLButtonElement>();
 
   const answer = async (picked: ApprovalChoice) => {
@@ -50,7 +53,7 @@ export function ApprovalCard(props: {
   // its own Enter.
   const onKeyDown = (event: KeyboardEvent) => {
     const typing = event.target instanceof HTMLInputElement;
-    const numbered = APPROVAL_BUTTONS[Number(event.key) - 1];
+    const numbered = buttonForKey(shownButtons(), event.key);
     if (numbered && !typing && !event.metaKey && !event.ctrlKey && !event.altKey) {
       event.preventDefault();
       if (enterAnswers(props.interaction.risk)) {
@@ -117,21 +120,21 @@ export function ApprovalCard(props: {
       </Show>
       <Show when={canAnswer(props.interaction)}>
         <div class="card-actions" role="group" aria-label="Answer">
-          <For each={APPROVAL_BUTTONS}>
-            {(button, index) => (
+          <For each={shownButtons()}>
+            {(button) => (
               <button
                 type="button"
                 class="card-button"
                 classList={{ refuses: button.refuses, selected: choice() === button.id }}
                 data-choice={button.id}
                 aria-pressed={choice() === button.id}
-                aria-keyshortcuts={String(index() + 1)}
+                aria-keyshortcuts={String(button.key)}
                 ref={(element) => buttons.set(button.id, element)}
                 disabled={busy()}
                 onClick={() => void answer(button.id).catch(report)}
               >
                 <kbd class="card-key" aria-hidden="true">
-                  {index() + 1}
+                  {button.key}
                 </kbd>
                 {button.label}
               </button>

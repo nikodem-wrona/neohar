@@ -1799,6 +1799,12 @@ export type InteractionState =
  * payload once, when the interaction opens.
  */
 export interface InteractionValue {
+  /**
+   * The rule that "Allow always" adds, such as `pnpm test:*` or `src/app/**`. Only an
+   * approval that a rule may cover, with an answer through the hook, has it. Without it
+   * the core refuses "always".
+   */
+  always_rule?: string | null;
   /** A client can answer it now. A run that is only suggested is not answerable. */
   answerable: boolean;
   /** The channels that this kind has for this run. */
