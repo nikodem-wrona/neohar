@@ -67,6 +67,7 @@ fn a_pass_with_a_short_retention_deletes_old_events_and_truncates_a_cursor_behin
         done,
         Pass {
             events: Swept { sync: 2, audit: 1 },
+            interactions: 0,
             segments: 0,
         }
     );
@@ -173,6 +174,54 @@ fn a_pass_keeps_the_archive_of_each_pane_under_the_cap() {
         "the archive starts at the newest segment"
     );
     let _ = fs::remove_dir_all(dir);
+}
+
+#[test]
+fn a_pass_deletes_the_interactions_that_ended_before_the_audit_retention() {
+    let limits = limits_of("interactions", "[events]\naudit_retention = \"3h\"\n");
+    let mut store = Store::open_in_memory().expect("a store");
+    let now = 100 * HOUR_MS;
+    let row = |n: u128, state: &str, resolved: Option<i64>| nh_store::InteractionRow {
+        id: Ulid::from(n),
+        handle: format!("i{n}"),
+        run: None,
+        pane: None,
+        kind: "approval".to_owned(),
+        native_ref: None,
+        title: "Run `ls`".to_owned(),
+        risk: "low".to_owned(),
+        payload: serde_json::json!({"kind": "approval", "tool": "Bash"}),
+        state: state.to_owned(),
+        answerable: true,
+        gate_mode: "observe".to_owned(),
+        source: "hook".to_owned(),
+        confidence: 1.0,
+        opened_at: now - 10 * HOUR_MS,
+        deadline: None,
+        resolved_at: resolved,
+        resolution: None,
+        fingerprint: None,
+    };
+    let rows = [
+        row(1, "delivered", Some(now - 4 * HOUR_MS)), // ended before the retention: goes
+        row(2, "dismissed", Some(now - 2 * HOUR_MS)), // ended inside the retention: stays
+        row(3, "open", None),                         // open, also when old: stays
+    ];
+    store
+        .tx(now, |tx| {
+            rows.iter().try_for_each(|row| tx.put_interaction(row))
+        })
+        .expect("rows");
+    let done = pass(&mut store, &limits, now).expect("a pass");
+    assert_eq!(done.interactions, 1);
+    let left: Vec<String> = store
+        .recent_interactions(10)
+        .expect("a read")
+        .into_iter()
+        .map(|(row, _)| row.handle)
+        .collect();
+    assert_eq!(left.len(), 2, "{left:?}");
+    assert!(!left.contains(&"i1".to_owned()), "{left:?}");
 }
 
 #[test]

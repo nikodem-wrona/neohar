@@ -1,4 +1,9 @@
 //! The interaction as a row of the store, and back.
+//!
+//! An interaction that ended is written without the secrets that `nh-redact` finds in its title,
+//! its payload and its decision. An open one keeps them until it ends.
+
+use std::borrow::Cow;
 
 use nh_proto::api::{
     calls::agent::Decision,
@@ -74,9 +79,60 @@ fn attempts_from(value: &Value) -> Vec<Attempt> {
         .unwrap_or_default()
 }
 
+/// Replaces the secrets in the texts that have marks (`{text, spans}`, and the `intra` ranges of a
+/// line of a diff). A text that changes loses its marks, because they point into the old text.
+/// Returns whether anything changed.
+fn redact_marked(value: &mut Value) -> bool {
+    match value {
+        Value::Array(items) => items
+            .iter_mut()
+            .fold(false, |changed, item| redact_marked(item) | changed),
+        Value::Object(map) => {
+            let mut changed = false;
+            let marked = map.get("spans").is_some_and(Value::is_array);
+            if marked
+                && let Some(Value::String(text)) = map.get_mut("text")
+                && let Cow::Owned(clean) = nh_redact::redact(text)
+            {
+                *text = clean;
+                map.insert("spans".to_owned(), Value::Array(Vec::new()));
+                changed = true;
+            }
+            let mut line_changed = false;
+            for (key, item) in map.iter_mut() {
+                let inner = redact_marked(item);
+                line_changed |= inner && key == "text";
+                changed |= inner;
+            }
+            if line_changed {
+                map.remove("intra");
+            }
+            changed
+        }
+        _ => false,
+    }
+}
+
+/// A value of an interaction as the store keeps it. The value of an interaction that ended has no
+/// secret that `nh-redact` finds: a command, the input of a tool, a diff and the lines of the pane
+/// can hold one. An interaction that did not end keeps its full value, because a start of the
+/// core continues it: the keys compare the command with the dialog on the screen.
+fn stored(interaction: &Interaction, mut value: Value) -> Value {
+    if interaction.is_final() {
+        redact_marked(&mut value);
+        nh_redact::redact_value(&mut value);
+    }
+    value
+}
+
 /// The rows of an interaction.
 pub(crate) fn to_rows(interaction: &Interaction) -> (InteractionRow, DeliveryRow) {
     let delivery = &interaction.delivery;
+    let title = if interaction.is_final() {
+        nh_redact::redact(&interaction.title).into_owned()
+    } else {
+        interaction.title.clone()
+    };
     let row = InteractionRow {
         id: interaction.id.ulid(),
         handle: interaction.handle.clone(),
@@ -84,9 +140,12 @@ pub(crate) fn to_rows(interaction: &Interaction) -> (InteractionRow, DeliveryRow
         pane: interaction.pane.map(PaneId::ulid),
         kind: name(&interaction.kind),
         native_ref: interaction.native_ref.clone(),
-        title: interaction.title.clone(),
+        title,
         risk: name(&interaction.risk),
-        payload: serde_json::to_value(&interaction.payload).unwrap_or(Value::Null),
+        payload: stored(
+            interaction,
+            serde_json::to_value(&interaction.payload).unwrap_or(Value::Null),
+        ),
         state: name(&interaction.state),
         answerable: interaction.answerable,
         gate_mode: name(&interaction.mode),
@@ -114,7 +173,8 @@ pub(crate) fn to_rows(interaction: &Interaction) -> (InteractionRow, DeliveryRow
         decision: delivery
             .decision
             .as_ref()
-            .and_then(|d| serde_json::to_value(d).ok()),
+            .and_then(|d| serde_json::to_value(d).ok())
+            .map(|value| stored(interaction, value)),
         decided_by: delivery.decided_by.clone(),
         via: delivery.via.map(|via| name(&via)),
         key: delivery.key.clone(),

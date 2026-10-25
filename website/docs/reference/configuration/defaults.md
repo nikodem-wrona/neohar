@@ -134,7 +134,7 @@ billing = "api"
 | Key | Default | Description |
 |---|---|---|
 | `sync_retention` | `"7d"` | How long the event log keeps the events that a client uses to catch up. The core deletes older events when it starts and then once an hour. A client with an older cursor takes a new snapshot. |
-| `audit_retention` | `"90d"` | How long the log keeps the audit kinds: interactions, policy and the state changes of agents. |
+| `audit_retention` | `"90d"` | How long the log keeps the audit kinds: interactions, policy and the state changes of agents. The interactions that ended, with their delivery records, go after the same time. |
 
 ```toml
 [events]
@@ -146,7 +146,7 @@ audit_retention = "90d"
 
 | Key | Default | Description |
 |---|---|---|
-| `max_bytes_per_pane` | `0` | The most bytes of archive for one pane. 0 means no limit. When the core starts and then once an hour, it deletes the oldest segments of a pane that has more. The newest segment stays. |
+| `max_bytes_per_pane` | `0` | The most bytes of archive for one pane. 0 means no limit. When the core starts and then once an hour, it deletes the oldest segments of a pane that has more. The newest segment stays. The archive keeps the text of the panes as it is, with no redaction. |
 
 ```toml
 [scrollback]
@@ -349,11 +349,13 @@ billing = "api"
 # events when it starts and then once an hour. A client with an older cursor takes a new snapshot.
 sync_retention = "7d"
 # How long the log keeps the audit kinds: interactions, policy and the state changes of agents.
+# The interactions that ended, with their delivery records, go after the same time.
 audit_retention = "90d"
 
 [scrollback]
 # The most bytes of archive for one pane. 0 means no limit. When the core starts and then once an
-# hour, it deletes the oldest segments of a pane that has more. The newest segment stays.
+# hour, it deletes the oldest segments of a pane that has more. The newest segment stays. The
+# archive keeps the text of the panes as it is, with no redaction.
 max_bytes_per_pane = 0
 
 [daemon]

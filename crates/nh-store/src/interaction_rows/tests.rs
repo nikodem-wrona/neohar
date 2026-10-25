@@ -141,6 +141,52 @@ fn a_start_reads_the_interactions_that_are_not_final() {
 }
 
 #[test]
+fn the_prune_deletes_old_ended_interactions_and_keeps_open_and_recent_ones() {
+    let mut store = Store::open_in_memory().expect("a store");
+    // (number, state, opened, resolved)
+    for (n, state, opened, resolved) in [
+        (1, "delivered", 100, Some(200)),          // old and ended: goes
+        (2, "cancelled", 100, None),               // ended with no time of its end: goes
+        (3, "open", 100, None),                    // old and open: stays
+        (4, "delivery_unknown", 100, Some(200)),   // not final: stays
+        (5, "failed", 100, Some(5_000)),           // ended after the cut: stays
+        (6, "resolved_elsewhere", 100, Some(999)), // just before the cut: goes
+    ] {
+        let mut row = interaction(n);
+        row.state = state.to_owned();
+        row.opened_at = opened;
+        row.resolved_at = resolved;
+        let mut record = delivery(n);
+        record.state = state.to_owned();
+        store
+            .tx(10_000, |tx| {
+                tx.put_interaction(&row)?;
+                tx.put_delivery(&record)
+            })
+            .expect("rows");
+    }
+    let gone = store.prune_interactions(10_000, 1_000).expect("a prune");
+    assert_eq!(gone, 3);
+    let left: Vec<String> = store
+        .recent_interactions(100)
+        .expect("a read")
+        .into_iter()
+        .map(|(row, _)| row.handle)
+        .collect();
+    assert_eq!(left.len(), 3);
+    for handle in ["i3", "i4", "i5"] {
+        assert!(left.contains(&handle.to_owned()), "{left:?}");
+    }
+    // The delivery records went with their interactions.
+    for n in [1, 2, 6] {
+        assert_eq!(store.delivery_row(id(n)).expect("a read"), None, "{n}");
+    }
+    assert!(store.delivery_row(id(3)).expect("a read").is_some());
+    // A second prune finds nothing.
+    assert_eq!(store.prune_interactions(10_000, 1_000).expect("a prune"), 0);
+}
+
+#[test]
 fn an_interaction_without_a_delivery_record_reads_with_none() {
     let mut store = Store::open_in_memory().expect("a store");
     store

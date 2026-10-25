@@ -7,6 +7,8 @@
 //!   ([`nh_store::is_audit_kind`]) stays until it is older than `events.audit_retention`. The
 //!   store remembers the highest deleted number, so a client whose cursor is below it gets
 //!   `truncated` and takes a new snapshot.
+//! - **Interactions.** An interaction that ended goes with its delivery record when it is older
+//!   than `events.audit_retention`. An interaction that did not end stays.
 //! - **Scrollback.** When `scrollback.max_bytes_per_pane` is above 0, the oldest segments of a pane
 //!   go until its archive fits. The newest segment of a pane stays, because its writer appends to
 //!   it.
@@ -59,6 +61,8 @@ impl Limits {
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct Pass {
     pub events: Swept,
+    /// The interactions that ended before the audit retention.
+    pub interactions: usize,
     /// The scrollback segments of all panes.
     pub segments: usize,
 }
@@ -67,13 +71,19 @@ pub(crate) struct Pass {
 /// in the core.
 pub(crate) fn pass(store: &mut Store, limits: &Limits, now_ms: i64) -> Result<Pass, StoreError> {
     let events = store.retention_sweep(now_ms, &limits.retention)?;
+    let audit_ms = i64::try_from(limits.retention.audit.as_millis()).unwrap_or(i64::MAX);
+    let interactions = store.prune_interactions(now_ms, now_ms.saturating_sub(audit_ms))?;
     let mut segments = 0;
     if limits.max_bytes_per_pane > 0 {
         for pane in store.scrollback_panes()? {
             segments += store.trim_scrollback(pane, limits.max_bytes_per_pane, now_ms)?;
         }
     }
-    Ok(Pass { events, segments })
+    Ok(Pass {
+        events,
+        interactions,
+        segments,
+    })
 }
 
 /// Whether a pass is due at `now`: the first one, one after a change of the limits, and one a
@@ -115,8 +125,9 @@ fn log(done: &Pass) {
         tracing::info!(
             events = done.events.sync + done.events.audit,
             audit_events = done.events.audit,
+            interactions = done.interactions,
             scrollback_segments = done.segments,
-            "the retention pass deleted old events and scrollback"
+            "the retention pass deleted old events, interactions and scrollback"
         );
     }
 }

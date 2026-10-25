@@ -73,5 +73,5 @@ editor = "Zed"
 | `[ui]` | `font_family`, `font_size`, `macos_option_as_alt`, `global_hotkey`, `editor` (the app that opens a file of the Files tab), `show_handles` (show `w3:t2` and `w3:p5` in the window) |
 | `[theme]` | Eight CSS colours of the window chrome |
 | `[keys]` | The reserved chords of a window, named by command id with `_` for `.` (`palette_open = "mod+k"`) |
-| `[events]` | `sync_retention` (`7d`) and `audit_retention` (`90d`, for interactions, policy and agent state): how long the event log keeps events. The core deletes older events at the start and then once an hour |
-| `[scrollback]` | `max_bytes_per_pane`: the most bytes of archive for one pane. Above it, the same pass deletes the oldest segments. `0` (the default) is no limit |
+| `[events]` | `sync_retention` (`7d`) and `audit_retention` (`90d`, for interactions, policy and agent state): how long the event log keeps events. The ended interactions and their delivery records also go after `audit_retention`. The core deletes older rows at the start and then once an hour |
+| `[scrollback]` | `max_bytes_per_pane`: the most bytes of archive for one pane. Above it, the same pass deletes the oldest segments. `0` (the default) is no limit. The archive and its search index stay on disk (mode 0600), and their text is not redacted. Set a limit if the panes show secrets |

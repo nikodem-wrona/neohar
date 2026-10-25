@@ -77,6 +77,86 @@ fn an_interaction_comes_back_from_its_rows_without_a_lease() {
 }
 
 #[test]
+fn an_interaction_that_ended_is_stored_without_its_secrets() {
+    let key = "AKIAIOSFODNN7EXAMPLE";
+    let line = format!("aws configure set aws_access_key_id {key}");
+    let mut interaction = interaction();
+    interaction.title = format!("Run `{line}`");
+    interaction.payload = InteractionPayload::Approval(Box::new(ApprovalPayload {
+        tool: "Bash".to_owned(),
+        command: Some(nh_proto::api::rich::Command {
+            argv: vec!["aws".to_owned()],
+            display: nh_proto::api::rich::Spans {
+                text: line.clone(),
+                spans: vec![(0, 3, "program".to_owned())],
+            },
+            cwd: "/w".to_owned(),
+            risk: Risk::Medium,
+            reasons: Vec::new(),
+            policy_hint: None,
+        }),
+        cwd: Some("/w".to_owned()),
+        paths: Vec::new(),
+        diff: None,
+        input: Some(serde_json::json!({"command": line, "password": "hunter22"})),
+        peek: vec![format!("export KEY={key}")],
+        policy_note: None,
+    }));
+    // Open, the rows keep everything: the keys compare the command with the screen after a start.
+    let (row, _) = to_rows(&interaction);
+    assert!(row.payload.to_string().contains(key));
+    assert!(row.title.contains(key));
+    let read = from_rows(&row, None).expect("readable");
+    assert_eq!(read.payload, interaction.payload);
+
+    // Ended, the rows keep no secret, and they are still readable.
+    interaction.failed("deadline", Timestamp(2_000));
+    assert!(interaction.is_final());
+    let (row, record) = to_rows(&interaction);
+    let text = format!(
+        "{} {} {}",
+        row.title,
+        row.payload,
+        record
+            .decision
+            .as_ref()
+            .map(Value::to_string)
+            .unwrap_or_default()
+    );
+    assert!(!text.contains(key), "{text}");
+    assert!(!text.contains("hunter22"), "{text}");
+    assert!(text.contains("[redacted"), "{text}");
+    let read = from_rows(&row, Some(&record)).expect("readable");
+    let InteractionPayload::Approval(payload) = &read.payload else {
+        panic!("an approval");
+    };
+    let command = payload.command.as_ref().expect("a command");
+    assert!(command.display.text.starts_with("aws configure"));
+    assert!(
+        command.display.spans.is_empty(),
+        "the marks pointed into the old text"
+    );
+}
+
+#[test]
+fn a_line_of_a_diff_that_changes_loses_its_marks() {
+    let mut value = serde_json::json!({
+        "kind": "context",
+        "text": {"text": "token = ghp_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "spans": [[0, 5, "k"]]},
+        "intra": [[8, 12]],
+    });
+    assert!(redact_marked(&mut value));
+    assert_eq!(value["text"]["spans"], serde_json::json!([]));
+    assert!(value.get("intra").is_none());
+    let mut clean = serde_json::json!({
+        "text": {"text": "let x = 1;", "spans": [[0, 3, "k"]]},
+        "intra": [[4, 5]],
+    });
+    assert!(!redact_marked(&mut clean));
+    assert_eq!(clean["intra"], serde_json::json!([[4, 5]]));
+}
+
+#[test]
 fn the_rows_use_the_words_of_the_schema() {
     let (row, record) = to_rows(&interaction());
     assert_eq!(row.kind, "approval");

@@ -266,6 +266,31 @@ impl Store {
         Ok(result)
     }
 
+    /// Deletes the interactions that ended before `before_ms`, with their delivery records. An
+    /// interaction that is not final stays, also an old one, because a start of the core continues
+    /// it. Returns the number of interactions that went.
+    pub fn prune_interactions(&mut self, now_ms: i64, before_ms: i64) -> Result<usize, StoreError> {
+        let ended = "state NOT IN ('open', 'decision_recorded', 'delivering', 'delivery_unknown')
+             AND COALESCE(resolved_at, opened_at) < ?1";
+        let (count, _) = self.tx(now_ms, |tx| {
+            tx.writable()?;
+            let sql = tx.sql();
+            // The foreign key deletes them too. The delete does not rely on it.
+            sql.execute(
+                &format!(
+                    "DELETE FROM deliveries WHERE interaction_id IN
+                         (SELECT id FROM interactions WHERE {ended})"
+                ),
+                [before_ms],
+            )?;
+            Ok(sql.execute(
+                &format!("DELETE FROM interactions WHERE {ended}"),
+                [before_ms],
+            )?)
+        })?;
+        Ok(count)
+    }
+
     /// The delivery record of an interaction.
     pub fn delivery_row(&self, interaction: Ulid) -> Result<Option<DeliveryRow>, StoreError> {
         let sql = format!("SELECT {DELIVERY_COLUMNS} FROM deliveries WHERE interaction_id = ?1");
