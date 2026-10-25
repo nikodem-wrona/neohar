@@ -15,7 +15,7 @@ use nh_proto::api::{
         system::PolicyDecision,
     },
     common::{Source as ArbiterSource, Via},
-    ids::{InteractionId, RunId},
+    ids::{InteractionId, PaneId, RunId},
     model::{
         AnswerChannel, Binding, GateMode, InteractionKind, InteractionPayload, InteractionState,
     },
@@ -708,8 +708,26 @@ pub(crate) fn keystrokes_unconfirmed(parts: &mut Parts<'_>, id: InteractionId) {
     });
 }
 
-/// `adapter.gate_resume`: the reply for a shim that holds the hook again.
-pub(crate) fn resume(parts: &mut Parts<'_>, id: InteractionId, lease: Lease) -> Option<GateReply> {
+/// Whether the interaction exists and belongs to the pane: the pane of the token of a shim.
+pub(crate) fn belongs_to(parts: &Parts<'_>, id: InteractionId, pane: PaneId) -> bool {
+    parts
+        .state
+        .interactions
+        .get(id)
+        .is_some_and(|interaction| interaction.pane == Some(pane))
+}
+
+/// `adapter.gate_resume`: the reply for a shim that holds the hook again. The shim must be of the
+/// pane of the interaction: for another pane the interaction does not exist (`None`).
+pub(crate) fn resume(
+    parts: &mut Parts<'_>,
+    id: InteractionId,
+    pane: PaneId,
+    lease: Lease,
+) -> Option<GateReply> {
+    if !belongs_to(parts, id, pane) {
+        return None;
+    }
     let interaction = parts.state.interactions.get(id)?;
     if interaction.is_final() {
         return Some(GateReply::NoDecision(final_reason(interaction.state)));

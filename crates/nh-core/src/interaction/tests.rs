@@ -231,7 +231,10 @@ async fn an_answer_goes_to_the_shim_and_the_end_of_the_tool_delivers_it() {
     assert_eq!(shown["delivery"]["decided_by"], "ui");
     assert_eq!(shown["delivery"]["via"], "card");
     // The shim prints the decision and says so.
-    f.gates.ack(id, key, true).await.expect("an ack");
+    f.gates
+        .ack(id, f.pane.ulid(), key, true)
+        .await
+        .expect("an ack");
     // The tool ran: the harness resolved the request, and the delivery is confirmed.
     f.hook(
         Harness::Claude,
@@ -277,7 +280,10 @@ async fn a_delivered_answer_counts_as_a_good_observation_of_the_version() {
     let GateOutcome::Decision { key, .. } = recv(&mut rx).await else {
         panic!("a decision");
     };
-    f.gates.ack(id, key, true).await.expect("an ack");
+    f.gates
+        .ack(id, f.pane.ulid(), key, true)
+        .await
+        .expect("an ack");
     f.hook(
         Harness::Claude,
         "PostToolUse",
@@ -506,8 +512,29 @@ async fn a_shim_that_loses_its_connection_before_the_ack_resumes_with_the_same_d
     f.gates.connection_closed(SHIM);
     eventually_row(&f, id, |r| r["state"] == "delivery_unknown").await;
     assert_eq!(kinds_of(&mut f), ["interaction.delivery_unknown"]);
+    // The token of another pane cannot take the hook, nor acknowledge the delivery: for it, the
+    // interaction does not exist.
+    let other = ulid::Ulid::from(0xdead_u128);
+    let refused = f
+        .gates
+        .resume(id, other, 9, None)
+        .await
+        .err()
+        .expect("another pane");
+    assert_eq!(refused.code, ErrorCode::NotFound);
+    let refused = f
+        .gates
+        .ack(id, other, key.clone(), true)
+        .await
+        .expect_err("another pane");
+    assert_eq!(refused.code, ErrorCode::NotFound);
+    assert_eq!(row(&f, id)["state"], "delivery_unknown");
     // The shim connects again and resumes. It gets the same decision with the same key.
-    let mut resumed = f.gates.resume(id, 8, None).await.expect("resumed");
+    let mut resumed = f
+        .gates
+        .resume(id, f.pane.ulid(), 8, None)
+        .await
+        .expect("resumed");
     assert_eq!(resumed.result["wait"], true);
     let mut rx2 = resumed.rx.take().expect("a new channel");
     let GateOutcome::Decision {
@@ -521,7 +548,10 @@ async fn a_shim_that_loses_its_connection_before_the_ack_resumes_with_the_same_d
     assert_eq!(again, key);
     assert_eq!(same, output);
     eventually_row(&f, id, |r| r["state"] == "delivering").await;
-    f.gates.ack(id, again, true).await.expect("an ack");
+    f.gates
+        .ack(id, f.pane.ulid(), again, true)
+        .await
+        .expect("an ack");
     f.hook(
         Harness::Claude,
         "PostToolUse",
@@ -719,7 +749,10 @@ async fn the_end_of_the_tool_settles_an_interaction_that_an_adapter_never_saw() 
     let GateOutcome::Decision { key, .. } = recv(&mut rx).await else {
         panic!("a decision");
     };
-    f.gates.ack(id, key, true).await.expect("an ack");
+    f.gates
+        .ack(id, f.pane.ulid(), key, true)
+        .await
+        .expect("an ack");
     // A new adapter: the old one is stopped, and the host starts another with the next signal.
     f.hosts.stop(run, nh_agents::adapter::StopReason::Shutdown);
     f.hook(
@@ -1009,7 +1042,10 @@ async fn a_rule_that_allows_decides_at_once_and_the_decision_goes_to_the_shim() 
         output["hookSpecificOutput"]["decision"]["behavior"],
         "allow"
     );
-    f.gates.ack(id, key, true).await.expect("an ack");
+    f.gates
+        .ack(id, f.pane.ulid(), key, true)
+        .await
+        .expect("an ack");
     let shown = eventually_row(&f, id, |r| r["state"] == "delivering").await;
     assert_eq!(shown["delivery"]["decided_by"], "policy");
     assert_eq!(shown["delivery"]["via"], "policy");

@@ -810,17 +810,24 @@ async fn gate_result(call: &PendingGate, state: &ApiState, conn: &Conn) -> Resul
             conn.forward(&mut start);
             Ok(start.result)
         }
+        // The token of a pane reaches only the interactions of that pane.
         "adapter.gate_resume" => {
             let resume: ResumeParams = params_of(&call.params)?;
             let id = interaction_id(&resume.interaction)?;
-            let mut start = gates.resume(id, conn.id, conn.pid).await?;
+            let pane = call.origin.pane.ok_or_else(|| {
+                RpcError::new(ErrorCode::PermissionDenied, "a hook needs a pane token")
+            })?;
+            let mut start = gates.resume(id, pane, conn.id, conn.pid).await?;
             conn.forward(&mut start);
             Ok(start.result)
         }
         "adapter.delivery_ack" => {
             let ack: AckParams = params_of(&call.params)?;
             let id = interaction_id(&ack.interaction)?;
-            gates.ack(id, ack.idempotency_key, ack.applied).await
+            let pane = call.origin.pane.ok_or_else(|| {
+                RpcError::new(ErrorCode::PermissionDenied, "a hook needs a pane token")
+            })?;
+            gates.ack(id, pane, ack.idempotency_key, ack.applied).await
         }
         other => Err(RpcError::new(
             ErrorCode::Unsupported,

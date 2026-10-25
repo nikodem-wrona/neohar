@@ -263,9 +263,12 @@ impl Gates {
     }
 
     /// `adapter.gate_resume`: a shim whose connection dropped asks for its interaction again.
+    /// `pane` is the pane of the token of the shim. The interaction of another pane is "no such
+    /// interaction", so the token of one pane cannot take the hook of another.
     pub async fn resume(
         self: &Arc<Self>,
         interaction: InteractionId,
+        pane: Ulid,
         conn: u64,
         pid: Option<i32>,
     ) -> Result<GateStart, RpcError> {
@@ -279,8 +282,9 @@ impl Gates {
             expires_at: Timestamp(i64::MAX),
         };
         let (reply_tx, reply_rx) = oneshot::channel();
+        let pane = nh_proto::api::ids::PaneId::new(pane);
         bound.actor.update_detached(move |mut parts| {
-            let _ = reply_tx.send(apply::resume(&mut parts, interaction, lease));
+            let _ = reply_tx.send(apply::resume(&mut parts, interaction, pane, lease));
         });
         match reply_rx.await {
             Ok(Some(GateReply::Wait { interaction })) => Ok(GateStart {
@@ -306,17 +310,25 @@ impl Gates {
         }
     }
 
-    /// `adapter.delivery_ack`: the shim printed the decision.
+    /// `adapter.delivery_ack`: the shim printed the decision. `pane` is the pane of the token of the
+    /// shim, as for [`Gates::resume`].
     pub async fn ack(
         self: &Arc<Self>,
         interaction: InteractionId,
+        pane: Ulid,
         key: String,
         applied: bool,
     ) -> Result<Value, RpcError> {
         let bound = self.bound()?;
+        let pane = nh_proto::api::ids::PaneId::new(pane);
         let known = bound
             .actor
-            .update(move |mut parts| apply::acked(&mut parts, interaction, &key, applied))
+            .update(move |mut parts| {
+                if !apply::belongs_to(&parts, interaction, pane) {
+                    return None;
+                }
+                apply::acked(&mut parts, interaction, &key, applied)
+            })
             .await
             .map_err(|e| RpcError::internal(e.to_string()))?;
         match known {
