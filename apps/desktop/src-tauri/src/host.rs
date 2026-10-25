@@ -60,6 +60,8 @@ pub struct TauriHost {
     tray_waits: AtomicBool,
     /// When the menu of the tray was last built.
     tray_shown: Mutex<Option<std::time::Instant>>,
+    /// The questions of ssh that each machine asked lately.
+    questions: Mutex<crate::askpass::Questions>,
     /// The system refused notifications.
     denied: AtomicBool,
 }
@@ -160,6 +162,7 @@ impl TauriHost {
             order: Mutex::new(Vec::new()),
             tray_waits: AtomicBool::new(false),
             tray_shown: Mutex::new(None),
+            questions: Mutex::default(),
             denied: AtomicBool::new(false),
         }
     }
@@ -567,9 +570,22 @@ impl Host for TauriHost {
     }
 
     /// A question of ssh: a sheet on the main thread. Only macOS has one; on another
-    /// system `done` drops and the core answers `unsupported`.
+    /// system `done` drops and the core answers `unsupported`. A machine gets at most
+    /// `askpass::MAX_QUESTIONS` sheets in `askpass::QUESTIONS_WINDOW`: a server that asks again
+    /// and again gets no answer, and the app stays usable.
     #[cfg(target_os = "macos")]
     fn ask_secret(&self, question: SecretQuestion, done: SecretAnswered) {
+        let machine = question.machine.clone().unwrap_or_default();
+        let free = self
+            .questions
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .take(&machine, std::time::Instant::now());
+        if !free {
+            tracing::warn!(machine, "ssh asks more questions than the app shows");
+            done(None);
+            return;
+        }
         self.run_on_main(move |_| done(crate::askpass::ask(&question)));
     }
 

@@ -49,7 +49,9 @@ connect = "launch"        # connect at launch; "manual" (the default) waits for 
 
 The label (`studio`) has 1 to 32 characters of `a-z`, `0-9` and `-`. `local` is this Mac. When ssh
 asks for a passphrase, a password or a new host key, the app shows the question as a sheet and
-stores nothing.
+stores nothing. The ssh server can write the text of a question, and the sheet says so. neohar
+never needs the login password of your Mac: do not type it into this sheet. The app shows at most 5
+questions of one machine in 2 minutes, and cancels the others.
 
 ## Open a window of the machine
 
