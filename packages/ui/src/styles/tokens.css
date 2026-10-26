@@ -105,11 +105,11 @@
 
     --gutter: var(--s2);
     --row: 28px;
-    --bar: 32px;
+    --bar: 40px;
     /* The field of the command line, where the palette opens: the gutter and the padding of the
        panel. The field is in the middle of the row, which the buttons of the window move right by
        half their room. */
-    --cmd-top: calc(var(--gutter) + 8px);
+    --cmd-top: calc(var(--gutter) + 12px);
     /* The room for the three buttons of a window with no title bar: `.title-overlay` on
        the root element sets it. */
     --traffic: 0px;

@@ -181,7 +181,7 @@
     display: flex;
     align-items: center;
     gap: 1ch;
-    height: 40px;
+    height: 44px;
     padding: 0 var(--s2);
     flex: none;
     color: var(--text);

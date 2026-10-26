@@ -23,17 +23,17 @@
     position: relative;
     display: flex;
     align-items: center;
-    gap: var(--s1);
-    height: 36px;
+    gap: var(--s2);
+    height: 44px;
     flex: none;
-    padding: 0 var(--s2);
+    padding: 0 var(--s3);
     overflow: hidden;
   }
 
   .tablist {
     display: flex;
     align-items: center;
-    gap: var(--s1);
+    gap: var(--s2);
     min-width: 0;
     overflow: hidden;
   }
@@ -62,7 +62,7 @@
   .tab {
     gap: var(--s1);
     min-width: 0;
-    padding: 0 var(--s1) 0 var(--s3);
+    padding: 0 var(--s2) 0 var(--s4);
     -webkit-user-select: none;
     user-select: none;
   }
@@ -147,7 +147,7 @@
   .tab-rename {
     position: absolute;
     z-index: 1;
-    top: calc((36px - var(--row)) / 2);
+    top: calc((44px - var(--row)) / 2);
     height: var(--row);
     min-width: 16ch;
     border-radius: var(--r-tab);
@@ -281,9 +281,9 @@
   .pane-title {
     display: flex;
     gap: 1ch;
-    height: var(--row);
+    height: 32px;
     flex: none;
-    padding: 0 var(--s2) 0 var(--s3);
+    padding: 0 var(--s2) 0 var(--s4);
     align-items: center;
     border-radius: var(--r-md) var(--r-md) 0 0;
     background: var(--bg-card);
