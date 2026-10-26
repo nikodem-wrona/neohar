@@ -37,7 +37,7 @@ The site is for GitHub Pages at `https://nikodem-wrona.github.io/neohar/`, so it
 
 | Generator | Source | Pages |
 |---|---|---|
-| `scripts/gen-api.ts` | `crates/nh-proto/tests/snapshots/api_schema__contract.snap` (the snapshot of `nh api schema`) and the doc table of `crates/nh-core/src/debug_calls.rs` for the methods outside the contract | `docs/reference/api/methods/*`, `projections.md`, `events.md`, `streams.md`, `errors.md`, `types.md` |
+| `scripts/gen-api.ts` | `crates/nh-proto/tests/snapshots/api_schema__contract.snap` (the snapshot of `nh api schema`) and the doc table of `crates/nh-core/src/debug_calls.rs` for the methods outside the contract | `docs/reference/api/methods/*`, `index.md`, `projections.md`, `events.md`, `streams.md`, `errors.md`, `types.md` |
 | `scripts/gen-config.ts` | `crates/nh-core/src/config/defaults.toml` | `docs/reference/configuration/defaults.md` |
 | `scripts/gen-cli.ts` | `nh --help` of every command (needs `target/debug/nh` or `target/release/nh`) | `docs/reference/cli/commands/*` |
 | `scripts/gen-tasks.ts` | `mise.toml` | `docs/getting-started/mise-tasks.md` |

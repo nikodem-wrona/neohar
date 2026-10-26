@@ -34,7 +34,7 @@ mise does not install these:
 | Program | Needed for |
 |---|---|
 | Xcode Command Line Tools (a C compiler) | Every Rust build (`rusqlite` and `zstd` compile C) |
-| `git` | The Changes tab and its tests |
+| `git` | The Changes tab, the Git view and their tests |
 | `node` | The Playwright suites (`test:gpu`, `test:keyboard`, `test:shell`, `test:transport`, `test:phone`). Run `mise run setup:browsers` once for WebKit and Chromium |
 | `less`, `vim`, `htop` | `mise run test:apps` |
 | Claude Code and Codex | Daily use, `mise run test:harness` and `mise run record:golden` |

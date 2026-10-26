@@ -133,14 +133,14 @@ Changes tab, the Git view and `nh git`, also in a repository that you trust:
 
 ### Switch, fetch and pull
 
-Each write is one git command, and the timeline of events records each write that works. One write
+Each write is one git command, and the event log records each write that works. One write
 at a time runs in a worktree.
 
 | Case | What the view does |
 |---|---|
-| An agent starts, works or waits for you in the worktree | Before a switch or a pull, a dialog names the agent. Click **Switch anyway** or **Cancel** |
+| An agent starts, works or waits for you in the worktree | Before a switch or a pull, a dialog names the agent. Click **Switch anyway** (**Pull anyway** for a pull) or **Cancel** |
 | The agents of the worktree are idle or exited | The write runs |
-| The worktree has changes | A switch asks: **Bring my changes** to the other branch, or **Leave them** in a stash of the current branch |
+| The worktree has changes | A switch asks: **Bring my changes** to the other branch, or **Leave them on** the current branch, in a stash |
 | Another worktree has the branch out | **Show that worktree** shows it instead |
 | The branch and its upstream diverged | The view offers Fetch only. Pull with a merge or a rebase in a pane |
 
@@ -155,5 +155,6 @@ view says "The fetch needs your passphrase or a token. Click Fetch." To change t
 The `nh git` commands give the same rows and writes for the folder of your shell: `nh git status`,
 `nh git worktrees`, `nh git branches`, `nh git log`, `nh git show`, `nh git diff`, `nh git repos`,
 `nh git add`, `nh git trust`, `nh git untrust`, `nh git switch`, `nh git unstash`, `nh git fetch`
-and `nh git pull`. A write that asks in the view answers with `confirm_required` in the CLI, and
-`--force` writes anyway.
+and `nh git pull`. A write that asks in the view answers with `confirm_required` in the CLI.
+`--force` writes when an agent works in the worktree. `--changes bring` or `--changes leave` tells
+a switch what to do with the changes.

@@ -16,7 +16,7 @@ neohar is two binaries and many small processes. The app, `neohar.app`, links th
 | `nh <noun> <verb>` | The CLI, a client of `api.sock`. Same methods as the UI | One request |
 | `nh daemon --detach` | The core without windows, for a remote Mac or as a local core that the app connects to | Until `nh daemon stop` or `session.shutdown` |
 | `nh bridge` | The remote end of a link: copies bytes between ssh and `link.sock`, starts a daemon if none runs | One link |
-| `nh askpass` | Brings a question of ssh (host key, passphrase) to a sheet of the app | One question |
+| `nh askpass` | Brings a question of ssh or git (host key, passphrase, token) to a sheet of the app: for a link, or for a fetch of the Git view | One question |
 
 `nh` is separate from the app because the shim has a 5 ms budget and the holder must stay small and rarely change (under 2,500 lines of code, checked by `mise run check:holder-size`). [crates/nh/src/main.rs](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh/src/main.rs) picks the role from the first argument before any setup, so `hold` and `hook` never start the CLI parser.
 

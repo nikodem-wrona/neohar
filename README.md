@@ -54,7 +54,7 @@ neohar is not a new agent and not a new terminal. You use the real `claude` and 
 **Work**
 
 - **Workspaces, tabs and panes.** Split, float or pop out panes. The Rust core parses the terminal output and the window draws it with WebGL2. The search finds text in the scrollback of all panes.
-- **Files and Changes.** The Files tab shows the folder of the focused pane. The Changes tab shows its git changes and diffs.
+- **Files, Changes and Git.** The Files tab shows the folder of the focused pane. The Changes tab shows its git changes and diffs. The Git view shows the worktrees, branches, changes and history of its repository, with the agents in each worktree. It can switch the branch, fetch and pull.
 
 **Reach**
 
@@ -189,7 +189,7 @@ The documentation site is in [`website/`](website/).
 | To do this | Read |
 |---|---|
 | Use neohar | [Install the app](website/docs/guides/install.md), [Workspaces and panes](website/docs/guides/workspaces-and-panes.md), [Agents and approvals](website/docs/guides/agents-and-approvals.md) |
-| Use more | [Files and changes](website/docs/guides/files-and-changes.md), [Remote machines](website/docs/guides/remote-machines.md), [The phone](website/docs/guides/phone.md), [Troubleshooting](website/docs/guides/troubleshooting.md) |
+| Use more | [Files, changes and Git](website/docs/guides/files-and-changes.md), [Remote machines](website/docs/guides/remote-machines.md), [The phone](website/docs/guides/phone.md), [Troubleshooting](website/docs/guides/troubleshooting.md) |
 | Learn the words | [Introduction](website/docs/intro.md) and [Concepts](website/docs/concepts.md) |
 | Understand the design | [Architecture](website/docs/architecture/overview.md), [Agents](website/docs/agents/overview.md), [Desktop app](website/docs/desktop/overview.md) |
 | Write scripts | [Command line](website/docs/reference/cli/index.md), [API](website/docs/reference/api/index.md), [Configuration](website/docs/reference/configuration/index.md) |
@@ -198,7 +198,7 @@ The documentation site is in [`website/`](website/).
 ## Development
 
 ```bash
-mise run check      # fmt, clippy, cargo-deny, ESLint, tsc, Prettier and the generated files
+mise run check      # commit messages, versions, fmt, clippy, cargo-deny, ESLint, tsc, Prettier and the generated files
 mise run test       # Rust tests (nextest), UI tests (bun test) and the install test
 mise run app:dev    # the app from the working tree, with its config and data in target/dev-run
 ```

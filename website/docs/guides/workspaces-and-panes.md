@@ -16,9 +16,9 @@ either place.
 | Top row | The command line (it opens the palette) and the attention line: how many agents wait, and the first request |
 | Board | Under the top row: a strip for each agent, with its state, its work, its harness and its cost. A strip is a card: its glyph is green while the agent works, and its border is amber while it waits for you and red after an error. The agents that do not fit are behind **+N**, which is amber when one of them waits. Drag a strip onto another strip to change the order; the order stays after a restart. The board is always shown |
 | Left column | The workspaces and their tabs. **New workspace** is at the bottom. The arrow at the end of **Workspaces** folds it to a rail, and under 1000 px it starts folded |
-| Middle | The tab bar and the panes of the tab |
+| Middle | The tab bar and the panes of the tab, or the [Git view](/docs/guides/files-and-changes#the-git-view) |
 | Right | The drawer: Inbox, Timeline, Files and Changes. Its arrow folds it to a rail, and under 1280 px it starts folded |
-| Bottom row | Function keys (a click runs the command), the limits of the harnesses, warnings, the machine, and the **Workspaces** and **Drawer** switches |
+| Bottom row | Function keys (a click runs the command), the limits of the harnesses, warnings, the machine, and the **Workspaces**, **Drawer** and **Git** switches |
 
 Each part is a panel with round corners. Drag the gap beside a side column to change its width,
 and the gap between two panes to change their shares. The pane in focus has a lighter title strip. A click
@@ -82,6 +82,7 @@ with `nh config set keys.palette_open mod+j`.
 | `⌘⇧I` | Show the Inbox |
 | `⌘⇧A` | Answer next: show the most urgent card |
 | `⌘⇧F` | Search the scrollback |
+| `⌘⇧G` | Open or close the Git view |
 | `⌘⇧N`, `⌘N` | New window |
 | `⌘⌥V` | Send the next key to the pane, also a reserved one |
 | `⌘W` | Close the window (the panes stay) |

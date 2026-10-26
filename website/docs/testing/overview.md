@@ -84,7 +84,7 @@ Each runs through [scripts/with-test-env.sh](https://github.com/nikodem-wrona/ne
 | Property tests (`proptest`) | Cut points and the journal ring of `nh-hold`, cell packing and frames of `nh-proto`, frame exactness and the encoder of `nh-term`, Markdown safety of `nh-rich`, the WASM decoder, the layout tree and the delivery model of `nh-core` |
 | Snapshot tests (`insta`) | The API contract in `crates/nh-proto/tests/snapshots`, the cards in `crates/nh-rich/tests/snapshots` |
 | Frozen wire fixtures | `crates/nh-proto/tests/fixtures`: one encoded value per file. A test never changes one; a change of the wire needs a new protocol version |
-| Integration with real holders | `crates/nh/tests`: holders, the core, the API socket, the CLI, the hook shim, restart, files, changes, the link and machines, against real `nh hold` processes |
+| Integration with real holders | `crates/nh/tests`: holders, the core, the API socket, the CLI, the hook shim, restart, files, changes, the Git view, the link and machines, against real `nh hold` processes |
 | Corpus checks | A sample of the snapshot check (`tools/nh-snapcheck/tests`), the keyboard matrix in Rust (`tools/nh-keytest/tests`), the replay of the harness recordings (`crates/nh-agents/tests`) |
 | Store crash test | `crates/nh-store/tests/crash.rs`: a writer killed 50 times leaves a sound database |
 | UI and tooling tests | `packages/*/src/**/*.test.ts`, `scripts/*.test.ts`, `tools/*/src/*.test.ts` |
