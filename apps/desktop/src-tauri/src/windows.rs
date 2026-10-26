@@ -40,10 +40,10 @@ const SETTINGS_SIZE: (f64, f64) = (780.0, 580.0);
 
 /// Where the three buttons of a window go on macOS, in logical pixels from the top left corner.
 /// The command line of the page is the title bar: the panel starts 8 px from the
-/// top and is 44 px high, so the buttons have their middle at 30 px. AppKit makes the box of the
+/// top and is 52 px high, so the buttons have their middle at 34 px. AppKit makes the box of the
 /// buttons as high as a button plus `y`, so `y` is about the middle of the buttons.
 #[cfg(target_os = "macos")]
-const TRAFFIC_LIGHTS: (f64, f64) = (20.0, 30.0);
+const TRAFFIC_LIGHTS: (f64, f64) = (20.0, 34.0);
 
 /// What the host knows of a window, and the last report that the page sent.
 struct Native {
