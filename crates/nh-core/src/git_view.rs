@@ -379,10 +379,74 @@ struct State {
     /// directory.
     work: HashMap<PathBuf, Work>,
     /// The worktrees and repositories where a write runs.
-    writing: HashSet<PathBuf>,
+    writing: Writes,
     /// When the core last started a fetch in the background of each repository, in unix
     /// milliseconds.
     fetch_tries: HashMap<PathBuf, i64>,
+}
+
+/// The writes that run. A write in a worktree (a switch, a pull) runs alone in its worktree. A
+/// fetch changes refs of the whole repository, so it runs alone in the repository: not at the same
+/// time as a write in one of its worktrees. Writes in two worktrees of one repository can run at
+/// the same time.
+#[derive(Default)]
+struct Writes {
+    /// The worktrees with a write, and the repositories (their common git directory) with a fetch.
+    keys: HashSet<PathBuf>,
+    /// For each repository, how many writes run in its worktrees.
+    in_worktrees: HashMap<PathBuf, usize>,
+}
+
+impl Writes {
+    /// Starts a write in the worktree `root` of the repository `common_dir`, or a fetch of the
+    /// repository when `root` is `None`. The error tells why it must wait.
+    fn start(&mut self, root: Option<&Path>, common_dir: &Path) -> Result<(), &'static str> {
+        match root {
+            Some(root) => {
+                if self.keys.contains(root) {
+                    return Err("A git command runs in this worktree. Try again when it ends.");
+                }
+                if self.keys.contains(common_dir) {
+                    return Err("A fetch runs in this repository. Try again when it ends.");
+                }
+                self.keys.insert(root.to_path_buf());
+                *self
+                    .in_worktrees
+                    .entry(common_dir.to_path_buf())
+                    .or_default() += 1;
+            }
+            None => {
+                if self.fetch_waits(common_dir) {
+                    return Err("A git command runs in this repository. Try again when it ends.");
+                }
+                self.keys.insert(common_dir.to_path_buf());
+            }
+        }
+        Ok(())
+    }
+
+    /// Ends what [`Writes::start`] started with the same arguments.
+    fn end(&mut self, root: Option<&Path>, common_dir: &Path) {
+        match root {
+            Some(root) => {
+                self.keys.remove(root);
+                if let Some(count) = self.in_worktrees.get_mut(common_dir) {
+                    *count -= 1;
+                    if *count == 0 {
+                        self.in_worktrees.remove(common_dir);
+                    }
+                }
+            }
+            None => {
+                self.keys.remove(common_dir);
+            }
+        }
+    }
+
+    /// Whether a fetch of the repository must wait: a fetch or a write in a worktree runs.
+    fn fetch_waits(&self, common_dir: &Path) -> bool {
+        self.keys.contains(common_dir) || self.in_worktrees.contains_key(common_dir)
+    }
 }
 
 /// The work of a place: a pull of its worktree, else a fetch of its repository, with the note of

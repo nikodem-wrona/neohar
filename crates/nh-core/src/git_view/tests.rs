@@ -585,3 +585,44 @@ async fn a_fetch_in_the_background_runs_no_hook_of_the_settings() {
     assert!(fetched.is_ok(), "the fetch wrote a ref: {fetched:?}");
     assert_empty(&marks);
 }
+
+#[test]
+fn a_fetch_and_a_write_in_a_worktree_of_the_same_repository_do_not_run_together() {
+    let (main, other, repo) = (
+        Path::new("/w/app"),
+        Path::new("/w/app-topic"),
+        Path::new("/w/app/.git"),
+    );
+    let mut writes = Writes::default();
+    writes.start(Some(main), repo).expect("a pull");
+    assert!(writes.fetch_waits(repo));
+    assert!(
+        writes.start(None, repo).is_err(),
+        "no fetch during the pull"
+    );
+    assert!(
+        writes.start(Some(main), repo).is_err(),
+        "one write per worktree"
+    );
+    writes
+        .start(Some(other), repo)
+        .expect("a write in another worktree");
+    writes.end(Some(main), repo);
+    assert!(writes.start(None, repo).is_err(), "the other write runs");
+    writes.end(Some(other), repo);
+    assert!(!writes.fetch_waits(repo));
+
+    writes.start(None, repo).expect("a fetch");
+    assert!(
+        writes.start(Some(main), repo).is_err(),
+        "no pull during the fetch"
+    );
+    assert!(writes.start(None, repo).is_err(), "one fetch");
+    writes
+        .start(Some(Path::new("/w/lib")), Path::new("/w/lib/.git"))
+        .expect("another repository");
+    writes.end(None, repo);
+    writes
+        .start(Some(main), repo)
+        .expect("a pull after the fetch");
+}

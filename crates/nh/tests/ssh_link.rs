@@ -50,11 +50,15 @@ async fn a_link_starts_a_call_works_and_the_end_of_the_client_ends_ssh() {
         "ControlPersist=600",
         "ServerAliveInterval=15",
         "ServerAliveCountMax=3",
-        "ObscureKeystrokeTiming=no",
         "studio",
     ] {
         assert!(args.contains(&expected), "{expected} is in {args:?}");
     }
+    // An ssh older than OpenSSH 9.5 refuses this option, and then no link opens.
+    assert!(
+        !args.iter().any(|a| a.starts_with("ObscureKeystrokeTiming")),
+        "{args:?}"
+    );
     assert!(
         logged.contains(&format!(
             "bridge --session {} --proto link/1",

@@ -132,15 +132,18 @@ pub(super) async fn background_git(base: &Git, root: &Path) -> Result<Git, GitEr
     Ok(base.with_env(&quiet_env()).without_config_hooks(&names))
 }
 
-/// A write that runs in a worktree or a repository. The key goes free when it drops.
+/// A write that runs in a worktree, or a fetch of a repository (no `root`). It ends when it drops.
 pub(super) struct Writing {
     service: Arc<GitViewService>,
-    key: PathBuf,
+    root: Option<PathBuf>,
+    common_dir: PathBuf,
 }
 
 impl Drop for Writing {
     fn drop(&mut self) {
-        lock(&self.service.state).writing.remove(&self.key);
+        lock(&self.service.state)
+            .writing
+            .end(self.root.as_deref(), &self.common_dir);
     }
 }
 
@@ -293,17 +296,18 @@ pub(super) fn fetch_note(stderr: &str, background: bool) -> String {
 }
 
 impl GitViewService {
-    /// Starts a write in a worktree or a repository, or `busy` when one runs there.
-    fn begin(self: &Arc<Self>, key: &Path) -> Result<Writing, RpcError> {
-        if !lock(&self.state).writing.insert(key.to_path_buf()) {
-            return Err(RpcError::new(
-                ErrorCode::Busy,
-                "A git command runs in this worktree. Try again when it ends.",
-            ));
-        }
+    /// Starts a write in the worktree of `place`, or a fetch of its repository when `fetch` is
+    /// set. `busy` when another write must end first ([`super::Writes`]).
+    fn begin(self: &Arc<Self>, place: &Place, fetch: bool) -> Result<Writing, RpcError> {
+        let root = (!fetch).then(|| place.root.clone());
+        lock(&self.state)
+            .writing
+            .start(root.as_deref(), &place.common_dir)
+            .map_err(|refusal| RpcError::new(ErrorCode::Busy, refusal))?;
         Ok(Writing {
             service: Arc::clone(self),
-            key: key.to_path_buf(),
+            root,
+            common_dir: place.common_dir.clone(),
         })
     }
 
@@ -395,7 +399,7 @@ impl GitViewService {
         changes: Option<GitChanges>,
         force: bool,
     ) -> Result<(), RpcError> {
-        let _writing = self.begin(&place.root)?;
+        let _writing = self.begin(&place, false)?;
         let look = self.look(&place).await.map_err(|e| git_failed(&e))?;
         let plan = plan(&look, &place.root, branch)
             .ok_or_else(|| RpcError::new(ErrorCode::NotFound, format!("no branch {branch}")))?;
@@ -526,7 +530,7 @@ impl GitViewService {
         if !read::is_hash(stash) {
             return Err(not_found());
         }
-        let _writing = self.begin(&place.root)?;
+        let _writing = self.begin(&place, false)?;
         let look = self.look(&place).await.map_err(|e| git_failed(&e))?;
         let found = look
             .stashes
@@ -573,7 +577,7 @@ impl GitViewService {
             &look.remotes,
         )
         .ok_or_else(|| RpcError::new(ErrorCode::NotFound, "The repository has no remote."))?;
-        let writing = self.begin(&place.common_dir)?;
+        let writing = self.begin(&place, true)?;
         // A fetch in the background runs no hook: reference-transaction would run with no click.
         let git = if background {
             background_git(&self.git, &place.root)
@@ -658,7 +662,7 @@ impl GitViewService {
         place: Place,
         force: bool,
     ) -> Result<JobId, RpcError> {
-        let writing = self.begin(&place.root)?;
+        let writing = self.begin(&place, false)?;
         let look = self.look(&place).await.map_err(|e| git_failed(&e))?;
         let current = look.current().ok_or_else(|| {
             RpcError::new(
@@ -738,8 +742,8 @@ impl GitViewService {
     }
 
     /// The repositories whose fetch in the background is due: a window shows one of their
-    /// worktrees, they have a remote, no fetch runs, and the last fetch or try is older than
-    /// `git.fetch_minutes`. Each one gets a try now.
+    /// worktrees, they have a remote, no fetch and no write in a worktree runs, and the last fetch
+    /// or try is older than `git.fetch_minutes`. Each one gets a try now.
     pub(super) fn due_fetches(&self, state: &mut super::State, now: i64) -> Vec<Place> {
         let minutes = self.config.config().git.fetch_minutes;
         if minutes == 0 {
@@ -754,7 +758,7 @@ impl GitViewService {
             if look.remotes.is_empty() || due.iter().any(|d| d.common_dir == place.common_dir) {
                 continue;
             }
-            let busy = state.writing.contains(&place.common_dir)
+            let busy = state.writing.fetch_waits(&place.common_dir)
                 || state
                     .work
                     .get(&place.common_dir)

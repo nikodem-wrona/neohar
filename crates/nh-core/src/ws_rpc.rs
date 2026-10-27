@@ -6,11 +6,22 @@
 //! When the connection ends, its subscriptions end. The calls of one connection run one after the
 //! other, in the order that they came, because the order of `pane.input` matters.
 //!
+//! The queues have a limit, as on `api.sock` ([`crate::subscriptions`]). A client that reads too
+//! slowly fills the queue of a subscription. Then the hub drops the sink, and the client gets
+//! `{type: "resync"}` and subscribes again.
+//!
 //! Two servers use it: the dev WebSocket (`crate::dev_ws`, development builds only) and
 //! the listener of the phone (crate `nh-web`), which a release build has. Each gives a
 //! [`RpcBackend`] that calls the core with the origin of its caller.
 
-use std::{future::Future, sync::Arc};
+use std::{
+    future::Future,
+    pin::Pin,
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    },
+};
 
 use futures_util::{SinkExt, StreamExt};
 use serde::Deserialize;
@@ -21,7 +32,15 @@ use tokio::{
 };
 use tokio_tungstenite::{WebSocketStream, tungstenite::Message};
 
-use crate::{ErrorCode, MessageSink, RpcError};
+use crate::{
+    ErrorCode, MessageSink, RpcError,
+    subscriptions::{PROJECTION_QUEUE, QueueSink},
+};
+
+/// How many messages for the client wait for the socket. A task that has a message for a client
+/// that reads slowly waits for room, so a client that stops reading cannot make the core keep
+/// messages without limit.
+const OUT_QUEUE: usize = 512;
 
 /// What a connection calls: the commands of the transport and the end of a
 /// subscription.
@@ -58,65 +77,48 @@ struct SubscribeParams {
     since: Option<u64>,
 }
 
-/// The sink of a subscription. The snapshot goes to the sink while `subscribe` runs, before the id
-/// is known, so the sink holds the messages until the id is set.
-struct Notifier {
-    out: mpsc::UnboundedSender<Message>,
-    state: std::sync::Mutex<NotifierState>,
+/// A notification of a subscription.
+fn notification(id: &str, message: Value) -> Message {
+    let text = json!({
+        "jsonrpc": "2.0",
+        "method": "projection.message",
+        "params": { "subscription": id, "message": message },
+    })
+    .to_string();
+    Message::Text(text.into())
 }
 
-#[derive(Default)]
-struct NotifierState {
-    id: Option<String>,
-    held: Vec<Value>,
-}
-
-impl Notifier {
-    fn notification(id: &str, message: Value) -> Message {
-        let text = json!({
-            "jsonrpc": "2.0",
-            "method": "projection.message",
-            "params": { "subscription": id, "message": message },
-        })
-        .to_string();
-        Message::Text(text.into())
-    }
-
-    /// Gives the sink its id and sends what it held.
-    fn set_id(&self, id: &str) {
-        let mut state = self
-            .state
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        state.id = Some(id.to_owned());
-        for message in std::mem::take(&mut state.held) {
-            let _ = self.out.send(Self::notification(id, message));
+/// Moves the messages of a subscription to the socket. It starts after the answer to the subscribe
+/// call, so the client knows the id of each message. When the queue of the subscription was full,
+/// the hub dropped the sink: the client then gets `{type: "resync"}` and subscribes again.
+async fn forward(
+    id: String,
+    mut messages: mpsc::Receiver<Value>,
+    overflow: Arc<AtomicBool>,
+    out: mpsc::Sender<Message>,
+) {
+    while let Some(message) = messages.recv().await {
+        if out.send(notification(&id, message)).await.is_err() {
+            return;
         }
     }
-}
-
-impl MessageSink for Notifier {
-    fn send(&self, message: Value) -> bool {
-        let mut state = self
-            .state
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        match &state.id {
-            Some(id) => self.out.send(Self::notification(id, message)).is_ok(),
-            None => {
-                state.held.push(message);
-                !self.out.is_closed()
-            }
-        }
+    if overflow.load(Ordering::SeqCst) {
+        let _ = out
+            .send(notification(&id, json!({ "type": "resync" })))
+            .await;
     }
 }
 
-/// The hub wants a boxed sink, and the connection keeps a handle to set the id.
-struct SharedNotifier(Arc<Notifier>);
-
-impl MessageSink for SharedNotifier {
-    fn send(&self, message: Value) -> bool {
-        self.0.send(message)
+/// Queues a message for the socket. It waits while the client reads slowly, and gives up when the
+/// connection must stop.
+async fn send<F: Future<Output = ()>>(
+    out: &mpsc::Sender<Message>,
+    message: Message,
+    stop: Pin<&mut F>,
+) -> bool {
+    tokio::select! {
+        sent = out.send(message) => sent.is_ok(),
+        () = stop => false,
     }
 }
 
@@ -152,7 +154,7 @@ pub async fn serve<S>(
     S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
     let (mut write, mut read) = ws.split();
-    let (out, mut queue) = mpsc::unbounded_channel::<Message>();
+    let (out, mut queue) = mpsc::channel::<Message>(OUT_QUEUE);
     let writer = tokio::spawn(async move {
         while let Some(message) = queue.recv().await {
             if write.send(message).await.is_err() {
@@ -177,7 +179,7 @@ pub async fn serve<S>(
             Ok(request) => request,
             Err(error) => {
                 let failure = RpcError::new(ErrorCode::ParseError, error.to_string());
-                if out.send(rpc_reply(&Value::Null, Err(failure))).is_err() {
+                if !send(&out, rpc_reply(&Value::Null, Err(failure)), stop.as_mut()).await {
                     break;
                 }
                 continue;
@@ -187,20 +189,21 @@ pub async fn serve<S>(
             "projection.subscribe" => {
                 match serde_json::from_value::<SubscribeParams>(request.params.clone()) {
                     Ok(params) => {
-                        let notifier = Arc::new(Notifier {
-                            out: out.clone(),
-                            state: std::sync::Mutex::default(),
+                        let (queue, messages) = mpsc::channel(PROJECTION_QUEUE);
+                        let overflow = Arc::new(AtomicBool::new(false));
+                        let sink = Box::new(QueueSink {
+                            queue,
+                            overflow: Arc::clone(&overflow),
                         });
-                        let sink = Box::new(SharedNotifier(Arc::clone(&notifier)));
                         match core.subscribe(&params.name, params.since, sink).await {
                             Ok(id) => {
-                                // The answer goes first, then the messages that the sink held.
+                                // The answer goes first, then the messages of the queue.
                                 let reply =
                                     rpc_reply(&request.id, Ok(json!({ "subscription": id })));
-                                if out.send(reply).is_err() {
+                                if !send(&out, reply, stop.as_mut()).await {
                                     break;
                                 }
-                                notifier.set_id(&id);
+                                tokio::spawn(forward(id.clone(), messages, overflow, out.clone()));
                                 subscriptions.push(id);
                                 continue;
                             }
@@ -226,7 +229,7 @@ pub async fn serve<S>(
             }
             method => core.call(method, request.params).await,
         };
-        if out.send(rpc_reply(&request.id, answer)).is_err() {
+        if !send(&out, rpc_reply(&request.id, answer), stop.as_mut()).await {
             break;
         }
     }
@@ -235,4 +238,115 @@ pub async fn serve<S>(
     }
     drop(out);
     writer.abort();
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Mutex;
+
+    use tokio::io::duplex;
+    use tokio_tungstenite::tungstenite::protocol::Role;
+
+    use super::*;
+
+    /// A core with one projection, whose sink the test keeps.
+    #[derive(Default)]
+    struct Backend {
+        sink: Mutex<Option<Box<dyn MessageSink>>>,
+    }
+
+    #[async_trait::async_trait]
+    impl RpcBackend for Backend {
+        async fn call(&self, _method: &str, _params: Value) -> Result<Value, RpcError> {
+            Ok(json!({}))
+        }
+
+        async fn subscribe(
+            &self,
+            _name: &str,
+            _since: Option<u64>,
+            sink: Box<dyn MessageSink>,
+        ) -> Result<String, RpcError> {
+            sink.send(json!({ "type": "snapshot" }));
+            *self.sink.lock().expect("the lock") = Some(sink);
+            Ok("s1".to_owned())
+        }
+
+        async fn unsubscribe(&self, _subscription: &str) -> bool {
+            true
+        }
+    }
+
+    async fn next_text<S>(ws: &mut WebSocketStream<S>) -> Value
+    where
+        S: AsyncRead + AsyncWrite + Unpin,
+    {
+        loop {
+            let message = tokio::time::timeout(std::time::Duration::from_secs(5), ws.next())
+                .await
+                .expect("a message in time")
+                .expect("the socket is open")
+                .expect("a message");
+            if let Message::Text(text) = message {
+                return serde_json::from_str(&text).expect("JSON");
+            }
+        }
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn a_client_that_stops_reading_fills_a_queue_with_a_limit_and_then_resyncs() {
+        let backend = Arc::new(Backend::default());
+        let (server_io, client_io) = duplex(16 * 1024);
+        let server = WebSocketStream::from_raw_socket(server_io, Role::Server, None).await;
+        tokio::spawn(serve(
+            Arc::clone(&backend) as Arc<dyn RpcBackend>,
+            server,
+            std::future::pending(),
+        ));
+        let mut client = WebSocketStream::from_raw_socket(client_io, Role::Client, None).await;
+        let subscribe = json!({ "jsonrpc": "2.0", "id": 1, "method": "projection.subscribe",
+            "params": { "name": "agents" } });
+        client
+            .send(Message::Text(subscribe.to_string().into()))
+            .await
+            .expect("sends");
+        assert_eq!(next_text(&mut client).await["result"]["subscription"], "s1");
+        assert_eq!(
+            next_text(&mut client).await["params"]["message"]["type"],
+            "snapshot"
+        );
+
+        // The client reads no more. The sink refuses a message before the core keeps much more
+        // than the two queues.
+        let patch = json!({ "type": "patch", "data": "x".repeat(1024) });
+        let mut taken = 0;
+        while backend
+            .sink
+            .lock()
+            .expect("the lock")
+            .as_ref()
+            .expect("a sink")
+            .send(patch.clone())
+        {
+            taken += 1;
+            assert!(taken < 4 * (PROJECTION_QUEUE + OUT_QUEUE), "no limit");
+            if taken % 64 == 0 {
+                tokio::task::yield_now().await;
+            }
+        }
+        // As the hub does with a sink that refuses a message.
+        drop(backend.sink.lock().expect("the lock").take());
+
+        // The client reads again: the patches that were taken, then `resync`.
+        let mut patches = 0;
+        loop {
+            let message = next_text(&mut client).await;
+            match message["params"]["message"]["type"].as_str() {
+                Some("patch") => patches += 1,
+                Some("resync") => break,
+                other => panic!("unexpected message {other:?}"),
+            }
+        }
+        assert_eq!(patches, taken);
+    }
 }

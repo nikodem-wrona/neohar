@@ -379,8 +379,8 @@ async fn reader<R: AsyncRead + Unpin>(
                 break;
             }
         };
-        let skipped = decoder.skipped;
-        let messages = match decoder.feed(&buf[..n]) {
+        // An unreadable message keeps its place: a `Hello` before it is still the first message.
+        let messages = match decoder.feed_in_order(&buf[..n]) {
             Ok(messages) => messages,
             Err(error) => {
                 tracing::warn!(%error, "the link sent bytes that are not link/1");
@@ -388,10 +388,11 @@ async fn reader<R: AsyncRead + Unpin>(
                 break;
             }
         };
-        for _ in skipped..decoder.skipped {
-            let _ = tx.send(Incoming::Unreadable);
-        }
         for msg in messages {
+            let Some(msg) = msg else {
+                let _ = tx.send(Incoming::Unreadable);
+                continue;
+            };
             match msg {
                 LinkMsg::Ping { nonce, sent_at_ms } => {
                     wire.send(&LinkMsg::Pong { nonce, sent_at_ms });
@@ -721,6 +722,41 @@ mod tests {
         wire.close("the end");
         until_dropped(&dropped, DRAIN_WITHIN * 5).await;
         assert!(wire.is_down());
+    }
+
+    #[tokio::test]
+    async fn an_unreadable_message_comes_in_its_place_among_the_others() {
+        let (read, mut peer) = tokio::io::duplex(1 << 16);
+        let (write, _peer_read) = tokio::io::duplex(1 << 16);
+        let (_wire, mut rx) = start(read, write, LinkTiming::default(), SIZES);
+        let frame = |stream| LinkMsg::Frame {
+            stream,
+            bytes: vec![7; 16],
+        };
+        // The three messages go in one write, so the reader gets them in one read.
+        let mut scheduler = Scheduler::default();
+        scheduler.push(crate::codec::encode(&frame(1)).expect("encodes"));
+        let mut bytes = Vec::new();
+        while scheduler.next_part(&mut bytes) {}
+        bytes.extend(crate::codec::unreadable_message());
+        scheduler.push(crate::codec::encode(&frame(2)).expect("encodes"));
+        while scheduler.next_part(&mut bytes) {}
+        peer.write_all(&bytes).await.expect("writes");
+        let mut next = async || {
+            tokio::time::timeout(Duration::from_secs(5), rx.recv())
+                .await
+                .expect("a message in time")
+                .expect("the link is up")
+        };
+        assert!(matches!(
+            next().await,
+            Incoming::Msg(LinkMsg::Frame { stream: 1, .. })
+        ));
+        assert!(matches!(next().await, Incoming::Unreadable));
+        assert!(matches!(
+            next().await,
+            Incoming::Msg(LinkMsg::Frame { stream: 2, .. })
+        ));
     }
 
     #[tokio::test]

@@ -112,6 +112,10 @@ pub trait VtEngine: Send {
     /// Appends the lines that went into the scrollback since the last call, oldest first.
     fn take_new_history(&mut self, out: &mut Vec<HistoryLine>);
 
+    /// Numbers the history from absolute line `first_line` instead of 0, so that a new run of a
+    /// pane continues the archive of the run before it. Call it before the first `advance`.
+    fn start_history_at(&mut self, first_line: u64);
+
     /// How often a chunk of output filled the scrollback in memory, so that lines may be missing
     /// from [`VtEngine::take_new_history`]. It never happens with plain output.
     fn history_gaps(&self) -> u64;

@@ -87,7 +87,7 @@ A projection is a keyed map plus an order in the memory of the core:
 - `palette` and `health` have one key, `_`. Some names take a parameter: `timeline:<run>`, `pane_text:<pane>`, `agents_for:<window>`.
 - The UI never joins two projections. A join it needs is its own projection.
 
-On `api.sock`, `projection.subscribe {name, since?}` returns `{subscription}`. A connection has at most 64 subscriptions, and a slow reader gets `resync`.
+On `api.sock`, `projection.subscribe {name, since?}` returns `{subscription}`. A connection has at most 64 subscriptions, and a slow reader gets `resync`. A slow reader on a WebSocket (the phone, the dev WebSocket) also gets `resync`.
 
 ## Events
 

@@ -68,6 +68,35 @@ fn tokens(batch: &Batch) -> (u64, u64) {
 }
 
 #[test]
+fn a_read_error_in_a_pass_keeps_the_lines_that_came_before_it() {
+    /// A file that gives its first bytes and then fails.
+    struct Failing(Option<Vec<u8>>);
+    impl std::io::Read for Failing {
+        fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+            match self.0.take() {
+                Some(bytes) => {
+                    buf[..bytes.len()].copy_from_slice(&bytes);
+                    Ok(bytes.len())
+                }
+                None => Err(std::io::Error::other("the file went away")),
+            }
+        }
+    }
+    let path = dir("read-error").join("t.jsonl");
+    let first = message("u1", "m1", 10, 1, json!([{"type": "text", "text": "one"}]));
+    let second = message("u2", "m2", 20, 2, json!([{"type": "text", "text": "two"}]));
+    append(&path, &first);
+    append(&path, &second);
+    let mut tail = tail(&path);
+    let size = (first.len() + second.len()) as u64;
+    let lines = tail.read_from(&mut Failing(Some(first.into_bytes())), size);
+    assert_eq!(lines.len(), 1, "the line before the error");
+    // The next pass goes on after that line, and does not read it again.
+    let batch = tail.poll(false, NOW).expect("a batch");
+    assert_eq!(tokens(&batch), (20, 2));
+}
+
+#[test]
 fn a_file_that_is_not_there_yet_gives_nothing() {
     let path = dir("missing").join("t.jsonl");
     assert!(tail(&path).poll(false, NOW).is_none());

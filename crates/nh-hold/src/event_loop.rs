@@ -33,7 +33,7 @@ use nh_proto::{
 };
 use polling::{Event, Events, PollMode, Poller};
 use rustix::{
-    fs::{OFlags, fcntl_setfl},
+    fs::{Mode, OFlags, fcntl_setfl},
     io::{Errno, read, write},
     process::{Pid, Signal, WaitOptions, kill_process_group, waitpid},
     termios::tcsetwinsize,
@@ -127,7 +127,8 @@ pub struct Holder {
     write_interest: bool,
     signals: OwnedFd,
     input: VecDeque<PendingInput>,
-    /// Input ids that were queued or written, with the journal offset of the ack once written.
+    /// Input ids that were queued or written, with the journal offset of the ack once written. An
+    /// id that a failed write dropped stays `None`: it is never acknowledged.
     seen: HashMap<u64, Option<u64>>,
     seen_order: VecDeque<u64>,
     feed: Feed,
@@ -170,6 +171,7 @@ impl Holder {
         (listener, socket_inode): (UnixListener, u64),
         mut log: Log,
         uid: u32,
+        child_umask: Mode,
     ) -> Result<Self, Error> {
         let (signals, signal_write) =
             spawn::cloexec_pipe().map_err(|e| Error::new("signal pipe", e))?;
@@ -193,7 +195,7 @@ impl Holder {
                 let Pty { master, slave } =
                     pty::open(pty::winsize(cols, rows, px_width, px_height))
                         .map_err(|e| Error::new("open PTY", e))?;
-                let spawned = spawn::spawn(&config, &ChildIo::Pty(&slave))?;
+                let spawned = spawn::spawn(&config, &ChildIo::Pty(&slave), child_umask)?;
                 let out = Source {
                     fd: master,
                     key: K_OUT,
@@ -211,7 +213,7 @@ impl Holder {
                     stdout: &out_write,
                     stderr: &err_write,
                 };
-                let spawned = spawn::spawn(&config, &io)?;
+                let spawned = spawn::spawn(&config, &io, child_umask)?;
                 for fd in [&stdin_write, &out_read, &err_read] {
                     nonblocking(fd)?;
                 }
@@ -887,13 +889,20 @@ impl Holder {
     }
 
     fn client_input(&mut self, conn: &mut Conn, id: u64, bytes: Vec<u8>) {
-        if let Some(offset) = self.seen.get(&id) {
-            conn.queue(&HolderEvent::InputAck {
-                input_id: id,
-                offset: offset.unwrap_or_else(|| self.feed.journal.end()),
-                result: InputResult::Duplicate,
-            });
-            return;
+        match self.seen.get(&id) {
+            Some(&Some(offset)) => {
+                conn.queue(&HolderEvent::InputAck {
+                    input_id: id,
+                    offset,
+                    result: InputResult::Duplicate,
+                });
+                return;
+            }
+            // The first copy waits in the queue, and its ack comes when it is written. Or a failed
+            // write dropped it, and no ack comes. A `Duplicate` now would confirm bytes that the
+            // child did not get.
+            Some(None) => return,
+            None => {}
         }
         self.seen.insert(id, None);
         self.seen_order.push_back(id);

@@ -486,6 +486,10 @@ impl VtEngine for AlacrittyEngine {
         self.history.take(out);
     }
 
+    fn start_history_at(&mut self, first_line: u64) {
+        self.history.start_at(first_line);
+    }
+
     fn history_gaps(&self) -> u64 {
         self.history.gaps()
     }
