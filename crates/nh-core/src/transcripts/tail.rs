@@ -7,7 +7,7 @@
 use std::{
     collections::VecDeque,
     fs::File,
-    io::{Read, Seek, SeekFrom},
+    io::{ErrorKind, Read, Seek, SeekFrom},
     path::{Path, PathBuf},
 };
 
@@ -195,7 +195,7 @@ impl Tail {
             _ => {}
         }
         let lines = if len > self.read_pos {
-            self.read_new(len).unwrap_or_default()
+            self.read_new(len)
         } else {
             Vec::new()
         };
@@ -261,24 +261,39 @@ impl Tail {
         }
     }
 
-    fn read_new(&mut self, len: u64) -> std::io::Result<Vec<Line>> {
-        let mut file = File::open(&self.path)?;
-        file.seek(SeekFrom::Start(self.read_pos))?;
+    /// Reads the bytes after `read_pos`, up to `len` and at most [`MAX_PASS`] of them, and returns
+    /// the lines that they complete.
+    fn read_new(&mut self, len: u64) -> Vec<Line> {
+        let Ok(mut file) = File::open(&self.path) else {
+            return Vec::new();
+        };
+        if file.seek(SeekFrom::Start(self.read_pos)).is_err() {
+            return Vec::new();
+        }
         let want = (len - self.read_pos).min(MAX_PASS);
+        self.read_from(&mut file, want)
+    }
+
+    /// Reads at most `want` bytes from `reader`, which stands at `read_pos`. A read error ends the
+    /// pass early, and the lines before it stay: `read_pos` is past their bytes, so no later pass
+    /// reads them again.
+    pub(super) fn read_from(&mut self, reader: &mut impl Read, want: u64) -> Vec<Line> {
         let mut lines = Vec::new();
         let mut chunk = vec![0u8; CHUNK];
         let mut left = want;
         while left > 0 {
             let size = usize::try_from(left).unwrap_or(CHUNK).min(CHUNK);
-            let read = file.read(&mut chunk[..size])?;
-            if read == 0 {
-                break;
-            }
+            let read = match reader.read(&mut chunk[..size]) {
+                Ok(0) => break,
+                Ok(read) => read,
+                Err(error) if error.kind() == ErrorKind::Interrupted => continue,
+                Err(_) => break,
+            };
             self.read_pos += read as u64;
             left -= read as u64;
             lines.extend(self.buffer.push(&chunk[..read]));
         }
-        Ok(lines)
+        lines
     }
 }
 

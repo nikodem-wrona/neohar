@@ -59,6 +59,21 @@ fn a_cap_moves_back_to_the_end_of_a_line_when_one_is_near() {
 }
 
 #[test]
+fn a_cap_does_not_panic_when_the_line_window_starts_inside_a_character() {
+    // "─" is three bytes. With 30,000 of them, the cut moves back to 65,535 and the window of
+    // 256 bytes starts at 65,279, which is inside a character.
+    let text = "─".repeat(30_000);
+    let capped = cap_output(&text);
+    assert!(capped.truncated);
+    assert_eq!(capped.text.len(), 65_535);
+    // A line end in the window still pulls the cut back.
+    let text = format!("{}\n{}", "─".repeat(21_800), "─".repeat(1_000));
+    let capped = cap_output(&text);
+    assert_eq!(capped.text.len(), 21_800 * 3 + 1);
+    assert!(capped.text.ends_with('\n'));
+}
+
+#[test]
 fn the_output_cap_is_64_kilobytes() {
     let text = "a".repeat(OUTPUT_CAP + 10);
     let capped = cap_output(&text);

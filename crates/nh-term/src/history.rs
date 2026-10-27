@@ -104,6 +104,16 @@ impl HistoryTracker {
         self.scrolled
     }
 
+    /// Gives the next line that leaves the screen the number `first_line` instead of 0. Call it
+    /// before the terminal reads a byte.
+    pub fn start_at(&mut self, first_line: u64) {
+        debug_assert!(
+            self.scrolled == 0 && self.pending.is_empty(),
+            "the history has lines already"
+        );
+        self.scrolled = first_line;
+    }
+
     /// How often a chunk filled the history. Each time, some lines may be missing from the lines
     /// that the tracker reports. The newest ones are there.
     pub fn gaps(&self) -> u64 {

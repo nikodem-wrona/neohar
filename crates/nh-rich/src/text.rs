@@ -74,8 +74,13 @@ pub fn cap(text: &str, max: usize) -> Capped<'_> {
     while !text.is_char_boundary(end) {
         end -= 1;
     }
+    // The search goes through bytes: the window can start inside a character, and a line end is
+    // one byte that is never part of a longer character.
     let window_start = end.saturating_sub(256);
-    if let Some(newline) = text[window_start..end].rfind('\n') {
+    if let Some(newline) = text.as_bytes()[window_start..end]
+        .iter()
+        .rposition(|&byte| byte == b'\n')
+    {
         end = window_start + newline + 1;
     }
     Capped {

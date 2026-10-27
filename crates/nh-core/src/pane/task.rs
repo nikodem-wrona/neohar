@@ -99,6 +99,10 @@ pub(super) struct Init {
     /// Whether to nudge the size of the PTY when the restore ends. A pane whose child exited has
     /// no terminal to resize.
     pub nudge: bool,
+    /// Whether the engine counts its history from 0 although the archive can hold the lines of an
+    /// earlier run: a new holder after `pane.restart` or a reboot, or a restore from the ring
+    /// alone. The history then continues after the last line of the archive.
+    pub after_archive: bool,
 }
 
 /// A snapshot that the batch took and that is not stored yet.
@@ -194,7 +198,14 @@ pub(super) async fn run(
     let archive = {
         let id = pane.id;
         match persist.run(move |store| store.scrollback_writer(id)).await {
-            Ok(writer) => Some(writer),
+            Ok(writer) => {
+                // The writer keeps only lines after the last one it has, so a history that started
+                // again at 0 would not be archived until it passed that line.
+                if let Some(last) = writer.last_line().filter(|_| init.after_archive) {
+                    lock(&pane.screen).engine.start_history_at(last + 1);
+                }
+                Some(writer)
+            }
             Err(error) => {
                 tracing::warn!(pane = %id, %error, "the scrollback is not archived");
                 None

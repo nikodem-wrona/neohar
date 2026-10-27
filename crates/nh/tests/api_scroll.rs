@@ -299,3 +299,82 @@ async fn a_selection_is_in_the_frames_and_copy_writes_its_text_to_the_clipboard(
         "{reply}"
     );
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_restarted_pane_numbers_its_lines_after_the_archive_of_the_run_before() {
+    let h = Harness::start();
+    let mut c = client(&h).await;
+    let created = c
+        .ok(
+            "workspace.create",
+            json!({ "command": { "argv": ["/bin/sh", "-c", "seq 1 200; sleep 3"] } }),
+        )
+        .await;
+    let id: Ulid = created["pane"].as_str().expect("id").parse().expect("ulid");
+    let deadline = Instant::now() + TIMEOUT;
+    let first = loop {
+        if let Some(pane) = h.handle.pane(id) {
+            break pane;
+        }
+        assert!(Instant::now() < deadline, "no pane");
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    };
+    wait_for(&first, "the last number", |t| {
+        t.iter().any(|row| row == "200")
+    })
+    .await;
+    // The first run archived the lines `0..scrolled`. A read flushes the archive.
+    let scrolled = first.viewport().top_line;
+    c.ok(
+        "pane.read",
+        json!({ "pane": "w1:p1", "lines": { "from": 0, "to": 1 } }),
+    )
+    .await;
+
+    // The program ends after its sleep. Then the pane can start again.
+    let deadline = Instant::now() + TIMEOUT;
+    loop {
+        if c.call("pane.restart", json!({ "pane": "w1:p1" }))
+            .await
+            .get("error")
+            .is_none()
+        {
+            break;
+        }
+        assert!(Instant::now() < deadline, "the pane did not end");
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
+    let deadline = Instant::now() + TIMEOUT;
+    let second = loop {
+        if let Some(pane) = h
+            .handle
+            .pane(id)
+            .filter(|p| !std::sync::Arc::ptr_eq(p, &first))
+        {
+            break pane;
+        }
+        assert!(Instant::now() < deadline, "no new pane");
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    };
+    wait_for(&second, "the last number", |t| {
+        t.iter().any(|row| row == "200")
+    })
+    .await;
+
+    // The second run continues after the lines of the first one, and both stay readable.
+    assert_eq!(second.viewport().top_line, 2 * scrolled);
+    let read = c
+        .ok(
+            "pane.read",
+            json!({ "pane": "w1:p1", "lines": { "from": scrolled, "to": scrolled + 3 } }),
+        )
+        .await;
+    assert_eq!(read, json!({ "text": "1\n2\n3", "from_line": scrolled }));
+    let read = c
+        .ok(
+            "pane.read",
+            json!({ "pane": "w1:p1", "lines": { "from": 10, "to": 13 } }),
+        )
+        .await;
+    assert_eq!(read, json!({ "text": "11\n12\n13", "from_line": 10 }));
+}

@@ -45,8 +45,9 @@ fn take_ready_pipe() -> Result<File, Error> {
 fn start(args: &config::Args, ready: &mut File) -> Result<Holder, Error> {
     let config = config::read_config(args)?;
     let uid = getuid().as_raw();
-    // Files and directories that the holder creates belong to its user only.
-    umask(Mode::from_bits_truncate(0o077));
+    // Files and directories that the holder creates belong to its user only. The child gets the
+    // mask of the caller back, as a shell in any other terminal has it.
+    let child_umask = umask(Mode::from_bits_truncate(0o077));
     let (listener, socket_inode) = server::bind(&config.socket_path, uid)?;
     detach(ready)?;
     chdir("/").map_err(|e| Error::new("chdir", e))?;
@@ -65,7 +66,7 @@ fn start(args: &config::Args, ready: &mut File) -> Result<Holder, Error> {
         .and_then(|()| dup2_stderr(&log_file))
         .map_err(|e| Error::new("stdio", e))?;
     let log = Log::open(&config.log_path);
-    Holder::start(config, (listener, socket_inode), log, uid)
+    Holder::start(config, (listener, socket_inode), log, uid, child_umask)
 }
 
 /// Forks twice with `setsid` between the forks. Only the last process returns.

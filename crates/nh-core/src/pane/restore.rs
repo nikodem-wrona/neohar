@@ -404,9 +404,11 @@ pub(super) struct Plan {
 
 /// Chooses the starting point of a restored pane. `snapshots` come newest first.
 ///
-/// The newest snapshot that the ring still covers and that decodes wins. Without one, the pane
-/// reads the whole journal when the ring still starts at 0, which is exact. Otherwise it reads the
-/// ring only (`ring_only`).
+/// The newest snapshot that the ring still covers and that decodes wins. When the pane has no
+/// snapshot at all and the ring still starts at 0, the pane reads the whole journal at the stored
+/// size, which is exact: the stored size is then the size that the program started with. Each
+/// stored snapshot writes its own size there, so when snapshots exist but none restores, the start
+/// size is not known, and the pane reads the ring at the size of the PTY now (`ring_only`).
 pub(super) fn plan(
     record: &PaneRecord,
     snapshots: &[SnapshotRecord],
@@ -526,6 +528,8 @@ async fn bring_back(
             restore: Some(progress),
             at_cut,
             nudge: exited.is_none(),
+            // A replay from a snapshot or from offset 0 numbers the lines as the first run did.
+            after_archive: plan.recovery == Recovery::RingOnly,
         },
     );
     Ok(())

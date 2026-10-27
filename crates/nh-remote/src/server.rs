@@ -19,7 +19,8 @@
 //!   and the refusals of a phone hold. The other `phone.*` methods are for the Mac that the phone
 //!   is paired with, and they answer `unsupported` here. A stream with `device` attaches the phone
 //!   as a client, with a host that does nothing, until its last stream on the link closes.
-//! - **Blobs**: `BlobGet` sends the blob in parts of 64 KiB with at most 8 parts in flight.
+//! - **Blobs**: `BlobGet` sends the blob in parts of 64 KiB with at most 8 parts in flight. A
+//!   `BlobGet` with the id of a blob that is still on its way gets `BlobDone` with `busy`.
 //!   `BlobPut` receives an upload in parts, with a credit for each part. A link has at most 4
 //!   uploads at the same time. The last part ends the upload: the server checks the size and the
 //!   hash, and the core stores the file (`put_upload`). `BlobDone` gives the result.
@@ -933,9 +934,30 @@ fn put_part(conn: &Arc<Conn>, id: u64, offset: u64, bytes: &[u8], last: bool) {
     });
 }
 
+/// Takes the credits of a new blob on its way to the client. `None` when a blob with this id is
+/// still on its way: the second one must not take the credits of the first, or the first waits for
+/// ever and keeps its link after the end.
+fn claim_blob(blobs: &Mutex<HashMap<u64, Arc<Semaphore>>>, id: u64) -> Option<Arc<Semaphore>> {
+    match lock(blobs).entry(id) {
+        std::collections::hash_map::Entry::Occupied(_) => None,
+        std::collections::hash_map::Entry::Vacant(slot) => Some(Arc::clone(
+            slot.insert(Arc::new(Semaphore::new(BLOB_CREDITS))),
+        )),
+    }
+}
+
 fn send_blob(conn: &Arc<Conn>, id: u64, hash: String) {
-    let credits = Arc::new(Semaphore::new(BLOB_CREDITS));
-    lock(&conn.blobs).insert(id, Arc::clone(&credits));
+    let Some(credits) = claim_blob(&conn.blobs, id) else {
+        let error = RpcError::new(
+            ErrorCode::Busy,
+            format!("the blob {id} is still on its way"),
+        );
+        conn.wire.send(&LinkMsg::BlobDone {
+            id,
+            outcome: BlobOutcome::Err(error_bytes(&error)),
+        });
+        return;
+    };
     let conn = Arc::clone(conn);
     tokio::spawn(async move {
         let outcome = match conn.core.blob(&hash).await {
@@ -1183,6 +1205,20 @@ impl Host for LinkHost {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_second_blob_with_the_id_of_one_on_its_way_does_not_take_its_credits() {
+        let blobs = Mutex::default();
+        let first = claim_blob(&blobs, 1).expect("a new id");
+        assert!(claim_blob(&blobs, 1).is_none(), "the id is on its way");
+        assert!(
+            Arc::ptr_eq(&first, &lock(&blobs)[&1]),
+            "the credits of the first blob stay, so the end of the link closes them"
+        );
+        assert!(claim_blob(&blobs, 2).is_some(), "another id is free");
+        lock(&blobs).remove(&1);
+        assert!(claim_blob(&blobs, 1).is_some(), "the id is free again");
+    }
 
     #[test]
     fn the_major_version_of_the_api_ignores_the_minor() {

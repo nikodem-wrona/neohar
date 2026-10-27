@@ -10,6 +10,8 @@ use std::{
     time::{Duration, Instant},
 };
 
+use super::INTERNAL_INPUT;
+
 /// The most ids that the pane remembers in each list. It is also the number of ids that the holder
 /// remembers to drop duplicates.
 pub(super) const KEPT: usize = 4096;
@@ -76,7 +78,8 @@ impl Inputs {
     }
 
     /// The holder acknowledged an input. Returns how long the ack took, when the core sent the
-    /// input and had not given it up.
+    /// input and had not given it up. The list of acks keeps the ids of clients only: the replies
+    /// of the core to queries are many, and they would push those ids out.
     pub fn acked(&mut self, id: u64) -> Option<Duration> {
         let took = self
             .pending
@@ -84,11 +87,13 @@ impl Inputs {
             .position(|(pending, _)| *pending == id)
             .and_then(|at| self.pending.remove(at))
             .map(|(_, sent)| sent.elapsed());
-        if self.acked.len() == KEPT {
-            self.acked.pop_front();
+        if id & INTERNAL_INPUT == 0 {
+            if self.acked.len() == KEPT {
+                self.acked.pop_front();
+            }
+            self.acked.push_back((self.next_seq, id));
+            self.next_seq += 1;
         }
-        self.acked.push_back((self.next_seq, id));
-        self.next_seq += 1;
         took
     }
 
@@ -170,6 +175,20 @@ mod tests {
         let (second, next) = inputs.acked_since(next);
         assert_eq!(second, [4]);
         assert!(inputs.acked_since(next).0.is_empty());
+    }
+
+    #[test]
+    fn an_ack_of_an_input_of_the_core_leaves_the_list_of_acks_alone() {
+        let mut inputs = Inputs::default();
+        inputs.acked(1);
+        let keystroke = INTERNAL_INPUT | 1;
+        inputs.sent(keystroke, Instant::now());
+        for n in 0..KEPT as u64 {
+            inputs.acked(INTERNAL_INPUT | (n + 2));
+        }
+        assert!(inputs.acked(keystroke).is_some(), "it is no longer pending");
+        assert_eq!(inputs.pending_len(), 0);
+        assert_eq!(inputs.acked_since(0), (vec![1], 1));
     }
 
     #[test]

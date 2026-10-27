@@ -134,7 +134,8 @@ Changes tab, the Git view and `nh git`, also in a repository that you trust:
 ### Switch, fetch and pull
 
 Each write is one git command, and the event log records each write that works. One write
-at a time runs in a worktree.
+at a time runs in a worktree. A fetch changes the whole repository, so it does not run at the same
+time as a write in a worktree of that repository.
 
 | Case | What the view does |
 |---|---|

@@ -1447,6 +1447,7 @@ impl PaneFactory {
                 restore: None,
                 at_cut: true,
                 nudge: false,
+                after_archive: true,
             },
         );
         Ok(pane)

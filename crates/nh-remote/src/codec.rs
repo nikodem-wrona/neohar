@@ -209,6 +209,12 @@ impl Decoder {
 
     /// Takes the next bytes of the link and returns the messages that they complete.
     pub fn feed(&mut self, data: &[u8]) -> Result<Vec<LinkMsg>, CodecError> {
+        Ok(self.feed_in_order(data)?.into_iter().flatten().collect())
+    }
+
+    /// Like [`Decoder::feed`], but a message that this version cannot read is `None` in its place,
+    /// so that the reader passes on the messages in the order of the link.
+    pub fn feed_in_order(&mut self, data: &[u8]) -> Result<Vec<Option<LinkMsg>>, CodecError> {
         self.buf.extend_from_slice(data);
         let mut out = Vec::new();
         let mut at = 0;
@@ -221,8 +227,11 @@ impl Decoder {
                 break;
             };
             let part: Part<'_> = postcard::from_bytes(body).map_err(|_| CodecError::BadPart)?;
-            if let Some(msg) = take_part(&mut self.partial, &mut self.skipped, self.limit, &part)? {
-                out.push(msg);
+            let skipped = self.skipped;
+            match take_part(&mut self.partial, &mut self.skipped, self.limit, &part)? {
+                Some(msg) => out.push(Some(msg)),
+                None if self.skipped != skipped => out.push(None),
+                None => {}
             }
             at += 4 + len;
         }
@@ -289,6 +298,22 @@ fn decompress(bytes: &[u8], limit: usize) -> Result<Vec<u8>, CodecError> {
         return Err(CodecError::MessageTooLarge);
     }
     Ok(out)
+}
+
+/// The bytes of one whole message of a kind that no version reads, for the tests of a reader.
+#[cfg(test)]
+pub(crate) fn unreadable_message() -> Vec<u8> {
+    let body = postcard::to_allocvec(&Part {
+        flags: 1,
+        bytes: &[200, 1, 2, 3],
+    })
+    .expect("encodes");
+    let mut wire = u32::try_from(body.len())
+        .expect("fits")
+        .to_le_bytes()
+        .to_vec();
+    wire.extend(body);
+    wire
 }
 
 #[cfg(test)]
@@ -511,19 +536,23 @@ mod tests {
 
     #[test]
     fn a_message_of_an_unknown_kind_is_skipped_and_the_link_stays() {
-        let framed = |flags: u8, bytes: &[u8]| {
-            let body = postcard::to_allocvec(&Part { flags, bytes }).expect("encodes");
-            let mut wire = u32::try_from(body.len())
-                .expect("fits")
-                .to_le_bytes()
-                .to_vec();
-            wire.extend(body);
-            wire
-        };
         let mut decoder = Decoder::default();
-        let mut wire = framed(1, &[200, 1, 2, 3]);
+        let mut wire = unreadable_message();
         wire.extend(wire_of(&[ping(4)]).concat());
         assert_eq!(decoder.feed(&wire), Ok(vec![ping(4)]));
+        assert_eq!(decoder.skipped, 1);
+    }
+
+    #[test]
+    fn a_message_of_an_unknown_kind_keeps_its_place_among_the_others() {
+        let mut decoder = Decoder::default();
+        let mut wire = wire_of(&[ping(1)]).concat();
+        wire.extend(unreadable_message());
+        wire.extend(wire_of(&[ping(2)]).concat());
+        assert_eq!(
+            decoder.feed_in_order(&wire),
+            Ok(vec![Some(ping(1)), None, Some(ping(2))])
+        );
         assert_eq!(decoder.skipped, 1);
     }
 

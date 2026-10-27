@@ -227,7 +227,9 @@ impl SshSpec {
         prepare_dir(&self.control_dir())
     }
 
-    /// The options, the target and `--`.
+    /// The options, the target and `--`. Each option is one that every OpenSSH client knows: an
+    /// ssh that does not know an option refuses it and opens no link. Thus there is no
+    /// `ObscureKeystrokeTiming` (OpenSSH 9.5 and later), which does nothing with `-T` anyway.
     fn base_args(&self) -> Vec<OsString> {
         let control = self.control_dir().join("%C");
         let mut args: Vec<OsString> = vec!["-T".into()];
@@ -237,7 +239,6 @@ impl SshSpec {
             "ControlPersist=600".to_owned(),
             "ServerAliveInterval=15".to_owned(),
             "ServerAliveCountMax=3".to_owned(),
-            "ObscureKeystrokeTiming=no".to_owned(),
         ] {
             args.push("-o".into());
             args.push(option.into());
@@ -637,8 +638,6 @@ mod tests {
                 "ServerAliveInterval=15",
                 "-o",
                 "ServerAliveCountMax=3",
-                "-o",
-                "ObscureKeystrokeTiming=no",
                 "studio",
                 "--",
                 "~/.local/bin/nh bridge --session default --proto link/1",

@@ -285,7 +285,7 @@ impl Tx<'_> {
 
     /// Takes the holder away from a pane that the layout starts again (`pane.restart`): the pane
     /// goes back to `created`, and the snapshots of the old holder go, because the journal of the
-    /// new holder starts at offset 0.
+    /// new holder starts at offset 0. The archive stays: the new run numbers its lines after it.
     pub fn reset_pane(&self, id: Ulid) -> Result<(), StoreError> {
         self.writable()?;
         let id = id.to_string();

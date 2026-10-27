@@ -205,10 +205,12 @@ fn unsubscribe(
     Ok((json!({}), None))
 }
 
-/// A sink that puts the messages in a queue. When the queue is full, the hub drops the sink.
-struct QueueSink {
-    queue: mpsc::Sender<Value>,
-    overflow: Arc<AtomicBool>,
+/// A sink that puts the messages in a queue. When the queue is full, the hub drops the sink, and
+/// `overflow` tells the task that empties the queue to send `resync`. The WebSocket of the phone
+/// uses it too ([`crate::ws_rpc`]).
+pub(crate) struct QueueSink {
+    pub(crate) queue: mpsc::Sender<Value>,
+    pub(crate) overflow: Arc<AtomicBool>,
 }
 
 impl MessageSink for QueueSink {

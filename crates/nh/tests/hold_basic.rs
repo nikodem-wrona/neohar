@@ -63,6 +63,48 @@ fn input_is_written_once_and_a_repeated_id_is_a_duplicate() {
 }
 
 #[test]
+fn a_repeated_id_of_an_input_that_waits_in_the_queue_is_not_acknowledged_before_the_write() {
+    // Raw mode: the PTY takes no more input when its buffer is full, so a large input waits in the
+    // queue of the holder until `cat` reads.
+    let holder = TestHolder::spawn(&[
+        "/bin/sh",
+        "-c",
+        "stty raw -echo; echo ready; sleep 2; cat >/dev/null",
+    ]);
+    let mut client = holder.attach(0);
+    client.output_containing("ready");
+    let input = HolderRequest::Input {
+        input_id: 1,
+        bytes: vec![b'a'; 256 * 1024],
+    };
+    client.send(&input);
+    client.send(&input);
+    let (offset, result) = client.wait_for(|e| match e {
+        HolderEvent::InputAck {
+            input_id: 1,
+            offset,
+            result,
+        } => Some((*offset, *result)),
+        _ => None,
+    });
+    assert_eq!(
+        result,
+        InputResult::Written,
+        "the first ack comes after the write"
+    );
+    client.send(&input);
+    let duplicate = client.wait_for(|e| match e {
+        HolderEvent::InputAck {
+            input_id: 1,
+            offset,
+            result: InputResult::Duplicate,
+        } => Some(*offset),
+        _ => None,
+    });
+    assert_eq!(duplicate, offset);
+}
+
+#[test]
 fn a_reconnecting_client_loses_no_byte_and_repeats_none() {
     let go = format!("/tmp/nhh-go-{}", std::process::id());
     let _ = std::fs::remove_file(&go);
@@ -228,6 +270,20 @@ fn the_exit_of_a_child_comes_after_its_output_and_the_holder_leaves_on_ack() {
         );
         std::thread::sleep(Duration::from_millis(20));
     }
+}
+
+#[test]
+fn the_child_gets_the_umask_of_the_caller_and_not_the_one_of_the_holder() {
+    // The holder uses 077 for its own files. A shell in the pane must see the mask of whoever
+    // started the holder, as in any other terminal.
+    let holder = TestHolder::spawn_with(
+        support::config(&["/bin/sh", "-c", "echo mask=$(umask); sleep 30"]),
+        Some("umask 027; exec HOLD"),
+    );
+    let mut client = holder.attach(0);
+    let (out, _) = client.output_containing("\r\n");
+    let text = String::from_utf8_lossy(&out).into_owned();
+    assert!(text.contains("mask=0027"), "output: {text:?}");
 }
 
 #[test]

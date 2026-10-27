@@ -19,7 +19,7 @@ use std::{
 
 use nh_proto::holder::{ExitStatus, HoldConfig};
 use rustix::{
-    fs::{Access, access},
+    fs::{Access, Mode, access},
     io::{FdFlags, fcntl_setfd, read},
     pipe::pipe,
     process::{Pid, WaitOptions, WaitStatus, waitpid},
@@ -64,8 +64,8 @@ struct Exec {
     _strings: Vec<CString>,
 }
 
-/// Starts `config.argv` with `config.env` in `config.cwd`.
-pub fn spawn(config: &HoldConfig, io: &ChildIo<'_>) -> Result<Spawned, Error> {
+/// Starts `config.argv` with `config.env` in `config.cwd`, with the file mode mask `umask`.
+pub fn spawn(config: &HoldConfig, io: &ChildIo<'_>, umask: Mode) -> Result<Spawned, Error> {
     let exec = prepare(config)?;
     let (err_read, err_write) = cloexec_pipe().map_err(|e| Error::new("error pipe", e))?;
     let (stdio, ctty): ([RawFd; 3], Option<RawFd>) = match io {
@@ -89,7 +89,14 @@ pub fn spawn(config: &HoldConfig, io: &ChildIo<'_>) -> Result<Spawned, Error> {
     let pid = unsafe { libc::fork() };
     match pid {
         -1 => Err(Error::new("fork", io::Error::last_os_error())),
-        0 => run_child(&exec, &stdio, ctty, err_write.as_raw_fd(), &no_signals),
+        0 => run_child(
+            &exec,
+            &stdio,
+            ctty,
+            err_write.as_raw_fd(),
+            &no_signals,
+            umask.bits(),
+        ),
         pid => {
             drop(err_write);
             let pid = Pid::from_raw(pid).ok_or_else(|| Error::new("fork", "pid 0"))?;
@@ -156,6 +163,7 @@ fn run_child(
     ctty: Option<RawFd>,
     err_fd: RawFd,
     no_signals: &libc::sigset_t,
+    umask: libc::mode_t,
 ) -> ! {
     // SAFETY: this runs in the child of a single-threaded process. It calls only async-signal-safe
     // functions, it allocates nothing, and every pointer comes from `exec`, which `fork` copied.
@@ -181,6 +189,8 @@ fn run_child(
             libc::signal(signal, libc::SIG_DFL);
         }
         libc::sigprocmask(libc::SIG_SETMASK, no_signals, ptr::null_mut());
+        // The holder runs with the mask 077 for its own files. The child gets the caller's mask.
+        libc::umask(umask);
         if libc::chdir(exec.cwd.as_ptr()) != 0 {
             fail(err_fd);
         }

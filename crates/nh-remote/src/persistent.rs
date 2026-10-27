@@ -330,8 +330,20 @@ impl PersistentLink {
 
     /// The link that is up, with the epoch of its core. Else `link_down`.
     fn current(&self) -> Result<(LinkClient, String), RpcError> {
-        lock(&self.shared.state).current.clone().ok_or_else(|| {
-            match &*self.shared.status.borrow() {
+        self.current_numbered()
+            .map(|(client, epoch, _)| (client, epoch))
+    }
+
+    /// Like [`Self::current`], with the number of the link. One lock gives all three, so the
+    /// number is the one of this link and not of a link that came after it.
+    fn current_numbered(&self) -> Result<(LinkClient, String, u64), RpcError> {
+        let state = lock(&self.shared.state);
+        let generation = state.generation;
+        state
+            .current
+            .clone()
+            .map(|(client, epoch)| (client, epoch, generation))
+            .ok_or_else(|| match &*self.shared.status.borrow() {
                 LinkStatus::Stopped(reason) => RpcError::new(
                     ErrorCode::LinkDown,
                     format!("the link to the machine ended: {reason}"),
@@ -341,8 +353,7 @@ impl PersistentLink {
                     format!("the link to the machine is down: {reason}"),
                 ),
                 LinkStatus::Up => link_down(),
-            }
-        })
+            })
     }
 
     /// Waits for a link newer than `generation`: the one that replaces the link that a call lost.
@@ -392,8 +403,7 @@ impl PersistentLink {
             error
         };
         // A first send needs a link. The calls after it wait for the next one.
-        let (mut client, epoch) = self.current()?;
-        let mut generation = lock(&self.shared.state).generation;
+        let (mut client, epoch, mut generation) = self.current_numbered()?;
         loop {
             match client
                 .call_for(device.cloned(), window, method, params.clone())
