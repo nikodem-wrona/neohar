@@ -19,7 +19,7 @@
     },
     "apps/desktop": {
       "name": "@neohar/desktop",
-      "version": "2.0.0",
+      "version": "2.1.0",
       "dependencies": {
         "@neohar/proto-wasm": "workspace:*",
         "@neohar/transport": "workspace:*",
@@ -32,7 +32,7 @@
     },
     "apps/web": {
       "name": "@neohar/web",
-      "version": "2.0.0",
+      "version": "2.1.0",
       "dependencies": {
         "@neohar/proto-wasm": "workspace:*",
         "@neohar/transport": "workspace:*",
@@ -45,18 +45,18 @@
     },
     "packages/proto-wasm": {
       "name": "@neohar/proto-wasm",
-      "version": "2.0.0",
+      "version": "2.1.0",
     },
     "packages/transport": {
       "name": "@neohar/transport",
-      "version": "2.0.0",
+      "version": "2.1.0",
       "dependencies": {
         "@tauri-apps/api": "2.12.1",
       },
     },
     "packages/ui": {
       "name": "@neohar/ui",
-      "version": "2.0.0",
+      "version": "2.1.0",
       "dependencies": {
         "@neohar/proto-wasm": "workspace:*",
         "@neohar/transport": "workspace:*",
@@ -65,7 +65,7 @@
     },
     "tests/keyboard": {
       "name": "@neohar/keyboard-tests",
-      "version": "2.0.0",
+      "version": "2.1.0",
       "devDependencies": {
         "@playwright/test": "1.64.0",
         "@types/node": "^26.6.4",
@@ -73,7 +73,7 @@
     },
     "tests/phone": {
       "name": "@neohar/phone-tests",
-      "version": "2.0.0",
+      "version": "2.1.0",
       "devDependencies": {
         "@playwright/test": "1.64.0",
         "@types/node": "^26.6.4",
@@ -82,7 +82,7 @@
     },
     "tests/render": {
       "name": "@neohar/render-tests",
-      "version": "2.0.0",
+      "version": "2.1.0",
       "devDependencies": {
         "@playwright/test": "1.64.0",
         "@types/node": "^26.6.4",
@@ -90,7 +90,7 @@
     },
     "tests/transport": {
       "name": "@neohar/transport-tests",
-      "version": "2.0.0",
+      "version": "2.1.0",
       "dependencies": {
         "@neohar/transport": "workspace:*",
       },
@@ -101,7 +101,7 @@
     },
     "tests/ui": {
       "name": "@neohar/ui-tests",
-      "version": "2.0.0",
+      "version": "2.1.0",
       "dependencies": {
         "@neohar/proto-wasm": "workspace:*",
         "@neohar/transport": "workspace:*",
@@ -117,15 +117,15 @@
     },
     "tools/eslint-plugin-neohar": {
       "name": "@neohar/eslint-plugin",
-      "version": "2.0.0",
+      "version": "2.1.0",
     },
     "tools/gen-ts": {
       "name": "@neohar/gen-ts",
-      "version": "2.0.0",
+      "version": "2.1.0",
     },
     "tools/nh-keytest": {
       "name": "@neohar/keytest-web",
-      "version": "2.0.0",
+      "version": "2.1.0",
     },
   },
   "packages": {

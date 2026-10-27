@@ -2959,7 +2959,7 @@ dependencies = [
 
 [[package]]
 name = "mock-llm"
-version = "2.0.0"
+version = "2.1.0"
 dependencies = [
  "axum",
  "futures-util",
@@ -3034,7 +3034,7 @@ dependencies = [
 
 [[package]]
 name = "neohar-desktop"
-version = "2.0.0"
+version = "2.1.0"
 dependencies = [
  "async-trait",
  "block2",
@@ -3070,7 +3070,7 @@ checksum = "650eef8c711430f1a879fdd01d4745a7deea475becfb90269c06775983bbf086"
 
 [[package]]
 name = "nh"
-version = "2.0.0"
+version = "2.1.0"
 dependencies = [
  "async-trait",
  "base64 0.22.1",
@@ -3100,7 +3100,7 @@ dependencies = [
 
 [[package]]
 name = "nh-agents"
-version = "2.0.0"
+version = "2.1.0"
 dependencies = [
  "async-trait",
  "blake3",
@@ -3120,7 +3120,7 @@ dependencies = [
 
 [[package]]
 name = "nh-bench"
-version = "2.0.0"
+version = "2.1.0"
 dependencies = [
  "nh-proto",
  "nh-term",
@@ -3129,7 +3129,7 @@ dependencies = [
 
 [[package]]
 name = "nh-chaos"
-version = "2.0.0"
+version = "2.1.0"
 dependencies = [
  "anyhow",
  "futures-util",
@@ -3149,7 +3149,7 @@ dependencies = [
 
 [[package]]
 name = "nh-core"
-version = "2.0.0"
+version = "2.1.0"
 dependencies = [
  "arc-swap",
  "async-trait",
@@ -3184,7 +3184,7 @@ dependencies = [
 
 [[package]]
 name = "nh-fixture"
-version = "2.0.0"
+version = "2.1.0"
 dependencies = [
  "proptest",
  "rustix",
@@ -3192,7 +3192,7 @@ dependencies = [
 
 [[package]]
 name = "nh-golden"
-version = "2.0.0"
+version = "2.1.0"
 dependencies = [
  "blake3",
  "futures-util",
@@ -3214,7 +3214,7 @@ dependencies = [
 
 [[package]]
 name = "nh-hold"
-version = "2.0.0"
+version = "2.1.0"
 dependencies = [
  "libc",
  "nh-proto",
@@ -3227,7 +3227,7 @@ dependencies = [
 
 [[package]]
 name = "nh-keytest"
-version = "2.0.0"
+version = "2.1.0"
 dependencies = [
  "nh-proto",
  "nh-term",
@@ -3239,7 +3239,7 @@ dependencies = [
 
 [[package]]
 name = "nh-proto"
-version = "2.0.0"
+version = "2.1.0"
 dependencies = [
  "base64 0.22.1",
  "bitflags 2.13.2",
@@ -3259,7 +3259,7 @@ dependencies = [
 
 [[package]]
 name = "nh-record"
-version = "2.0.0"
+version = "2.1.0"
 dependencies = [
  "libc",
  "nh-proto",
@@ -3270,7 +3270,7 @@ dependencies = [
 
 [[package]]
 name = "nh-redact"
-version = "2.0.0"
+version = "2.1.0"
 dependencies = [
  "regex",
  "serde_json",
@@ -3278,7 +3278,7 @@ dependencies = [
 
 [[package]]
 name = "nh-remote"
-version = "2.0.0"
+version = "2.1.0"
 dependencies = [
  "async-trait",
  "blake3",
@@ -3300,7 +3300,7 @@ dependencies = [
 
 [[package]]
 name = "nh-rich"
-version = "2.0.0"
+version = "2.1.0"
 dependencies = [
  "ammonia",
  "insta",
@@ -3315,7 +3315,7 @@ dependencies = [
 
 [[package]]
 name = "nh-snapcheck"
-version = "2.0.0"
+version = "2.1.0"
 dependencies = [
  "nh-fixture",
  "nh-hold",
@@ -3326,7 +3326,7 @@ dependencies = [
 
 [[package]]
 name = "nh-store"
-version = "2.0.0"
+version = "2.1.0"
 dependencies = [
  "blake3",
  "getrandom 0.4.3",
@@ -3345,7 +3345,7 @@ dependencies = [
 
 [[package]]
 name = "nh-term"
-version = "2.0.0"
+version = "2.1.0"
 dependencies = [
  "alacritty_terminal",
  "nh-fixture",
@@ -3360,7 +3360,7 @@ dependencies = [
 
 [[package]]
 name = "nh-web"
-version = "2.0.0"
+version = "2.1.0"
 dependencies = [
  "aes-gcm",
  "async-trait",
@@ -4166,7 +4166,7 @@ dependencies = [
 
 [[package]]
 name = "proto-wasm"
-version = "2.0.0"
+version = "2.1.0"
 dependencies = [
  "nh-fixture",
  "nh-proto",

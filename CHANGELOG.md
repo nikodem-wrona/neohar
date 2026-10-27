@@ -10,6 +10,16 @@ not edit a released section. A note under Unreleased goes to the top of the next
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-10-27
+
+### Added
+
+- **ui:** give the bars, the tabs and the side columns more padding ([#8](https://github.com/nikodem-wrona/neohar/pull/8))
+
+### Fixed
+
+- correct the faults that a review of the Rust code found ([#9](https://github.com/nikodem-wrona/neohar/pull/9))
+
 ## [2.0.0] - 2026-10-25
 
 This release is the first with a DMG for Apple silicon. The DMG has an ad-hoc signature, and Apple
@@ -120,6 +130,7 @@ The first public release.
 - macOS is the only tested platform.
 - Builds have an ad-hoc signature. They are for local use only, and the app has no updater.
 
-[Unreleased]: https://github.com/nikodem-wrona/neohar/compare/v2.0.0...HEAD
+[Unreleased]: https://github.com/nikodem-wrona/neohar/compare/v2.1.0...HEAD
+[2.1.0]: https://github.com/nikodem-wrona/neohar/compare/v2.0.0...v2.1.0
 [2.0.0]: https://github.com/nikodem-wrona/neohar/compare/v1.0.0...v2.0.0
 [1.0.0]: https://github.com/nikodem-wrona/neohar/releases/tag/v1.0.0
