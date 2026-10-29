@@ -5,7 +5,7 @@
 //! touches no state of the core. It gives a [`Batch`], and the actor applies the batch.
 
 use std::{
-    collections::VecDeque,
+    collections::{HashMap, HashSet, VecDeque},
     fs::File,
     io::{ErrorKind, Read, Seek, SeekFrom},
     path::{Path, PathBuf},
@@ -324,17 +324,19 @@ fn scan(path: &Path, format: Format, limit: u64) -> TimelineState {
     state
 }
 
-/// All the items of a transcript, in order, for `timeline.page`. A file that is not there gives
-/// nothing.
-/// The full text of a `prompt` item or an `assistant` item of the timeline (`timeline.item`).
-/// The ids are those of [`Builder`]: the id of the line for a prompt, and the id of the line, a
-/// dot and the index of the block for a text of the model. A later line with the same id
-/// wins, as in the timeline. `None` when no such item is in the file.
-pub(crate) fn item_text(path: &Path, format: Format, item: &str) -> Option<String> {
-    let mut file = File::open(path).ok()?;
+/// The full texts of `prompt` and `assistant` items of the timeline (`timeline.item`,
+/// `timeline.texts`), with one read of the file. The ids are those of [`Builder`]: the id of the
+/// line for a prompt, and the id of the line, a dot and the index of the block for a text of the
+/// model. A later line with the same id wins, as in the timeline. An id that is not in the file is
+/// not in the map.
+pub(crate) fn item_texts(path: &Path, format: Format, items: &[String]) -> HashMap<String, String> {
+    let wanted: HashSet<&str> = items.iter().map(String::as_str).collect();
+    let mut found = HashMap::new();
+    let Ok(mut file) = File::open(path) else {
+        return found;
+    };
     let mut buffer = LineBuffer::at(0);
     let mut chunk = vec![0u8; CHUNK];
-    let mut found = None;
     while let Ok(read) = file.read(&mut chunk) {
         if read == 0 {
             break;
@@ -345,17 +347,18 @@ pub(crate) fn item_text(path: &Path, format: Format, item: &str) -> Option<Strin
                     continue;
                 }
                 match &entry.kind {
-                    Kind::Prompt { text } if entry.id == item => found = Some(text.clone()),
+                    Kind::Prompt { text } if wanted.contains(entry.id.as_str()) => {
+                        found.insert(entry.id.clone(), text.clone());
+                    }
                     Kind::Assistant { blocks, .. } => {
-                        let Some(index) = item
-                            .strip_prefix(entry.id.as_str())
-                            .and_then(|rest| rest.strip_prefix('.'))
-                            .and_then(|rest| rest.parse::<usize>().ok())
-                        else {
-                            continue;
-                        };
-                        if let Some(Block::Text(text)) = blocks.get(index) {
-                            found = Some(text.clone());
+                        for (index, block) in blocks.iter().enumerate() {
+                            let Block::Text(text) = block else {
+                                continue;
+                            };
+                            let id = format!("{}.{index}", entry.id);
+                            if wanted.contains(id.as_str()) {
+                                found.insert(id, text.clone());
+                            }
                         }
                     }
                     _ => {}
@@ -366,6 +369,13 @@ pub(crate) fn item_text(path: &Path, format: Format, item: &str) -> Option<Strin
     found
 }
 
+/// The full text of one item: [`item_texts`] for one id. `None` when no such item is in the file.
+pub(crate) fn item_text(path: &Path, format: Format, item: &str) -> Option<String> {
+    item_texts(path, format, &[item.to_owned()]).remove(item)
+}
+
+/// All the items of a transcript, in order, for `timeline.page`. A file that is not there gives
+/// nothing.
 pub(crate) fn all_items(path: &Path, format: Format) -> Vec<TimelineItem> {
     let Ok(file) = File::open(path) else {
         return Vec::new();
@@ -374,7 +384,7 @@ pub(crate) fn all_items(path: &Path, format: Format) -> Vec<TimelineItem> {
     let mut buffer = LineBuffer::at(0);
     let mut builder = Builder::default();
     let mut items: Vec<TimelineItem> = Vec::new();
-    let mut index = std::collections::HashMap::<String, usize>::new();
+    let mut index = HashMap::<String, usize>::new();
     let now = Timestamp(crate::persist::now_ms());
     let mut chunk = vec![0u8; CHUNK];
     while let Ok(read) = file.read(&mut chunk) {

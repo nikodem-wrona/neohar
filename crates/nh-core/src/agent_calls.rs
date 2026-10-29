@@ -9,7 +9,7 @@
 //! The keys and the prompt go through the same lock as an answer by keystrokes, so a person who
 //! types at the same moment wins and the call fails with `busy`.
 
-use std::{sync::Arc, time::Duration};
+use std::{path::PathBuf, sync::Arc, time::Duration};
 
 use nh_agents::{
     codex::models::{CATALOG_FILE, catalog},
@@ -18,10 +18,12 @@ use nh_agents::{
         choices::{self, CODEX_CATALOG},
         schema::Launch,
     },
+    skills,
 };
 use nh_proto::api::{
     calls::agent::{
-        AgentChoicesResult, AgentLinked, AgentListResult, AgentShown, AgentWaitResult, WaitFor,
+        AgentChoicesResult, AgentLinked, AgentListResult, AgentShown, AgentSkillsResult,
+        AgentWaitResult, WaitFor,
     },
     common::{Empty, Harness, JobStarted},
     ids::{Ref, RunId},
@@ -61,6 +63,7 @@ pub(crate) fn handles(method: &str) -> bool {
                 | Method::AgentStart
                 | Method::AgentResume
                 | Method::AgentChoices
+                | Method::AgentSkills
                 | Method::HarnessRefresh
         )
     )
@@ -231,6 +234,7 @@ pub(crate) async fn run(inner: &Arc<Inner>, call: Call, origin: Origin) -> Resul
         }
         Call::AgentWait(p) => wait(inner, p.agent, p.until, p.timeout_ms).await,
         Call::AgentChoices(p) => agent_choices(inner, p.harness).await,
+        Call::AgentSkills(p) => agent_skills(inner, p.run, p.query).await,
         Call::HarnessRefresh(p) => {
             inner.discovery.refresh(p.harness.as_deref()).await?;
             json(&Empty {})
@@ -285,6 +289,54 @@ pub(crate) async fn run(inner: &Arc<Inner>, call: Call, origin: Origin) -> Resul
         }
         _ => Err(RpcError::internal("not an agent call")),
     }
+}
+
+/// `agent.skills`: the skills of the harness of a run, for the folder of its pane. The files are
+/// read on each call, so a new skill shows at once.
+async fn agent_skills(
+    inner: &Arc<Inner>,
+    reference: Ref<RunId>,
+    query: Option<String>,
+) -> Result<Value, RpcError> {
+    let (harness, cwd) = inner
+        .actor
+        .update(move |parts| {
+            let id = parts
+                .state
+                .runs
+                .resolve(&reference)
+                .ok_or_else(|| not_found(&reference))?;
+            let run = parts
+                .state
+                .runs
+                .by_id
+                .get(&id)
+                .ok_or_else(|| not_found(&reference))?;
+            let cwd = run
+                .pane
+                .and_then(|pane| parts.state.layout.panes.get(&pane))
+                .and_then(|pane| {
+                    // Where the pane is now, else where its holder or its launch started.
+                    pane.facts
+                        .cwd
+                        .clone()
+                        .or_else(|| pane.cwd.clone())
+                        .or_else(|| pane.spec.as_ref().and_then(|spec| spec.cwd.clone()))
+                });
+            Ok::<_, RpcError>((run.harness, cwd))
+        })
+        .await
+        .map_err(gone)??;
+    let roots = skills::Roots {
+        config: crate::integration_calls::config_dir(inner, harness)?,
+        home: inner.factory.paths.home.clone(),
+        cwd: cwd.map(PathBuf::from),
+    };
+    let skills =
+        tokio::task::spawn_blocking(move || skills::list(harness, &roots, query.as_deref()))
+            .await
+            .map_err(|e| RpcError::internal(format!("the skills task failed: {e}")))?;
+    json(&AgentSkillsResult { skills })
 }
 
 /// `agent.choices`: the menus of each harness, from its manifest and the catalog that the manifest

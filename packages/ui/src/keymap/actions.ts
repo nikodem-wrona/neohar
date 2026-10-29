@@ -28,6 +28,8 @@ export interface ActionContext {
   toggleSearch(): void;
   /** Opens the Git view on the folder of the window, or closes it when it is open. */
   toggleGit(): void;
+  /** Shows the chat of the agent in the pane in focus, or its terminal when the chat shows. */
+  toggleChat(): void;
   /** Moves the focus to the card of an interaction in the inbox. */
   focusCard(interaction: string): void;
 }
@@ -82,6 +84,7 @@ const ACTIONS: Readonly<Record<string, Action>> = {
   },
   'search.open': (ctx) => ctx.toggleSearch(),
   'git.open': (ctx) => ctx.toggleGit(),
+  'pane.view_toggle': (ctx) => ctx.toggleChat(),
   // The peek does not exist yet. Its key stays reserved.
   'peek.sibling': () => undefined,
 };

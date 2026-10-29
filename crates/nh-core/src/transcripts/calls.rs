@@ -1,5 +1,5 @@
-//! `timeline.page`: older items of `timeline:<run>`. `timeline.item`: the full text
-//! of one item, as sanitized HTML.
+//! `timeline.page`: older items of `timeline:<run>`. `timeline.item` and `timeline.texts`: the
+//! full text of items, as sanitized HTML.
 //!
 //! The items are history. They are made again from the file of the transcript, so neohar keeps no
 //! copy of it.
@@ -7,18 +7,23 @@
 use std::{path::PathBuf, sync::Arc};
 
 use nh_proto::api::{
-    calls::system::{TimelineItemGet, TimelineItemText, TimelinePageParams, TimelinePageResult},
+    calls::system::{
+        TimelineItemGet, TimelineItemText, TimelinePageParams, TimelinePageResult, TimelineText,
+        TimelineTexts, TimelineTextsGet,
+    },
     common::Harness,
     ids::{Ref, RunId},
     methods::{Call, Method},
 };
 use serde_json::{Value, to_value};
 
-use super::tail::{RING, all_items, format_of, item_text};
+use super::tail::{RING, all_items, format_of, item_text, item_texts};
 use crate::{ErrorCode, error::RpcError, runtime::Inner};
 
 /// The items in a page when the call names no number.
 const DEFAULT_PAGE: usize = 100;
+/// The most items of one `timeline.texts`.
+const MAX_TEXTS: usize = 100;
 /// The longest text of `timeline.item`, in bytes. A longer text is cut, and `truncated` is true.
 pub(crate) const ITEM_CAP: usize = 64 * 1024;
 
@@ -26,7 +31,7 @@ pub(crate) const ITEM_CAP: usize = 64 * 1024;
 pub(crate) fn handles(method: &str) -> bool {
     matches!(
         Method::from_name(method),
-        Some(Method::TimelinePage | Method::TimelineItem)
+        Some(Method::TimelinePage | Method::TimelineItem | Method::TimelineTexts)
     )
 }
 
@@ -40,6 +45,10 @@ pub(crate) async fn run(inner: &Arc<Inner>, call: Call) -> Result<Value, RpcErro
         Call::TimelineItem(params) => {
             let item = item(inner, params).await?;
             to_value(&item).map_err(|e| RpcError::internal(e.to_string()))
+        }
+        Call::TimelineTexts(params) => {
+            let texts = texts(inner, params).await?;
+            to_value(&texts).map_err(|e| RpcError::internal(e.to_string()))
         }
         _ => Err(RpcError::internal("not a timeline call")),
     }
@@ -79,6 +88,37 @@ async fn item(inner: &Arc<Inner>, params: TimelineItemGet) -> Result<TimelineIte
         .map_err(|e| RpcError::internal(format!("the item task failed: {e}")))?
         .ok_or_else(missing)?;
     Ok(render_item(&text))
+}
+
+async fn texts(inner: &Arc<Inner>, params: TimelineTextsGet) -> Result<TimelineTexts, RpcError> {
+    if params.items.len() > MAX_TEXTS {
+        return Err(RpcError::invalid_params(format!(
+            "at most {MAX_TEXTS} items in one call"
+        )));
+    }
+    let (harness, path) = transcript(inner, params.run).await?;
+    let Some(path) = path else {
+        return Ok(TimelineTexts { texts: Vec::new() });
+    };
+    let items = params.items;
+    tokio::task::spawn_blocking(move || {
+        let mut found = item_texts(&path, format_of(harness), &items);
+        let texts = items
+            .into_iter()
+            .filter_map(|item| {
+                let text = found.remove(&item)?;
+                let TimelineItemText { html, truncated } = render_item(&text);
+                Some(TimelineText {
+                    item,
+                    html,
+                    truncated,
+                })
+            })
+            .collect();
+        TimelineTexts { texts }
+    })
+    .await
+    .map_err(|e| RpcError::internal(format!("the texts task failed: {e}")))
 }
 
 /// The HTML of the text of an item, cut at [`ITEM_CAP`] on a character boundary.

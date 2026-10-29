@@ -87,6 +87,7 @@ test('the default keys make the default keymap', () => {
     'peek.sibling',
     'search.open',
     'git.open',
+    'pane.view_toggle',
     'window.new',
   ]);
   expect(keymap.passThrough?.code).toBe('KeyV');

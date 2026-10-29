@@ -183,6 +183,20 @@ export interface AgentShown {
   agent: AgentValue;
 }
 
+/**
+ * The skills and the custom commands that the harness of a run can start in the folder of
+ * the pane. With `query`, only the names that have it, ignoring case, and those that start
+ * with it first.
+ */
+export interface AgentSkills {
+  query?: string | null;
+  run: RefRunId;
+}
+
+export interface AgentSkillsResult {
+  skills: Skill[];
+}
+
 /** `agent.start` returns a job. The run appears in the `agents` projection. */
 export interface AgentStart {
   /** Extra arguments for the harness. */
@@ -3147,6 +3161,19 @@ export interface SettingsSection {
   entries: Record<string, SettingEntry>;
 }
 
+export interface Skill {
+  description?: string | null;
+  /**
+   * The text that starts the skill at the start of a prompt, for example `/review ` for
+   * Claude Code and `$review ` for Codex.
+   */
+  insert: string;
+  name: string;
+  source: SkillSource;
+}
+
+export type SkillSource = 'user' | 'project' | 'plugin';
+
 /** Where a piece of state came from, and how sure the core is. */
 export type Source =
   'structured' | 'screen' | 'process' | 'holder' | 'user' | 'transcript' | 'derived';
@@ -3320,6 +3347,29 @@ export interface TimelinePageParams {
 export interface TimelinePageResult {
   items: TimelineItem[];
   more: boolean;
+}
+
+export interface TimelineText {
+  html: string;
+  item: string;
+  truncated: boolean;
+}
+
+/**
+ * The texts in the order of `items`. An item that the transcript does not have is not
+ * there.
+ */
+export interface TimelineTexts {
+  texts: TimelineText[];
+}
+
+/**
+ * The full texts of at most 100 `prompt` and `assistant` items of `timeline:<run>`, with
+ * one read of the transcript.
+ */
+export interface TimelineTextsGet {
+  items: string[];
+  run: RefRunId;
 }
 
 /** RFC 3339 in UTC with milliseconds, for example 2026-10-09T12:34:56.789Z. */
@@ -3676,6 +3726,7 @@ export interface MethodMap {
   'agent.show': { params: AgentShow; result: AgentShown };
   'agent.start': { params: AgentStart; result: JobStarted };
   'agent.choices': { params: AgentChoices; result: AgentChoicesResult };
+  'agent.skills': { params: AgentSkills; result: AgentSkillsResult };
   'agent.stop': { params: AgentStop; result: Empty };
   'agent.interrupt': { params: AgentInterrupt; result: Empty };
   'agent.prompt': { params: AgentPrompt; result: Empty };
@@ -3751,6 +3802,7 @@ export interface MethodMap {
   'rich.highlight': { params: RichHighlight; result: Spans };
   'timeline.page': { params: TimelinePageParams; result: TimelinePageResult };
   'timeline.item': { params: TimelineItemGet; result: TimelineItemText };
+  'timeline.texts': { params: TimelineTextsGet; result: TimelineTexts };
   'jobs.cancel': { params: JobsCancel; result: Empty };
   'adapter.signal': { params: AdapterSignal; result: AdapterReceipt };
   'adapter.gate': { params: AdapterGate; result: GateReply };
@@ -3837,6 +3889,7 @@ export type UiMethod =
   | 'agent.show'
   | 'agent.start'
   | 'agent.choices'
+  | 'agent.skills'
   | 'agent.stop'
   | 'agent.interrupt'
   | 'agent.prompt'
@@ -3901,6 +3954,7 @@ export type UiMethod =
   | 'rich.highlight'
   | 'timeline.page'
   | 'timeline.item'
+  | 'timeline.texts'
   | 'jobs.cancel';
 
 /** The methods that the `cli` scope may call. */
@@ -3953,6 +4007,7 @@ export type CliMethod =
   | 'agent.show'
   | 'agent.start'
   | 'agent.choices'
+  | 'agent.skills'
   | 'agent.stop'
   | 'agent.interrupt'
   | 'agent.prompt'
@@ -4094,6 +4149,7 @@ export const METHOD_SCOPES: { readonly [M in Method]: readonly Scope[] } = {
   'agent.show': ['ui', 'cli', 'phone'],
   'agent.start': ['ui', 'cli', 'phone'],
   'agent.choices': ['ui', 'cli', 'phone'],
+  'agent.skills': ['ui', 'cli', 'phone'],
   'agent.stop': ['ui', 'cli', 'phone'],
   'agent.interrupt': ['ui', 'cli', 'phone'],
   'agent.prompt': ['ui', 'cli', 'phone'],
@@ -4166,6 +4222,7 @@ export const METHOD_SCOPES: { readonly [M in Method]: readonly Scope[] } = {
   'rich.highlight': ['ui', 'phone'],
   'timeline.page': ['ui', 'phone'],
   'timeline.item': ['ui', 'phone'],
+  'timeline.texts': ['ui', 'phone'],
   'jobs.cancel': ['ui', 'cli', 'phone'],
   'adapter.signal': ['pane'],
   'adapter.gate': ['pane'],

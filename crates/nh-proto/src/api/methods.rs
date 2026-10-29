@@ -432,6 +432,7 @@ methods! {
     AgentShow "agent.show" BOTH (AgentShow) -> AgentShown;
     AgentStart "agent.start" BOTH (AgentStart) -> JobStarted;
     AgentChoices "agent.choices" BOTH (AgentChoices) -> AgentChoicesResult;
+    AgentSkills "agent.skills" BOTH (AgentSkills) -> AgentSkillsResult;
     AgentStop "agent.stop" BOTH (AgentStop) -> Empty;
     AgentInterrupt "agent.interrupt" BOTH (AgentInterrupt) -> Empty;
     AgentPrompt "agent.prompt" BOTH (AgentPrompt) -> Empty;
@@ -518,6 +519,7 @@ methods! {
     RichHighlight "rich.highlight" UI (RichHighlight) -> crate::api::rich::Spans;
     TimelinePage "timeline.page" UI (TimelinePageParams) -> TimelinePageResult;
     TimelineItem "timeline.item" UI (TimelineItemGet) -> TimelineItemText;
+    TimelineTexts "timeline.texts" UI (TimelineTextsGet) -> TimelineTexts;
     JobsCancel "jobs.cancel" BOTH (JobsCancel) -> Empty;
 
     // hook shims
@@ -652,6 +654,7 @@ mod tests {
                     "show",
                     "start",
                     "choices",
+                    "skills",
                     "stop",
                     "interrupt",
                     "prompt",
@@ -723,7 +726,7 @@ mod tests {
             ("search", &["query"]),
             ("palette", &["query", "execute"]),
             ("rich", &["diff", "markdown", "highlight"]),
-            ("timeline", &["page", "item"]),
+            ("timeline", &["page", "item", "texts"]),
             ("jobs", &["cancel"]),
             (
                 "adapter",

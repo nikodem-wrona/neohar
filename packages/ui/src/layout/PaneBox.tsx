@@ -6,13 +6,15 @@
 // directory with its end in view, the cost, and the marker of unconfirmed input. When another window
 // has the size of the PTY, the strip has the mark Fit, which takes the size (`pane.claim`).
 // The pane in focus
-// has a ring in the gap around it. The strip has the buttons for float, zoom and close.
+// has a ring in the gap around it. The strip has the buttons for float, zoom and close, and a pane
+// with an agent has the toggle Chat: the body shows the chat of the run in place of the terminal.
 // A tiled pane drags by its strip onto a tab (`pane.move`). A row of the Files tab drops onto a
-// pane, and the core pastes its path (`pane.insert_paths`). The surface of the pane goes
-// into `.pane-body`.
+// pane, and the core pastes its path (`pane.insert_paths`), or the chat puts it in its field. The
+// surface of the pane, or the chat, goes into `.pane-body`.
 
 import type { PaneId, TabValue } from '@neohar/transport';
 import { createSignal, For, Show } from 'solid-js';
+import { ChatView } from '../chat/ChatView';
 import { badgeOf, harnessName } from '../agents/badge';
 import { useApp } from '../app/context';
 import { paneName, showHandles } from '../app/preferences';
@@ -39,6 +41,9 @@ export function PaneBox(props: { id: PaneId; tab: TabValue; single?: boolean }) 
     return id ? stores.agents.state.byKey[id] : undefined;
   };
   const focused = () => stores.windows.state.byKey[windowId]?.focused_pane === props.id;
+  /** The body shows the chat of the agent in place of the terminal. */
+  const chat = () => run() !== undefined && view.chatShown(props.id);
+  const toggleChat = () => view.toggleChat(props.id);
   const zoomed = () => props.tab.zoomed === props.id;
   const floating = () => props.tab.floating?.some((item) => item.pane === props.id) === true;
   const focus = () => call('pane.focus', { pane: props.id, window: windowId });
@@ -85,6 +90,15 @@ export function PaneBox(props: { id: PaneId; tab: TabValue; single?: boolean }) 
   const [pathOver, setPathOver] = createSignal(false);
   const dropPath = (box: HTMLElement, path: string): void => {
     setPathOver(false);
+    if (chat()) {
+      const draft = view.draft(props.id);
+      view.setDraft(
+        props.id,
+        draft === '' || draft.endsWith(' ') ? `${draft}${path}` : `${draft} ${path}`,
+      );
+      focus();
+      return;
+    }
     input
       .insertPaths(props.id, [path])
       .then(() => {
@@ -328,6 +342,27 @@ export function PaneBox(props: { id: PaneId; tab: TabValue; single?: boolean }) 
             }}
           />
         </Show>
+        <Show when={run()}>
+          <button
+            type="button"
+            class="pane-button"
+            data-action="chat"
+            aria-pressed={chat()}
+            aria-label={chat() ? 'Show terminal' : 'Show chat'}
+            title={chat() ? 'Show terminal' : 'Show chat'}
+            onClick={toggleChat}
+          >
+            <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true">
+              <path
+                d="M2.5 3h11v7.5H7L4 13v-2.5H2.5z"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.4"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </button>
+        </Show>
         <button
           type="button"
           class="pane-button"
@@ -432,8 +467,12 @@ export function PaneBox(props: { id: PaneId; tab: TabValue; single?: boolean }) 
           </Show>
         )}
       </Show>
-      <div class="pane-body">
-        <Surface id={props.id} focused={focused()} />
+      <div class="pane-body" classList={{ 'pane-chat': chat() }}>
+        {/* The harness runs on in the pane while the chat shows. The surface comes back with the
+            next keyframe of the core. */}
+        <Show when={chat()} fallback={<Surface id={props.id} focused={focused()} />}>
+          <ChatView pane={props.id} run={pane()!.run!} focused={focused()} />
+        </Show>
       </div>
       <Show when={exited()}>
         {(state) => (

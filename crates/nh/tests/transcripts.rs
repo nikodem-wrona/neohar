@@ -332,6 +332,63 @@ async fn the_timeline_projection_follows_the_file_and_the_pages_give_older_items
     assert_eq!(error.code, ErrorCode::NotFound);
 }
 
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn the_full_texts_of_many_items_come_from_one_call_as_html() {
+    let (core, path, run) = session("texts").await;
+    let mut text = prompt("u1", "Fix **the** bug");
+    text += &message(
+        "a1",
+        "msg_1",
+        1,
+        1,
+        json!([{"type": "text", "text": "Done: `x` works"}]),
+    );
+    append(&path, &text);
+    let page = until("the items", async || {
+        let page = core.call("timeline.page", json!({"run": run})).await;
+        let ids: Vec<String> = page["items"]
+            .as_array()
+            .expect("items")
+            .iter()
+            .map(|i| i["id"].as_str().expect("an id").to_owned())
+            .collect();
+        (ids.len() == 2).then_some(ids)
+    })
+    .await;
+    let reply = page[1].clone();
+    // The texts come in the order of the call, and an item that is not there is left out.
+    let texts = core
+        .call(
+            "timeline.texts",
+            json!({"run": run, "items": [reply, "u1", "nope"]}),
+        )
+        .await;
+    let texts = texts["texts"].as_array().expect("texts");
+    assert_eq!(texts.len(), 2, "{texts:?}");
+    assert_eq!(texts[0]["item"], reply.as_str());
+    assert!(
+        texts[0]["html"]
+            .as_str()
+            .is_some_and(|h| h.contains("<code>x</code>")),
+        "{texts:?}"
+    );
+    assert_eq!(texts[1]["item"], "u1");
+    assert!(
+        texts[1]["html"]
+            .as_str()
+            .is_some_and(|h| h.contains("<strong>the</strong>")),
+        "{texts:?}"
+    );
+    assert_eq!(texts[1]["truncated"], false);
+    let many: Vec<String> = (0..101).map(|i| format!("u{i}")).collect();
+    let error = core
+        .handle
+        .rpc("timeline.texts", json!({"run": run, "items": many}))
+        .await
+        .expect_err("too many items");
+    assert_eq!(error.code, ErrorCode::InvalidParams);
+}
+
 /// A shim of the hook `PermissionRequest` that holds a request.
 fn shim(socket: &std::path::Path) -> std::process::Child {
     let mut child = Command::new(NH)

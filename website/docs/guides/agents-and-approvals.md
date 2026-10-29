@@ -42,6 +42,26 @@ hooks. A dim `?` after the name of the harness in the strip of a pane means neoh
 validated this version of the harness, so it only observes. The **Timeline** tab of the drawer shows the turns, tool calls, tokens and cost of the
 agent in the focused pane.
 
+## Chat with an agent
+
+The chat button in the strip of an agent pane, `⌘⇧T`, or "Show the chat or the terminal of this
+pane" in the palette shows the chat of the agent in place of its terminal. The harness continues
+to run in the pane. The same key shows the terminal again at any time, also during a turn. Claude
+Code and Codex look the same in the chat.
+
+- The chat shows your prompts, the messages of the agent as Markdown, a line for each tool call,
+  and the cards of the requests that wait.
+- Enter sends a message when the turn of the agent has ended. Shift+Enter starts a new line. While
+  the agent works, **Stop** or Esc in an empty field interrupts it.
+- Type `/` to see the skills and the custom commands of the harness for the folder of the pane. A
+  pick puts `/name` for Claude Code or `$name` for Codex in the field.
+- While the chat shows, the pane does not have the keyboard. Thus neohar holds a request, and the
+  chat shows its card. The terminal shows the dialog of the harness again.
+- A command that opens a menu of the harness, for example `/model`, works only in the terminal.
+- A message of Claude Code shows when it is complete, not word by word. A question of Codex shows
+  only in the terminal.
+- A new pane shows the terminal. After a relaunch of the app, each pane shows the terminal.
+
 ## Control agents
 
 The palette has "Start Claude Code beside this pane" and "Start Codex beside this pane", and
@@ -52,6 +72,7 @@ and more:
 nh agent start claude --split w3:p5 --prompt "Fix the failing test" --name fix-tests
 nh agent start claude --new-tab w3 --model opus --effort high
 nh agent choices                        # the models and effort levels a start can use
+nh agent skills fix-tests               # the skills and commands of its harness and folder
 nh agent prompt fix-tests "Now run the whole suite"
 nh agent reply fix-tests "Now run the whole suite"   # only after its turn ended; never twice
 nh agent interrupt fix-tests            # Esc

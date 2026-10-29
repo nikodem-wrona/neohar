@@ -142,6 +142,40 @@ wire! {
         pub text: String,
     }
 
+    /// The skills and the custom commands that the harness of a run can start in the folder of
+    /// the pane. With `query`, only the names that have it, ignoring case, and those that start
+    /// with it first.
+    pub struct AgentSkills {
+        pub run: Ref<RunId>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub query: Option<String>,
+    }
+
+    #[derive(Copy, Eq, Hash)]
+    #[serde(rename_all = "snake_case")]
+    pub enum SkillSource {
+        /// The configuration directory of the harness, or `~/.agents/skills`.
+        User,
+        /// The folder of the pane or a parent of it, up to the root of its repository.
+        Project,
+        /// An enabled plugin of Claude Code.
+        Plugin,
+    }
+
+    pub struct Skill {
+        pub name: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub description: Option<String>,
+        pub source: SkillSource,
+        /// The text that starts the skill at the start of a prompt, for example `/review ` for
+        /// Claude Code and `$review ` for Codex.
+        pub insert: String,
+    }
+
+    pub struct AgentSkillsResult {
+        pub skills: Vec<Skill>,
+    }
+
     /// Starts the harness again with the resume handle of the run. It returns a job.
     pub struct AgentResume {
         pub agent: Ref<RunId>,

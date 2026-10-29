@@ -20,6 +20,7 @@ Agent runs of Claude Code and Codex: list, start, resume, prompt, interrupt, sto
 | [`agent.show`](#agent-show) | `ui` `cli` `phone` | [`AgentShow`](/docs/reference/api/types#agentshow) | [`AgentShown`](/docs/reference/api/types#agentshown) |
 | [`agent.start`](#agent-start) | `ui` `cli` `phone` | [`AgentStart`](/docs/reference/api/types#agentstart) | [`JobStarted`](/docs/reference/api/types#jobstarted) |
 | [`agent.choices`](#agent-choices) | `ui` `cli` `phone` | [`AgentChoices`](/docs/reference/api/types#agentchoices) | [`AgentChoicesResult`](/docs/reference/api/types#agentchoicesresult) |
+| [`agent.skills`](#agent-skills) | `ui` `cli` `phone` | [`AgentSkills`](/docs/reference/api/types#agentskills) | [`AgentSkillsResult`](/docs/reference/api/types#agentskillsresult) |
 | [`agent.stop`](#agent-stop) | `ui` `cli` `phone` | [`AgentStop`](/docs/reference/api/types#agentstop) | [`Empty`](/docs/reference/api/types#empty) |
 | [`agent.interrupt`](#agent-interrupt) | `ui` `cli` `phone` | [`AgentInterrupt`](/docs/reference/api/types#agentinterrupt) | [`Empty`](/docs/reference/api/types#empty) |
 | [`agent.prompt`](#agent-prompt) | `ui` `cli` `phone` | [`AgentPrompt`](/docs/reference/api/types#agentprompt) | [`Empty`](/docs/reference/api/types#empty) |
@@ -130,6 +131,31 @@ The models and the effort levels that `agent.start` can choose.
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `harnesses` | [`HarnessChoices`](/docs/reference/api/types#harnesschoices)[] | yes |  |
+
+## `agent.skills` {#agent-skills}
+
+**Scopes:** `ui` `cli` `phone` — the UI, over the `rpc` command of the Tauri host or the WebSocket; the CLI and any other client on the API socket; a paired phone, over the listener of the phone.
+
+**Command line:** [`nh agent skills`](/docs/reference/cli/commands/agent#agent-skills)
+
+The skills and the custom commands that the harness of a run can start in the folder of the pane. With `query`, only the names that have it, ignoring case, and those that start with it first.
+
+### Params
+
+[`AgentSkills`](/docs/reference/api/types#agentskills)
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `query` | string \| `null` |  |  |
+| `run` | [`RefRunId`](/docs/reference/api/types#refrunid) | yes |  |
+
+### Result
+
+[`AgentSkillsResult`](/docs/reference/api/types#agentskillsresult)
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `skills` | [`Skill`](/docs/reference/api/types#skill)[] | yes |  |
 
 ## `agent.stop` {#agent-stop}
 

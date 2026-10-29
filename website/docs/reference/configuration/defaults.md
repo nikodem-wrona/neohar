@@ -32,7 +32,7 @@ Write the keys that you want to change in `~/.config/neohar/config.toml` (or `$N
 | [`[phone]`](#phone) | `enabled`, `port`, `https_port`, `url`, `contact`, `keep_awake`, `font_size`, `keys` |
 | [`[ui]`](#ui) | `font_family`, `font_size`, `macos_option_as_alt`, `global_hotkey`, `editor`, `show_handles` |
 | [`[theme]`](#theme) | `bg`, `bg_raised`, `bg_hover`, `line`, `text`, `text_dim`, `accent`, `danger` |
-| [`[keys]`](#keys) | `palette_open`, `tab_next`, `tab_previous`, `pane_focus_left`, `pane_focus_right`, `pane_focus_up`, `pane_focus_down`, `pane_split_right`, `pane_split_down`, `inbox_open`, `interaction_answer_next`, `peek_sibling`, `search_open`, `git_open`, `window_new`, `pass_through` |
+| [`[keys]`](#keys) | `palette_open`, `tab_next`, `tab_previous`, `pane_focus_left`, `pane_focus_right`, `pane_focus_up`, `pane_focus_down`, `pane_split_right`, `pane_split_down`, `inbox_open`, `interaction_answer_next`, `peek_sibling`, `search_open`, `git_open`, `pane_view_toggle`, `window_new`, `pass_through` |
 
 ## `[machines]` {#machines}
 
@@ -264,6 +264,7 @@ danger = "#ff5251"
 | `peek_sibling` | `"mod+shift+p"` |  |
 | `search_open` | `"mod+shift+f"` |  |
 | `git_open` | `"mod+shift+g"` |  |
+| `pane_view_toggle` | `"mod+shift+t"` |  |
 | `window_new` | `"mod+shift+n"` |  |
 | `pass_through` | `"mod+alt+v"` | The chord that lets the next key reach the pane, also when it is reserved. |
 
@@ -283,6 +284,7 @@ interaction_answer_next = "mod+shift+a"
 peek_sibling = "mod+shift+p"
 search_open = "mod+shift+f"
 git_open = "mod+shift+g"
+pane_view_toggle = "mod+shift+t"
 window_new = "mod+shift+n"
 pass_through = "mod+alt+v"
 ```
@@ -447,6 +449,7 @@ interaction_answer_next = "mod+shift+a"
 peek_sibling = "mod+shift+p"
 search_open = "mod+shift+f"
 git_open = "mod+shift+g"
+pane_view_toggle = "mod+shift+t"
 window_new = "mod+shift+n"
 # The chord that lets the next key reach the pane, also when it is reserved.
 pass_through = "mod+alt+v"

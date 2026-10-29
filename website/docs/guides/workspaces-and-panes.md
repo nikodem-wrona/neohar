@@ -83,6 +83,7 @@ with `nh config set keys.palette_open mod+j`.
 | `⌘⇧A` | Answer next: show the most urgent card |
 | `⌘⇧F` | Search the scrollback |
 | `⌘⇧G` | Open or close the Git view |
+| `⌘⇧T` | Show the chat or the terminal of the agent in the focused pane |
 | `⌘⇧N`, `⌘N` | New window |
 | `⌘⌥V` | Send the next key to the pane, also a reserved one |
 | `⌘W` | Close the window (the panes stay) |
