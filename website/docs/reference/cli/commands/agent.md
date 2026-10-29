@@ -22,6 +22,7 @@ Commands:
   show       Show an agent
   start      Start an agent in a new pane, a new tab or an idle shell
   choices    List the models and the effort levels that a start can choose
+  skills     List the skills and the commands that an agent can start
   stop       Ask an agent to end
   interrupt  Interrupt the turn of an agent
   prompt     Type a prompt into an agent
@@ -133,6 +134,30 @@ Usage: nh agent choices [OPTIONS] [HARNESS]
 
 Arguments:
   [HARNESS]  
+
+Options:
+      --session <NAME>     The session to talk to. The default is $NEOHAR_SESSION, or `default`
+      --socket <PATH>      The API socket to use. It wins over --session and $NEOHAR_SOCKET
+      --machine <LABEL>    Run the command on this machine of config.toml, over ssh. A handle such as studio/w3:p5 does the same
+      --json               Print JSON. This is the default when stdout is not a terminal
+      --timeout <SECONDS>  How long to wait for the core to answer, in seconds [default: 30]
+  -h, --help               Print help
+```
+
+## `nh agent skills` {#agent-skills}
+
+List the skills and the commands that an agent can start
+
+**API method:** [`agent.skills`](/docs/reference/api/methods/agent#agent-skills)
+
+```text
+List the skills and the commands that an agent can start
+
+Usage: nh agent skills [OPTIONS] <RUN> [QUERY]
+
+Arguments:
+  <RUN>    A reference to an agent run: its ULID, or its unique name.
+  [QUERY]  
 
 Options:
       --session <NAME>     The session to talk to. The default is $NEOHAR_SESSION, or `default`

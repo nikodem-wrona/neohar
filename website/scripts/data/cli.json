@@ -434,6 +434,13 @@
   {
     "path": [
       "agent",
+      "skills"
+    ],
+    "about": "List the skills and the commands that an agent can start"
+  },
+  {
+    "path": [
+      "agent",
       "stop"
     ],
     "about": "Ask an agent to end"

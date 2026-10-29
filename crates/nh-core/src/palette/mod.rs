@@ -132,6 +132,13 @@ pub const COMMANDS: &[Spec] = &[
         Needs::Pane,
     ),
     spec(
+        "pane.view_toggle",
+        "Show the chat or the terminal of this pane",
+        "Pane",
+        Some("⌘⇧T"),
+        Needs::Page,
+    ),
+    spec(
         "pane.zoom",
         "Zoom pane or show all panes",
         "Pane",

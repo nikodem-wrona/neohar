@@ -48,6 +48,28 @@ describe('the Git view', () => {
   });
 });
 
+describe('the chat of a pane', () => {
+  it('toggles for each pane, from the command of the palette for the pane in focus', () => {
+    const view = createViewState();
+    view.toggleChat('p1');
+    expect([view.chatShown('p1'), view.chatShown('p2')]).toEqual([true, false]);
+    view.pageAction('pane.view_toggle', { focused_pane: 'p2' });
+    view.pageAction('pane.view_toggle', { focused_pane: 'p1' });
+    expect([view.chatShown('p1'), view.chatShown('p2')]).toEqual([false, true]);
+    // Without a pane in focus the command does nothing.
+    view.pageAction('pane.view_toggle', {});
+    expect(view.chatShown('p2')).toBe(true);
+  });
+
+  it('keeps the draft of each pane until it is empty', () => {
+    const view = createViewState();
+    view.setDraft('p1', 'half a prompt');
+    expect([view.draft('p1'), view.draft('p2')]).toEqual(['half a prompt', '']);
+    view.setDraft('p1', '');
+    expect(view.draft('p1')).toBe('');
+  });
+});
+
 describe('the widths of the side columns', () => {
   const kept = new Map<string, string>();
   const storage = {

@@ -371,6 +371,13 @@ pub const VERBS: &[Verb] = &[
     ),
     verb(
         "agent",
+        "skills",
+        "agent.skills",
+        "List the skills and the commands that an agent can start",
+        &["run", "query"],
+    ),
+    verb(
+        "agent",
         "stop",
         "agent.stop",
         "Ask an agent to end",

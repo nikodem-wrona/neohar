@@ -1,6 +1,6 @@
 ---
 title: "Methods"
-description: "All 153 JSON-RPC methods of the core, by namespace."
+description: "All 155 JSON-RPC methods of the core, by namespace."
 sidebar_label: "Methods"
 ---
 
@@ -11,15 +11,15 @@ Do not edit it by hand. Change the source and run `bun run gen` in `website/`.
 
 :::
 
-The core has 153 methods in 30 namespaces. A method name is `<namespace>.<verb>`. Each method lists its callers (scopes); a caller that is not on the list gets [`permission_denied`](/docs/reference/api/errors#permission-denied).
+The core has 155 methods in 30 namespaces. A method name is `<namespace>.<verb>`. Each method lists its callers (scopes); a caller that is not on the list gets [`permission_denied`](/docs/reference/api/errors#permission-denied).
 
 | Scope | Who | Methods |
 |---|---|---|
-| `ui` | the UI, over the `rpc` command of the Tauri host or the WebSocket | 134 |
-| `cli` | the CLI and any other client on the API socket | 107 |
+| `ui` | the UI, over the `rpc` command of the Tauri host or the WebSocket | 136 |
+| `cli` | the CLI and any other client on the API socket | 108 |
 | `pane` | a hook shim, with the token of a pane | 4 |
 | `dev` | development and test builds only | 4 |
-| `phone` | a paired phone, over the listener of the phone | 130 |
+| `phone` | a paired phone, over the listener of the phone | 132 |
 
 | Namespace | What it is for | Methods |
 |---|---|---|
@@ -34,7 +34,7 @@ The core has 153 methods in 30 namespaces. A method name is `<namespace>.<verb>`
 | [`fs`](/docs/reference/api/methods/fs) | The files of the machine for the Files tab: list a folder, read a preview, open a path and copy a path. | [`fs.list`](/docs/reference/api/methods/fs#fs-list), [`fs.read`](/docs/reference/api/methods/fs#fs-read), [`fs.open`](/docs/reference/api/methods/fs#fs-open), [`fs.copy_path`](/docs/reference/api/methods/fs#fs-copy-path) |
 | [`askpass`](/docs/reference/api/methods/askpass) | The questions of ssh that `nh askpass` sends. The app asks the person. | [`askpass.ask`](/docs/reference/api/methods/askpass#askpass-ask) |
 | [`render`](/docs/reference/api/methods/render) | Acknowledgements of painted frames, which free the slots of the render pacer. | [`render.ack`](/docs/reference/api/methods/render#render-ack) |
-| [`agent`](/docs/reference/api/methods/agent) | Agent runs of Claude Code and Codex: list, start, resume, prompt, interrupt, stop, wait. | [`agent.list`](/docs/reference/api/methods/agent#agent-list), [`agent.show`](/docs/reference/api/methods/agent#agent-show), [`agent.start`](/docs/reference/api/methods/agent#agent-start), [`agent.choices`](/docs/reference/api/methods/agent#agent-choices), [`agent.stop`](/docs/reference/api/methods/agent#agent-stop), [`agent.interrupt`](/docs/reference/api/methods/agent#agent-interrupt), [`agent.prompt`](/docs/reference/api/methods/agent#agent-prompt), [`agent.reply`](/docs/reference/api/methods/agent#agent-reply), [`agent.resume`](/docs/reference/api/methods/agent#agent-resume), [`agent.wait`](/docs/reference/api/methods/agent#agent-wait), [`agent.link`](/docs/reference/api/methods/agent#agent-link), [`agent.unlink`](/docs/reference/api/methods/agent#agent-unlink), [`agent.move`](/docs/reference/api/methods/agent#agent-move) |
+| [`agent`](/docs/reference/api/methods/agent) | Agent runs of Claude Code and Codex: list, start, resume, prompt, interrupt, stop, wait. | [`agent.list`](/docs/reference/api/methods/agent#agent-list), [`agent.show`](/docs/reference/api/methods/agent#agent-show), [`agent.start`](/docs/reference/api/methods/agent#agent-start), [`agent.choices`](/docs/reference/api/methods/agent#agent-choices), [`agent.skills`](/docs/reference/api/methods/agent#agent-skills), [`agent.stop`](/docs/reference/api/methods/agent#agent-stop), [`agent.interrupt`](/docs/reference/api/methods/agent#agent-interrupt), [`agent.prompt`](/docs/reference/api/methods/agent#agent-prompt), [`agent.reply`](/docs/reference/api/methods/agent#agent-reply), [`agent.resume`](/docs/reference/api/methods/agent#agent-resume), [`agent.wait`](/docs/reference/api/methods/agent#agent-wait), [`agent.link`](/docs/reference/api/methods/agent#agent-link), [`agent.unlink`](/docs/reference/api/methods/agent#agent-unlink), [`agent.move`](/docs/reference/api/methods/agent#agent-move) |
 | [`harness`](/docs/reference/api/methods/harness) | Claude Code and Codex on this machine: discovery, version and login state. | [`harness.refresh`](/docs/reference/api/methods/harness#harness-refresh) |
 | [`interaction`](/docs/reference/api/methods/interaction) | What agents ask a person: approvals, questions, plan reviews and notices. | [`interaction.list`](/docs/reference/api/methods/interaction#interaction-list), [`interaction.show`](/docs/reference/api/methods/interaction#interaction-show), [`interaction.answer`](/docs/reference/api/methods/interaction#interaction-answer), [`interaction.dismiss`](/docs/reference/api/methods/interaction#interaction-dismiss), [`interaction.next`](/docs/reference/api/methods/interaction#interaction-next), [`interaction.reveal`](/docs/reference/api/methods/interaction#interaction-reveal) |
 | [`changes`](/docs/reference/api/methods/changes) | The Changes tab: the changes of a git worktree from HEAD, and the diff of one file. | [`changes.follow`](/docs/reference/api/methods/changes#changes-follow), [`changes.diff`](/docs/reference/api/methods/changes#changes-diff) |
@@ -50,6 +50,6 @@ The core has 153 methods in 30 namespaces. A method name is `<namespace>.<verb>`
 | [`search`](/docs/reference/api/methods/search) | Search of the scrollback archive. | [`search.query`](/docs/reference/api/methods/search#search-query) |
 | [`palette`](/docs/reference/api/methods/palette) | The command palette: the core ranks and runs the commands. | [`palette.query`](/docs/reference/api/methods/palette#palette-query), [`palette.execute`](/docs/reference/api/methods/palette#palette-execute) |
 | [`rich`](/docs/reference/api/methods/rich) | Rich content on demand: diffs, sanitized markdown and highlighted code. | [`rich.diff`](/docs/reference/api/methods/rich#rich-diff), [`rich.markdown`](/docs/reference/api/methods/rich#rich-markdown), [`rich.highlight`](/docs/reference/api/methods/rich#rich-highlight) |
-| [`timeline`](/docs/reference/api/methods/timeline) | Older items of the timeline of a run. | [`timeline.page`](/docs/reference/api/methods/timeline#timeline-page), [`timeline.item`](/docs/reference/api/methods/timeline#timeline-item) |
+| [`timeline`](/docs/reference/api/methods/timeline) | Older items of the timeline of a run. | [`timeline.page`](/docs/reference/api/methods/timeline#timeline-page), [`timeline.item`](/docs/reference/api/methods/timeline#timeline-item), [`timeline.texts`](/docs/reference/api/methods/timeline#timeline-texts) |
 | [`jobs`](/docs/reference/api/methods/jobs) | Long commands that run as jobs. | [`jobs.cancel`](/docs/reference/api/methods/jobs#jobs-cancel) |
 | [`adapter`](/docs/reference/api/methods/adapter) | The calls of the hook shim. Only a caller with the token of a pane may make them. | [`adapter.signal`](/docs/reference/api/methods/adapter#adapter-signal), [`adapter.gate`](/docs/reference/api/methods/adapter#adapter-gate), [`adapter.gate_resume`](/docs/reference/api/methods/adapter#adapter-gate-resume), [`adapter.delivery_ack`](/docs/reference/api/methods/adapter#adapter-delivery-ack) |

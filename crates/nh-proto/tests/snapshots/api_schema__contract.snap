@@ -513,6 +513,38 @@ expression: document()
       ],
       "type": "object"
     },
+    "AgentSkills": {
+      "description": "The skills and the custom commands that the harness of a run can start in the folder of\nthe pane. With `query`, only the names that have it, ignoring case, and those that start\nwith it first.",
+      "properties": {
+        "query": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "run": {
+          "$ref": "#/$defs/RefRunId"
+        }
+      },
+      "required": [
+        "run"
+      ],
+      "type": "object"
+    },
+    "AgentSkillsResult": {
+      "properties": {
+        "skills": {
+          "items": {
+            "$ref": "#/$defs/Skill"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "skills"
+      ],
+      "type": "object"
+    },
     "AgentStart": {
       "description": "`agent.start` returns a job. The run appears in the `agents` projection.",
       "properties": {
@@ -9286,6 +9318,51 @@ expression: document()
       ],
       "type": "object"
     },
+    "Skill": {
+      "properties": {
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "insert": {
+          "description": "The text that starts the skill at the start of a prompt, for example `/review ` for\nClaude Code and `$review ` for Codex.",
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "source": {
+          "$ref": "#/$defs/SkillSource"
+        }
+      },
+      "required": [
+        "name",
+        "source",
+        "insert"
+      ],
+      "type": "object"
+    },
+    "SkillSource": {
+      "oneOf": [
+        {
+          "const": "user",
+          "description": "The configuration directory of the harness, or `~/.agents/skills`.",
+          "type": "string"
+        },
+        {
+          "const": "project",
+          "description": "The folder of the pane or a parent of it, up to the root of its repository.",
+          "type": "string"
+        },
+        {
+          "const": "plugin",
+          "description": "An enabled plugin of Claude Code.",
+          "type": "string"
+        }
+      ]
+    },
     "Source": {
       "description": "Where a piece of state came from, and how sure the core is.",
       "oneOf": [
@@ -9952,6 +10029,59 @@ expression: document()
       "required": [
         "items",
         "more"
+      ],
+      "type": "object"
+    },
+    "TimelineText": {
+      "properties": {
+        "html": {
+          "type": "string"
+        },
+        "item": {
+          "type": "string"
+        },
+        "truncated": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "item",
+        "html",
+        "truncated"
+      ],
+      "type": "object"
+    },
+    "TimelineTexts": {
+      "description": "The texts in the order of `items`. An item that the transcript does not have is not\nthere.",
+      "properties": {
+        "texts": {
+          "items": {
+            "$ref": "#/$defs/TimelineText"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "texts"
+      ],
+      "type": "object"
+    },
+    "TimelineTextsGet": {
+      "description": "The full texts of at most 100 `prompt` and `assistant` items of `timeline:<run>`, with\none read of the transcript.",
+      "properties": {
+        "items": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "run": {
+          "$ref": "#/$defs/RefRunId"
+        }
+      },
+      "required": [
+        "run",
+        "items"
       ],
       "type": "object"
     },
@@ -12289,6 +12419,20 @@ expression: document()
       ]
     },
     {
+      "name": "agent.skills",
+      "params": {
+        "$ref": "#/$defs/AgentSkills"
+      },
+      "result": {
+        "$ref": "#/$defs/AgentSkillsResult"
+      },
+      "scopes": [
+        "ui",
+        "cli",
+        "phone"
+      ]
+    },
+    {
       "name": "agent.stop",
       "params": {
         "$ref": "#/$defs/AgentStop"
@@ -13260,6 +13404,19 @@ expression: document()
       },
       "result": {
         "$ref": "#/$defs/TimelineItemText"
+      },
+      "scopes": [
+        "ui",
+        "phone"
+      ]
+    },
+    {
+      "name": "timeline.texts",
+      "params": {
+        "$ref": "#/$defs/TimelineTextsGet"
+      },
+      "result": {
+        "$ref": "#/$defs/TimelineTexts"
       },
       "scopes": [
         "ui",

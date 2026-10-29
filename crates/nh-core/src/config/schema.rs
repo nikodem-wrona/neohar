@@ -285,6 +285,7 @@ pub struct Keys {
     pub peek_sibling: String,
     pub search_open: String,
     pub git_open: String,
+    pub pane_view_toggle: String,
     pub window_new: String,
     pub pass_through: String,
 }

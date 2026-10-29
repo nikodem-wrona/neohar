@@ -487,6 +487,25 @@ wire! {
         pub truncated: bool,
     }
 
+    /// The full texts of at most 100 `prompt` and `assistant` items of `timeline:<run>`, with
+    /// one read of the transcript.
+    pub struct TimelineTextsGet {
+        pub run: Ref<RunId>,
+        pub items: Vec<String>,
+    }
+
+    pub struct TimelineText {
+        pub item: String,
+        pub html: String,
+        pub truncated: bool,
+    }
+
+    /// The texts in the order of `items`. An item that the transcript does not have is not
+    /// there.
+    pub struct TimelineTexts {
+        pub texts: Vec<TimelineText>,
+    }
+
     pub struct JobsCancel {
         pub job: JobId,
     }

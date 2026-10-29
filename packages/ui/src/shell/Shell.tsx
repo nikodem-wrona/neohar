@@ -103,6 +103,10 @@ export function Shell(props: ShellProps = {}) {
     toggleGit: () => {
       if (form !== 'phone') view.toggleGit();
     },
+    toggleChat: () => {
+      const pane = shown()?.focused_pane;
+      if (pane) view.toggleChat(pane);
+    },
     focusCard: view.focusCard,
   };
 

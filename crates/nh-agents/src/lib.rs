@@ -20,6 +20,7 @@ pub mod matcher;
 pub mod process;
 pub mod run;
 pub mod screen;
+pub mod skills;
 #[cfg(test)]
 pub(crate) mod testing;
 pub mod transcript;

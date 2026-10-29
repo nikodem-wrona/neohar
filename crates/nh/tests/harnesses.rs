@@ -252,3 +252,73 @@ async fn both_harnesses_logged_in_show_their_method_and_no_warning() {
         .expect_err("no such harness");
     assert_eq!(refused.code, ErrorCode::NotFound);
 }
+
+fn skill_file(path: PathBuf, name: &str) {
+    std::fs::create_dir_all(path.parent().expect("a parent")).expect("a directory");
+    let text = format!("---\nname: {name}\ndescription: The skill {name}\n---\n");
+    std::fs::write(path, text).expect("the skill");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn the_skills_of_a_run_come_from_its_harness_and_the_folder_of_its_pane() {
+    let core = Harness::start_layout();
+    let home = core.dir.join("home");
+    let repo = core.dir.join("repo");
+    std::fs::create_dir_all(repo.join(".git")).expect("a repository");
+    skill_file(repo.join(".claude/skills/deploy/SKILL.md"), "deploy");
+    skill_file(home.join(".claude/skills/notes/SKILL.md"), "notes");
+    skill_file(repo.join(".agents/skills/local/SKILL.md"), "local");
+    skill_file(home.join(".codex/skills/commit/SKILL.md"), "commit");
+    // One pane for each harness: a pane has one run.
+    let mut runs = Vec::new();
+    for harness in ["claude", "codex"] {
+        let made = core
+            .call(
+                "workspace.create",
+                json!({"name": harness, "root": repo.display().to_string()}),
+            )
+            .await;
+        let linked = core
+            .call(
+                "agent.link",
+                json!({"pane": made["pane"], "harness": harness}),
+            )
+            .await;
+        runs.push(linked["run"].clone());
+    }
+    let skills_of = async |run: &Value, query: Option<&str>| {
+        let found = core
+            .call("agent.skills", json!({"run": run, "query": query}))
+            .await;
+        found["skills"]
+            .as_array()
+            .expect("skills")
+            .iter()
+            .map(|s| {
+                (
+                    s["insert"].as_str().expect("an insert").to_owned(),
+                    s["source"].as_str().expect("a source").to_owned(),
+                )
+            })
+            .collect::<Vec<_>>()
+    };
+    let pair = |insert: &str, source: &str| (insert.to_owned(), source.to_owned());
+    assert_eq!(
+        skills_of(&runs[0], None).await,
+        [pair("/deploy ", "project"), pair("/notes ", "user")]
+    );
+    assert_eq!(
+        skills_of(&runs[0], Some("NOT")).await,
+        [pair("/notes ", "user")]
+    );
+    assert_eq!(
+        skills_of(&runs[1], None).await,
+        [pair("$commit ", "user"), pair("$local ", "project")]
+    );
+    let refused = core
+        .handle
+        .rpc("agent.skills", json!({"run": "nope"}))
+        .await
+        .expect_err("no such run");
+    assert_eq!(refused.code, ErrorCode::NotFound);
+}

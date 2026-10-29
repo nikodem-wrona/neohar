@@ -65,7 +65,7 @@ Options:
 | [`nh tab`](/docs/reference/cli/commands/tab) | Tabs | `create`, `rename`, `close`, `move`, `select` |
 | [`nh layout`](/docs/reference/cli/commands/layout) | The layout of the panes of a tab | `set-ratios`, `equalize`, `zoom` |
 | [`nh pane`](/docs/reference/cli/commands/pane) | Panes | `list`, `show`, `split`, `close`, `move`, `float`, `unfloat`, `popout`, `restart`, `paste`, `send-keys`, `scroll`, `copy`, `read` |
-| [`nh agent`](/docs/reference/cli/commands/agent) | Agents: the runs of Claude Code and Codex | `list`, `show`, `start`, `choices`, `stop`, `interrupt`, `prompt`, `reply`, `resume`, `wait`, `link`, `unlink`, `move` |
+| [`nh agent`](/docs/reference/cli/commands/agent) | Agents: the runs of Claude Code and Codex | `list`, `show`, `start`, `choices`, `skills`, `stop`, `interrupt`, `prompt`, `reply`, `resume`, `wait`, `link`, `unlink`, `move` |
 | [`nh harness`](/docs/reference/cli/commands/harness) | Claude Code and Codex on this machine: installed, version, login | `refresh` |
 | [`nh interaction`](/docs/reference/cli/commands/interaction) | What agents ask: approvals, questions, plans | `list`, `show`, `answer`, `dismiss`, `next`, `reveal` |
 | [`nh phone`](/docs/reference/cli/commands/phone) | Phones that supervise this machine | `pair-begin`, `pair-cancel`, `remove`, `rename`, `publish`, `unpublish`, `push-test` |

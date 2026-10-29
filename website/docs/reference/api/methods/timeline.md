@@ -18,6 +18,7 @@ Older items of the timeline of a run.
 |---|---|---|---|
 | [`timeline.page`](#timeline-page) | `ui` `phone` | [`TimelinePageParams`](/docs/reference/api/types#timelinepageparams) | [`TimelinePageResult`](/docs/reference/api/types#timelinepageresult) |
 | [`timeline.item`](#timeline-item) | `ui` `phone` | [`TimelineItemGet`](/docs/reference/api/types#timelineitemget) | [`TimelineItemText`](/docs/reference/api/types#timelineitemtext) |
+| [`timeline.texts`](#timeline-texts) | `ui` `phone` | [`TimelineTextsGet`](/docs/reference/api/types#timelinetextsget) | [`TimelineTexts`](/docs/reference/api/types#timelinetexts) |
 
 ## `timeline.page` {#timeline-page}
 
@@ -67,3 +68,26 @@ The full text of a `prompt` item or an `assistant` item of `timeline:<run>`. An 
 |---|---|---|---|
 | `html` | string | yes |  |
 | `truncated` | boolean | yes |  |
+
+## `timeline.texts` {#timeline-texts}
+
+**Scopes:** `ui` `phone` — the UI, over the `rpc` command of the Tauri host or the WebSocket; a paired phone, over the listener of the phone.
+
+The full texts of at most 100 `prompt` and `assistant` items of `timeline:<run>`, with one read of the transcript.
+
+### Params
+
+[`TimelineTextsGet`](/docs/reference/api/types#timelinetextsget)
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `items` | string[] | yes |  |
+| `run` | [`RefRunId`](/docs/reference/api/types#refrunid) | yes |  |
+
+### Result
+
+[`TimelineTexts`](/docs/reference/api/types#timelinetexts)
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `texts` | [`TimelineText`](/docs/reference/api/types#timelinetext)[] | yes |  |

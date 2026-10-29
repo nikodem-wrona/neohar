@@ -14,12 +14,12 @@ The UI, the CLI and the hook shim all call the core through one contract. Its ve
 
 | Part | Count | Reference |
 |---|---|---|
-| Methods | 153 | [Methods](/docs/reference/api/methods) |
+| Methods | 155 | [Methods](/docs/reference/api/methods) |
 | Projections | 28 | [Projections](/docs/reference/api/projections) |
 | Event kinds | 56 | [Events](/docs/reference/api/events) |
 | Streams | 4 | [Streams](/docs/reference/api/streams) |
 | Error codes | 43 | [Errors](/docs/reference/api/errors) |
-| Named types | 439 | [Types](/docs/reference/api/types) |
+| Named types | 446 | [Types](/docs/reference/api/types) |
 
 ## Protocol versions
 
@@ -79,11 +79,11 @@ Every message is one JSON-RPC 2.0 object.
 
 | Scope | Who | Methods |
 |---|---|---|
-| `ui` | the UI, over the `rpc` command of the Tauri host or the WebSocket | 134 |
-| `cli` | the CLI and any other client on the API socket | 107 |
+| `ui` | the UI, over the `rpc` command of the Tauri host or the WebSocket | 136 |
+| `cli` | the CLI and any other client on the API socket | 108 |
 | `pane` | a hook shim, with the token of a pane | 4 |
 | `dev` | development and test builds only | 4 |
-| `phone` | a paired phone, over the listener of the phone | 130 |
+| `phone` | a paired phone, over the listener of the phone | 132 |
 
 ## Namespaces
 
@@ -100,7 +100,7 @@ Every message is one JSON-RPC 2.0 object.
 | [`fs`](/docs/reference/api/methods/fs) | The files of the machine for the Files tab: list a folder, read a preview, open a path and copy a path. | 4 |
 | [`askpass`](/docs/reference/api/methods/askpass) | The questions of ssh that `nh askpass` sends. The app asks the person. | 1 |
 | [`render`](/docs/reference/api/methods/render) | Acknowledgements of painted frames, which free the slots of the render pacer. | 1 |
-| [`agent`](/docs/reference/api/methods/agent) | Agent runs of Claude Code and Codex: list, start, resume, prompt, interrupt, stop, wait. | 13 |
+| [`agent`](/docs/reference/api/methods/agent) | Agent runs of Claude Code and Codex: list, start, resume, prompt, interrupt, stop, wait. | 14 |
 | [`harness`](/docs/reference/api/methods/harness) | Claude Code and Codex on this machine: discovery, version and login state. | 1 |
 | [`interaction`](/docs/reference/api/methods/interaction) | What agents ask a person: approvals, questions, plan reviews and notices. | 6 |
 | [`changes`](/docs/reference/api/methods/changes) | The Changes tab: the changes of a git worktree from HEAD, and the diff of one file. | 2 |
@@ -116,6 +116,6 @@ Every message is one JSON-RPC 2.0 object.
 | [`search`](/docs/reference/api/methods/search) | Search of the scrollback archive. | 1 |
 | [`palette`](/docs/reference/api/methods/palette) | The command palette: the core ranks and runs the commands. | 2 |
 | [`rich`](/docs/reference/api/methods/rich) | Rich content on demand: diffs, sanitized markdown and highlighted code. | 3 |
-| [`timeline`](/docs/reference/api/methods/timeline) | Older items of the timeline of a run. | 2 |
+| [`timeline`](/docs/reference/api/methods/timeline) | Older items of the timeline of a run. | 3 |
 | [`jobs`](/docs/reference/api/methods/jobs) | Long commands that run as jobs. | 1 |
 | [`adapter`](/docs/reference/api/methods/adapter) | The calls of the hook shim. Only a caller with the token of a pane may make them. | 4 |

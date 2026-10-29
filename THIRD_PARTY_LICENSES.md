@@ -6275,7 +6275,7 @@ SOFTWARE.
 
 ### MIT License (MIT)
 
-Used by: `pulldown-cmark 0.13.4`, `pulldown-cmark-escape 0.11.0`.
+Used by: `pulldown-cmark 0.13.5`, `pulldown-cmark-escape 0.11.0`.
 
 ```text
 The MIT License

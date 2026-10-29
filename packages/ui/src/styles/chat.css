@@ -1,0 +1,353 @@
+/* The chat of a pane: the messages over the field. It takes the body of the pane in place of the
+   surface, so it paints its own background. Your prompts are bubbles on the right. The messages of
+   the agent are bubbles on the left, under the name of the harness and beside its mark, and its
+   tool calls are quiet lines in the terminal font between them. The field is a round box with
+   the button + (skills) and a round button that sends or stops. */
+@layer components {
+  .pane-body.pane-chat {
+    padding: 0;
+  }
+
+  .chat {
+    /* The colour of the name and the mark of the harness. Both pass 4.5 on `--bg-raised`. */
+    --chat-harness: var(--text-dim);
+    --chat-bubble: var(--bg-hover);
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+    background: var(--bg-raised);
+    border-radius: 0 0 var(--r-md) var(--r-md);
+  }
+
+  .chat[data-harness='claude'] {
+    --chat-harness: #e8915a;
+  }
+
+  .chat[data-harness='codex'] {
+    --chat-harness: #6aa4f5;
+  }
+
+  .chat-list {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding: var(--s4) var(--s4) var(--s3);
+  }
+
+  .chat-older {
+    align-self: center;
+    padding: 2px var(--s3);
+    border-radius: 999px;
+    background: var(--chat-bubble);
+    color: var(--text-dim);
+    font: var(--t-small);
+  }
+
+  .chat-older:hover {
+    color: var(--text);
+  }
+
+  .chat-empty,
+  .chat-hint,
+  .chat-cut {
+    margin: 0;
+    color: var(--text-dim);
+    font: var(--t-small);
+  }
+
+  .chat-empty {
+    align-self: center;
+    margin-top: auto;
+    margin-bottom: auto;
+  }
+
+  .chat-error {
+    margin: 0;
+    color: var(--danger);
+  }
+
+  /* --- the messages --------------------------------------------------------------------------- */
+
+  .chat-bubble {
+    max-width: 85%;
+    padding: 10px 16px;
+    border-radius: 20px;
+    background: var(--chat-bubble);
+    color: var(--text);
+    font: 14px / 21px var(--font-ui);
+    overflow-wrap: break-word;
+  }
+
+  .chat-bubble[data-from='you'] {
+    align-self: flex-end;
+  }
+
+  .chat-preview {
+    margin: 0;
+    white-space: pre-wrap;
+  }
+
+  .chat-bubble .rich-html {
+    max-height: none;
+    overflow: visible;
+  }
+
+  .chat-bubble .rich-html > :first-child {
+    margin-top: 0;
+  }
+
+  .chat-bubble .rich-html > :last-child {
+    margin-bottom: 0;
+  }
+
+  .chat-bubble .rich-html p,
+  .chat-bubble .rich-html ul,
+  .chat-bubble .rich-html ol {
+    margin: 0 0 8px;
+  }
+
+  .chat-bubble .rich-html ul,
+  .chat-bubble .rich-html ol {
+    padding-left: 20px;
+  }
+
+  .chat-bubble .rich-html code {
+    font-family: var(--font-data);
+    font-size: 0.92em;
+  }
+
+  .chat-bubble .rich-html pre {
+    margin: 0 0 8px;
+    padding: var(--s2) var(--s3);
+    overflow-x: auto;
+    border-radius: var(--r-sm);
+    background: var(--bg-raised);
+    font-size: var(--size-data);
+  }
+
+  /* The name over the messages of the agent, and its mark at the foot of them. */
+  .chat-agent {
+    display: grid;
+    grid-template-columns: 24px minmax(0, 1fr);
+    column-gap: 10px;
+    row-gap: 4px;
+  }
+
+  .chat-name {
+    grid-column: 2;
+    grid-row: 1;
+    padding-left: 16px;
+    color: var(--chat-harness);
+    font: 12px / 16px var(--font-ui);
+  }
+
+  .chat-avatar {
+    grid-column: 1;
+    grid-row: 2;
+    align-self: end;
+    margin-bottom: 8px;
+    color: var(--chat-harness);
+  }
+
+  .chat-avatar-eye {
+    fill: var(--bg-raised);
+  }
+
+  .chat-agent-items {
+    grid-column: 2;
+    grid-row: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    min-width: 0;
+  }
+
+  .chat-line {
+    display: flex;
+    gap: 1ch;
+    max-width: 100%;
+    min-width: 0;
+    margin: 0;
+    padding: 0 16px;
+    font-family: var(--font-data);
+    font-size: var(--size-small);
+    color: var(--text-dim);
+  }
+
+  .chat-label {
+    flex: none;
+  }
+
+  .chat-text {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .chat-status {
+    flex: none;
+  }
+
+  .chat-status[data-status='failed'],
+  .chat-status[data-status='refused'] {
+    color: var(--danger);
+  }
+
+  .chat-agent-items .card {
+    width: min(100%, 520px);
+  }
+
+  .chat-working {
+    display: flex;
+    align-items: center;
+    gap: 1ch;
+    margin: 0;
+    padding: 0 16px;
+    color: var(--text-dim);
+    font: var(--t-small);
+  }
+
+  .chat-working::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--chat-harness);
+    animation: chat-pulse 1.2s ease-in-out infinite;
+  }
+
+  @keyframes chat-pulse {
+    50% {
+      opacity: 0.3;
+    }
+  }
+
+  /* --- the field ------------------------------------------------------------------------------ */
+
+  .chat-composer {
+    position: relative;
+    flex: none;
+    display: flex;
+    flex-direction: column;
+    gap: var(--s1);
+    padding: var(--s2) var(--s3) var(--s3);
+  }
+
+  .chat-box {
+    display: flex;
+    align-items: flex-end;
+    gap: var(--s2);
+    padding: 8px;
+    border: 1px solid var(--hairline);
+    border-radius: 22px;
+    background: var(--bg-card);
+  }
+
+  /* The fill marks the field at rest. Its border is `--text-dim` while it has the keyboard. */
+  .chat-box:focus-within {
+    border-color: var(--text-dim);
+  }
+
+  .chat-field {
+    flex: 1;
+    min-width: 0;
+    max-height: 200px;
+    padding: 6px 4px;
+    resize: none;
+    border: 0;
+    outline: none;
+    background: transparent;
+    color: var(--text);
+    font: 14px / 20px var(--font-ui);
+  }
+
+  .chat-field::placeholder {
+    color: var(--text-dim);
+  }
+
+  .chat-round {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+  }
+
+  .chat-round:focus-visible {
+    outline: 2px solid var(--text);
+    outline-offset: 2px;
+  }
+
+  .chat-plus {
+    background: var(--bg-hover);
+    color: var(--text);
+  }
+
+  .chat-plus:hover {
+    background: var(--bg-focus);
+  }
+
+  .chat-send,
+  .chat-stop {
+    background: var(--text);
+    color: var(--bg);
+  }
+
+  .chat-send:disabled {
+    opacity: 0.35;
+  }
+
+  .chat-hint {
+    padding: 0 var(--s3);
+  }
+
+  /* The list of skills opens over the messages, above the field. */
+  .chat-skills {
+    position: absolute;
+    right: var(--s3);
+    bottom: 100%;
+    left: var(--s3);
+    max-height: 260px;
+    overflow-y: auto;
+    margin: 0;
+    padding: var(--s1) 0;
+    list-style: none;
+    border: 1px solid var(--line);
+    border-radius: var(--r-lg);
+    background: var(--bg-card);
+    box-shadow: 0 8px 24px var(--shadow);
+  }
+
+  .chat-skill {
+    display: flex;
+    gap: 1ch;
+    padding: 6px var(--s3);
+    cursor: default;
+  }
+
+  .chat-skill[aria-selected='true'] {
+    background: var(--bg-hover);
+  }
+
+  .chat-skill-name {
+    flex: none;
+    font-family: var(--font-data);
+    font-size: var(--size-data);
+  }
+
+  .chat-skill-text {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--text-dim);
+  }
+}

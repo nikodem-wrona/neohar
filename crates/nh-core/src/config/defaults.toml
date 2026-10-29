@@ -155,6 +155,7 @@ interaction_answer_next = "mod+shift+a"
 peek_sibling = "mod+shift+p"
 search_open = "mod+shift+f"
 git_open = "mod+shift+g"
+pane_view_toggle = "mod+shift+t"
 window_new = "mod+shift+n"
 # The chord that lets the next key reach the pane, also when it is reserved.
 pass_through = "mod+alt+v"

@@ -1,7 +1,8 @@
 // The state of the view that belongs to this window only and that no other client needs: whether
 // the left column and the drawer are open, which tab of the drawer shows, the widths of the side
-// columns, the name that the person edits, whether the next key passes through to the pane, and
-// whether the Git view covers the panes. None of it is business state.
+// columns, the name that the person edits, whether the next key passes through to the pane,
+// whether the Git view covers the panes, and which panes show the chat of their agent in place of
+// the terminal, with the draft of each. None of it is business state.
 
 import { createSignal } from 'solid-js';
 import type { Sticky } from '../input/soft';
@@ -50,6 +51,7 @@ export interface PressMenu {
 export interface Shown {
   tab?: string | null;
   workspace?: string | null;
+  focused_pane?: string | null;
 }
 
 /**
@@ -124,6 +126,16 @@ export function createViewState() {
   const [renaming, setRenaming] = createSignal<RenameTarget | null>(null);
   const [gitOpen, setGitOpen] = createSignal(false);
   const [gitTarget, setGitTarget] = createSignal<GitTarget>({ folder: null, seq: 0 });
+  const [chatPanes, setChatPanes] = createSignal<ReadonlySet<string>>(new Set());
+  /** The text of the composer of each pane. It stays while the pane shows the terminal. */
+  const [drafts, setDrafts] = createSignal<ReadonlyMap<string, string>>(new Map());
+  const toggleChat = (pane: string): void => {
+    setChatPanes((before) => {
+      const next = new Set(before);
+      if (!next.delete(pane)) next.add(pane);
+      return next;
+    });
+  };
   /** The side columns before the Git view folded them, to open them again when it closes. */
   let unfolded: { left: boolean; drawer: boolean } | null = null;
   const openGit = (folder: string | null = null): void => {
@@ -192,6 +204,8 @@ export function createViewState() {
       } else if (id === 'git.open') {
         if (gitOpen()) closeGit();
         else openGit();
+      } else if (id === 'pane.view_toggle' && shown?.focused_pane) {
+        toggleChat(shown.focused_pane);
       } else if (id === 'settings.open') {
         // A phone has no settings window: the core names this command of the page.
         setSheet({ kind: 'settings', section: null });
@@ -243,6 +257,23 @@ export function createViewState() {
     toggleGit(): void {
       if (gitOpen()) closeGit();
       else openGit();
+    },
+    /** The pane shows the chat of its agent in place of the terminal. */
+    chatShown(pane: string): boolean {
+      return chatPanes().has(pane);
+    },
+    /** Shows the chat in the pane, or the terminal when the chat shows. */
+    toggleChat,
+    draft(pane: string): string {
+      return drafts().get(pane) ?? '';
+    },
+    setDraft(pane: string, text: string): void {
+      setDrafts((before) => {
+        const next = new Map(before);
+        if (text === '') next.delete(pane);
+        else next.set(pane, text);
+        return next;
+      });
     },
   };
 }
