@@ -35,6 +35,8 @@ export function Scrollbar(props: { id: PaneId; renderId: number | undefined }) {
   const [history, setHistory] = useState<History>(EMPTY);
   const { thumb, top, total, rows } = history;
   const track = useRef<HTMLDivElement>(null);
+  /** The history of the last render, so that a frame that changes nothing sets no state. */
+  const shown = useRef<History>(EMPTY);
   const live = useLatest({ id: props.id, history });
 
   useEffect(() => {
@@ -48,7 +50,10 @@ export function Scrollbar(props: { id: PaneId; renderId: number | undefined }) {
       const total = raw.viewport_total(id);
       const rows = raw.rows(id);
       const next = { thumb: thumbFor(top, total, rows, element.clientHeight), top, total, rows };
-      setHistory((before) => (sameHistory(before, next) ? before : next));
+      // A frame that does not move the history renders nothing.
+      if (sameHistory(shown.current, next)) return;
+      shown.current = next;
+      setHistory(next);
     };
     update();
     return render.watch(id, update);
