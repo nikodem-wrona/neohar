@@ -1,14 +1,26 @@
-// The card of a question: the last message of the agent, each question with its
-// options and their descriptions, a free text, and one button that sends all the answers. An
-// answer is the options or the text, not both: keys type it into the dialog of the harness,
-// which takes one.
+// The card of a question: the last message of the agent, each question with its options as
+// choice cards, a field for an answer of the person's own, and one button that sends all the
+// answers. The header of one question is the title of the card, and the question is the first
+// line of the body. Enter in a field sends, when every question has an answer. An answer is the
+// options or the text, not both: keys type it into the dialog of the harness, which takes one.
 
 import type { InteractionValue, QuestionAnswer } from '@neohar/transport';
 import { createSignal, For, Show } from 'solid-js';
+import { Badge } from '../kit/Badge';
+import { Button } from '../kit/Button';
+import { Choice } from '../kit/Choice';
+import { Input } from '../kit/Input';
 import { sendAnswer } from './answer';
 import { CardFrame } from './CardFrame';
 import { useCardHost } from './host';
-import { canAnswer, questionAnswer, questionComplete, questionDecision, toggled } from './model';
+import {
+  canAnswer,
+  questionAnswer,
+  questionComplete,
+  questionDecision,
+  questionTitle,
+  toggled,
+} from './model';
 
 type Questions = Extract<InteractionValue['payload'], { kind: 'question' }>;
 
@@ -18,8 +30,10 @@ export function QuestionCard(props: {
   harness: string;
   ref?: ((element: HTMLElement) => void) | undefined;
 }) {
-  const { transport, via, report } = useCardHost();
+  const host = useCardHost();
+  const { report } = host;
   const questions = () => props.payload.questions;
+  const single = () => questions().length === 1;
   const [selected, setSelected] = createSignal<string[][]>(questions().map(() => []));
   const [texts, setTexts] = createSignal<string[]>(questions().map(() => ''));
   const [busy, setBusy] = createSignal(false);
@@ -33,7 +47,7 @@ export function QuestionCard(props: {
   const send = async () => {
     if (busy() || !ready() || !canAnswer(props.interaction)) return;
     setBusy(true);
-    setError(await sendAnswer(transport, props.interaction, questionDecision(answers()), via));
+    setError(await sendAnswer(host, props.interaction, questionDecision(answers())));
     setBusy(false);
   };
 
@@ -42,6 +56,7 @@ export function QuestionCard(props: {
       interaction={props.interaction}
       harness={props.harness}
       error={error()}
+      title={questionTitle(questions())}
       ref={props.ref}
     >
       <Show when={props.payload.context}>
@@ -49,19 +64,22 @@ export function QuestionCard(props: {
       </Show>
       <For each={questions()}>
         {(question, at) => (
-          <fieldset class="card-question" disabled={!canAnswer(props.interaction)}>
-            <legend>
-              <Show when={question.header}>
-                <span class="card-label">{question.header}</span>{' '}
+          <fieldset class="card-ask" disabled={!canAnswer(props.interaction)}>
+            {/* The header of one question is the title of the card. */}
+            <legend class="card-prompt">
+              <Show when={!single() && question.header}>
+                <Badge>{question.header}</Badge>
               </Show>
               {question.question}
             </legend>
-            <For each={question.options}>
-              {(option) => (
-                <label class="card-option">
-                  <input
+            <div class="card-options">
+              <For each={question.options}>
+                {(option) => (
+                  <Choice
                     type={question.multi_select ? 'checkbox' : 'radio'}
                     name={`${props.interaction.id}-${at()}`}
+                    title={option.label}
+                    description={option.description}
                     checked={(selected()[at()] ?? []).includes(option.label)}
                     onChange={() => {
                       setSelected((all) =>
@@ -72,17 +90,14 @@ export function QuestionCard(props: {
                       setTexts((all) => all.map((text, i) => (i === at() ? '' : text)));
                     }}
                   />
-                  <span class="card-option-label">{option.label}</span>
-                  <Show when={option.description}>
-                    <span class="card-option-description">{option.description}</span>
-                  </Show>
-                </label>
-              )}
-            </For>
-            <input
+                )}
+              </For>
+            </div>
+            <Input
               class="card-message"
-              type="text"
-              placeholder="Or type an answer"
+              placeholder={
+                question.options.length > 0 ? 'Or type your own answer' : 'Type your answer'
+              }
               aria-label={`Your own answer to: ${question.question}`}
               value={texts()[at()] ?? ''}
               onInput={(event) => {
@@ -92,20 +107,20 @@ export function QuestionCard(props: {
                   setSelected((all) => all.map((list, i) => (i === at() ? [] : list)));
                 }
               }}
+              onKeyDown={(event) => {
+                if (event.key !== 'Enter' || event.isComposing) return;
+                event.preventDefault();
+                send().catch(report);
+              }}
             />
           </fieldset>
         )}
       </For>
       <Show when={canAnswer(props.interaction)}>
-        <div class="card-actions" role="group" aria-label="Answer">
-          <button
-            type="button"
-            class="card-button selected"
-            disabled={busy() || !ready()}
-            onClick={() => void send().catch(report)}
-          >
+        <div class="card-foot" role="group" aria-label="Answer">
+          <Button disabled={busy() || !ready()} onClick={() => void send().catch(report)}>
             Answer
-          </button>
+          </Button>
         </div>
       </Show>
     </CardFrame>

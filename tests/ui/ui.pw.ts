@@ -228,14 +228,9 @@ test('the left column folds to a rail and opens again, as the drawer does', asyn
   await expect(page.locator('.left-rail')).toHaveCount(0);
   await expect.poll(async () => Math.abs((await paneWidth()) - before)).toBeLessThan(2);
 
-  // The switch of the status bar folds and opens the left column too.
-  const toggle = page.getByRole('button', { name: 'Workspaces', exact: true });
-  await expect(toggle).toHaveAttribute('aria-pressed', 'true');
-  await toggle.click();
-  await expect(page.locator('.left-rail')).toBeVisible();
-  await expect(toggle).toHaveAttribute('aria-pressed', 'false');
-  await toggle.click();
-  await expect(page.locator('.sidebar')).toBeVisible();
+  // The status bar has no switch for the left column or the drawer: their arrows and rails do it.
+  const views = page.getByRole('group', { name: 'Views' });
+  await expect(views.getByRole('button')).toHaveText(['Git', 'Workflows']);
 });
 
 test('the board has no fold, a new agent keeps its height, and a strip moves by drag', async ({
@@ -551,7 +546,7 @@ test('reserved chords perform their commands and other keys reach the page', asy
   // ⌘⇧N asks for a new window. ⌘⇧I shows the inbox of the drawer.
   await page.keyboard.press('Meta+Shift+KeyN');
   await expect.poll(async () => (await calls('window.open')).length).toBe(1);
-  await page.getByRole('button', { name: 'Drawer' }).click();
+  await page.getByRole('button', { name: 'Fold', exact: true }).click();
   await expect(page.locator('.drawer')).toHaveCount(0);
   await page.keyboard.press('Meta+Shift+KeyI');
   await expect(page.locator('.drawer')).toHaveCount(1);
@@ -1144,7 +1139,7 @@ test('the palette finds a command, runs it, and asks before it stops a program',
   });
 
   // A command of the page: the inbox opens in the drawer.
-  await page.getByRole('button', { name: 'Drawer' }).click();
+  await page.getByRole('button', { name: 'Fold', exact: true }).click();
   await expect(page.locator('.drawer')).toHaveCount(0);
   await page.keyboard.press('Meta+KeyK');
   await page.keyboard.type('inbox');
@@ -1544,13 +1539,23 @@ test('an agent in a pane has a strip on the board and a mark in the strip of the
     // letters only for WAIT and ERR.
     await expect(page.locator(`[data-pane="${made.pane}"] .agent-badge`)).toHaveCount(0);
     await expect(page.locator(`[data-pane="${made.pane}"] .pane-state`)).toHaveCount(0);
-    // The working directory does not fit: it loses its start and keeps its end, the repository.
-    const cwd = page.locator(`[data-pane="${made.pane}"] .pane-cwd`);
-    await expect(cwd).toHaveAttribute('title', /the-repo$/, { timeout: 20_000 });
-    const [box, text] = await Promise.all([cwd.boundingBox(), cwd.locator('bdi').boundingBox()]);
-    expect(text!.width).toBeGreaterThan(box!.width);
-    expect(text!.x).toBeLessThan(box!.x);
-    expect(Math.abs(text!.x + text!.width - (box!.x + box!.width))).toBeLessThan(2);
+    // The strip has no working directory: the details under the button i have all of it. A click
+    // on the button again closes them, and so does Escape.
+    const info = page.locator(`[data-pane="${made.pane}"] [data-action="details"]`);
+    const details = page.locator(`#pane-details-${made.pane}`);
+    await info.click();
+    await expect(info).toHaveAttribute('aria-expanded', 'true');
+    await expect(details.locator('[data-detail="folder"] dd')).toHaveText(/the-repo$/, {
+      timeout: 20_000,
+    });
+    await expect(details.locator('.harness-badge')).toHaveText('Claude Code');
+    await info.click();
+    await expect(details).toBeHidden();
+    await info.click();
+    await expect(details).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(details).toBeHidden();
+    await expect(info).toHaveAttribute('aria-expanded', 'false');
     await expect(page.locator('.pane-yolo')).toHaveCount(0);
     // A click on the strip gives the pane the focus. The strip then has no bar, is not in reverse,
     // and keeps the focus fill, not Hover, under the pointer. The pane has no ring, and its strip

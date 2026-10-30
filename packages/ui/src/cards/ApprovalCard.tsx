@@ -8,6 +8,7 @@
 
 import type { InteractionValue } from '@neohar/transport';
 import { createSignal, For, Show } from 'solid-js';
+import { Input } from '../kit/Input';
 import { Diff } from '../rich/Diff';
 import { RichSpans } from '../rich/Spans';
 import { sendAnswer } from './answer';
@@ -31,7 +32,8 @@ export function ApprovalCard(props: {
   harness: string;
   ref?: ((element: HTMLElement) => void) | undefined;
 }) {
-  const { transport, via, report } = useCardHost();
+  const host = useCardHost();
+  const { report } = host;
   const [choice, setChoice] = createSignal<ApprovalChoice>(defaultChoice(props.interaction.risk));
   const [message, setMessage] = createSignal('');
   const [busy, setBusy] = createSignal(false);
@@ -44,9 +46,7 @@ export function ApprovalCard(props: {
     if (busy() || !canAnswer(props.interaction)) return;
     setChoice(picked);
     setBusy(true);
-    setError(
-      await sendAnswer(transport, props.interaction, approvalDecision(picked, message()), via),
-    );
+    setError(await sendAnswer(host, props.interaction, approvalDecision(picked, message())));
     setBusy(false);
   };
   // Enter on the card answers with the selected choice, unless the risk is high. A button keeps
@@ -140,9 +140,8 @@ export function ApprovalCard(props: {
               </button>
             )}
           </For>
-          <input
+          <Input
             class="card-message"
-            type="text"
             placeholder="Message for the agent (optional)"
             aria-label="Message for the agent"
             value={message()}

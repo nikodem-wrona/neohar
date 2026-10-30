@@ -18,8 +18,10 @@ import type { PhoneAccount, PhoneDevice } from '@neohar/transport';
 import { createEffect, createSignal, on, onCleanup, onMount, Show } from 'solid-js';
 import { AppProvider } from '../app/context';
 import { createFailures, reportRejections } from '../app/failures';
+import { createToasts } from '../app/toasts';
 import { showPane } from '../app/show';
 import { createViewState } from '../app/view';
+import { watchDeliveries } from '../cards/deliveries';
 import { CardHostProvider } from '../cards/host';
 import { Keyboard } from '../input/keyboard';
 import { InputSender } from '../input/sender';
@@ -63,6 +65,8 @@ export function PhoneDesk(props: PhoneDeskProps) {
   const failures = createFailures(transport);
   onCleanup(reportRejections(window, failures.report));
   const stores = createStores(transport, windowId);
+  const toasts = createToasts();
+  const deliveries = watchDeliveries(stores, toasts);
   const own = createPhoneStores(props.home);
   const view = createViewState();
   // A hardware keyboard of an iPhone has the chords of a Mac: `mod` is Command.
@@ -73,6 +77,7 @@ export function PhoneDesk(props: PhoneDeskProps) {
     stores.close();
     own.close();
     failures.dismiss();
+    toasts.clear();
   });
 
   // A phone whose app the person sees gets no push. The Mac sends the push.
@@ -198,6 +203,7 @@ export function PhoneDesk(props: PhoneDeskProps) {
         run: failures.run,
         report: failures.report,
         failures,
+        toasts,
         form: 'phone',
         stores,
         windowId,
@@ -219,6 +225,7 @@ export function PhoneDesk(props: PhoneDeskProps) {
         value={{
           transport,
           via: 'phone',
+          answered: deliveries.expect,
           report: failures.report,
           open: (pane) => {
             view.setDrawerOpen(false);

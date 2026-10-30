@@ -23,7 +23,7 @@ of the core and sends a command for each action of the person
 │ New workspace    │ │ surface (grid)  ├ pane ───────────┤       │ cards, tree, diffs       │
 │                  │ └─────────────────┴─────────────────┘       │                          │
 ├──────────────────┴─────────────────────────────────────────────┴──────────────────────────┤
-│ status bar: keys · limits · warnings · machine · workspaces · drawer · git · workflows    │
+│ status bar: keys · limits · warnings · machine · git · workflows                          │
 └───────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -36,8 +36,9 @@ of the core and sends a command for each action of the person
 | Git view | `git/` | It takes the place of the tab bar and the layout (`⌘⇧G`): the Repository, Worktree and Branch menus, the changes or the history, and a diff. Both side columns fold while it shows, and the focus report has `panes_hidden`, so the core sends no frames |
 | Workflows view | `workflows/` | It takes the same place as the Git view (`⌘⇧E`), and the two never show at the same time: the workflows and the executions, the canvas of a workflow, the node details and the panel of an execution. It loads as a lazy chunk when it opens the first time. See [Workflows](/docs/guides/workflows) |
 | Drawer | `shell/Drawer.tsx` | Four tabs (below). Under 1280 px it starts folded to a rail. It never covers a pane |
-| Status bar | `shell/StatusBar.tsx` | Function keys (the reserved chords as clickable gray key caps; Answer is amber while an agent waits), harness limits, health warnings, `canvas2d` after a fallback, the machine, and after a rule the switches of the left column (Workspaces), the drawer, the Git view and the Workflows view. The Workflows switch has a dot while an execution is paused or waits for the person |
+| Status bar | `shell/StatusBar.tsx` | Function keys (the reserved chords as clickable gray key caps; Answer is amber while an agent waits), harness limits, health warnings, `canvas2d` after a fallback, the machine, and after a rule the switches of the Git view and the Workflows view. The left column and the drawer fold and open from their arrows and rails. The Workflows switch has a dot while an execution is paused or waits for the person |
 | Banners | `shell/HealthBanner.tsx`, `shell/LinkBanner.tsx` | Degraded storage and doctor notes; a link to a remote machine that is down (input is off while it is) |
+| Toasts | `app/toasts.ts`, `kit/Toaster.tsx` | Short messages in the bottom right corner, such as an answer that arrived. Each one goes after 5 s, but not while the pointer is on the toasts |
 | Dialogs | `palette/`, `shell/CloseConfirm.tsx` | The palette (`⌘K`), the close confirmation |
 
 The widths of the left column and the drawer are in characters; a drag of the rule changes them,
@@ -74,9 +75,13 @@ view also follows `workflows`, and `pane_text:<pane>` for the screen of a workin
 
 A pane (`layout/PaneBox.tsx`) is a title strip, the surface with a scrollbar, and strips for
 requests. The title strip says what the board does not: the dot of the state, the
-handle, `WAIT` or `ERR`, the harness with a dim `?` for an unvalidated version and a `yolo` tag,
-the title, the working directory (it keeps its end when it does not fit), the cost, the
-unconfirmed-input marker, and buttons to float, zoom and close. Strips in the pane answer
+handle, `WAIT` or `ERR`, a badge with the mark and the name of the harness (Claude Code or Codex),
+a dim `?` for an unvalidated version, a `yolo` tag, the title (not when it only names the
+harness), the unconfirmed-input marker, and buttons for the details, float, zoom and close. The
+details button (`i`) opens a popover (`kit/Popover.tsx`, rows from `layout/details.ts`) with the
+title, the working directory, the model, the version, the cost, the tokens, the session, and the
+handle and size of the pane. The working directory and the session have a copy button. A click on
+`i` again, a click outside or Escape closes the popover. Strips in the pane answer
 requests that are not interactions of a run: a clipboard write by OSC 52 (Allow, Deny, "Remember
 for this pane"), a held multi-line paste into an agent, and an ended program with
 its exit code and Restart.
@@ -111,12 +116,17 @@ The how-to for the last two and for the Git view is in
 diff and the last lines of the pane, with Allow, "Allow `<rule>` always" (only when the core sends
 `always_rule`), Deny, and Deny and stop. The keys 1 to 4 name the four answers, and a key stays
 with its button when "Allow always" is not there. At a high risk Deny is preselected, a number
-only selects its button, and only Enter on a button answers. A question has options or free text,
-not both, because keys type one of the two into the dialog of the harness. A plan review has the
-plan and a feedback box, and a notice has Open and Dismiss. A card never changes itself after
-a click: it sends `interaction.answer {via: "card"}` and then shows the delivery state from the
-projection ("Delivered. Answered by …", "Couldn't confirm your answer reached …"). The mechanism
-behind it is in [interactions](/docs/agents/interactions).
+only selects its button, and only Enter on a button answers. A question shows each option as a
+choice card, with a field for free text. A choice clears the text and text clears the choices,
+because keys type one of the two into the dialog of the harness. A plan review has the plan and a feedback box, and a
+notice has Open and Dismiss.
+
+A card never changes itself after a click: it sends `interaction.answer {via: "card"}` and then
+shows the state from the projection. A card that is not open is one row, with a badge such as
+"Sending", "Answered" or "Not delivered". When the answer of a card arrives, a toast in the bottom
+right corner says so (`cards/deliveries.ts`). A line under the card stays only for what the
+person must know: "Display only", "Couldn't confirm your answer reached …" or a failure. The
+mechanism behind it is in [interactions](/docs/agents/interactions).
 
 **Rich content.** Spans and diffs are drawn as text nodes. Plan Markdown comes from the core as
 HTML sanitized with `ammonia`, and `rich/RichHtml.tsx` is the only place that sets `innerHTML`.
@@ -158,8 +168,9 @@ its pane.
   variables (`bg_raised` becomes `--bg-raised`) over the defaults of `styles/tokens.css`. The
   default is black and white, with green for what is live, amber for an agent that waits and red
   for an error; `styles/contrast.test.ts` checks every pair at 4.5:1. The styles are in
-  `packages/ui/src/styles/`, one file for each area, in cascade layers. The terminal palette comes
-  with the frames of each pane.
+  `packages/ui/src/styles/`, one file for each area, in cascade layers. The components of `kit/`
+  (badge, button, field, choice card, toasts) copy the shapes of shadcn/ui and use the colours of
+  the tokens (`styles/kit.css`). The terminal palette comes with the frames of each pane.
 - **Fonts.** `ui.font_family` and `ui.font_size` set the surface font; the default list starts
   with Hack Nerd Font Mono and falls back to Menlo. The page loads the faces that the host serves
   over `nh://font/` before it measures cells. The data of the chrome (state codes, costs,

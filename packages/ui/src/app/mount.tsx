@@ -6,6 +6,7 @@ import type { Transport } from '@neohar/transport';
 import { createRoot } from 'solid-js';
 import { render } from 'solid-js/web';
 import type { Platform } from '../input/clipboard';
+import { watchDeliveries } from '../cards/deliveries';
 import { CardHostProvider } from '../cards/host';
 import { Keyboard } from '../input/keyboard';
 import { InputSender } from '../input/sender';
@@ -16,6 +17,7 @@ import { Shell } from '../shell/Shell';
 import { createStores } from '../stores';
 import { AppProvider } from './context';
 import { createFailures, reportRejections } from './failures';
+import { createToasts } from './toasts';
 import { showPane } from './show';
 import { createViewState } from './view';
 
@@ -45,6 +47,8 @@ export function mountApp(
     const stopRejections = reportRejections(window, failures.report);
     const stopTransport = transport.onFailure?.(failures.report);
     const stores = createStores(transport, windowId);
+    const toasts = createToasts();
+    const deliveries = watchDeliveries(stores, toasts);
     const view = createViewState();
     const host = options.decoder
       ? RenderHost.create({ transport, windowId, decoder: options.decoder })
@@ -62,6 +66,7 @@ export function mountApp(
             run: failures.run,
             report: failures.report,
             failures,
+            toasts,
             form: 'desk',
             stores,
             windowId,
@@ -77,6 +82,7 @@ export function mountApp(
             value={{
               transport,
               via: 'card',
+              answered: deliveries.expect,
               report: failures.report,
               open: (pane) => {
                 showPane(transport, windowId, pane).catch(failures.report);
@@ -97,6 +103,7 @@ export function mountApp(
         stopRejections();
         stopTransport?.();
         failures.dismiss();
+        toasts.clear();
         dispose();
       },
       ...(host ? { render: host } : {}),

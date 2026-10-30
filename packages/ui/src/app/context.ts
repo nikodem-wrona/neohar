@@ -9,6 +9,7 @@ import type { InputSender } from '../input/sender';
 import type { RenderHost } from '../render';
 import type { Stores } from '../stores';
 import type { Failures } from './failures';
+import type { Toasts } from './toasts';
 import type { ViewState } from './view';
 
 /**
@@ -28,6 +29,8 @@ export interface App {
   report(failure: unknown): void;
   /** The failure that the banner shows. */
   failures: Failures;
+  /** The toasts in the bottom right corner, such as an answer that arrived. */
+  toasts: Toasts;
   form: Form;
   stores: Stores;
   windowId: string;

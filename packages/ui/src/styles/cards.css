@@ -30,17 +30,17 @@
   .card {
     display: flex;
     flex-direction: column;
-    gap: var(--s2);
+    gap: var(--s3);
     min-width: 0;
-    padding: var(--s1) var(--s3) var(--s3);
+    padding: var(--s3) var(--s4) var(--s4);
     border: 1px solid var(--hairline);
     border-radius: var(--r-md);
     background: var(--bg-card);
   }
 
-  /* The focus is a ring around the card, so the border keeps the colour of its state. */
-  .card:focus-visible,
-  .card:focus-within {
+  /* The focus of the card itself (⌘⇧A) is a ring around it, so the border keeps the colour of its
+     state. A control in the card shows its own focus, so the card has no ring then. */
+  .card:focus-visible {
     outline: 1px solid var(--text);
     outline-offset: 2px;
   }
@@ -74,51 +74,56 @@
     color: var(--text-dim);
   }
 
-  /* A card that ended keeps the contrast of its text: a dashed border and a dim title, not a lower
-     opacity (WCAG 1.4.3). */
+  /* A card that ended is one row: its title on one line, and the badge of its end. It keeps the
+     contrast of its text: a dashed border and a dim title, not a lower opacity (WCAG 1.4.3). */
   .card-ended {
+    gap: var(--s2);
+    padding: var(--s2) var(--s4);
     border-style: dashed;
   }
 
-  .card-ended .card-title {
-    color: var(--text-dim);
+  .card-ended .card-head {
+    align-items: center;
   }
 
-  /* The head of a card: its title, its risk and its handle. */
+  .card-ended .card-title {
+    font: var(--t-body);
+    color: var(--text-dim);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* The head of a card, as in shadcn/ui: the title on the left, and at the right the risk, the
+     badge of the state and the handle. */
   .card-head {
     display: flex;
-    gap: 1ch;
-    align-items: center;
-    min-height: 32px;
+    gap: var(--s3);
+    align-items: flex-start;
   }
 
   .card-title {
     flex: 1;
+    min-width: 0;
     margin: 0;
-    font-weight: 600;
     overflow-wrap: anywhere;
   }
 
-  .card-risk,
+  .card-meta {
+    display: flex;
+    flex: none;
+    gap: var(--s2);
+    align-items: center;
+    min-height: 20px;
+  }
+
   .card-handle,
   .card-label {
     color: var(--text-dim);
   }
 
-  .card-handle {
-    color: var(--text-dim);
-  }
-
   .card-risk {
     text-transform: uppercase;
-    font-weight: 600;
-  }
-
-  .card-risk[data-risk='high'] {
-    padding: 0 6px;
-    border-radius: 4px;
-    background: var(--danger);
-    color: var(--on-signal);
   }
 
   .card-risk[data-risk='medium'] {
@@ -247,50 +252,84 @@
     background: var(--danger);
   }
 
-  .card-message,
-  .card-feedback {
+  /* The message of an approval takes a row of its own under the buttons. */
+  .card-actions > .card-message {
     flex: 1 1 100%;
-    box-sizing: border-box;
-    padding: 1px 6px;
-    color: var(--text);
-    font: inherit;
-    background: var(--bg);
-    border: 1px solid var(--text-dim);
   }
 
-  .card-message::placeholder,
+  /* The box for feedback has the look of the field of `kit/Input.tsx`, on more lines. */
+  .card-feedback {
+    box-sizing: border-box;
+    min-height: 64px;
+    padding: 6px var(--s3);
+    border: 1px solid var(--text-dim);
+    background: color-mix(in oklch, var(--bg) 45%, transparent);
+    color: var(--text);
+    resize: vertical;
+  }
+
   .card-feedback::placeholder {
     color: var(--text-dim);
   }
 
-  .card-feedback {
-    min-height: 56px;
-    resize: vertical;
+  .card-feedback:focus-visible {
+    outline: none;
+    border-color: var(--text);
+    box-shadow: 0 0 0 3px color-mix(in oklch, var(--text) 18%, transparent);
   }
 
-  .card-question {
+  /* A question: its prompt, the choice cards, and the field. The fieldset has a class of its
+     own: `card-question` is the class of the whole card. */
+  .card-ask {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: var(--s2);
     margin: 0;
     padding: 0;
     border: 0;
     min-width: 0;
   }
 
-  .card-option {
-    display: grid;
-    grid-template-columns: auto 1fr;
-    gap: 0 6px;
+  /* A fieldset draws its legend over its top border, so the space parts two questions. */
+  .card-ask + .card-ask {
+    margin-top: var(--s3);
   }
 
-  .card-option-description {
-    grid-column: 2;
-    color: var(--text-dim);
+  .card-prompt {
+    padding: 0 0 var(--s1);
+    color: var(--text);
+    font-weight: 500;
+    line-height: 20px;
+    overflow-wrap: anywhere;
   }
 
+  .card-prompt .ui-badge {
+    margin-right: var(--s1);
+    vertical-align: 1px;
+  }
+
+  .card-options {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  /* The footer of a card, as in shadcn/ui: a rule, and the action at the right. */
+  .card-foot {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--s2);
+    padding-top: var(--s3);
+    border-top: 1px solid var(--hairline);
+  }
+
+  /* What the person must know: a line in the colour of its tone, on a tint of it. */
   .card-status {
     margin: 0;
+    padding: 6px var(--s3);
+    border-radius: var(--r-sm);
+    line-height: 18px;
+    background: color-mix(in oklch, currentColor 10%, transparent);
   }
 
   .card-status[data-tone='ok'] {

@@ -17,16 +17,15 @@ export function PlanCard(props: {
   harness: string;
   ref?: ((element: HTMLElement) => void) | undefined;
 }) {
-  const { transport, via, report } = useCardHost();
+  const host = useCardHost();
+  const { report } = host;
   const [feedback, setFeedback] = createSignal('');
   const [busy, setBusy] = createSignal(false);
   const [error, setError] = createSignal<string | null>(null);
   const answer = async (approve: boolean) => {
     if (busy() || !canAnswer(props.interaction)) return;
     setBusy(true);
-    setError(
-      await sendAnswer(transport, props.interaction, planDecision(approve, feedback()), via),
-    );
+    setError(await sendAnswer(host, props.interaction, planDecision(approve, feedback())));
     setBusy(false);
   };
   return (

@@ -117,9 +117,11 @@ The rule allows a later request only up to the risk of the request that you allo
 allow `git log` always at a low risk, `git log --output=log.txt` writes a file and comes to you
 again.
 
-Under the card, neohar says what became of your answer: delivered, answered in the pane, or
-"Couldn't confirm your answer reached …". In that last case, look at the pane: neohar never sends
-an answer twice. The first answer wins, from any card, notification or client.
+When your answer arrives, a toast in the bottom right corner of the window says so. A card that is
+not open shows a badge for its state, such as "Answered" or "Answered in Claude Code". If neohar
+cannot confirm that your answer arrived, the card says "Couldn't confirm your answer reached …". In
+that case, look at the pane: neohar never sends an answer twice. The first answer wins, from any
+card, notification or client.
 
 From the command line:
 

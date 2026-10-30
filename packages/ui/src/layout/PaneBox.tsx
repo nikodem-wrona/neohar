@@ -2,11 +2,13 @@
 // of float and zoom: the menu has the splits, zoom, float, Fit, Attach a file, Copy, Paste and
 // Close. The strip says what the board does not:
 // the dot of the state, the handle when `ui.show_handles` is on, the state in four
-// letters only for `WAIT` and `ERR`, the harness, the marks of the harness, the title, the working
-// directory with its end in view, the cost, and the marker of unconfirmed input. When another window
+// letters only for `WAIT` and `ERR`, the badge of the harness with its marks, the title when it
+// does not only name the harness, and the marker of unconfirmed input. When another window
 // has the size of the PTY, the strip has the mark Fit, which takes the size (`pane.claim`).
 // The pane in focus
-// has a ring in the gap around it. The strip has the buttons for float, zoom and close.
+// has a ring in the gap around it. The strip has the buttons for the details, float, zoom and
+// close. The details are a popover (`details.ts`): the working directory, the cost, the tokens,
+// the model, the version, the session and the size.
 // A tiled pane drags by its strip onto a tab (`pane.move`). A row of the Files tab drops onto a
 // pane, and the core pastes its path (`pane.insert_paths`). The surface of the pane goes
 // into `.pane-body`.
@@ -14,13 +16,17 @@
 import type { PaneId, TabValue } from '@neohar/transport';
 import { createSignal, For, Show } from 'solid-js';
 import { badgeOf, harnessName } from '../agents/badge';
+import { HarnessBadge } from '../agents/HarnessBadge';
 import { useApp } from '../app/context';
 import { paneName, showHandles } from '../app/preferences';
 import { dragged, dropTarget, pressToDrag } from '../app/drag';
+import { Badge } from '../kit/Badge';
+import { Button } from '../kit/Button';
+import { Popover } from '../kit/Popover';
 import { Surface } from '../pane/Surface';
 import { readClipboard, writeClipboard } from '../input/clipboard';
 import { requestClose } from '../shell/close';
-import { costText } from '../timeline/model';
+import { detailsTitle, paneDetails, stripTitle } from './details';
 import { tabPanes } from './tree';
 
 /** How far a finger moves sideways on the strip of the single view to show another pane. */
@@ -28,7 +34,18 @@ const SWIPE = 48;
 
 export function PaneBox(props: { id: PaneId; tab: TabValue; single?: boolean }) {
   // `run` of the app is `call` here: `run` is the run of the agent in the pane.
-  const { stores, transport, run: call, report, windowId, view, input, form, upload } = useApp();
+  const {
+    stores,
+    transport,
+    run: call,
+    report,
+    windowId,
+    view,
+    input,
+    form,
+    upload,
+    toasts,
+  } = useApp();
   const phone = form === 'phone';
   let attach: HTMLInputElement | undefined;
   const pane = () => stores.panes.state.byKey[props.id];
@@ -93,6 +110,19 @@ export function PaneBox(props: { id: PaneId; tab: TabValue; single?: boolean }) 
       })
       .catch(report);
   };
+  // The details of the pane: a popover under the button i.
+  const detailsId = () => `pane-details-${props.id}`;
+  const [detailsOpen, setDetailsOpen] = createSignal(false);
+  const details = () => {
+    const shown = pane();
+    return shown ? paneDetails(shown, run()) : [];
+  };
+  const copyDetail = (label: string, value: string): void => {
+    writeClipboard(Promise.resolve(value))
+      .then(() => toasts.show({ title: `${label} copied`, tone: 'ok' }))
+      .catch(report);
+  };
+
   // A program asked to write the clipboard with OSC 52, and the core waits for the answer.
   const [remember, setRemember] = createSignal(false);
   const answerClipboard = (allow: boolean): void => {
@@ -224,13 +254,7 @@ export function PaneBox(props: { id: PaneId; tab: TabValue; single?: boolean }) 
                   {badgeOf(agent()).code}
                 </span>
               </Show>
-              <span
-                class="pane-harness"
-                data-harness={agent().harness}
-                title={badgeOf(agent()).tooltip}
-              >
-                {harnessName(agent().harness)}
-              </span>
+              <HarnessBadge run={agent()} class="pane-harness" />
               <Show when={badgeOf(agent()).unvalidated}>
                 <span
                   class="pane-unvalidated"
@@ -242,14 +266,16 @@ export function PaneBox(props: { id: PaneId; tab: TabValue; single?: boolean }) 
                 </span>
               </Show>
               <Show when={agent().yolo}>
-                <span class="pane-yolo" title="No approval dialogs">
+                <Badge tone="muted" class="pane-yolo" title="No approval dialogs">
                   yolo
-                </span>
+                </Badge>
               </Show>
             </>
           )}
         </Show>
-        <span class="pane-name">{pane()?.title}</span>
+        <Show when={stripTitle(pane()?.title ?? '', run()?.harness)}>
+          {(title) => <span class="pane-name">{title()}</span>}
+        </Show>
         <Show when={(pane()?.input_unconfirmed?.length ?? 0) > 0}>
           <span
             class="pane-unconfirmed"
@@ -282,20 +308,26 @@ export function PaneBox(props: { id: PaneId; tab: TabValue; single?: boolean }) 
           </button>
         </Show>
         <span class="pane-spacer" />
-        <Show when={pane()?.cwd}>
-          {/* The box is right to left, so the path loses its start and keeps its end. The path
-              itself stays left to right in its own run. */}
-          <span class="pane-cwd" title={pane()?.cwd ?? undefined}>
-            <bdi dir="ltr">{pane()?.cwd}</bdi>
-          </span>
-        </Show>
-        <Show when={run() && costText(run()!.usage)}>
-          {(cost) => (
-            <span class="pane-cost" title="The cost of this run so far">
-              {cost()}
-            </span>
-          )}
-        </Show>
+        <button
+          type="button"
+          class="pane-button"
+          data-action="details"
+          popovertarget={detailsId()}
+          aria-expanded={detailsOpen()}
+          aria-label="Pane details"
+          title="Pane details"
+        >
+          <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+            <circle cx="8" cy="8" r="6.25" fill="none" stroke="currentColor" stroke-width="1.3" />
+            <path
+              d="M8 7.25V11.5"
+              stroke="currentColor"
+              stroke-width="1.5"
+              stroke-linecap="round"
+            />
+            <circle cx="8" cy="4.9" r="0.95" fill="currentColor" />
+          </svg>
+        </button>
         <Show when={phone}>
           <button
             type="button"
@@ -373,6 +405,68 @@ export function PaneBox(props: { id: PaneId; tab: TabValue; single?: boolean }) 
           </svg>
         </button>
       </header>
+      <Popover
+        id={detailsId()}
+        class="pane-details"
+        role="dialog"
+        aria-label={`Details of ${pane()?.title || 'the pane'}`}
+        onToggle={setDetailsOpen}
+      >
+        <div class="pane-details-head">
+          <Show
+            when={run()}
+            fallback={<span class="pane-details-title">{detailsTitle(run())}</span>}
+          >
+            {(agent) => (
+              <>
+                <HarnessBadge run={agent()} />
+                <Show when={agent().yolo}>
+                  <Badge tone="muted" title="No approval dialogs">
+                    yolo
+                  </Badge>
+                </Show>
+              </>
+            )}
+          </Show>
+        </div>
+        <dl class="pane-details-list">
+          <For each={details()}>
+            {(row) => (
+              <div class="pane-detail" data-detail={row.key}>
+                <dt>{row.label}</dt>
+                <dd classList={{ 'pane-detail-data': row.data }}>
+                  <span class="pane-detail-value">
+                    {/* A path breaks after a slash, where a person reads it. */}
+                    <For each={row.value.split(/(?<=\/)/)}>
+                      {(part) => (
+                        <>
+                          {part}
+                          <wbr />
+                        </>
+                      )}
+                    </For>
+                  </span>
+                  <Show when={row.copy}>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      class="pane-detail-copy"
+                      aria-label={`Copy the ${row.label.toLowerCase()}`}
+                      title={`Copy the ${row.label.toLowerCase()}`}
+                      onClick={() => copyDetail(row.label, row.value)}
+                    >
+                      <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true">
+                        <rect x="5.5" y="5.5" width="8" height="8" rx="1.5" />
+                        <path d="M10.5 3.5v-.25A1.25 1.25 0 0 0 9.25 2h-6A1.25 1.25 0 0 0 2 3.25v6A1.25 1.25 0 0 0 3.25 10.5h.25" />
+                      </svg>
+                    </Button>
+                  </Show>
+                </dd>
+              </div>
+            )}
+          </For>
+        </dl>
+      </Popover>
       <Show when={pane()?.clipboard_request}>
         {(request) => (
           <Show

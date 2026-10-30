@@ -1,6 +1,7 @@
 // The status bar: the function keys on the left, then the limits of the harnesses, the warnings of
 // the core, the renderer when it fell back to `canvas2d`, the machine, and, after a rule, the
-// switches of the left column, of the drawer and of the Git view as one group. A key cap shows the chord of the settings and runs
+// switches of the Git view and of the Workflows view as one group. The left column and the drawer
+// fold and open from their own arrows and rails. A key cap shows the chord of the settings and runs
 // the same command when it is clicked. The caps are gray, and the cap of Answer is amber while an
 // agent waits.
 // The bar shows what the projections say and decides nothing.
@@ -87,25 +88,8 @@ export function StatusBar(props: { actions: ActionContext; keymap: () => Keymap 
         <span class="status-renderer">{renderer() ?? 'no renderer'}</span>
       </Show>
       <span class="status-machine">{machine()}</span>
-      <div class="status-views" role="group" aria-label="Views">
-        <button
-          type="button"
-          class="drawer-toggle"
-          aria-pressed={view.leftOpen()}
-          title="The left column with the workspaces"
-          onClick={() => view.setLeftOpen((open) => !open)}
-        >
-          Workspaces
-        </button>
-        <button
-          type="button"
-          class="drawer-toggle"
-          aria-pressed={view.drawerOpen()}
-          onClick={() => view.setDrawerOpen((open) => !open)}
-        >
-          Drawer
-        </button>
-        <Show when={form !== 'phone'}>
+      <Show when={form !== 'phone'}>
+        <div class="status-views" role="group" aria-label="Views">
           <button
             type="button"
             class="drawer-toggle"
@@ -129,8 +113,8 @@ export function StatusBar(props: { actions: ActionContext; keymap: () => Keymap 
           >
             Workflows
           </button>
-        </Show>
-      </div>
+        </div>
+      </Show>
     </footer>
   );
 }

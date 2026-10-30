@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'bun:test';
 import type { InteractionValue } from '@neohar/transport';
 import {
-  answeredBy,
+  answerArrived,
+  answerToast,
   approvalButtons,
   approvalDecision,
   buttonForKey,
@@ -13,6 +14,8 @@ import {
   questionAnswer,
   questionComplete,
   questionDecision,
+  questionTitle,
+  stateBadge,
   statusOf,
   toggled,
 } from './model';
@@ -146,17 +149,9 @@ describe('what a card says', () => {
     expect(statusOf(card(), 'Claude Code')).toBeNull();
   });
 
-  it('shows the delivery of the answer, also the amber one', () => {
+  it('has a line only for what the person must know: an answer that may not have arrived', () => {
     const answered = (state: InteractionValue['state'], extra = {}) =>
       card({ state, delivery: { rev: 1, attempts: 1, decided_by: 'ui', via: 'card', ...extra } });
-    expect(statusOf(answered('delivering'), 'Claude Code')).toEqual({
-      text: 'Sending the answer of ui via card…',
-      tone: 'info',
-    });
-    expect(statusOf(answered('delivered'), 'Claude Code')).toEqual({
-      text: 'Delivered. Answered by ui via card.',
-      tone: 'ok',
-    });
     expect(statusOf(answered('delivery_unknown'), 'Claude Code')).toEqual({
       text: "Couldn't confirm your answer reached Claude Code.",
       tone: 'warn',
@@ -165,18 +160,88 @@ describe('what a card says', () => {
       text: "Couldn't deliver the answer to Codex: dialog changed.",
       tone: 'error',
     });
-    expect(statusOf(answered('resolved_elsewhere'), 'Codex')?.text).toBe('Answered in Codex.');
-    expect(statusOf(answered('dismissed'), 'Codex')?.text).toBe('Dismissed.');
-    expect(statusOf(answered('cancelled'), 'Codex')?.text).toBe('Not needed any more.');
+    // A toast says that an answer arrived, and the badge says how a card ended.
+    for (const state of [
+      'decision_recorded',
+      'delivering',
+      'delivered',
+      'resolved_elsewhere',
+      'dismissed',
+      'cancelled',
+      'superseded',
+    ] as const) {
+      expect(statusOf(answered(state), 'Codex')).toBeNull();
+    }
   });
 
-  it('names who answered, also a rule of the policy', () => {
-    expect(
-      answeredBy(card({ delivery: { rev: 1, attempts: 1, decided_by: 'policy', via: 'policy' } })),
-    ).toBe('a rule of the policy');
-    expect(
-      answeredBy(card({ delivery: { rev: 1, attempts: 1, decided_by: 'cli', via: 'cli' } })),
-    ).toBe('cli via cli');
-    expect(answeredBy(card())).toBe('someone');
+  it('has a badge that says what became of it, once it is not open', () => {
+    const ended = (state: InteractionValue['state'], decided_by = 'ui') =>
+      card({ state, delivery: { rev: 1, attempts: 1, decided_by, via: 'card' } });
+    expect(stateBadge(card(), 'Codex')).toBeNull();
+    expect(stateBadge(ended('delivering'), 'Codex')).toEqual({ text: 'Sending', tone: 'info' });
+    expect(stateBadge(ended('delivered'), 'Codex')).toEqual({ text: 'Answered', tone: 'muted' });
+    expect(stateBadge(ended('delivered', 'policy'), 'Codex')?.text).toBe('Answered by policy');
+    expect(stateBadge(ended('delivery_unknown'), 'Codex')).toEqual({
+      text: 'Unconfirmed',
+      tone: 'warn',
+    });
+    expect(stateBadge(ended('failed'), 'Codex')).toEqual({ text: 'Not delivered', tone: 'error' });
+    expect(stateBadge(ended('resolved_elsewhere'), 'Codex')?.text).toBe('Answered in Codex');
+    expect(stateBadge(ended('dismissed'), 'Codex')?.text).toBe('Dismissed');
+    expect(stateBadge(ended('superseded'), 'Codex')?.text).toBe('Not needed');
+  });
+});
+
+describe('the title of a question', () => {
+  const question = (text: string, header?: string) => ({
+    question: text,
+    options: [],
+    ...(header ? { header } : {}),
+  });
+
+  it('is the header of one question, or how many questions there are', () => {
+    expect(questionTitle([question('Which build should I install?', 'Build from')])).toBe(
+      'Build from',
+    );
+    expect(questionTitle([question('Which build should I install?')])).toBe('Question');
+    expect(questionTitle([question('a'), question('b')])).toBe('2 questions');
+  });
+});
+
+describe('the toast of an answer that this window sent', () => {
+  const sent = (state: InteractionValue['state'], extra = {}) =>
+    card({
+      state,
+      title: 'Which build should I install?',
+      delivery: { rev: 1, attempts: 1, decided_by: 'ui', via: 'card', ...extra },
+    });
+
+  it('waits while the answer travels, and ends when the interaction left', () => {
+    expect(answerArrived(sent('open'))).toBe(false);
+    expect(answerArrived(sent('decision_recorded'))).toBe(false);
+    expect(answerArrived(sent('delivering'))).toBe(false);
+    expect(answerArrived(sent('delivered'))).toBe(true);
+    expect(answerArrived(sent('failed'))).toBe(true);
+    expect(answerArrived(sent('resolved_elsewhere'))).toBe(true);
+    expect(answerArrived(undefined)).toBe(true);
+  });
+
+  it('says that the answer arrived, or that it may not have', () => {
+    expect(answerToast(sent('delivered'), 'Claude Code')).toEqual({
+      title: 'Answer delivered to Claude Code',
+      description: 'Which build should I install?',
+      tone: 'ok',
+    });
+    expect(answerToast(sent('delivery_unknown'), 'Codex')).toEqual({
+      title: "Couldn't confirm the answer reached Codex",
+      description: 'Which build should I install?',
+      tone: 'warn',
+    });
+    expect(answerToast(sent('failed', { fail_reason: 'dialog_changed' }), 'Codex')).toEqual({
+      title: "Couldn't deliver the answer to Codex",
+      description: 'dialog changed',
+      tone: 'error',
+    });
+    expect(answerToast(sent('resolved_elsewhere'), 'Codex')).toBeNull();
   });
 });

@@ -35,6 +35,7 @@ import { revealed } from '../app/reveal';
 import { LayoutView } from '../layout/LayoutView';
 import { Palette } from '../palette/Palette';
 import { Board } from '../board/Board';
+import { Toaster } from '../kit/Toaster';
 import { GitView } from '../git/GitView';
 import { windowFolder } from '../files/folder';
 import { CloseConfirm } from './CloseConfirm';
@@ -71,8 +72,19 @@ export interface ShellProps {
 }
 
 export function Shell(props: ShellProps = {}) {
-  const { stores, windowId, transport, run, report, view, render, keyboard, platform, form } =
-    useApp();
+  const {
+    stores,
+    windowId,
+    transport,
+    run,
+    report,
+    view,
+    render,
+    keyboard,
+    platform,
+    form,
+    toasts,
+  } = useApp();
   let frame: HTMLDivElement | undefined;
   let main: HTMLElement | undefined;
   const shown = () => stores.windows.state.byKey[windowId];
@@ -300,6 +312,7 @@ export function Shell(props: ShellProps = {}) {
       </Show>
       <Show when={view.closing()}>{(closing) => <CloseConfirm closing={closing()} />}</Show>
       <StatusBar actions={actions} keymap={keymap} />
+      <Toaster toasts={toasts} />
       <Show when={form === 'phone'}>
         <Show when={view.typing()} keyed fallback={<PhoneBar />}>
           {(field) => <KeyBar field={field} />}

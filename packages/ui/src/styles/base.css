@@ -53,8 +53,7 @@
     .agent-code,
     .pane-state,
     .pane-handle,
-    .pane-cwd,
-    .pane-cost,
+    .pane-detail-data,
     .strip-cost,
     .board-more,
     .badge,
@@ -122,9 +121,11 @@
     .board-list,
     .files-menu,
     .git-menu,
+    .ui-popover,
     .confirm,
     .dialog,
     .file-modal,
+    .toast,
     .floating > .pane-title
   ) {
     background: var(--glass);
@@ -141,9 +142,11 @@
       .board-list,
       .files-menu,
       .git-menu,
+      .ui-popover,
       .confirm,
       .dialog,
       .file-modal,
+      .toast,
       .floating > .pane-title
     ) {
       background: var(--bg-raised);

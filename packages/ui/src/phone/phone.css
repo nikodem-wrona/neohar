@@ -151,6 +151,14 @@
   font-size: 16px;
 }
 
+/* The toasts lie over the pane, above the bottom bar, from edge to edge. */
+.shell.phone .toaster {
+  left: max(var(--gutter), env(safe-area-inset-left));
+  right: max(var(--gutter), env(safe-area-inset-right));
+  bottom: calc(max(var(--gutter), env(safe-area-inset-bottom)) + var(--control) + var(--s2));
+  width: auto;
+}
+
 /* The command line: Workspaces, the search field, and the attention pill. */
 .shell.phone .commandbar {
   grid-template-columns: auto minmax(0, 1fr) auto;
