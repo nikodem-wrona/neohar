@@ -48,6 +48,36 @@ describe('the Git view', () => {
   });
 });
 
+describe('the Workflows view', () => {
+  it('takes the place of the Git view and keeps the columns of before both', () => {
+    const view = createViewState();
+    view.setDrawerOpen(false);
+    view.openGit('/w/app');
+    view.openWorkflows('/w/app');
+    expect([view.gitOpen(), view.workflowsOpen(), view.leftOpen(), view.drawerOpen()]).toEqual([
+      false,
+      true,
+      false,
+      false,
+    ]);
+    expect(view.workflowsTarget().folder).toBe('/w/app');
+    view.closeWorkflows();
+    expect([view.workflowsOpen(), view.leftOpen(), view.drawerOpen()]).toEqual([
+      false,
+      true,
+      false,
+    ]);
+  });
+
+  it('opens and closes with the command of the palette', () => {
+    const view = createViewState();
+    view.pageAction('workflows.open');
+    expect([view.workflowsOpen(), view.workflowsTarget().folder]).toEqual([true, null]);
+    view.pageAction('workflows.open');
+    expect(view.workflowsOpen()).toBe(false);
+  });
+});
+
 describe('the widths of the side columns', () => {
   const kept = new Map<string, string>();
   const storage = {

@@ -139,6 +139,10 @@ ulid_id!(
     /// launch of the app.
     DeviceId, "client device"
 );
+ulid_id!(
+    /// One execution of a workflow.
+    ExecutionId, "workflow execution"
+);
 
 /// What a handle points to.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]

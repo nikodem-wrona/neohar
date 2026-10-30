@@ -24,6 +24,7 @@ mod policy_rows;
 mod runs;
 mod scrollback;
 mod usage_rows;
+mod workflow_rows;
 
 use std::{
     cell::RefCell,
@@ -55,6 +56,7 @@ pub use scrollback::{
     SEGMENT_LINES, ScrollbackHit, ScrollbackWriter, SearchScope, SegmentInfo,
 };
 pub use usage_rows::{TranscriptState, UsageTotals};
+pub use workflow_rows::{ExecutionRow, NodeRow};
 
 /// How long a statement waits for a lock that another connection holds.
 const BUSY_TIMEOUT: Duration = Duration::from_secs(5);

@@ -215,6 +215,20 @@ export function Board() {
             >
               Show in Git view
             </button>
+            <button
+              type="button"
+              role="menuitem"
+              class="files-menu-item"
+              tabIndex={-1}
+              disabled={!folderOf(shownMenu().pane)}
+              onClick={() => {
+                const folder = folderOf(shownMenu().pane);
+                closeMenu();
+                if (folder) view.openWorkflows(folder);
+              }}
+            >
+              Execute a workflow here
+            </button>
           </div>
         )}
       </Show>

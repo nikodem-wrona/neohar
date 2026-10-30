@@ -14,12 +14,12 @@ The UI, the CLI and the hook shim all call the core through one contract. Its ve
 
 | Part | Count | Reference |
 |---|---|---|
-| Methods | 153 | [Methods](/docs/reference/api/methods) |
-| Projections | 28 | [Projections](/docs/reference/api/projections) |
-| Event kinds | 56 | [Events](/docs/reference/api/events) |
+| Methods | 176 | [Methods](/docs/reference/api/methods) |
+| Projections | 30 | [Projections](/docs/reference/api/projections) |
+| Event kinds | 59 | [Events](/docs/reference/api/events) |
 | Streams | 4 | [Streams](/docs/reference/api/streams) |
 | Error codes | 43 | [Errors](/docs/reference/api/errors) |
-| Named types | 439 | [Types](/docs/reference/api/types) |
+| Named types | 478 | [Types](/docs/reference/api/types) |
 
 ## Protocol versions
 
@@ -79,11 +79,11 @@ Every message is one JSON-RPC 2.0 object.
 
 | Scope | Who | Methods |
 |---|---|---|
-| `ui` | the UI, over the `rpc` command of the Tauri host or the WebSocket | 134 |
-| `cli` | the CLI and any other client on the API socket | 107 |
+| `ui` | the UI, over the `rpc` command of the Tauri host or the WebSocket | 157 |
+| `cli` | the CLI and any other client on the API socket | 115 |
 | `pane` | a hook shim, with the token of a pane | 4 |
 | `dev` | development and test builds only | 4 |
-| `phone` | a paired phone, over the listener of the phone | 130 |
+| `phone` | a paired phone, over the listener of the phone | 153 |
 
 ## Namespaces
 
@@ -106,6 +106,7 @@ Every message is one JSON-RPC 2.0 object.
 | [`changes`](/docs/reference/api/methods/changes) | The Changes tab: the changes of a git worktree from HEAD, and the diff of one file. | 2 |
 | [`git`](/docs/reference/api/methods/git) | The Git view: repositories and their trust, worktrees, branches, changes and history, and switch, fetch and pull. | 15 |
 | [`phone`](/docs/reference/api/methods/phone) | The phones that supervise this machine: the offer of a pairing, names and removal, and the mapping of tailscale serve. | 11 |
+| [`workflow`](/docs/reference/api/methods/workflow) | The Workflows view: the workflow files and their graphs, and the executions in a folder with the report of each node. | 23 |
 | [`events`](/docs/reference/api/methods/events) | Subscriptions to the event log, from a cursor. | 2 |
 | [`projection`](/docs/reference/api/methods/projection) | Subscriptions to projections: a snapshot, then keyed patches. | 3 |
 | [`config`](/docs/reference/api/methods/config) | The configuration: the merged values with provenance, edits and reload. | 3 |

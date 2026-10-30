@@ -1,7 +1,7 @@
 ---
 title: "events.*"
 description: "Subscriptions to the event log, from a cursor."
-sidebar_position: 18
+sidebar_position: 19
 toc_max_heading_level: 2
 ---
 

@@ -28,6 +28,8 @@ export interface ActionContext {
   toggleSearch(): void;
   /** Opens the Git view on the folder of the window, or closes it when it is open. */
   toggleGit(): void;
+  /** Opens the Workflows view on the folder of the window, or closes it when it is open. */
+  toggleWorkflows(): void;
   /** Moves the focus to the card of an interaction in the inbox. */
   focusCard(interaction: string): void;
 }
@@ -82,6 +84,7 @@ const ACTIONS: Readonly<Record<string, Action>> = {
   },
   'search.open': (ctx) => ctx.toggleSearch(),
   'git.open': (ctx) => ctx.toggleGit(),
+  'workflows.open': (ctx) => ctx.toggleWorkflows(),
   // The peek does not exist yet. Its key stays reserved.
   'peek.sibling': () => undefined,
 };

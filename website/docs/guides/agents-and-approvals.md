@@ -81,6 +81,7 @@ for you.** Looking means that the window has the focus and the pane has the keyb
 - A request that waits 30 minutes (`approvals.gate_timeout`) goes back to the dialog in the pane.
 - An agent that ends its turn while you do not look at its pane waits too: a line in the Inbox, a
   count, and a notification (`agents.turn_end_notice`). A look at the pane or a key ends the wait.
+- The agent of a [workflow](/docs/guides/workflows) node does not wait at the end of its turn.
 
 `approvals.mode` is `auto` (the rule above), `gate` (always hold) or `observe` (never hold).
 

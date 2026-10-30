@@ -70,6 +70,7 @@ mod transcripts;
 mod uploads;
 pub mod watch;
 mod window_calls;
+mod workflows;
 pub mod ws_rpc;
 
 pub use actor::{Origin, Scope};

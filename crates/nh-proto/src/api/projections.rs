@@ -13,10 +13,11 @@ use super::{
     common::wire,
     ids::{IdError, PaneId, RunId, WindowId},
     model::{
-        AgentValue, AttentionValue, ChangeRow, ChangesHead, GitBranchValue, GitHead, GitRepoValue,
-        GitWorktreeValue, HarnessValue, HealthValue, InteractionValue, JobValue, LimitValue,
-        LinkValue, MachineValue, NotificationValue, PaletteValue, PaneValue, PhonePairingValue,
-        PhoneStatusValue, PhoneValue, SettingsSection, TimelineItem, WindowValue, WorkspaceValue,
+        AgentValue, AttentionValue, ChangeRow, ChangesHead, ExecutionValue, GitBranchValue,
+        GitHead, GitRepoValue, GitWorktreeValue, HarnessValue, HealthValue, InteractionValue,
+        JobValue, LimitValue, LinkValue, MachineValue, NotificationValue, PaletteValue, PaneValue,
+        PhonePairingValue, PhoneStatusValue, PhoneValue, SettingsSection, TimelineItem,
+        WindowValue, WorkflowValue, WorkspaceValue,
     },
 };
 
@@ -73,11 +74,15 @@ pub enum Projection {
     GitBranches(WindowId),
     /// The changed files of the worktree of the Git view of one window (`git_changes:<window>`).
     GitChanges(WindowId),
+    /// The workflow files of the person.
+    Workflows,
+    /// The executions of the workflows, with the state of each node.
+    WorkflowExecutions,
 }
 
 impl Projection {
     /// The projections without a parameter, in a fixed order.
-    pub const STATIC: [Self; 17] = [
+    pub const STATIC: [Self; 19] = [
         Self::Windows,
         Self::Tree,
         Self::Panes,
@@ -95,6 +100,8 @@ impl Projection {
         Self::PhonePairing,
         Self::PhoneStatus,
         Self::GitRepos,
+        Self::Workflows,
+        Self::WorkflowExecutions,
     ];
 
     /// Whether the projection has one key, `_`.
@@ -142,6 +149,8 @@ impl Projection {
             Self::GitWorktrees(_) => "git_worktrees",
             Self::GitBranches(_) => "git_branches",
             Self::GitChanges(_) => "git_changes",
+            Self::Workflows => "workflows",
+            Self::WorkflowExecutions => "workflow_executions",
         }
     }
 }
@@ -224,7 +233,7 @@ impl JsonSchema for Projection {
     fn json_schema(_: &mut SchemaGenerator) -> Schema {
         schemars::json_schema!({
             "type": "string",
-            "pattern": "^(windows|tree|panes|agents|attention|interactions|notifications|machines|harnesses|limits|jobs|palette|settings|phones|phone_pairing|phone_status|git_repos|health|link|timeline:[0-9A-HJKMNP-TV-Z]{26}|pane_text:[0-9A-HJKMNP-TV-Z]{26}|agents_for:[0-9A-HJKMNP-TV-Z]{26}|changes_for:[0-9A-HJKMNP-TV-Z]{26}|changes_head:[0-9A-HJKMNP-TV-Z]{26}|git_head:[0-9A-HJKMNP-TV-Z]{26}|git_worktrees:[0-9A-HJKMNP-TV-Z]{26}|git_branches:[0-9A-HJKMNP-TV-Z]{26}|git_changes:[0-9A-HJKMNP-TV-Z]{26})$",
+            "pattern": "^(windows|tree|panes|agents|attention|interactions|notifications|machines|harnesses|limits|jobs|palette|settings|phones|phone_pairing|phone_status|git_repos|workflows|workflow_executions|health|link|timeline:[0-9A-HJKMNP-TV-Z]{26}|pane_text:[0-9A-HJKMNP-TV-Z]{26}|agents_for:[0-9A-HJKMNP-TV-Z]{26}|changes_for:[0-9A-HJKMNP-TV-Z]{26}|changes_head:[0-9A-HJKMNP-TV-Z]{26}|git_head:[0-9A-HJKMNP-TV-Z]{26}|git_worktrees:[0-9A-HJKMNP-TV-Z]{26}|git_branches:[0-9A-HJKMNP-TV-Z]{26}|git_changes:[0-9A-HJKMNP-TV-Z]{26})$",
             "description": "The name of a projection. timeline:<run>, pane_text:<pane>, agents_for:<window>, changes_for:<window>, changes_head:<window>, git_head:<window>, git_worktrees:<window>, git_branches:<window> and git_changes:<window> take an id."
         })
     }
@@ -340,6 +349,8 @@ pub fn specs() -> Vec<ProjectionSpec> {
         spec!("git_worktrees", "path", GitWorktreeValue, param "window id"),
         spec!("git_branches", "reference", GitBranchValue, param "window id"),
         spec!("git_changes", "path", ChangeRow, param "window id"),
+        spec!("workflows", "file name", WorkflowValue),
+        spec!("workflow_executions", "execution id", ExecutionValue),
     ]
 }
 

@@ -23,19 +23,20 @@ of the core and sends a command for each action of the person
 │ New workspace    │ │ surface (grid)  ├ pane ───────────┤       │ cards, tree, diffs       │
 │                  │ └─────────────────┴─────────────────┘       │                          │
 ├──────────────────┴─────────────────────────────────────────────┴──────────────────────────┤
-│ status bar: function keys · limits · warnings · machine · workspaces · drawer · git       │
+│ status bar: keys · limits · warnings · machine · workspaces · drawer · git · workflows    │
 └───────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 | Part | Code | What it shows |
 |---|---|---|
 | Command line | `shell/CommandBar.tsx` | On macOS also the title bar: the window buttons lie over its left end, and a press on its empty parts moves the window. A search field in the middle that opens the palette in place, and the attention line: the count of `attention` as an amber pill and the first interaction; a click answers it as `⌘⇧A` does. With no wait the line is empty |
-| Board | `board/` | A strip for each agent run, in the order of the core: a card with the border and tint of its state, the badge, the state in four letters and the work, then the harness and the cost. A click shows the pane in any tab and workspace, and a right click opens a menu with Show the pane and Show in Git view. A drag of a strip onto another strip puts its run at that place (`agent.move`); the core keeps the order for every window and across a restart, and a new run in a pane takes the place of the run that ended there. When every run fits, the strips share the board up to 48 characters. The runs that do not fit are behind `+N` (`board/fit.ts`), whose popover lists every agent and turns amber when one of them waits. The board is two lines high, or one when it is narrower than 100 characters; a new agent never changes its height |
+| Board | `board/` | A strip for each agent run, in the order of the core: a card with the border and tint of its state, the badge, the state in four letters and the work, then the harness and the cost. A click shows the pane in any tab and workspace, and a right click opens a menu with Show the pane, Show in Git view and Execute a workflow here. A drag of a strip onto another strip puts its run at that place (`agent.move`); the core keeps the order for every window and across a restart, and a new run in a pane takes the place of the run that ended there. When every run fits, the strips share the board up to 48 characters. The runs that do not fit are behind `+N` (`board/fit.ts`), whose popover lists every agent and turns amber when one of them waits. The board is two lines high, or one when it is narrower than 100 characters; a new agent never changes its height |
 | Left column | `shell/Sidebar.tsx` | The workspaces and their tabs. It folds to a rail, as the drawer does, and under 1000 px it starts folded. A rail button is an icon (`shell/icons.tsx`) with its name as the tooltip |
 | Tab bar and layout | `shell/TabBar.tsx`, `layout/` | The tabs of the workspace and the layout tree of the shown tab: splits, floating panes, zoom |
 | Git view | `git/` | It takes the place of the tab bar and the layout (`⌘⇧G`): the Repository, Worktree and Branch menus, the changes or the history, and a diff. Both side columns fold while it shows, and the focus report has `panes_hidden`, so the core sends no frames |
+| Workflows view | `workflows/` | It takes the same place as the Git view (`⌘⇧E`), and the two never show at the same time: the workflows and the executions, the canvas of a workflow, the node details and the panel of an execution. It loads as a lazy chunk when it opens the first time. See [Workflows](/docs/guides/workflows) |
 | Drawer | `shell/Drawer.tsx` | Four tabs (below). Under 1280 px it starts folded to a rail. It never covers a pane |
-| Status bar | `shell/StatusBar.tsx` | Function keys (the reserved chords as clickable gray key caps; Answer is amber while an agent waits), harness limits, health warnings, `canvas2d` after a fallback, the machine, and after a rule the switches of the left column (Workspaces), the drawer and the Git view |
+| Status bar | `shell/StatusBar.tsx` | Function keys (the reserved chords as clickable gray key caps; Answer is amber while an agent waits), harness limits, health warnings, `canvas2d` after a fallback, the machine, and after a rule the switches of the left column (Workspaces), the drawer, the Git view and the Workflows view. The Workflows switch has a dot while an execution is paused or waits for the person |
 | Banners | `shell/HealthBanner.tsx`, `shell/LinkBanner.tsx` | Degraded storage and doctor notes; a link to a remote machine that is down (input is off while it is) |
 | Dialogs | `palette/`, `search/`, `shell/CloseConfirm.tsx` | The palette (`⌘K`), scrollback search (`⌘⇧F`), the close confirmation |
 
@@ -65,6 +66,9 @@ of the pane, in any workspace, and the pane gets the focus.
 `git_worktrees:<window>`, `git_branches:<window>`, `git_changes:<window>` and `git_repos` while the
 Git view shows. No store derives data
 from another one; a lookup by id is allowed.
+
+The status bar follows `workflow_executions` for the dot of its Workflows switch. The Workflows
+view also follows `workflows`, and `pane_text:<pane>` for the screen of a working agent.
 
 ## Panes, drags and closing
 
@@ -169,7 +173,7 @@ its pane.
 
 | Command | What it checks |
 |---|---|
-| `mise run test:ui` (`bun test`) | Plain modules: the reducer, drags, the divider and float math, the keymap and chords, the focus report, the card model, the Files and Changes models, the renderer helpers |
+| `mise run test:ui` (`bun test`) | Plain modules: the reducer, drags, the divider and float math, the keymap and chords, the focus report, the card model, the Files and Changes models, the canvas of the Workflows view, the renderer helpers |
 | `mise run test:shell` | The shell in WebKit against `nh daemon --dev-ws`: the DOM follows the projections, drags, chords, painted pixels, resizes, cards with hostile text, axe |
 | `mise run test:gpu` | Both renderers paint equal cells, context loss, no allocation per frame |
 

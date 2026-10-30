@@ -729,6 +729,68 @@
   },
   {
     "path": [
+      "workflow"
+    ],
+    "about": "Workflows of agents and their executions, as the Workflows view shows them"
+  },
+  {
+    "path": [
+      "workflow",
+      "list"
+    ],
+    "about": "List the workflow files of ~/.config/neohar/workflows"
+  },
+  {
+    "path": [
+      "workflow",
+      "execute"
+    ],
+    "about": "Execute a workflow in a folder, or in the current directory. --wait waits for the end"
+  },
+  {
+    "path": [
+      "workflow",
+      "executions"
+    ],
+    "about": "List the executions of the workflows, the newest first"
+  },
+  {
+    "path": [
+      "workflow",
+      "show"
+    ],
+    "about": "Show an execution: the state, the verdict and the report of each node"
+  },
+  {
+    "path": [
+      "workflow",
+      "report"
+    ],
+    "about": "Show a report of an execution: report.md, or the report of one node with --node"
+  },
+  {
+    "path": [
+      "workflow",
+      "retry"
+    ],
+    "about": "Start a node of an execution that failed again"
+  },
+  {
+    "path": [
+      "workflow",
+      "skip"
+    ],
+    "about": "Skip a node of an execution that failed or waits; the nodes after it go on"
+  },
+  {
+    "path": [
+      "workflow",
+      "cancel"
+    ],
+    "about": "Cancel an execution and stop its agents"
+  },
+  {
+    "path": [
       "config"
     ],
     "about": "The configuration"

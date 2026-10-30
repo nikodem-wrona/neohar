@@ -10,8 +10,10 @@ use serde_json::Value;
 use super::{
     calls::system::PolicyScope,
     common::{Harness, Risk, Source, Via, wire},
-    ids::{DeviceId, GroupId, InteractionId, PaneId, RunId, TabId, WindowId, WorkspaceId},
-    model::{AttentionReason, InteractionKind},
+    ids::{
+        DeviceId, ExecutionId, GroupId, InteractionId, PaneId, RunId, TabId, WindowId, WorkspaceId,
+    },
+    model::{AttentionReason, ExecutionState, InteractionKind, NodeState},
     time::Timestamp,
 };
 
@@ -314,6 +316,26 @@ wire! {
         pub id: String,
         pub scope: PolicyScope,
     }
+
+    /// The payload of `workflow.execution_started` and `workflow.execution_ended`.
+    pub struct WorkflowExecutionEvent {
+        pub execution: ExecutionId,
+        /// The name of the workflow file without `.toml`.
+        pub workflow: String,
+        pub state: ExecutionState,
+    }
+
+    /// The payload of `workflow.node_changed`.
+    pub struct WorkflowNodeEvent {
+        pub execution: ExecutionId,
+        pub node: String,
+        pub state: NodeState,
+        /// The agent run of the node, while it has one.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub run: Option<RunId>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub reason: Option<String>,
+    }
 }
 
 /// What a kind of event is, for the registry.
@@ -450,6 +472,9 @@ events! {
     GitUnstashed = "git.unstashed" (GitWrite);
     GitFetched = "git.fetched" (GitWrite);
     GitPulled = "git.pulled" (GitWrite);
+    WorkflowExecutionStarted = "workflow.execution_started" (WorkflowExecutionEvent);
+    WorkflowNodeChanged = "workflow.node_changed" (WorkflowNodeEvent);
+    WorkflowExecutionEnded = "workflow.execution_ended" (WorkflowExecutionEvent);
 }
 
 impl Event {

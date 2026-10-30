@@ -35,6 +35,7 @@ Commands:
   phone        Phones that supervise this machine
   fs           The file system of the machine
   git          Git repositories, worktrees, branches and history, as the Git view shows them
+  workflow     Workflows of agents and their executions, as the Workflows view shows them
   config       The configuration
   policy       Rules that decide approvals
   integration  The hooks of the harnesses
@@ -71,6 +72,7 @@ Options:
 | [`nh phone`](/docs/reference/cli/commands/phone) | Phones that supervise this machine | `pair-begin`, `pair-cancel`, `remove`, `rename`, `publish`, `unpublish`, `push-test` |
 | [`nh fs`](/docs/reference/cli/commands/fs) | The file system of the machine | `list` |
 | [`nh git`](/docs/reference/cli/commands/git) | Git repositories, worktrees, branches and history, as the Git view shows them | `repos`, `add`, `trust`, `untrust`, `status`, `worktrees`, `branches`, `log`, `show`, `diff`, `switch`, `unstash`, `fetch`, `pull` |
+| [`nh workflow`](/docs/reference/cli/commands/workflow) | Workflows of agents and their executions, as the Workflows view shows them | `list`, `execute`, `executions`, `show`, `report`, `retry`, `skip`, `cancel` |
 | [`nh config`](/docs/reference/cli/commands/config) | The configuration | `get`, `set`, `reload`, `edit` |
 | [`nh policy`](/docs/reference/cli/commands/policy) | Rules that decide approvals | `list`, `add`, `remove`, `suggest` |
 | [`nh integration`](/docs/reference/cli/commands/integration) | The hooks of the harnesses | `list`, `install`, `status`, `uninstall`, `doctor`, `capabilities` |

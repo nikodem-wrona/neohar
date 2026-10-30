@@ -51,7 +51,7 @@ async fn the_reply_comes_first_then_the_snapshot_then_patches() {
         "{snapshot}"
     );
     let data = &snapshot["params"]["message"]["data"];
-    assert_eq!(data["order"].as_array().map(Vec::len), Some(11));
+    assert_eq!(data["order"].as_array().map(Vec::len), Some(12));
     assert_eq!(
         data["items"]["approvals"]["entries"]["mode"]["value"],
         "auto"

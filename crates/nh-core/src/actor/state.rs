@@ -84,6 +84,8 @@ pub(crate) struct State {
     pub turn_waits: Arc<crate::agents::turn::TurnWaits>,
     /// The paired phones and the offer of a pairing.
     pub phones: crate::phones::Phones,
+    /// Where the runs of workflow nodes send their turns and their changes.
+    pub workflows: Option<tokio::sync::mpsc::UnboundedSender<crate::workflows::Signal>>,
 }
 
 impl State {
@@ -118,6 +120,14 @@ impl State {
             limits: crate::transcripts::Limits::default(),
             turn_waits: Arc::default(),
             phones: crate::phones::Phones::default(),
+            workflows: None,
+        }
+    }
+
+    /// Sends a signal to the executor of the workflows, if it runs.
+    pub fn workflow_signal(&self, signal: crate::workflows::Signal) {
+        if let Some(sender) = &self.workflows {
+            let _ = sender.send(signal);
         }
     }
 
@@ -130,6 +140,15 @@ impl State {
     ) -> Self {
         self.turn_waits = waits;
         self.native.set_turn_settle(settle);
+        self
+    }
+
+    /// The same state with the channel to the executor of the workflows.
+    pub fn with_workflows(
+        mut self,
+        sender: tokio::sync::mpsc::UnboundedSender<crate::workflows::Signal>,
+    ) -> Self {
+        self.workflows = Some(sender);
         self
     }
 

@@ -176,6 +176,7 @@ fn launch_choices(launch: &Launch, problems: &mut Vec<String>) {
     };
     placeholder("model", &launch.model_arg, problems);
     placeholder("effort", &launch.effort_arg, problems);
+    placeholder("add_dir", &launch.add_dir_arg, problems);
     if let Some(catalog) = &launch.model_catalog
         && catalog != CODEX_CATALOG
     {

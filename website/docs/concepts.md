@@ -17,7 +17,7 @@ A **machine** runs a core. The core serves one **session**. A session has **work
 | Machine | A host that runs a neohar core: this Mac, or another one that the app reaches over ssh. | [Remote machines](/docs/guides/remote-machines) |
 | Session | One isolated core on a machine, `default` unless `--session` or `NEOHAR_SESSION` names another. A debug build uses `dev`. Each session has its own data and sockets; the config is shared. | [Architecture](/docs/architecture/overview) |
 | Workspace | A group of tabs, usually for one repository. | [Workspaces and panes](/docs/guides/workspaces-and-panes) |
-| Tab | One layout of panes: a split tree of tiled panes, plus floating panes. | [Workspaces and panes](/docs/guides/workspaces-and-panes) |
+| Tab | One layout of panes: a split tree of tiled panes, plus floating panes. A hidden tab holds the agent of a workflow node, and the tab bar does not show it until you open it. | [Workspaces and panes](/docs/guides/workspaces-and-panes) |
 | Pane | A terminal: a PTY and the program in it. Tiled, floating, or popped out into its own window. | [Workspaces and panes](/docs/guides/workspaces-and-panes) |
 | Handle | The short name of an object that a person can type: `w3` (workspace), `w3:t2` (tab), `w3:p5` (pane), `i42` (interaction). A handle never changes. | [Command line](/docs/reference/cli) |
 | Drawer | The right column of a window, with the tabs Inbox, Timeline, Files and Changes. | [Desktop UI](/docs/desktop/ui) |
@@ -46,6 +46,8 @@ A **machine** runs a core. The core serves one **session**. A session has **work
 | Gate mode | `observe` (the harness shows its own dialog), `gate` (the core holds the hook until an answer) or `auto` (gate only when the pane does not have the focus). | [Interactions](/docs/agents/interactions) |
 | Delivery | The recoverable transaction that brings an answer to the harness: `delivered`, `resolved_elsewhere`, `delivery_unknown` or `delivery_failed`. | [Interactions](/docs/agents/interactions) |
 | Policy rule | A `[[policy.rule]]` block that decides an approval before a person is asked. | [Agents and approvals](/docs/guides/agents-and-approvals) |
+| Workflow | A graph of nodes in `~/.config/neohar/workflows/`: a manual trigger, agent nodes and Report nodes. The last message of the agent of a node is its report. | [Workflows](/docs/guides/workflows) |
+| Execution | One start of a workflow in a folder, with the state and the report of each node, for example "Review 3". It is not an agent run. | [Workflows](/docs/guides/workflows) |
 
 ## Data
 

@@ -112,6 +112,10 @@ pub(crate) fn settle(parts: &mut Parts<'_>, id: RunId, seq: u64, at: Timestamp) 
     if run.turn.seq != seq || !run.live() || run.arbiter.execution().value != Execution::Idle {
         return;
     }
+    // The executor of the workflows takes the turns of its agents.
+    if run.workflow {
+        return;
+    }
     let Some(pane) = run.pane else {
         return;
     };

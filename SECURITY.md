@@ -33,7 +33,8 @@ These parts of neohar are in scope:
 - **The webview sandbox**: the three commands of the webview, the content security policy, and the `nh://` URLs.
 - **Deep links** (`neohar://`): any web page can open one, so a link must not answer a request or give a pane the focus.
 - **Other users of the same machine**: an attack from another local user, for example a socket, a directory or a port of `127.0.0.1` that this user makes before neohar does.
-- **The git commands of the Changes tab and the Git view**: the trust of a repository, and the settings that neohar gives to each git command.
+- **The git commands of the Changes tab, the Git view and the workflows**: the trust of a repository, and the settings that neohar gives to each git command.
+- **The agents of workflow nodes**: a node without "Can edit files" must get the read-only arguments of its harness. Claude Code has no full read-only mode, so its Bash tool can still write; that is a known limit.
 
 These items are not in scope:
 
