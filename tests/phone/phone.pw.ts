@@ -705,6 +705,14 @@ test('the soft keyboard and the key bar type into the pane of a phone', async ({
     await expect(page.locator(surface)).toBeVisible({ timeout: 20_000 });
     await expect(page.locator('.layout .pane.focused')).toHaveCount(1, { timeout: 20_000 });
 
+    // The program sets its terminal to raw mode, which drops the input that it has not read yet,
+    // and then says that it is ready. The keys go after that.
+    await expect
+      .poll(async () => (await c.api<{ text: string }>('pane.read', { pane: made.pane })).text, {
+        timeout: 20_000,
+      })
+      .toContain('ready');
+
     // A tap on the pane in focus opens the keyboard: the key bar takes the place of the dock.
     await tapAt(page, surface, 40, 40);
     await expect(page.locator('.key-bar')).toBeVisible();
