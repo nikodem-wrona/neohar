@@ -146,32 +146,6 @@
     border-color: var(--text);
   }
 
-  /* The question about changes or another worktree changes no file under an agent, so its
-     border is not red. */
-  .git-confirm.confirm:not(.git-confirm-danger) {
-    border-color: var(--hairline);
-  }
-
-  /* --- a menu: a popover in the top layer. The page sets `left` and `top`. ---------------------- */
-
-  .git-menu {
-    position: fixed;
-    inset: auto;
-    width: min(52ch, 90vw);
-    max-height: min(60vh, 520px);
-    margin: 0;
-    padding: var(--s1);
-    border-radius: var(--r-md);
-    color: var(--text);
-  }
-
-  .git-menu:popover-open {
-    display: flex;
-    flex-direction: column;
-    gap: var(--s1);
-  }
-
-  .git-menu-filter,
   .git-filter {
     padding: 2px var(--s2);
     border: 1px solid var(--text-dim);
@@ -180,98 +154,8 @@
     line-height: 20px;
   }
 
-  .git-menu-filter::placeholder,
   .git-filter::placeholder {
     color: var(--text-dim);
-  }
-
-  .git-menu-list {
-    flex: 1 1 auto;
-    min-height: 0;
-    overflow-y: auto;
-  }
-
-  .git-menu-group-title {
-    padding: var(--s1) var(--s2) 0;
-    font-size: var(--size-small);
-    color: var(--text-dim);
-  }
-
-  /* The name keeps its room, and the facts after it give way. */
-  .git-menu-item {
-    display: grid;
-    grid-template-columns: minmax(0, max-content) minmax(0, 1fr);
-    column-gap: 1ch;
-    padding: 2px var(--s2);
-    border-radius: var(--r-sm);
-    line-height: 18px;
-    cursor: pointer;
-  }
-
-  .git-menu-item.active {
-    background: var(--bg-hover);
-  }
-
-  .git-menu-item.current .git-menu-item-title {
-    font-weight: 600;
-  }
-
-  .git-menu-item.current .git-menu-item-title::before {
-    content: '✓ ';
-  }
-
-  .git-menu-item.disabled {
-    cursor: default;
-    color: var(--text-dim);
-  }
-
-  .git-menu-item-title {
-    max-width: 36ch;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .git-menu-item-detail {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    text-align: right;
-    color: var(--text-dim);
-    font-family: var(--font-data);
-    font-size: var(--size-data);
-    white-space: nowrap;
-  }
-
-  .git-menu-item-agents {
-    grid-column: 1 / -1;
-    font-size: var(--size-small);
-    color: var(--text-dim);
-  }
-
-  .git-menu-empty {
-    margin: 0;
-    padding: var(--s1) var(--s2);
-    color: var(--text-dim);
-  }
-
-  .git-menu-actions {
-    display: flex;
-    flex-direction: column;
-    border-top: 1px solid var(--hairline);
-    padding-top: var(--s1);
-  }
-
-  .git-menu-action {
-    padding: 2px var(--s2);
-    text-align: left;
-  }
-
-  .git-menu-action:hover,
-  .git-menu-action:focus-visible {
-    background: var(--here);
-    color: var(--on-here);
-    outline: none;
   }
 
   /* --- the body: the side and the diff ------------------------------------------------------------ */
@@ -591,19 +475,6 @@
     color: var(--text);
     font-family: var(--font-data);
     overflow-wrap: anywhere;
-  }
-
-  .trust-button {
-    margin-top: var(--s1);
-    padding: 3px 12px;
-    border: 1px solid var(--accent);
-    background: var(--accent);
-    color: var(--on-signal);
-    font-weight: 600;
-  }
-
-  .trust-button:hover {
-    filter: brightness(1.08);
   }
 
   /* The link of the Changes tab of the drawer. */

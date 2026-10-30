@@ -539,25 +539,25 @@ test('the drawer, the left column and More are sheets, and the palette has the w
 
   // The drawer covers the pane area, and a second tap closes it.
   await dock(page, 'files').click();
-  const drawer = page.locator('.drawer');
+  const drawer = page.getByRole('complementary', { name: 'Drawer' });
   await expect(drawer).toBeVisible();
   const box = await drawer.boundingBox();
   expect(Math.abs((box?.width ?? 0) - (main?.width ?? 0))).toBeLessThan(2);
   expect(Math.abs((box?.y ?? 0) - (main?.y ?? 0))).toBeLessThan(2);
-  await expect(page.locator('.drawer-tab.selected')).toHaveText('Files');
+  await expect(drawer.getByRole('tab', { selected: true })).toHaveText('Files');
   await dock(page, 'files').click();
   await expect(drawer).toHaveCount(0);
 
   // The left column opens from the left, and a tab that the person picks closes it.
   await page.getByRole('button', { name: 'Workspaces' }).click();
-  const left = page.locator('.sidebar');
+  const left = page.getByRole('navigation', { name: 'Workspaces' });
   await expect(left).toBeVisible();
   await left.locator(`[data-side-tab="${made.tab}"]`).click();
   await expect(left).toHaveCount(0);
 
   // The palette takes the width of the screen.
   await page.locator('.cmdline').click();
-  const palette = page.locator('.palette');
+  const palette = page.getByRole('dialog', { name: 'Command palette' });
   await expect(palette).toBeVisible();
   const wide = await palette.boundingBox();
   expect(wide?.width ?? 0).toBeGreaterThan(440 - 40);
@@ -1075,7 +1075,9 @@ test('a long press opens the menus of the chrome, and a tab moves from its menu'
   await lift(page, here.x, here.y);
   await expect(menu.getByRole('menuitem')).toHaveText(['Rename', 'Close']);
   await menu.getByRole('menuitem', { name: 'Rename' }).click();
-  const field = page.locator('.sidebar input');
+  const field = page
+    .getByRole('navigation', { name: 'Workspaces' })
+    .getByRole('textbox', { name: /Name of workspace/ });
   await expect(field).toBeFocused();
   await expect(field).toHaveCSS('font-size', '16px');
   await page.keyboard.press('Escape');
@@ -1103,11 +1105,16 @@ test('a file attaches to a pane, and a row of the Files tab opens only in the la
     });
 
     // The menu ⋯ of the pane has Attach a file, and the picker of iOS gives the files.
-    await page.locator(`[data-pane="${made.pane}"] [data-action="menu"]`).click();
+    await page
+      .locator(`[data-pane="${made.pane}"]`)
+      .getByRole('button', { name: 'Pane actions' })
+      .click();
     const menu = page.getByRole('menu', { name: /Actions of/ });
     await expect(menu.getByRole('menuitem', { name: 'Attach a file' })).toBeVisible();
     await expect(menu.getByRole('menuitem', { name: 'Fit to this phone' })).toBeVisible();
-    await page.locator('.press-scrim').click({ position: { x: 5, y: 5 } });
+    // A tap beside the menu closes it.
+    await page.mouse.click(5, 5);
+    await expect(menu).toHaveCount(0);
     await page.locator(`[data-pane="${made.pane}"] .pane-attach`).setInputFiles({
       name: 'shot.png',
       mimeType: 'image/png',
@@ -1129,7 +1136,7 @@ test('a file attaches to a pane, and a row of the Files tab opens only in the la
     await expect(page.locator(row)).toBeVisible({ timeout: 20_000 });
     const at = await press(page, row, 650);
     await lift(page, at.x, at.y);
-    const rowMenu = page.locator('.files-menu');
+    const rowMenu = page.getByRole('menu', { name: 'Actions of notes.txt' });
     await expect(rowMenu).toBeVisible();
     await expect(rowMenu.getByRole('menuitem')).toHaveText([
       'Open',
@@ -1141,7 +1148,10 @@ test('a file attaches to a pane, and a row of the Files tab opens only in the la
     await rowMenu.getByRole('menuitem', { name: 'Open' }).click();
     const large = page.getByRole('dialog', { name: 'notes.txt' });
     await expect(large.locator('.file-body')).toBeVisible();
-    expect((await large.boundingBox())?.width).toBe(page.viewportSize()?.width);
+    // The view grows in when it opens.
+    await expect
+      .poll(async () => (await large.boundingBox())?.width)
+      .toBe(page.viewportSize()?.width);
     await expect(large.getByRole('button', { name: 'Open in app' })).toHaveCount(0);
     await large.getByRole('button', { name: 'Close the large view' }).click();
     await expect(large).toHaveCount(0);
@@ -1225,4 +1235,58 @@ test('the left column lists the machines, and a machine that does not answer has
   await expect(
     page.getByRole('region', { name: 'Machines' }).locator('[data-machine="local"]'),
   ).toHaveAttribute('aria-current', 'true');
+});
+
+test('Escape closes each menu and sheet of the desk, and the focus goes back to its button', async ({
+  page,
+  request,
+}) => {
+  const c = await core(request);
+  await pair(page, c);
+  const made = await c.api<{ pane: string; tab: string }>('workspace.create', {
+    name: 'Layers',
+    command: { argv: ['/bin/sh', '-c', 'exec sleep 600'] },
+  });
+  await page.goto(`${c.origin}/#/pane/${made.pane}`);
+  await desk(page);
+  const tab = page.locator(`.tabbar [data-tab="${made.tab}"]`);
+  await expect(tab).toBeVisible({ timeout: 20_000 });
+
+  // The menu ⋯ of a pane gives the focus back to its button.
+  const actions = page
+    .locator(`[data-pane="${made.pane}"]`)
+    .getByRole('button', { name: 'Pane actions' });
+  await actions.click();
+  const menu = page.getByRole('menu', { name: /Actions of/ });
+  await expect(menu).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(menu).toHaveCount(0);
+  await expect(actions).toBeFocused();
+
+  // The menu of a long press gives the focus back to the tab that had it.
+  await tab.focus();
+  const at = await press(page, `.tabbar [data-tab="${made.tab}"]`, 650);
+  await lift(page, at.x, at.y);
+  await expect(menu).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(menu).toHaveCount(0);
+  await expect(tab).toBeFocused();
+
+  // More, the drawer and the left column: each sheet that a button opened gives it the focus back.
+  const sheets = [
+    { button: dock(page, 'more'), sheet: page.getByRole('dialog', { name: 'More' }) },
+    { button: dock(page, 'inbox'), sheet: page.getByRole('dialog', { name: 'Drawer' }) },
+    {
+      button: page.getByRole('button', { name: 'Workspaces' }),
+      sheet: page.getByRole('dialog', { name: 'Workspaces' }),
+    },
+  ];
+  for (const { button, sheet } of sheets) {
+    await button.focus();
+    await page.keyboard.press('Enter');
+    await expect(sheet).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(sheet).toHaveCount(0);
+    await expect(button).toBeFocused();
+  }
 });

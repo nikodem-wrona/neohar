@@ -6,6 +6,7 @@
 
 import { type PhonePairingValue, RpcError, type Transport } from '@neohar/transport';
 import { useEffect, useState } from 'react';
+import { Dialog, DialogContent, DialogTitle } from '../components/ui/dialog';
 import { useRows, useValue } from '../lib/hooks';
 import { useProjectionStore } from '../stores';
 
@@ -16,11 +17,6 @@ function failureText(failure: unknown): string {
 /** Selects the text of the field when it shows. */
 function selectWhenShown(input: HTMLInputElement | null): void {
   if (input) queueMicrotask(() => input.select());
-}
-
-/** Gives the focus to the box when it shows. */
-function focusWhenShown(box: HTMLDivElement | null): void {
-  if (box) queueMicrotask(() => box.focus());
 }
 
 function PhoneRow(props: {
@@ -106,30 +102,28 @@ function PairDialog(props: {
 }) {
   const state = props.pairing?.state ?? 'none';
   const pairing = state === 'waiting' ? props.pairing : undefined;
+  // The dialog opens when the core answers, with no trigger: it gives the focus back to the
+  // element that had it. The settings window has no panes, so the dialog needs no layer.
+  const [before] = useState(() => document.activeElement);
   return (
-    <div
-      className="dialog-backdrop"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) props.onClose();
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open) props.onClose();
       }}
     >
-      <div
-        className="dialog phone-dialog"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="phone-dialog-title"
-        tabIndex={-1}
-        ref={focusWhenShown}
-        onKeyDown={(event) => {
-          if (event.key === 'Escape') {
-            event.preventDefault();
-            props.onClose();
-          }
+      <DialogContent
+        className="max-h-[calc(92vh-16px)] w-[min(48ch,calc(100vw-32px))] max-w-none gap-2 overflow-auto px-3 pt-0 pb-3 sm:max-w-none"
+        showCloseButton={false}
+        aria-describedby={undefined}
+        onCloseAutoFocus={(event) => {
+          event.preventDefault();
+          if (before instanceof HTMLElement) before.focus();
         }}
       >
-        <h2 id="phone-dialog-title" className="dialog-title">
+        <DialogTitle className="dialog-title text-[length:inherit] leading-[inherit]">
           Pair a phone
-        </h2>
+        </DialogTitle>
         {pairing ? (
           <>
             <p className="dialog-text">
@@ -162,8 +156,8 @@ function PairDialog(props: {
             Cancel
           </button>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 

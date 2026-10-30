@@ -17,6 +17,7 @@ import type {
   WorkflowProblem,
 } from '@neohar/transport';
 import {
+  type ComponentProps,
   type KeyboardEvent,
   memo,
   type PointerEvent,
@@ -26,6 +27,7 @@ import {
   useState,
 } from 'react';
 import { isDrag } from '../app/drag';
+import { Tooltip, TooltipContent, TooltipTrigger } from '../components/ui/tooltip';
 import { useLatest, useSelect, useValue } from '../lib/hooks';
 import { cn } from '../lib/utils';
 import { createValue } from '../lib/value';
@@ -84,6 +86,18 @@ function capture(area: HTMLElement | null, event: { pointerId: number }): void {
   } catch {
     // A pointer that ended already has no capture.
   }
+}
+
+/** A button that shows only a sign. Its name is its label, and a tooltip shows it. */
+function SignButton({ tip, ...rest }: { tip: string } & ComponentProps<'button'>) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button type="button" aria-label={tip} {...rest} />
+      </TooltipTrigger>
+      <TooltipContent>{tip}</TooltipContent>
+    </Tooltip>
+  );
 }
 
 /** The card of a node. It renders again only when its node, its state or its problem changes. */
@@ -411,12 +425,11 @@ export function Canvas(props: CanvasProps) {
                 .map((line) => {
                   const middle = edgeMiddle(line.a, line.b);
                   return (
-                    <button
+                    <SignButton
                       key={line.key}
-                      type="button"
+                      tip="Remove the connection (Delete)"
                       className="wf-edge-remove"
                       style={{ left: `${middle.x}px`, top: `${middle.y}px` }}
-                      title="Remove the connection (Delete)"
                       onPointerDown={(event) => event.stopPropagation()}
                       onClick={() => {
                         props.onDisconnect(line.from, line.to);
@@ -424,7 +437,7 @@ export function Canvas(props: CanvasProps) {
                       }}
                     >
                       ×
-                    </button>
+                    </SignButton>
                   );
                 })
             : null}
@@ -460,13 +473,13 @@ export function Canvas(props: CanvasProps) {
             + Add
           </button>
         ) : null}
-        <button type="button" title="Zoom out" onClick={() => zoomBy(1 / 1.25)}>
+        <SignButton tip="Zoom out" onClick={() => zoomBy(1 / 1.25)}>
           −
-        </button>
+        </SignButton>
         <span className="wf-zoom">{zoomText}</span>
-        <button type="button" title="Zoom in" onClick={() => zoomBy(1.25)}>
+        <SignButton tip="Zoom in" onClick={() => zoomBy(1.25)}>
           +
-        </button>
+        </SignButton>
         <button type="button" title="Show the whole workflow (⌘0)" onClick={fit}>
           Fit
         </button>

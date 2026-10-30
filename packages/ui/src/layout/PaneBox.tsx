@@ -1,5 +1,5 @@
 // A pane of the layout: a title strip over the body. On a phone the strip has the button ⋯ in place
-// of float and zoom: the menu has the splits, zoom, float, Fit, Attach a file, Copy, Paste and
+// of float and zoom: its Dropdown Menu has the splits, zoom, float, Fit, Attach a file, Paste and
 // Close. The strip says what the board does not:
 // the dot of the state, the handle when `ui.show_handles` is on, the state in four
 // letters only for `WAIT` and `ERR`, the badge of the harness with its marks, the title when it
@@ -7,8 +7,8 @@
 // has the size of the PTY, the strip has the mark Fit, which takes the size (`pane.claim`).
 // The pane in focus
 // has a ring in the gap around it. The strip has the buttons for the details, float, zoom and
-// close. The details are a popover (`details.ts`): the working directory, the cost, the tokens,
-// the model, the version, the session and the size.
+// close, each with a Tooltip as its tip. The details are a popover (`details.ts`): the working
+// directory, the cost, the tokens, the model, the version, the session and the size.
 // A tiled pane drags by its strip onto a tab (`pane.move`). A row of the Files tab drops onto a
 // pane, and the core pastes its path (`pane.insert_paths`). The surface of the pane goes
 // into `.pane-body`.
@@ -23,12 +23,19 @@ import { paneName, showHandles } from '../app/preferences';
 import { dragged, dropTarget, pressToDrag } from '../app/drag';
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '../components/ui/dropdown-menu';
 import { Popover, PopoverContent, PopoverTrigger } from '../components/ui/popover';
 import { useLatest, useSelect, useValue } from '../lib/hooks';
 import { cn } from '../lib/utils';
 import { Surface } from '../pane/Surface';
 import { readClipboard, writeClipboard } from '../input/clipboard';
 import { requestClose } from '../shell/close';
+import { Tip } from '../shell/Tip';
 import { detailsTitle, paneDetails, stripTitle } from './details';
 import { tabPanes } from './tree';
 
@@ -170,32 +177,26 @@ export const PaneBox = memo(function PaneBox(props: {
     });
   };
 
-  /** The menu ⋯ of a pane on a phone. */
-  const openMenu = (x: number, y: number): void => {
-    const split = (direction: 'right' | 'down') =>
-      call('pane.split', { pane: props.id, direction });
-    view.pressMenu.set({
-      x,
-      y,
-      title: pane?.title || 'pane',
-      items: [
-        { label: 'Split right', run: () => split('right') },
-        { label: 'Split down', run: () => split('down') },
-        { label: zoomed ? 'Show all panes' : 'Zoom', run: toggleZoom },
-        { label: floating ? 'Dock' : 'Float', run: toggleFloat },
-        {
-          label: 'Fit to this phone',
-          run: fit,
-        },
-        { label: 'Attach a file', run: () => attach.current?.click() },
-        {
-          label: 'Paste',
-          run: () => void readClipboard().then((text) => input.paste(props.id, text), report),
-        },
-        { label: 'Close', run: close, danger: true },
-      ],
-    });
-  };
+  /** The menu ⋯ of a pane on a phone: a Dropdown Menu under its button. */
+  const [menuOpen, setMenuOpen] = useState(false);
+  useLayer(menuOpen);
+  const split = (direction: 'right' | 'down') => call('pane.split', { pane: props.id, direction });
+  const menuItems: { label: string; run: () => void; danger?: boolean }[] = [
+    { label: 'Split right', run: () => split('right') },
+    { label: 'Split down', run: () => split('down') },
+    { label: zoomed ? 'Show all panes' : 'Zoom', run: toggleZoom },
+    { label: floating ? 'Dock' : 'Float', run: toggleFloat },
+    {
+      label: 'Fit to this phone',
+      run: fit,
+    },
+    { label: 'Attach a file', run: () => attach.current?.click() },
+    {
+      label: 'Paste',
+      run: () => void readClipboard().then((text) => input.paste(props.id, text), report),
+    },
+    { label: 'Close', run: close, danger: true },
+  ];
   const badge = run ? badgeOf(run) : undefined;
   const title = stripTitle(pane?.title ?? '', run?.harness);
   const unconfirmed = pane?.input_unconfirmed?.length ?? 0;
@@ -307,52 +308,71 @@ export const PaneBox = memo(function PaneBox(props: {
             </button>
           ) : null}
           <span className="pane-spacer" />
-          <PopoverTrigger asChild>
-            <button
-              type="button"
-              className="pane-button"
-              data-action="details"
-              aria-label="Pane details"
-              title="Pane details"
-            >
-              <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
-                <circle
-                  cx="8"
-                  cy="8"
-                  r="6.25"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.3"
-                />
-                <path
-                  d="M8 7.25V11.5"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                />
-                <circle cx="8" cy="4.9" r="0.95" fill="currentColor" />
-              </svg>
-            </button>
-          </PopoverTrigger>
-          {phone ? (
-            <>
+          <Tip text="Pane details" hidden={detailsOpen}>
+            <PopoverTrigger asChild>
               <button
                 type="button"
                 className="pane-button"
-                data-action="menu"
-                aria-label="Pane actions"
-                aria-haspopup="menu"
-                onClick={(event) => {
-                  const box = event.currentTarget.getBoundingClientRect();
-                  openMenu(box.right - 220, box.bottom);
-                }}
+                data-action="details"
+                aria-label="Pane details"
               >
                 <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
-                  <circle cx="3" cy="8" r="1.4" fill="currentColor" />
-                  <circle cx="8" cy="8" r="1.4" fill="currentColor" />
-                  <circle cx="13" cy="8" r="1.4" fill="currentColor" />
+                  <circle
+                    cx="8"
+                    cy="8"
+                    r="6.25"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.3"
+                  />
+                  <path
+                    d="M8 7.25V11.5"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                  />
+                  <circle cx="8" cy="4.9" r="0.95" fill="currentColor" />
                 </svg>
               </button>
+            </PopoverTrigger>
+          </Tip>
+          {phone ? (
+            <>
+              <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    className="pane-button"
+                    data-action="menu"
+                    aria-label="Pane actions"
+                  >
+                    <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+                      <circle cx="3" cy="8" r="1.4" fill="currentColor" />
+                      <circle cx="8" cy="8" r="1.4" fill="currentColor" />
+                      <circle cx="13" cy="8" r="1.4" fill="currentColor" />
+                    </svg>
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="end"
+                  collisionPadding={8}
+                  className="w-[220px]"
+                  aria-label={`Actions of ${pane?.title || 'pane'}`}
+                  // The name is the title of the pane, not the name of the button.
+                  aria-labelledby={undefined}
+                >
+                  {menuItems.map((item) => (
+                    <DropdownMenuItem
+                      key={item.label}
+                      variant={item.danger === true ? 'destructive' : 'default'}
+                      className="min-h-(--control) px-3"
+                      onSelect={() => item.run()}
+                    >
+                      {item.label}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
               <input
                 ref={attach}
                 className="pane-attach"
@@ -368,62 +388,71 @@ export const PaneBox = memo(function PaneBox(props: {
               />
             </>
           ) : null}
-          <button
-            type="button"
-            className="pane-button"
-            data-action="float"
-            aria-pressed={floating}
-            aria-label={floating ? 'Dock pane' : 'Float pane'}
-            title={floating ? 'Dock pane' : 'Float pane'}
-            onClick={toggleFloat}
-          >
-            <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true">
-              <rect x="2" y="2" width="9" height="9" fill="none" stroke="currentColor" />
-              <rect
-                x="6"
-                y="6"
-                width="8"
-                height="8"
-                fill="var(--bg-raised)"
-                stroke="currentColor"
-              />
-            </svg>
-          </button>
-          <button
-            type="button"
-            className="pane-button"
-            data-action="zoom"
-            aria-pressed={zoomed}
-            aria-label={zoomed ? 'Show all panes' : 'Zoom pane'}
-            title={zoomed ? 'Show all panes' : 'Zoom pane'}
-            onClick={toggleZoom}
-          >
-            <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true">
-              <path
-                d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.4"
-              />
-            </svg>
-          </button>
-          <button
-            type="button"
-            className="pane-button pane-close"
-            data-action="close"
-            aria-label="Close pane"
-            title="Close pane"
-            onClick={close}
-          >
-            <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true">
-              <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.5" />
-            </svg>
-          </button>
+          <Tip text={floating ? 'Dock pane' : 'Float pane'}>
+            <button
+              type="button"
+              className="pane-button"
+              data-action="float"
+              aria-pressed={floating}
+              aria-label={floating ? 'Dock pane' : 'Float pane'}
+              onClick={toggleFloat}
+            >
+              <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true">
+                <rect x="2" y="2" width="9" height="9" fill="none" stroke="currentColor" />
+                <rect
+                  x="6"
+                  y="6"
+                  width="8"
+                  height="8"
+                  fill="var(--bg-raised)"
+                  stroke="currentColor"
+                />
+              </svg>
+            </button>
+          </Tip>
+          <Tip text={zoomed ? 'Show all panes' : 'Zoom pane'}>
+            <button
+              type="button"
+              className="pane-button"
+              data-action="zoom"
+              aria-pressed={zoomed}
+              aria-label={zoomed ? 'Show all panes' : 'Zoom pane'}
+              onClick={toggleZoom}
+            >
+              <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true">
+                <path
+                  d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.4"
+                />
+              </svg>
+            </button>
+          </Tip>
+          <Tip text="Close pane">
+            <button
+              type="button"
+              className="pane-button pane-close"
+              data-action="close"
+              aria-label="Close pane"
+              onClick={close}
+            >
+              <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true">
+                <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.5" />
+              </svg>
+            </button>
+          </Tip>
         </header>
         <PopoverContent
           align="end"
           className="pane-details flex max-h-[calc(100vh-var(--s4))] w-[360px] flex-col gap-3 overflow-y-auto p-3 select-text"
           aria-label={`Details of ${pane?.title || 'the pane'}`}
+          // The box takes the focus, not its first copy button: the tip of that button would show,
+          // and Escape would close the tip and not the details.
+          onOpenAutoFocus={(event) => {
+            event.preventDefault();
+            (event.currentTarget as HTMLElement | null)?.focus();
+          }}
         >
           <div className="pane-details-head">
             {run ? (
@@ -454,19 +483,20 @@ export const PaneBox = memo(function PaneBox(props: {
                     ))}
                   </span>
                   {row.copy ? (
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      className="pane-detail-copy"
-                      aria-label={`Copy the ${row.label.toLowerCase()}`}
-                      title={`Copy the ${row.label.toLowerCase()}`}
-                      onClick={() => copyDetail(row.label, row.value)}
-                    >
-                      <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true">
-                        <rect x="5.5" y="5.5" width="8" height="8" rx="1.5" />
-                        <path d="M10.5 3.5v-.25A1.25 1.25 0 0 0 9.25 2h-6A1.25 1.25 0 0 0 2 3.25v6A1.25 1.25 0 0 0 3.25 10.5h.25" />
-                      </svg>
-                    </Button>
+                    <Tip text={`Copy the ${row.label.toLowerCase()}`}>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        className="pane-detail-copy"
+                        aria-label={`Copy the ${row.label.toLowerCase()}`}
+                        onClick={() => copyDetail(row.label, row.value)}
+                      >
+                        <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true">
+                          <rect x="5.5" y="5.5" width="8" height="8" rx="1.5" />
+                          <path d="M10.5 3.5v-.25A1.25 1.25 0 0 0 9.25 2h-6A1.25 1.25 0 0 0 2 3.25v6A1.25 1.25 0 0 0 3.25 10.5h.25" />
+                        </svg>
+                      </Button>
+                    </Tip>
                   ) : null}
                 </dd>
               </div>

@@ -479,55 +479,6 @@
     pointer-events: none;
   }
 
-  /* --- the node picker ----------------------------------------------------------------------- */
-
-  .wf-picker {
-    position: fixed;
-    z-index: 20;
-    width: 260px;
-    padding: var(--s1);
-    border-radius: var(--r-md);
-  }
-
-  .wf-picker-filter {
-    width: 100%;
-    padding: 3px var(--s1);
-    border: 1px solid var(--text-dim);
-    background: var(--bg);
-    color: var(--text);
-  }
-
-  .wf-picker-list {
-    max-height: 280px;
-    margin: var(--s1) 0 0;
-    padding: 0;
-    overflow: auto;
-    list-style: none;
-  }
-
-  .wf-picker-item {
-    display: flex;
-    justify-content: space-between;
-    gap: var(--s2);
-    padding: 4px var(--s2);
-    border-radius: var(--r-sm);
-    cursor: pointer;
-  }
-
-  .wf-picker-item.active {
-    background: var(--bg-hover);
-  }
-
-  .wf-picker-kind,
-  .wf-picker-empty {
-    font-size: var(--size-small);
-    color: var(--text-dim);
-  }
-
-  .wf-picker-empty {
-    padding: 4px var(--s2);
-  }
-
   /* --- the panel of an execution ------------------------------------------------------------- */
 
   .wf-panel {
@@ -631,18 +582,6 @@
   }
 
   /* --- the details of a node and the dialog of an execution ---------------------------------- */
-
-  .wf-details {
-    width: min(150ch, calc(100vw - 32px));
-    height: calc(88vh - 16px);
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
-
-  .wf-details:not([open]) {
-    display: none;
-  }
 
   .wf-details-head {
     display: flex;
@@ -806,10 +745,6 @@
 
   .wf-secondary:hover {
     border-color: var(--text);
-  }
-
-  .wf-execute {
-    width: min(72ch, calc(100vw - 32px));
   }
 
   .wf-execute-form {

@@ -3,11 +3,12 @@
 // why. The core reads the facts of the folder and starts the execution.
 
 import type { AgentValue, WorkflowFacts } from '@neohar/transport';
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { harnessName } from '../agents/badge';
 import { useApp } from '../app/context';
+import { useLayer } from '../app/layer';
+import { Dialog, DialogContent, DialogTitle } from '../components/ui/dialog';
 import { useSelect } from '../lib/hooks';
-import { outside } from '../shell/modal';
 
 export function ExecuteDialog(props: {
   workflow: string;
@@ -20,21 +21,14 @@ export function ExecuteDialog(props: {
   onCancel(): void;
 }) {
   const { transport, stores, report } = useApp();
-  const dialog = useRef<HTMLDialogElement>(null);
   const first = useRef<HTMLInputElement>(null);
   const [base, setBase] = useState(props.facts?.base ?? '');
   const [notes, setNotes] = useState('');
   const panes = useSelect(stores.panes, (state) => state.byKey);
-  // A layout effect: its cleanup runs before the dialog leaves the page, so `close()` can give
-  // the focus back.
-  useLayoutEffect(() => {
-    const element = dialog.current;
-    element?.showModal();
-    first.current?.focus();
-    return () => {
-      if (element?.open) element.close();
-    };
-  }, []);
+  // The dialog is open while it is on the page. When it closes, the focus goes back to the
+  // element that had it, usually the button Execute workflow.
+  useLayer(true);
+  const [before] = useState(() => document.activeElement);
 
   const agentName = (agent: AgentValue): string => {
     const pane = agent.pane ? panes[agent.pane] : undefined;
@@ -50,90 +44,95 @@ export function ExecuteDialog(props: {
   };
 
   return (
-    <dialog
-      className="dialog wf-execute"
-      aria-labelledby="wf-execute-title"
-      ref={dialog}
-      onCancel={(event) => {
-        event.preventDefault();
-        props.onCancel();
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open) props.onCancel();
       }}
-      onMouseDown={(event) => {
-        if (
-          event.target === event.currentTarget &&
-          outside(event.nativeEvent, event.currentTarget)
-        ) {
-          props.onCancel();
-        }
-      }}
-      onKeyDown={(event) => event.stopPropagation()}
     >
-      <form
-        className="wf-execute-form"
-        onSubmit={(event) => {
+      <DialogContent
+        className="block max-h-[calc(92vh-16px)] w-[min(72ch,calc(100vw-32px))] max-w-none overflow-auto p-0 sm:max-w-none"
+        showCloseButton={false}
+        aria-describedby={undefined}
+        // The dialog has no trigger: Radix gives the focus to none, so the dialog gives it back.
+        onCloseAutoFocus={(event) => {
           event.preventDefault();
-          props.onExecute(base.trim() || null, notes.trim() || null);
+          if (before instanceof HTMLElement) before.focus();
         }}
+        onOpenAutoFocus={(event) => {
+          event.preventDefault();
+          first.current?.focus();
+        }}
+        // The keys of the dialog do not reach the view and the canvas under it.
+        onKeyDown={(event) => event.stopPropagation()}
       >
-        <h2 id="wf-execute-title" className="dialog-title">
-          Execute {props.name}
-        </h2>
-        <p className="wf-execute-folder">
-          <span className="wf-muted">Folder</span> <code>{props.folder}</code>
-          {props.facts?.branch ? (
-            <>
-              {' '}
-              <span className="wf-muted">on</span> <code>{props.facts.branch}</code>
-            </>
-          ) : null}
-        </p>
-        {!props.facts?.repo ? (
-          <p className="wf-muted">
-            neohar reads no git facts here: the folder is not in a git repository that you trust.
+        <form
+          className="wf-execute-form"
+          onSubmit={(event) => {
+            event.preventDefault();
+            props.onExecute(base.trim() || null, notes.trim() || null);
+          }}
+        >
+          <DialogTitle className="dialog-title text-[length:inherit] leading-[inherit]">
+            Execute {props.name}
+          </DialogTitle>
+          <p className="wf-execute-folder">
+            <span className="wf-muted">Folder</span> <code>{props.folder}</code>
+            {props.facts?.branch ? (
+              <>
+                {' '}
+                <span className="wf-muted">on</span> <code>{props.facts.branch}</code>
+              </>
+            ) : null}
           </p>
-        ) : null}
-        <label className="wf-field">
-          <span>Base of the changes</span>
-          <input
-            type="text"
-            autoComplete="off"
-            spellCheck={false}
-            placeholder="main"
-            value={base}
-            ref={first}
-            onChange={(event) => setBase(event.currentTarget.value)}
-          />
-        </label>
-        <label className="wf-field wf-field-grow">
-          <span>Notes: what you built and why</span>
-          <textarea
-            className="wf-notes"
-            value={notes}
-            onChange={(event) => setNotes(event.currentTarget.value)}
-          />
-        </label>
-        {props.agents.length > 0 ? (
+          {!props.facts?.repo ? (
+            <p className="wf-muted">
+              neohar reads no git facts here: the folder is not in a git repository that you trust.
+            </p>
+          ) : null}
           <label className="wf-field">
-            <span>Take the notes from the prompts of an agent</span>
-            <select defaultValue="" onChange={(event) => take(event.currentTarget.value)}>
-              <option value="">Pick an agent</option>
-              {props.agents.map((agent) => (
-                <option key={agent.id} value={agent.id}>
-                  {agentName(agent)}
-                </option>
-              ))}
-            </select>
+            <span>Base of the changes</span>
+            <input
+              type="text"
+              autoComplete="off"
+              spellCheck={false}
+              placeholder="main"
+              value={base}
+              ref={first}
+              onChange={(event) => setBase(event.currentTarget.value)}
+            />
           </label>
-        ) : null}
-        <div className="dialog-buttons">
-          <button type="button" className="dialog-cancel" onClick={() => props.onCancel()}>
-            Cancel
-          </button>
-          <button type="submit" className="primary">
-            Execute
-          </button>
-        </div>
-      </form>
-    </dialog>
+          <label className="wf-field wf-field-grow">
+            <span>Notes: what you built and why</span>
+            <textarea
+              className="wf-notes"
+              value={notes}
+              onChange={(event) => setNotes(event.currentTarget.value)}
+            />
+          </label>
+          {props.agents.length > 0 ? (
+            <label className="wf-field">
+              <span>Take the notes from the prompts of an agent</span>
+              <select defaultValue="" onChange={(event) => take(event.currentTarget.value)}>
+                <option value="">Pick an agent</option>
+                {props.agents.map((agent) => (
+                  <option key={agent.id} value={agent.id}>
+                    {agentName(agent)}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
+          <div className="dialog-buttons">
+            <button type="button" className="dialog-cancel" onClick={() => props.onCancel()}>
+              Cancel
+            </button>
+            <button type="submit" className="primary">
+              Execute
+            </button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }

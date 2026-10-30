@@ -13,7 +13,8 @@ import react from '@vitejs/plugin-react';
 import { build } from 'vite';
 import { root, startDaemon } from '../support/daemon';
 
-const dist = join(root, 'target', 'ui-web');
+// `NEOHAR_UI_DIST` gives another folder, so that two runs on two ports do not build into one.
+const dist = process.env.NEOHAR_UI_DIST ?? join(root, 'target', 'ui-web');
 const port = Number(process.env.NEOHAR_UI_PORT ?? 4176);
 
 await build({

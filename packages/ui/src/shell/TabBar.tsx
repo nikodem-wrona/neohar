@@ -27,6 +27,7 @@ import { useLatest, useSelect, useValue } from '../lib/hooks';
 import { cn } from '../lib/utils';
 import { requestClose } from './close';
 import { RenameField } from './RenameField';
+import { Tip } from './Tip';
 
 export function TabBar() {
   const { stores, run, windowId, view } = useApp();
@@ -95,18 +96,19 @@ export function TabBar() {
           style={place}
         />
       ) : null}
-      <button
-        type="button"
-        className="tab-new"
-        aria-label="New tab"
-        title="New tab"
-        disabled={!workspace}
-        onClick={create}
-      >
-        <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true">
-          <path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1.5" fill="none" />
-        </svg>
-      </button>
+      <Tip text="New tab">
+        <button
+          type="button"
+          className="tab-new"
+          aria-label="New tab"
+          disabled={!workspace}
+          onClick={create}
+        >
+          <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true">
+            <path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1.5" fill="none" />
+          </svg>
+        </button>
+      </Tip>
     </div>
   );
 }
@@ -222,19 +224,20 @@ const Tab = memo(function Tab(props: {
       <span className="tab-name">{tab.name}</span>
       {/* A pointer target only: a button in a tab is not allowed, and Delete closes the
           tab from the keyboard. */}
-      <span
-        className="tab-close"
-        aria-hidden="true"
-        title="Close tab"
-        onClick={(event) => {
-          event.stopPropagation();
-          close(tab);
-        }}
-      >
-        <svg viewBox="0 0 16 16" width="12" height="12">
-          <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.5" />
-        </svg>
-      </span>
+      <Tip text="Close tab">
+        <span
+          className="tab-close"
+          aria-hidden="true"
+          onClick={(event) => {
+            event.stopPropagation();
+            close(tab);
+          }}
+        >
+          <svg viewBox="0 0 16 16" width="12" height="12">
+            <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.5" />
+          </svg>
+        </span>
+      </Tip>
     </button>
   );
 });

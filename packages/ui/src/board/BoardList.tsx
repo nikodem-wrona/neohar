@@ -1,58 +1,29 @@
-// The list of every agent, behind the `+N` cell of the board. It is a popover: it lies in
-// the top layer over the panes, so no pane resizes, and Escape or a click outside closes it. Each
-// row is a strip of one line, and a click on it does what a click on a strip does. The page puts
-// the list under the cell, at the place that it measures when the list opens.
+// The list of every agent, behind the `+N` cell of the board. It is the content of a Popover of
+// shadcn/ui: it lies in a layer over the panes, so no pane resizes, and Escape or a click outside
+// closes it. Each row is a strip of one line, and a click on it does what a click on a strip does.
+// The list opens under the cell, with its right edge at the right edge of the cell.
 
 import type { AgentValue } from '@neohar/transport';
-import { useCallback, useEffect, useRef } from 'react';
+import { PopoverContent } from '../components/ui/popover';
 import { Strip } from './Strip';
-
-export const BOARD_LIST = 'board-list';
 
 export function BoardList(props: {
   runs: AgentValue[];
   work: (run: AgentValue) => string;
   tooltip: (run: AgentValue) => string;
   focused: (run: AgentValue) => boolean;
+  /** Shows the pane of a row. The list closes. */
   onShow: (pane: string) => void;
 }) {
-  const list = useRef<HTMLDivElement>(null);
-  const { onShow } = props;
-
-  // The list opens under the `+N` cell, with its right edge at the right edge of the cell.
-  useEffect(() => {
-    const element = list.current;
-    if (!element) return;
-    const place = (event: Event): void => {
-      if ((event as ToggleEvent).newState !== 'open') return;
-      const cell = document.querySelector(`[popovertarget="${BOARD_LIST}"]`);
-      if (!cell) return;
-      const box = cell.getBoundingClientRect();
-      element.style.setProperty('--list-top', `${box.bottom + 1}px`);
-      element.style.setProperty('--list-right', `${Math.max(0, window.innerWidth - box.right)}px`);
-    };
-    element.addEventListener('beforetoggle', place);
-    return () => element.removeEventListener('beforetoggle', place);
-  }, []);
-
-  const showRow = useCallback(
-    (pane: string): void => {
-      list.current?.hidePopover();
-      onShow(pane);
-    },
-    [onShow],
-  );
-
   return (
-    <div
-      id={BOARD_LIST}
-      className="board-list"
-      popover="auto"
-      role="dialog"
+    <PopoverContent
+      align="end"
+      sideOffset={1}
       aria-label="Every agent"
-      ref={list}
+      // `board-list` sizes the strips of its rows (`styles/board.css`).
+      className="board-list max-h-[60vh] w-[44ch] overflow-y-auto rounded-(--r-md) p-1"
     >
-      <ul aria-label="Every agent">
+      <ul className="m-0 list-none p-0" aria-label="Every agent">
         {props.runs.map((run) => (
           <li key={run.id}>
             <Strip
@@ -61,11 +32,11 @@ export function BoardList(props: {
               tooltip={props.tooltip(run)}
               focused={props.focused(run)}
               form="one"
-              onShow={showRow}
+              onShow={props.onShow}
             />
           </li>
         ))}
       </ul>
-    </div>
+    </PopoverContent>
   );
 }

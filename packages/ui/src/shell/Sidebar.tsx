@@ -11,6 +11,7 @@ import { useRows, useSelect, useValue } from '../lib/hooks';
 import { cn } from '../lib/utils';
 import { requestClose, type CloseTarget } from './close';
 import { Icon } from './icons';
+import { Tip } from './Tip';
 import { onLongPress } from '../app/press';
 import { RenameField } from './RenameField';
 import { sameTarget, type RenameTarget } from './rename';
@@ -51,17 +52,18 @@ export function Sidebar(props: { extra?: () => ReactNode } = {}) {
       <div className="band">
         <span className="band-title">Workspaces</span>
         <span className="band-count">{workspaces.length}</span>
-        <button
-          type="button"
-          className="column-fold"
-          aria-label="Fold the left column"
-          title="Fold the workspaces to a rail"
-          onClick={() => view.leftOpen.set(false)}
-        >
-          <svg viewBox="0 0 16 16" width="10" height="10" aria-hidden="true">
-            <path d="M10 3l-5 5 5 5" fill="none" stroke="currentColor" strokeWidth="1.5" />
-          </svg>
-        </button>
+        <Tip text="Fold the workspaces to a rail">
+          <button
+            type="button"
+            className="column-fold"
+            aria-label="Fold the left column"
+            onClick={() => view.leftOpen.set(false)}
+          >
+            <svg viewBox="0 0 16 16" width="10" height="10" aria-hidden="true">
+              <path d="M10 3l-5 5 5 5" fill="none" stroke="currentColor" strokeWidth="1.5" />
+            </svg>
+          </button>
+        </Tip>
       </div>
       <ul className="workspaces">
         {workspaces.map((workspace) => {
@@ -107,18 +109,19 @@ export function Sidebar(props: { extra?: () => ReactNode } = {}) {
                     {workspace.name}
                   </span>
                 )}
-                <button
-                  type="button"
-                  className="row-close"
-                  data-action="workspace-close"
-                  aria-label={`Close workspace ${workspace.name}`}
-                  title="Close workspace"
-                  onClick={() =>
-                    close({ kind: 'workspace', id: workspace.id, name: workspace.name })
-                  }
-                >
-                  <CloseIcon />
-                </button>
+                <Tip text="Close workspace">
+                  <button
+                    type="button"
+                    className="row-close"
+                    data-action="workspace-close"
+                    aria-label={`Close workspace ${workspace.name}`}
+                    onClick={() =>
+                      close({ kind: 'workspace', id: workspace.id, name: workspace.name })
+                    }
+                  >
+                    <CloseIcon />
+                  </button>
+                </Tip>
               </div>
               <ul className="workspace-tabs">
                 {workspace.tabs.map((tab) => {
@@ -180,16 +183,17 @@ export function Sidebar(props: { extra?: () => ReactNode } = {}) {
                           {tab.name}
                         </button>
                       )}
-                      <button
-                        type="button"
-                        className="row-close"
-                        data-action="tab-close"
-                        aria-label={`Close tab ${tab.name}`}
-                        title="Close tab"
-                        onClick={() => close({ kind: 'tab', id: tab.id, name: tab.name })}
-                      >
-                        <CloseIcon />
-                      </button>
+                      <Tip text="Close tab">
+                        <button
+                          type="button"
+                          className="row-close"
+                          data-action="tab-close"
+                          aria-label={`Close tab ${tab.name}`}
+                          onClick={() => close({ kind: 'tab', id: tab.id, name: tab.name })}
+                        >
+                          <CloseIcon />
+                        </button>
+                      </Tip>
                     </li>
                   );
                 })}
@@ -211,15 +215,16 @@ export function LeftRail() {
   const { view } = useApp();
   return (
     <nav className="left-rail" aria-label="Folded left column">
-      <button
-        type="button"
-        className="rail-button"
-        aria-label="Show Workspaces"
-        title="Workspaces"
-        onClick={() => view.leftOpen.set(true)}
-      >
-        <Icon name="workspaces" />
-      </button>
+      <Tip text="Workspaces" side="right">
+        <button
+          type="button"
+          className="rail-button"
+          aria-label="Show Workspaces"
+          onClick={() => view.leftOpen.set(true)}
+        >
+          <Icon name="workspaces" />
+        </button>
+      </Tip>
     </nav>
   );
 }

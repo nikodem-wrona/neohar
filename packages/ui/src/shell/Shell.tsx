@@ -15,11 +15,13 @@
 import {
   type CSSProperties,
   type ReactNode,
+  useCallback,
   useEffect,
   useLayoutEffect,
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from 'react';
 import { useApp } from '../app/context';
 import { dragged } from '../app/drag';
@@ -33,6 +35,7 @@ import { revealed } from '../app/reveal';
 import { LayoutView } from '../layout/LayoutView';
 import { Palette } from '../palette/Palette';
 import { Board } from '../board/Board';
+import { TooltipProvider } from '../components/ui/tooltip';
 import { Toasts } from './Toasts';
 import { GitView } from '../git/GitView';
 import { windowFolder } from '../files/folder';
@@ -51,7 +54,7 @@ import { Drawer, DrawerRail } from './Drawer';
 import { Gutter } from './Gutter';
 import { KeyBar } from '../pane/KeyBar';
 import { PhoneBar } from './PhoneBar';
-import { PhoneSheets } from './PhoneSheets';
+import { ColumnSheet, PhoneSheets } from './PhoneSheets';
 import { PressMenu } from './PressMenu';
 import { LeftRail, Sidebar } from './Sidebar';
 import { StatusBar } from './StatusBar';
@@ -63,6 +66,17 @@ const NARROW_DRAWER = '(max-width: 1279px)';
 const NARROW_LEFT = '(max-width: 999px)';
 /** A phone in portrait shows the columns as sheets. */
 const PORTRAIT = '(orientation: portrait)';
+
+/** Follows the orientation of the screen. */
+function followPortrait(listener: () => void): () => void {
+  const query = window.matchMedia(PORTRAIT);
+  query.addEventListener('change', listener);
+  return () => query.removeEventListener('change', listener);
+}
+
+function isPortrait(): boolean {
+  return window.matchMedia(PORTRAIT).matches;
+}
 
 /** A number for each field of a phone, so that a new field is a new key bar. */
 const fieldKeys = new WeakMap<TypingField, number>();
@@ -99,7 +113,16 @@ export function Shell(props: ShellProps = {}) {
     toasts,
   } = useApp();
   const frame = useRef<HTMLDivElement>(null);
+  // The sheets of a phone go into the frame, so they wait for it.
+  const [frameElement, setFrameElement] = useState<HTMLDivElement | null>(null);
+  const attachFrame = useCallback((element: HTMLDivElement | null) => {
+    frame.current = element;
+    setFrameElement(element);
+  }, []);
   const main = useRef<HTMLElement>(null);
+  // On a phone in portrait, the left column and the drawer are sheets.
+  const portrait = useSyncExternalStore(followPortrait, isPortrait);
+  const columnSheets = form === 'phone' && portrait;
   const shown = useSelect(stores.windows, (state) => state.byKey[windowId]);
   const windowsLoading = useSelect(stores.windows, (state) => state.status === 'loading');
   const workspaceId = shown?.workspace;
@@ -334,76 +357,105 @@ export function Shell(props: ShellProps = {}) {
   };
 
   return (
-    <div
-      className={cn('shell', {
-        phone: form === 'phone',
-        'left-closed': !leftOpen,
-        'drawer-closed': !drawerOpen,
-        'sheet-open': sheet !== null,
-        typing: typing !== null,
-        dragging,
-      })}
-      data-window={windowId}
-      style={
-        {
-          '--left-w': `${columns.left}ch`,
-          '--drawer-w': `${columns.drawer}ch`,
-        } as CSSProperties
-      }
-      ref={frame}
-    >
-      <CommandBar actions={actions} keymap={keymap} />
-      <Board />
-      {leftOpen ? (
-        <>
-          <Sidebar {...(props.extraLeft ? { extra: props.extraLeft } : {})} />
-          <Gutter column="left" direction={1} label="Width of the left column" />
-        </>
-      ) : (
-        <LeftRail />
-      )}
-      <main className="main" ref={main}>
-        <HealthBanner />
-        <LinkBanner />
-        <FailureBanner />
-        {/* The Git view and the Workflows view take the place of the tab bar and the panes. The
-            panes keep running. */}
-        {workflowsShown ? (
-          <WorkflowsFrame module={workflowsModule} />
-        ) : gitShown ? (
-          <GitView />
-        ) : (
+    <TooltipProvider delayDuration={400}>
+      <div
+        className={cn('shell', {
+          phone: form === 'phone',
+          'left-closed': !leftOpen,
+          'drawer-closed': !drawerOpen,
+          'sheet-open': sheet !== null,
+          typing: typing !== null,
+          dragging,
+        })}
+        data-window={windowId}
+        style={
+          {
+            '--left-w': `${columns.left}ch`,
+            '--drawer-w': `${columns.drawer}ch`,
+          } as CSSProperties
+        }
+        ref={attachFrame}
+      >
+        <CommandBar actions={actions} keymap={keymap} />
+        <Board />
+        {columnSheets ? (
+          frameElement ? (
+            <ColumnSheet
+              open={leftOpen}
+              onClose={() => view.leftOpen.set(false)}
+              title="Workspaces"
+              className="w-[min(85%,340px)] justify-self-start [grid-column:1] [grid-row:2/4]"
+              container={frameElement}
+            >
+              <Sidebar {...(props.extraLeft ? { extra: props.extraLeft } : {})} />
+            </ColumnSheet>
+          ) : null
+        ) : leftOpen ? (
           <>
-            <TabBar />
-            {body()}
+            <Sidebar {...(props.extraLeft ? { extra: props.extraLeft } : {})} />
+            <Gutter column="left" direction={1} label="Width of the left column" />
           </>
+        ) : (
+          <LeftRail />
         )}
-      </main>
-      {drawerOpen ? (
-        <>
-          <Gutter column="drawer" direction={-1} label="Width of the drawer" />
-          <Drawer />
-        </>
-      ) : (
-        <DrawerRail />
-      )}
-      <Mirror />
-      {paletteOpen ? <Palette /> : null}
-      {closing ? <CloseConfirm closing={closing} /> : null}
-      <StatusBar actions={actions} keymap={keymap} />
-      <Toasts toasts={toasts} />
-      {form === 'phone' ? (
-        <>
-          {typing ? <KeyBar key={fieldKey(typing)} field={typing} /> : <PhoneBar />}
-          <PhoneSheets
-            actions={actions}
-            keymap={keymap}
-            {...(props.extraSettings ? { extraSettings: props.extraSettings } : {})}
-          />
-          <PressMenu />
-        </>
-      ) : null}
-    </div>
+        <main className="main" ref={main}>
+          <HealthBanner />
+          <LinkBanner />
+          <FailureBanner />
+          {/* The Git view and the Workflows view take the place of the tab bar and the panes. The
+            panes keep running. */}
+          {workflowsShown ? (
+            <WorkflowsFrame module={workflowsModule} />
+          ) : gitShown ? (
+            <GitView />
+          ) : (
+            <>
+              <TabBar />
+              {body()}
+            </>
+          )}
+        </main>
+        {columnSheets ? (
+          frameElement ? (
+            <ColumnSheet
+              open={drawerOpen}
+              onClose={() => view.drawerOpen.set(false)}
+              title="Drawer"
+              className="[grid-area:main]"
+              container={frameElement}
+            >
+              <Drawer />
+            </ColumnSheet>
+          ) : null
+        ) : drawerOpen ? (
+          <>
+            <Gutter column="drawer" direction={-1} label="Width of the drawer" />
+            <Drawer />
+          </>
+        ) : (
+          <DrawerRail />
+        )}
+        <Mirror />
+        {paletteOpen ? <Palette /> : null}
+        {closing ? <CloseConfirm closing={closing} /> : null}
+        <StatusBar actions={actions} keymap={keymap} />
+        <Toasts toasts={toasts} />
+        {form === 'phone' ? (
+          <>
+            {typing ? <KeyBar key={fieldKey(typing)} field={typing} /> : <PhoneBar />}
+            {frameElement ? (
+              <PhoneSheets
+                actions={actions}
+                keymap={keymap}
+                container={frameElement}
+                {...(props.extraSettings ? { extraSettings: props.extraSettings } : {})}
+              />
+            ) : null}
+            <PressMenu />
+          </>
+        ) : null}
+      </div>
+    </TooltipProvider>
   );
 }
 

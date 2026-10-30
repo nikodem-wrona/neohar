@@ -7,6 +7,7 @@
 
 import type { GitTrustAsk } from '@neohar/transport';
 import { useApp } from '../app/context';
+import { Button } from '../components/ui/button';
 import { trustPrompt } from './model';
 
 export function TrustPrompt(props: { ask: GitTrustAsk; className?: string }) {
@@ -28,13 +29,13 @@ export function TrustPrompt(props: { ask: GitTrustAsk; className?: string }) {
         </p>
       ))}
       {text.changed ? <p className="trust-changed">{text.changed}</p> : null}
-      <button
-        type="button"
-        className="trust-button"
+      <Button
+        size="sm"
+        className="mt-1 border border-(--accent) bg-(--accent) font-semibold text-on-signal hover:bg-(--accent) hover:brightness-108"
         onClick={() => run('git.trust', { path: props.ask.path })}
       >
         Trust
-      </button>
+      </Button>
     </section>
   );
 }

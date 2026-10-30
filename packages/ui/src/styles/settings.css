@@ -150,12 +150,6 @@
     overflow-wrap: anywhere;
   }
 
-  .phone-dialog {
-    gap: 8px;
-    width: min(48ch, 100%);
-    padding: 0 12px 12px;
-  }
-
   /* The core draws the QR code in black on white, with its quiet zone. */
   .phone-qr {
     align-self: center;

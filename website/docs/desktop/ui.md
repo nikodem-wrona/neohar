@@ -39,7 +39,25 @@ of the core and sends a command for each action of the person
 | Status bar | `shell/StatusBar.tsx` | Function keys (the reserved chords as clickable gray key caps; Answer is amber while an agent waits), harness limits, health warnings, `canvas2d` after a fallback, the machine, and after a rule the switches of the Git view and the Workflows view. The left column and the drawer fold and open from their arrows and rails. The Workflows switch has a dot while an execution is paused or waits for the person |
 | Banners | `shell/HealthBanner.tsx`, `shell/LinkBanner.tsx` | Degraded storage and doctor notes; a link to a remote machine that is down (input is off while it is) |
 | Toasts | `app/toasts.ts`, `shell/Toasts.tsx` | Short messages in the bottom right corner, such as an answer that arrived, in the Toaster of shadcn/ui (Sonner). `app/toasts.ts` keeps the text, the time and the limit of 3. Each one goes after 5 s, but not while the pointer is on the toasts |
-| Dialogs | `palette/`, `shell/CloseConfirm.tsx` | The palette (`⌘K`), the close confirmation |
+| Layers | `palette/`, `shell/CloseConfirm.tsx`, `shell/PressMenu.tsx`, `shell/PhoneSheets.tsx`, `shell/Tip.tsx` | The layers of shadcn/ui on Radix over the window (see below) |
+
+**Layers.** Each layer over the window is a component of shadcn/ui on Radix:
+
+| Component | Where |
+|---|---|
+| Command Dialog | The palette (`⌘K`) |
+| Alert Dialog | The close confirmation (`shell/CloseConfirm.tsx`), the question of the Git view before a switch or a pull (`git/GitConfirm.tsx`) |
+| Dialog | The large view of a file (`files/FileModal.tsx`), the execute dialog and the node details of the Workflows view, the pairing of a phone |
+| Dropdown Menu | The menu of a Files row, the menu of a long press (`shell/PressMenu.tsx`), the `⋯` menu of a pane on a phone |
+| Context Menu | The menu of a board strip (right click) |
+| Popover with Command | The Repository, Worktree and Branch menus of the Git view, the node picker of the Workflows view, the list behind `+N` of the board |
+| Sheet | The sheets of the phone. They are not modal, and they go into `.shell`, not under the body |
+| Tooltip | The name of an icon button (`shell/Tip.tsx`, with one `TooltipProvider` in the shell) |
+
+A Command never filters or sorts (`shouldFilter={false}`): the lists keep the order of the core
+and of the models. A button hides its tooltip while its own layer is open, so that Escape closes
+the layer and not the tooltip. The trust prompt of the Git view is not a layer: it stays in its
+tab.
 
 The widths of the left column and the drawer are in characters; a drag of the rule changes them,
 and the page keeps them in local storage because they are not business state.
@@ -170,7 +188,10 @@ for an unfocused pane is held as a card or notification, and focusing the pane r
 harness's own dialog ([interactions](/docs/agents/interactions)). Looking at a card never focuses
 its pane. While a layer of shadcn/ui (a popover, a menu, a dialog) is open, the pane does not take
 the focus back. Radix closes a layer when the focus leaves it. The layer tells the view
-with `useLayer` (`app/layer.ts`), and `view.layers` counts the open layers.
+with `useLayer` (`app/layer.ts`), and `view.layers` counts the open layers. Escape closes the top
+layer, and the focus goes back to the element that had it, or to the pane. A layer that the page
+opens with no trigger (the close confirmation, the menu of a long press, the sheets of the phone)
+gives the focus back with `useFocusReturn` (`shell/focus.ts`).
 
 ## Theme, fonts and accessibility
 
@@ -185,7 +206,8 @@ with `useLayer` (`app/layer.ts`), and `view.layers` counts the open layers.
   over the rules of the chrome. The phone app adds `phone.css` in the layer `phone`
   (`phone/layer.css`).
 - **Components.** The controls are shadcn/ui components in `packages/ui/src/components/ui/`
-  (button, badge, input, label, radio group, checkbox, popover, sonner). The badge has the tones of
+  (alert dialog, badge, button, checkbox, command, context menu, dialog, dropdown menu, input, kbd,
+  label, popover, radio group, sheet, sonner, tooltip). The badge has the tones of
   neohar as variants: neutral (the default), muted, info, ok, warn and error. `cn()` in
   `lib/utils.ts` joins classes with `clsx` and `tailwind-merge`. `@/` is `packages/ui/src`.
 - **Tailwind CSS 4.** `@tailwindcss/vite` builds it for the desk, the phone and the shell test.

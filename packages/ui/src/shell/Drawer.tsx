@@ -16,6 +16,7 @@ import { useSelect, useValue } from '../lib/hooks';
 import { cn } from '../lib/utils';
 import { TimelinePanel } from '../timeline/TimelinePanel';
 import { Icon } from './icons';
+import { Tip } from './Tip';
 
 /** The tabs of the drawer, in their order. The bottom bar of a phone has them too. */
 export const TABS: readonly { id: DrawerTab; label: string; empty: string }[] = [
@@ -60,17 +61,18 @@ export function Drawer() {
             </button>
           ))}
         </div>
-        <button
-          type="button"
-          className="drawer-fold"
-          aria-label="Fold"
-          title="Fold the drawer to a rail"
-          onClick={() => view.drawerOpen.set(false)}
-        >
-          <svg viewBox="0 0 16 16" width="10" height="10" aria-hidden="true">
-            <path d="M6 3l5 5-5 5" fill="none" stroke="currentColor" strokeWidth="1.5" />
-          </svg>
-        </button>
+        <Tip text="Fold the drawer to a rail">
+          <button
+            type="button"
+            className="drawer-fold"
+            aria-label="Fold"
+            onClick={() => view.drawerOpen.set(false)}
+          >
+            <svg viewBox="0 0 16 16" width="10" height="10" aria-hidden="true">
+              <path d="M6 3l5 5-5 5" fill="none" stroke="currentColor" strokeWidth="1.5" />
+            </svg>
+          </button>
+        </Tip>
       </div>
       <div className={cn('drawer-body', { fill: active === 'files' })} role="tabpanel">
         {active === 'inbox' ? <Inbox /> : null}
@@ -94,21 +96,23 @@ export function DrawerRail() {
   return (
     <nav className="drawer-rail" aria-label="Folded drawer">
       {TABS.map((tab) => (
-        <button
-          key={tab.id}
-          type="button"
-          className={cn('rail-button', { hot: tab.id === 'inbox' && waiting > 0 })}
-          aria-label={
-            tab.id === 'inbox' && waiting > 0
-              ? `Show ${tab.label}, ${waiting} waiting`
-              : `Show ${tab.label}`
-          }
-          title={tab.label}
-          onClick={() => view.showDrawer(tab.id)}
-        >
-          <Icon name={tab.id} />
-          {tab.id === 'inbox' && waiting > 0 ? <span className="rail-count">{waiting}</span> : null}
-        </button>
+        <Tip key={tab.id} text={tab.label} side="left">
+          <button
+            type="button"
+            className={cn('rail-button', { hot: tab.id === 'inbox' && waiting > 0 })}
+            aria-label={
+              tab.id === 'inbox' && waiting > 0
+                ? `Show ${tab.label}, ${waiting} waiting`
+                : `Show ${tab.label}`
+            }
+            onClick={() => view.showDrawer(tab.id)}
+          >
+            <Icon name={tab.id} />
+            {tab.id === 'inbox' && waiting > 0 ? (
+              <span className="rail-count">{waiting}</span>
+            ) : null}
+          </button>
+        </Tip>
       ))}
     </nav>
   );

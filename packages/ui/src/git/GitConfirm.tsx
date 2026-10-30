@@ -1,12 +1,20 @@
 // The question of the core before a write of the Git view: an agent works in the worktree, the
 // worktree has changes to bring or to leave, or another worktree has the branch out. The core
 // writes the text; this dialog gives the answers that its kind has. Cancel, Escape or a click
-// beside the box keeps everything. It is a modal `<dialog>`, as the close confirmation is.
+// beside the box keeps everything. It is the Alert Dialog of shadcn/ui: the rest of the window is
+// inert while it is open, and when it closes the focus goes back to where it was.
 
-import { type MouseEvent, useLayoutEffect, useRef } from 'react';
-import { useLatest } from '../lib/hooks';
+import { useRef } from 'react';
+import { useLayer } from '../app/layer';
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogTitle,
+} from '../components/ui/alert-dialog';
+import { Button } from '../components/ui/button';
 import { cn } from '../lib/utils';
-import { outside } from '../shell/modal';
 import type { GitQuestion } from './model';
 
 export interface GitAnswer {
@@ -33,73 +41,58 @@ export function GitConfirm(props: {
   answers: GitAnswer[];
   onCancel: () => void;
 }) {
-  const dialog = useRef<HTMLDialogElement>(null);
   const first = useRef<HTMLButtonElement>(null);
-  const cancel = useRef<HTMLButtonElement>(null);
-  const kind = useLatest(props.question.kind);
-  // Under a working agent, Enter must not change its files: the focus starts on Cancel.
-  // A layout effect: its cleanup runs before the dialog leaves the page, so `close()` can give
-  // the focus back.
-  useLayoutEffect(() => {
-    const element = dialog.current;
-    element?.showModal();
-    (kind.current === 'agents' ? cancel : first).current?.focus();
-    return () => {
-      if (element?.open) element.close();
-    };
-  }, [kind]);
+  const danger = props.question.kind === 'agents';
+  // The dialog shows while the view has a question.
+  useLayer(true);
   return (
-    <dialog
-      className={cn('confirm git-confirm', {
-        'git-confirm-danger': props.question.kind === 'agents',
-      })}
-      role="alertdialog"
-      aria-labelledby="git-confirm-title"
-      aria-describedby="git-confirm-text"
-      ref={dialog}
-      onCancel={(event) => {
-        event.preventDefault();
-        props.onCancel();
+    <AlertDialog
+      open
+      onOpenChange={(open) => {
+        if (!open) props.onCancel();
       }}
-      onMouseDown={(event: MouseEvent<HTMLDialogElement>) => {
-        if (
-          event.target === event.currentTarget &&
-          outside(event.nativeEvent, event.currentTarget)
-        ) {
-          props.onCancel();
-        }
-      }}
-      onKeyDown={(event) => event.stopPropagation()}
     >
-      <div className="confirm-box">
-        <h2 id="git-confirm-title" className="confirm-title">
+      <AlertDialogContent
+        // A click beside the box is a Cancel, as in the dialog before.
+        onOverlayClick={() => props.onCancel()}
+        className={cn(
+          'top-[18vh] block w-[min(56ch,calc(100vw-32px))] max-w-none translate-y-0 rounded-(--r-lg) p-4 text-foreground data-[size=default]:sm:max-w-none',
+          danger ? 'border-destructive' : 'border-border',
+        )}
+        // Under a working agent, Enter must not change its files: the focus starts on Cancel,
+        // as Radix does. Else it starts on the first answer.
+        onOpenAutoFocus={(event) => {
+          if (danger) return;
+          event.preventDefault();
+          first.current?.focus();
+        }}
+        onKeyDown={(event) => event.stopPropagation()}
+      >
+        <AlertDialogTitle className="mb-2 [font:var(--t-title)] font-semibold [overflow-wrap:anywhere]">
           {titleOf(props.question)}
-        </h2>
-        <p id="git-confirm-text" className="confirm-text">
+        </AlertDialogTitle>
+        <AlertDialogDescription className="mb-3 text-[13px]/[18px] text-muted-foreground">
           {props.question.text}
-        </p>
-        <div className="confirm-buttons">
-          <button
-            type="button"
-            className="confirm-cancel"
-            ref={cancel}
-            onClick={() => props.onCancel()}
-          >
-            Cancel
-          </button>
+        </AlertDialogDescription>
+        <div className="flex justify-end gap-2">
+          <AlertDialogCancel size="sm">Cancel</AlertDialogCancel>
           {props.answers.map((answer, index) => (
-            <button
+            <Button
               key={answer.label}
-              type="button"
-              className={cn({ 'confirm-danger': answer.danger === true }) || undefined}
               ref={index === 0 ? first : undefined}
+              size="sm"
+              variant={answer.danger === true ? 'destructive' : 'outline'}
+              className={cn(
+                answer.danger === true &&
+                  'bg-destructive font-semibold text-on-signal hover:bg-(--danger-hover) dark:bg-destructive',
+              )}
               onClick={() => answer.run()}
             >
               {answer.label}
-            </button>
+            </Button>
           ))}
         </div>
-      </div>
-    </dialog>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }

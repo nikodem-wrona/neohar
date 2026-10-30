@@ -6,6 +6,7 @@
 import type { FsReadResult } from '@neohar/transport';
 import { useState } from 'react';
 import { useApp } from '../app/context';
+import { Tooltip, TooltipContent, TooltipTrigger } from '../components/ui/tooltip';
 import { FileBody } from './FileBody';
 import { FileIcon } from './FileIcon';
 import type { MenuItem } from './model';
@@ -48,17 +49,21 @@ export function FileView(props: {
         </span>
         {props.preview ? <span className="file-info">{props.preview.info}</span> : null}
         <span className="file-spacer" />
-        <button
-          type="button"
-          className="file-close"
-          aria-label="Close the file"
-          title="Close the file"
-          onClick={() => props.onClose()}
-        >
-          <svg viewBox="0 0 16 16" width="10" height="10" aria-hidden="true">
-            <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.5" />
-          </svg>
-        </button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              className="file-close"
+              aria-label="Close the file"
+              onClick={() => props.onClose()}
+            >
+              <svg viewBox="0 0 16 16" width="10" height="10" aria-hidden="true">
+                <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.5" />
+              </svg>
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>Close the file</TooltipContent>
+        </Tooltip>
       </header>
       <div className="file-actions" role="toolbar" aria-label="File actions">
         {actions.map((action) => (

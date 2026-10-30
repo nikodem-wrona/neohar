@@ -34,6 +34,25 @@
   }
 }
 
+/* A layer of shadcn/ui is in a portal under the body, outside the shell: it gets the type that the
+   shell gives each of its areas (`frame.css`), and not the 28 px lines of the root. */
+@layer base {
+  :where(
+    [data-slot='popover-content'],
+    [data-slot='dialog-content'],
+    [data-slot='alert-dialog-content'],
+    [data-slot='dropdown-menu-content'],
+    [data-slot='dropdown-menu-sub-content'],
+    [data-slot='context-menu-content'],
+    [data-slot='context-menu-sub-content'],
+    [data-slot='sheet-content'],
+    [data-slot='tooltip-content'],
+    [data-slot='command']
+  ) {
+    font: var(--t-body);
+  }
+}
+
 /* The classes come from the sources of the UI package only. */
 @source '../';
 

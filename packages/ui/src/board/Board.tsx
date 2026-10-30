@@ -7,12 +7,13 @@
 // `fitStrips`, and the runs that do not fit go behind the `+N` cell, which opens the list of every
 // agent. The cell is amber when a run behind it waits. The attention line of the command line
 // still counts every run that waits. A right click on a strip opens its menu: show the pane, or show
-// the worktree of its folder in the Git view.
+// the worktree of its folder in the Git view, in a Context Menu of shadcn/ui. The list behind the
+// `+N` cell is a Popover.
 
 import type { AgentValue } from '@neohar/transport';
 import {
   type CSSProperties,
-  type KeyboardEvent,
+  type ReactElement,
   useCallback,
   useLayoutEffect,
   useRef,
@@ -21,19 +22,28 @@ import {
 import { badgeOf, workOf } from '../agents/badge';
 import { useApp } from '../app/context';
 import { dragged, dropTarget, pressToDrag, type Dragged } from '../app/drag';
+import { useLayer } from '../app/layer';
 import { showPane } from '../app/show';
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from '../components/ui/context-menu';
+import { Popover, PopoverTrigger } from '../components/ui/popover';
 import { shallowEqual, useRows, useSelect, useValue } from '../lib/hooks';
 import { cn } from '../lib/utils';
 import { hasUsage, usageText } from '../timeline/model';
-import { BOARD_LIST, BoardList } from './BoardList';
+import { BoardList } from './BoardList';
 import { fitStrips, waitsBehind } from './fit';
 import { Strip } from './Strip';
+import { Tip } from '../shell/Tip';
 
 /** The probe that measures one character of the chrome font: 20 zeros. */
 const PROBE = '0'.repeat(20);
 
 export function Board() {
-  const { stores, transport, run, report, windowId, view, form: shellForm } = useApp();
+  const { stores, transport, run, report, windowId, form: shellForm } = useApp();
   const runs = useRows(stores.agents);
   const [width, setWidth] = useState(0);
   const board = useRef<HTMLElement>(null);
@@ -102,48 +112,16 @@ export function Board() {
     [transport, windowId, report],
   );
 
-  // The menu of a strip is a popover in the top layer: a click elsewhere closes it.
-  const [menu, setMenu] = useState<{ pane: string; x: number; y: number } | null>(null);
-  const menuBox = useRef<HTMLDivElement | null>(null);
-  const menuFolder = useSelect(stores.panes, (state) =>
-    menu ? (state.byKey[menu.pane]?.cwd ?? undefined) : undefined,
+  // The list of every agent behind the `+N` cell. A click on a row shows the pane and closes it.
+  const [listOpen, setListOpen] = useState(false);
+  useLayer(listOpen);
+  const showFromList = useCallback(
+    (pane: string): void => {
+      setListOpen(false);
+      show(pane);
+    },
+    [show],
   );
-  const folderOf = (pane: string): string | undefined =>
-    stores.panes.get().byKey[pane]?.cwd ?? undefined;
-  useLayoutEffect(() => {
-    const box = menuBox.current;
-    if (!menu || !box) return;
-    if (!box.matches(':popover-open')) box.showPopover();
-    box.querySelector<HTMLElement>('[role="menuitem"]')?.focus();
-  }, [menu]);
-  const attachMenu = useCallback((element: HTMLDivElement | null) => {
-    menuBox.current = element;
-    if (!element) return;
-    const toggle = (event: Event): void => {
-      if ((event as ToggleEvent).newState === 'closed') setMenu(null);
-    };
-    element.addEventListener('toggle', toggle);
-    return () => {
-      element.removeEventListener('toggle', toggle);
-      menuBox.current = null;
-    };
-  }, []);
-  const closeMenu = (): void => {
-    if (menuBox.current?.matches(':popover-open')) menuBox.current.hidePopover();
-    setMenu(null);
-  };
-  const onMenuKey = (event: KeyboardEvent): void => {
-    const items = [...(menuBox.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? [])];
-    const at = items.indexOf(document.activeElement as HTMLElement);
-    if (event.key === 'Escape' || event.key === 'Tab') {
-      event.preventDefault();
-      closeMenu();
-    } else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-      event.preventDefault();
-      const step = event.key === 'ArrowDown' ? 1 : -1;
-      items[(at + step + items.length) % items.length]?.focus();
-    }
-  };
 
   return (
     <section
@@ -159,113 +137,130 @@ export function Board() {
         <>
           <ul className="strips" aria-label="Agents">
             {shown.map((run, index) => (
-              <li
+              <StripMenu
                 key={run.id}
-                className={
-                  cn({
-                    lifted: lifted(run.id),
-                    'drop-before': over === run.id && from > index,
-                    'drop-after': over === run.id && from >= 0 && from < index,
-                  }) || undefined
-                }
-                ref={(element) => {
-                  if (!element) return;
-                  dropTarget(element, {
-                    accepts: (item) => item.kind === 'agent' && item.id !== run.id,
-                    enter: () => setOver(run.id),
-                    leave: () => setOver((current) => (current === run.id ? null : current)),
-                    drop: (item) => drop(item, index),
-                  });
-                }}
-                onPointerDown={(event) =>
-                  pressToDrag(event.nativeEvent, { kind: 'agent', id: run.id })
-                }
-                onContextMenu={(event) => {
-                  if (shellForm === 'phone' || !run.pane) return;
-                  event.preventDefault();
-                  setMenu({ pane: run.pane, x: event.clientX, y: event.clientY });
-                }}
+                pane={run.pane ?? null}
+                disabled={shellForm === 'phone' || !run.pane}
+                onShow={show}
               >
-                <Strip
-                  run={run}
-                  work={work(run)}
-                  tooltip={tooltip(run)}
-                  focused={focused(run)}
-                  form={form}
-                  onShow={show}
-                />
-              </li>
+                <li
+                  className={
+                    cn({
+                      lifted: lifted(run.id),
+                      'drop-before': over === run.id && from > index,
+                      'drop-after': over === run.id && from >= 0 && from < index,
+                    }) || undefined
+                  }
+                  ref={(element) => {
+                    if (!element) return;
+                    dropTarget(element, {
+                      accepts: (item) => item.kind === 'agent' && item.id !== run.id,
+                      enter: () => setOver(run.id),
+                      leave: () => setOver((current) => (current === run.id ? null : current)),
+                      drop: (item) => drop(item, index),
+                    });
+                  }}
+                  onPointerDown={(event) =>
+                    pressToDrag(event.nativeEvent, { kind: 'agent', id: run.id })
+                  }
+                >
+                  <Strip
+                    run={run}
+                    work={work(run)}
+                    tooltip={tooltip(run)}
+                    focused={focused(run)}
+                    form={form}
+                    onShow={show}
+                  />
+                </li>
+              </StripMenu>
             ))}
           </ul>
           {fit.hidden > 0 ? (
-            <button
-              type="button"
-              className={cn('board-more', { waiting })}
-              popoverTarget={BOARD_LIST}
-              aria-label={`${fit.hidden} more agents${waiting ? ', one waits for you' : ''}`}
-              title="Every agent"
-            >
-              +{fit.hidden}
-            </button>
+            <Popover open={listOpen} onOpenChange={setListOpen}>
+              <Tip text="Every agent" hidden={listOpen}>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className={cn('board-more', { waiting })}
+                    aria-label={`${fit.hidden} more agents${waiting ? ', one waits for you' : ''}`}
+                  >
+                    +{fit.hidden}
+                  </button>
+                </PopoverTrigger>
+              </Tip>
+              <BoardList
+                runs={runs}
+                work={work}
+                tooltip={tooltip}
+                focused={focused}
+                onShow={showFromList}
+              />
+            </Popover>
           ) : null}
         </>
       ) : (
         <p className="board-empty">No agent runs. Start one in a pane.</p>
       )}
-      <BoardList runs={runs} work={work} tooltip={tooltip} focused={focused} onShow={show} />
-      {menu ? (
-        <div
-          className="files-menu"
-          role="menu"
-          popover="auto"
-          aria-label="Actions of the agent"
-          ref={attachMenu}
-          style={{ left: `${menu.x}px`, top: `${menu.y}px` }}
-          onKeyDown={onMenuKey}
-        >
-          <button
-            type="button"
-            role="menuitem"
-            className="files-menu-item"
-            tabIndex={-1}
-            onClick={() => {
-              const pane = menu.pane;
-              closeMenu();
-              show(pane);
-            }}
-          >
-            Show the pane
-          </button>
-          <button
-            type="button"
-            role="menuitem"
-            className="files-menu-item"
-            tabIndex={-1}
-            disabled={!menuFolder}
-            onClick={() => {
-              const folder = folderOf(menu.pane);
-              closeMenu();
-              if (folder) view.openGit(folder);
-            }}
-          >
-            Show in Git view
-          </button>
-          <button
-            type="button"
-            role="menuitem"
-            className="files-menu-item"
-            tabIndex={-1}
-            disabled={!menuFolder}
-            onClick={() => {
-              const folder = folderOf(menu.pane);
-              closeMenu();
-              if (folder) view.openWorkflows(folder);
-            }}
-          >
-            Execute a workflow here
-          </button>
-        </div>
-      ) : null}
     </section>
+  );
+}
+
+/**
+ * The menu of a strip: a right click opens it at the pointer. It shows the pane, or shows the
+ * worktree of its folder in the Git view. A phone has no menu of a strip.
+ */
+function StripMenu(props: {
+  pane: string | null;
+  disabled: boolean;
+  onShow: (pane: string) => void;
+  children: ReactElement;
+}) {
+  const [open, setOpen] = useState(false);
+  useLayer(open);
+  return (
+    <ContextMenu onOpenChange={setOpen}>
+      <ContextMenuTrigger asChild disabled={props.disabled}>
+        {props.children}
+      </ContextMenuTrigger>
+      <ContextMenuContent
+        aria-label="Actions of the agent"
+        className="min-w-[24ch] rounded-(--r-md) p-1"
+      >
+        {props.pane ? <StripMenuItems pane={props.pane} onShow={props.onShow} /> : null}
+      </ContextMenuContent>
+    </ContextMenu>
+  );
+}
+
+/** The items of the menu of a strip. They read the folder of the pane while the menu is open. */
+function StripMenuItems(props: { pane: string; onShow: (pane: string) => void }) {
+  const { stores, view } = useApp();
+  const folder = useSelect(stores.panes, (state) => state.byKey[props.pane]?.cwd ?? undefined);
+  const item = 'px-2 py-1 text-[13px]/[18px]';
+  return (
+    <>
+      <ContextMenuItem className={item} onSelect={() => props.onShow(props.pane)}>
+        Show the pane
+      </ContextMenuItem>
+      <ContextMenuItem
+        className={item}
+        disabled={!folder}
+        onSelect={() => {
+          if (folder) view.openGit(folder);
+        }}
+      >
+        Show in Git view
+      </ContextMenuItem>
+      <ContextMenuItem
+        className={item}
+        disabled={!folder}
+        onSelect={() => {
+          if (folder) view.openWorkflows(folder);
+        }}
+      >
+        Execute a workflow here
+      </ContextMenuItem>
+    </>
   );
 }

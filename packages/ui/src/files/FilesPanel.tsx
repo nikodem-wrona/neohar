@@ -15,15 +15,21 @@ import {
   type KeyboardEvent,
   memo,
   type PointerEvent,
-  useCallback,
   useEffect,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
 } from 'react';
+import { Portal } from 'radix-ui';
 import { useApp } from '../app/context';
+import { useLayer } from '../app/layer';
 import { onLongPress } from '../app/press';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '../components/ui/dropdown-menu';
 import { writeClipboard } from '../input/clipboard';
 import { dragged, pressToDrag } from '../app/drag';
 import { useLatest, useSelect, useValue } from '../lib/hooks';
@@ -106,7 +112,6 @@ export function FilesPanel() {
   })();
 
   const tree = useRef<HTMLDivElement>(null);
-  const menuBox = useRef<HTMLDivElement | null>(null);
   const panel = useRef<HTMLDivElement>(null);
   // An answer that comes after a newer call, or for another root, is dropped.
   const generation = useRef(0);
@@ -249,6 +254,7 @@ export function FilesPanel() {
     const at = root;
     switch (id) {
       case 'open':
+        viewedFrom.current = document.activeElement;
         openFile(path);
         setMessage(null);
         setViewing(true);
@@ -275,19 +281,26 @@ export function FilesPanel() {
     }
   };
 
-  /** Closes the large view. The focus goes back to the row when the element that had it is gone. */
-  const closedView = useRef(false);
+  /** Closes the large view. */
   const closeView = (): void => {
     if (!viewing) return;
-    closedView.current = true;
     setViewing(false);
   };
-  // The large view is out of the page now, and its `close()` gave the focus back if it could.
-  useEffect(() => {
-    if (viewing || !closedView.current) return;
-    closedView.current = false;
-    if (file && document.activeElement === document.body) focusRow(file);
-  });
+  /**
+   * The large view is out of the page. The focus goes back to the element that had it before the
+   * view, also from the pane that took it when the layer closed, or to the row of the file when
+   * that element is gone.
+   */
+  const viewedFrom = useRef<Element | null>(null);
+  const viewClosed = (): void => {
+    const back = viewedFrom.current;
+    viewedFrom.current = null;
+    if (back instanceof HTMLElement && back.isConnected && back !== document.body) {
+      back.focus({ preventScroll: true });
+    } else if (file) {
+      focusRow(file);
+    }
+  };
 
   /** The path that the person drags onto a pane now. */
   const item = useValue(dragged);
@@ -304,14 +317,9 @@ export function FilesPanel() {
   };
 
   const showMenu = (entry: FsEntry, x: number, y: number): void => {
+    focusFirst.current = true;
     setFocusPath(entry.path);
     setMenu({ entry, x, y });
-  };
-
-  const closeMenu = (): void => {
-    const shownMenu = menu;
-    setMenu(null);
-    if (shownMenu) focusRow(shownMenu.entry.path);
   };
 
   // The effects and the rows read the functions of the last render.
@@ -375,50 +383,26 @@ export function FilesPanel() {
     }
   };
 
-  // The menu is a popover in the top layer: a click elsewhere closes it. It stays in the
-  // window and takes the focus.
-  useLayoutEffect(() => {
-    const box = menuBox.current;
-    if (!menu || !box) return;
-    if (!box.matches(':popover-open')) box.showPopover();
-    const rect = box.getBoundingClientRect();
-    if (rect.right > window.innerWidth - 4) {
-      box.style.left = `${Math.max(4, window.innerWidth - rect.width - 4)}px`;
-    }
-    if (rect.bottom > window.innerHeight - 4) {
-      box.style.top = `${Math.max(4, window.innerHeight - rect.height - 4)}px`;
-    }
-    box.querySelector<HTMLElement>('[role="menuitem"]')?.focus();
-  }, [menu]);
-
-  // A click outside the menu closes the popover, and the menu goes with it.
-  const menuRef = useCallback((element: HTMLDivElement | null) => {
-    menuBox.current = element;
-    if (!element) return;
-    const toggled = (event: Event): void => {
-      if ((event as ToggleEvent).newState === 'closed') setMenu(null);
-    };
-    element.addEventListener('toggle', toggled);
-    return () => {
-      element.removeEventListener('toggle', toggled);
-      menuBox.current = null;
-    };
-  }, []);
+  // The menu of a row is the Dropdown Menu of shadcn/ui on an anchor of no size at the point of the
+  // right click or of the long press, or under the row for a key. The Context Menu of Radix opens
+  // only from its own events. The menu does not hold the page: a click elsewhere closes it and
+  // reaches the page too. While it closes, it shows the entry that it had.
+  useLayer(menu !== null);
+  const [lastMenu, setLastMenu] = useState(menu);
+  if (menu && menu !== lastMenu) setLastMenu(menu);
+  const shownMenu = menu ?? lastMenu;
+  // The first item takes the focus when the menu opens, also after a right click: Radix gives it
+  // to the box then.
+  const focusFirst = useRef(false);
 
   const onMenuKey = (event: KeyboardEvent<HTMLDivElement>): void => {
-    const items = [...(menuBox.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? [])];
-    const at = items.indexOf(document.activeElement as HTMLElement);
-    if (event.key === 'Escape' || event.key === 'Tab') {
+    // Escape closes the menu only. Tab closes it too, and the focus goes back to the row.
+    if (event.key === 'Escape') {
+      event.stopPropagation();
+    } else if (event.key === 'Tab') {
       event.preventDefault();
       event.stopPropagation();
-      closeMenu();
-    } else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-      event.preventDefault();
-      const step = event.key === 'ArrowDown' ? 1 : -1;
-      items[(at + step + items.length) % items.length]?.focus();
-    } else if (event.key === 'Home' || event.key === 'End') {
-      event.preventDefault();
-      (event.key === 'Home' ? items[0] : items.at(-1))?.focus();
+      setMenu(null);
     }
   };
 
@@ -556,6 +540,7 @@ export function FilesPanel() {
                   message={message}
                   onAction={act}
                   onClose={closeView}
+                  onClosed={viewClosed}
                 />
               ) : null}
             </>
@@ -564,31 +549,65 @@ export function FilesPanel() {
       ) : (
         <p className="drawer-empty">This tab has no folder.</p>
       )}
-      {menu ? (
-        <div
-          className="files-menu"
-          role="menu"
-          popover="auto"
-          aria-label={`Actions of ${menu.entry.name}`}
-          ref={menuRef}
-          style={{ left: `${menu.x}px`, top: `${menu.y}px` }}
-          onKeyDown={onMenuKey}
-        >
-          {menuItems(menu.entry.kind, form !== 'phone').map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              role="menuitem"
-              className="files-menu-item"
-              data-action={item.id}
-              tabIndex={-1}
-              onClick={() => act(item.id, menu.entry.path)}
+      <DropdownMenu
+        open={menu !== null}
+        onOpenChange={(open) => {
+          if (!open) setMenu(null);
+        }}
+        modal={false}
+      >
+        {shownMenu ? (
+          <>
+            <Portal.Root>
+              <DropdownMenuTrigger asChild>
+                <span
+                  aria-hidden="true"
+                  className="pointer-events-none fixed size-0"
+                  style={{ left: shownMenu.x, top: shownMenu.y }}
+                />
+              </DropdownMenuTrigger>
+            </Portal.Root>
+            <DropdownMenuContent
+              // Beside the point, as the Context Menu of Radix: the release of a right click
+              // must not fall on an item, which would choose it.
+              side="right"
+              align="start"
+              sideOffset={2}
+              aria-label={`Actions of ${shownMenu.entry.name}`}
+              aria-labelledby={undefined}
+              className="min-w-[22ch]"
+              onKeyDown={onMenuKey}
+              onFocus={(event) => {
+                if (!focusFirst.current) return;
+                focusFirst.current = false;
+                if (event.target !== event.currentTarget) return;
+                event.currentTarget.querySelector<HTMLElement>('[role="menuitem"]')?.focus();
+              }}
+              onCloseAutoFocus={(event) => {
+                event.preventDefault();
+                // The row takes the focus back, also from the pane that took it when the layer
+                // closed. Only the large view keeps it.
+                if (!document.activeElement?.closest('[role="dialog"]')) {
+                  focusRow(shownMenu.entry.path);
+                }
+              }}
             >
-              {item.label}
-            </button>
-          ))}
-        </div>
-      ) : null}
+              {menuItems(shownMenu.entry.kind, form !== 'phone').map((item) => (
+                <DropdownMenuItem
+                  key={item.id}
+                  data-action={item.id}
+                  // A release on an item without a press on it chooses nothing: the release of
+                  // the right click that opened the menu must not choose.
+                  onPointerUp={(event) => event.preventDefault()}
+                  onSelect={() => act(item.id, shownMenu.entry.path)}
+                >
+                  {item.label}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </>
+        ) : null}
+      </DropdownMenu>
     </div>
   );
 }
