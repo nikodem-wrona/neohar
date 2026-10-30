@@ -71,7 +71,7 @@ export function GitConfirm(props: {
         <AlertDialogTitle className="mb-2 [font:var(--t-title)] font-semibold [overflow-wrap:anywhere]">
           {titleOf(props.question)}
         </AlertDialogTitle>
-        <AlertDialogDescription className="mb-3 text-[13px]/[18px] text-muted-foreground">
+        <AlertDialogDescription className="mb-3 text-sm text-muted-foreground">
           {props.question.text}
         </AlertDialogDescription>
         <div className="flex justify-end gap-2">

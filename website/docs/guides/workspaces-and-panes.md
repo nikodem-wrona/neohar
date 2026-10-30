@@ -36,13 +36,14 @@ strip of each pane, turn on **Show handles** in the settings (`⌘,`, section Ui
 |---|---|---|
 | New workspace | **New workspace**, or the palette | `nh workspace create app --root ~/code/app` |
 | New tab | The plus button after the tabs | `nh tab create w3` |
-| Rename | Double-click the name, or `F2` on a tab | `nh workspace rename w3 api`, `nh tab rename w3:t2 build` |
+| Rename | Double-click the name, `F2` on a tab, or right-click a tab and click **Rename** | `nh workspace rename w3 api`, `nh tab rename w3:t2 build` |
 | Split a pane | `⌘D` (right), `⌘⇧D` (down) | `nh pane split w3:p5 right` |
 | Focus a pane | Click it, or `⌘⌥` and an arrow | — |
 | Resize | Drag a divider; double-click it to make the panes equal | `nh layout set-ratios`, `nh layout equalize` |
 | Zoom or float a pane | The buttons in the strip of the pane | `nh layout zoom w3:t2 --pane w3:p5`, `nh pane float w3:p5` |
+| Move a tab | Drag it onto another tab, or right-click it and click **Move left** or **Move right** | `nh tab move w3:t2 --index 0` |
 | Move a pane | Drag its strip onto a tab | `nh pane move w3:p5 w3:t1` |
-| Close | The cross of the pane, tab or workspace | `nh pane close w3:p5 --force` |
+| Close | The cross of the pane, tab or workspace, or **Close** in the menu of a tab | `nh pane close w3:p5 --force` |
 
 A workspace with a root starts its panes in that folder. When a program runs in a pane that you
 close, a dialog asks first, and the close stops every process that the pane started. When the program of a pane ends, the pane shows the exit code and a

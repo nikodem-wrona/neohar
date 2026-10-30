@@ -12,6 +12,7 @@ import { useApp } from '../app/context';
 import { phoneKeys } from '../app/preferences';
 import { Button } from '../components/ui/button';
 import { Textarea } from '../components/ui/textarea';
+import { Toggle } from '../components/ui/toggle';
 import type { TypingField } from '../app/view';
 import { readClipboard } from '../input/clipboard';
 import { replyState } from '../drawer/group';
@@ -20,6 +21,14 @@ import { useSelect, useValue } from '../lib/hooks';
 
 /** A press on a button of the bar must not take the focus from the field. */
 const keepFocus = (event: PointerEvent): void => event.preventDefault();
+
+/**
+ * A key of the bar: the Button or the Toggle of shadcn/ui, as high and as wide as a finger. A
+ * pressed toggle is in reverse at once, with no transition, and a locked one has a line of the
+ * accent at its foot.
+ */
+const KEY =
+  'h-auto min-h-(--control) min-w-(--control) flex-none rounded-(--r-sm) bg-secondary px-(--s2) py-0 font-mono text-[15px] leading-none font-medium text-foreground transition-none hover:bg-secondary hover:text-foreground data-[state=on]:bg-foreground data-[state=on]:text-background data-[state=on]:hover:bg-foreground data-[state=on]:hover:text-background data-[locked=true]:shadow-[inset_0_-3px_0_var(--accent)]';
 
 export function KeyBar(props: { field: TypingField }) {
   const { stores, transport, input, view, report } = useApp();
@@ -72,16 +81,16 @@ export function KeyBar(props: { field: TypingField }) {
 
   // The keys of the bar are a fixed list, so their place is their key.
   const barKey = (item: (typeof BAR_KEYS)[number], at: number) => (
-    <button
+    <Button
       key={at}
-      type="button"
-      className="key"
+      variant="secondary"
+      className={KEY}
       aria-label={item.name}
       onPointerDown={keepFocus}
       onClick={() => send(withMods(item.event, mods))}
     >
       {item.label}
-    </button>
+    </Button>
   );
 
   return (
@@ -98,7 +107,7 @@ export function KeyBar(props: { field: TypingField }) {
           }}
         >
           <Textarea
-            className="min-h-[88px] resize-none rounded-(--r-sm) border-muted-foreground bg-background px-2.5 py-2 font-(family-name:--font-data) text-[16px]/[1.4] field-sizing-fixed md:text-[16px]/[1.4]"
+            className="min-h-22 resize-none rounded-(--r-sm) border-muted-foreground bg-background px-2.5 py-2 font-(family-name:--font-data) text-base/[1.4] field-sizing-fixed md:text-base/[1.4]"
             aria-label="Text for the pane"
             rows={3}
             value={draft}
@@ -130,43 +139,42 @@ export function KeyBar(props: { field: TypingField }) {
       ) : null}
       <div className="key-row">
         {BAR_KEYS.slice(0, 3).map(barKey)}
-        <button
-          type="button"
-          className="key"
-          aria-pressed={barCtrl !== 'off'}
+        {/* Ctrl and Alt are for the next key, and a second tap locks them. */}
+        <Toggle
+          className={KEY}
+          pressed={barCtrl !== 'off'}
           data-locked={barCtrl === 'locked'}
           onPointerDown={keepFocus}
-          onClick={() => view.barCtrl.set(nextSticky(view.barCtrl.get()))}
+          onPressedChange={() => view.barCtrl.set(nextSticky(view.barCtrl.get()))}
         >
           Ctrl
-        </button>
-        <button
-          type="button"
-          className="key"
-          aria-pressed={barAlt !== 'off'}
+        </Toggle>
+        <Toggle
+          className={KEY}
+          pressed={barAlt !== 'off'}
           data-locked={barAlt === 'locked'}
           onPointerDown={keepFocus}
-          onClick={() => view.barAlt.set(nextSticky(view.barAlt.get()))}
+          onPressedChange={() => view.barAlt.set(nextSticky(view.barAlt.get()))}
         >
           Alt
-        </button>
+        </Toggle>
         {BAR_KEYS.slice(3).map((item, at) => barKey(item, at + 3))}
         {extra.map((character, at) => (
-          <button
+          <Button
             key={at}
-            type="button"
-            className="key"
+            variant="secondary"
+            className={KEY}
             onPointerDown={keepFocus}
             onClick={() =>
               send(mods.length > 0 ? chordOf(character, mods) : { type: 'text', text: character })
             }
           >
             {character}
-          </button>
+          </Button>
         ))}
-        <button
-          type="button"
-          className="key"
+        <Button
+          variant="secondary"
+          className={KEY}
           onPointerDown={keepFocus}
           onClick={() => {
             readClipboard().then((text) => {
@@ -176,26 +184,25 @@ export function KeyBar(props: { field: TypingField }) {
           }}
         >
           Paste
-        </button>
-        <button
-          type="button"
-          className="key"
+        </Button>
+        <Toggle
+          className={KEY}
           aria-label="Compose"
-          aria-pressed={composing}
+          pressed={composing}
           onPointerDown={keepFocus}
-          onClick={() => (composing ? close() : setComposing(true))}
+          onPressedChange={() => (composing ? close() : setComposing(true))}
         >
           ✎
-        </button>
-        <button
-          type="button"
-          className="key"
+        </Toggle>
+        <Button
+          variant="secondary"
+          className={KEY}
           aria-label="Hide the keyboard"
           onPointerDown={keepFocus}
           onClick={() => props.field.hide()}
         >
           Hide
-        </button>
+        </Button>
       </div>
     </div>
   );

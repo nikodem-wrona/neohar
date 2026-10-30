@@ -73,12 +73,12 @@ function ValueSelect(props: {
         props.onChange(value);
       }}
     >
-      <SelectTrigger id={props.id} size="sm" className="w-full text-[13px]">
+      <SelectTrigger id={props.id} size="sm" className="w-full">
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
         {props.options.map((option) => (
-          <SelectItem key={option.value} value={option.value || NONE} className="text-[13px]">
+          <SelectItem key={option.value} value={option.value || NONE}>
             {option.label}
           </SelectItem>
         ))}
@@ -129,7 +129,7 @@ function ValueField({
     element.addEventListener('change', change);
     return () => element.removeEventListener('change', change);
   }, [commit]);
-  return <Input {...rest} className={cn('h-8 md:text-[13px]', className)} ref={field} />;
+  return <Input {...rest} className={cn('h-8', className)} ref={field} />;
 }
 
 export interface NodeDetailsProps {
@@ -250,7 +250,7 @@ export function NodeDetails(props: NodeDetailsProps) {
         onKeyDown={(event) => event.stopPropagation()}
       >
         <header className="wf-details-head">
-          <DialogTitle className="dialog-title text-[length:inherit] leading-[inherit]">
+          <DialogTitle className="dialog-title text-sm">
             {kindName(props.node.kind)} · {nodeTitle(props.node)}
           </DialogTitle>
           <span className="wf-details-id">{props.node.id}</span>
@@ -313,7 +313,7 @@ export function NodeDetails(props: NodeDetailsProps) {
               </FieldLabel>
               <Input
                 id={`${id}-title`}
-                className="h-8 md:text-[13px]"
+                className="h-8"
                 type="text"
                 autoComplete="off"
                 spellCheck={false}
@@ -394,7 +394,7 @@ export function NodeDetails(props: NodeDetailsProps) {
                       checked={props.node.can_edit === true}
                       onChange={(checked) => props.onChange({ can_edit: checked })}
                     />
-                    <FieldLabel htmlFor={`${id}-edit`} className="text-[13px] font-normal">
+                    <FieldLabel htmlFor={`${id}-edit`} className="font-normal">
                       Can edit files
                     </FieldLabel>
                   </Field>

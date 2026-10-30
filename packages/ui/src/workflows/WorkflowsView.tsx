@@ -25,6 +25,7 @@ import { useApp } from '../app/context';
 import { useLayer } from '../app/layer';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
+import { ScrollArea } from '../components/ui/scroll-area';
 import {
   Select,
   SelectContent,
@@ -387,7 +388,7 @@ export function WorkflowsView() {
         {shown ? (
           renaming ? (
             <Input
-              className="h-7 w-[28ch] px-2 py-0 md:text-[13px]"
+              className="h-7 w-[28ch] px-2 py-0"
               aria-label="The name of the workflow"
               type="text"
               autoComplete="off"
@@ -413,45 +414,55 @@ export function WorkflowsView() {
               }}
             />
           ) : (
-            <button
-              type="button"
-              className="wf-name"
+            <Button
+              variant="ghost"
+              size="xs"
+              className="max-w-[32ch] font-semibold"
               title="Rename the workflow"
               onClick={() => setRenaming(true)}
             >
-              {shown.graph.name}
-            </button>
+              <span className="truncate">{shown.graph.name}</span>
+            </Button>
           )
         ) : null}
         <span className="wf-spacer" />
         {shown && !execution ? (
           <>
-            <button
-              type="button"
+            <Button
+              variant="ghost"
+              size="xs"
+              className="text-muted-foreground"
               title="Undo (⌘Z)"
               disabled={!shown.can_undo}
               onClick={() => step('workflow.undo')}
             >
               Undo
-            </button>
-            <button
-              type="button"
+            </Button>
+            <Button
+              variant="ghost"
+              size="xs"
+              className="text-muted-foreground"
               title="Redo (⌘⇧Z)"
               disabled={!shown.can_redo}
               onClick={() => step('workflow.redo')}
             >
               Redo
-            </button>
+            </Button>
           </>
         ) : null}
         {execution ? (
-          <button type="button" onClick={() => live.execution.set(null)}>
+          <Button
+            variant="ghost"
+            size="xs"
+            className="text-muted-foreground"
+            onClick={() => live.execution.set(null)}
+          >
             Back to the workflow
-          </button>
+          </Button>
         ) : null}
-        <button
-          type="button"
-          className="wf-execute-button"
+        <Button
+          size="xs"
+          className="font-semibold"
           disabled={!canExecute}
           title={
             problems.length > 0
@@ -463,191 +474,201 @@ export function WorkflowsView() {
           onClick={() => setExecuting(true)}
         >
           ▶ Execute workflow
-        </button>
-        <button
-          type="button"
-          className="git-close"
+        </Button>
+        <Button
+          variant="ghost"
+          size="xs"
+          className="text-muted-foreground"
           title="Close the Workflows view (Esc)"
           onClick={() => view.closeWorkflows()}
         >
           Close
-        </button>
+        </Button>
       </header>
       <div className={cn('wf-body', { 'with-panel': !!current })}>
         <nav className="wf-side" aria-label="Workflows and executions">
-          <h3 className="wf-side-title">Workflows</h3>
-          <ul className="wf-list">
-            {workflowRows.map((row) => (
-              <li key={row.workflow}>
-                <button
-                  type="button"
-                  className={cn('wf-list-item', {
-                    selected: row.workflow === selected && !execution,
-                  })}
-                  onClick={() => pick(row.workflow)}
+          <ScrollArea className="min-h-0 flex-1">
+            <div className="py-(--s2)">
+              <h3 className="wf-side-title">Workflows</h3>
+              <ul className="wf-list">
+                {workflowRows.map((row) => (
+                  <li key={row.workflow}>
+                    <button
+                      type="button"
+                      className={cn('wf-list-item', {
+                        selected: row.workflow === selected && !execution,
+                      })}
+                      onClick={() => pick(row.workflow)}
+                    >
+                      <span className="wf-list-name">{row.name}</span>
+                      {row.problems > 0 ? (
+                        <span className="wf-badge danger" title="The workflow has errors">
+                          {row.problems}
+                        </span>
+                      ) : null}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+              {creating ? (
+                <form
+                  className="wf-new"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    const form = event.currentTarget;
+                    const name = (form.elements.namedItem('name') as HTMLInputElement).value.trim();
+                    const preset = newPreset;
+                    setCreating(false);
+                    if (!name) return;
+                    transport
+                      .call('workflow.create', { name, ...(preset ? { preset } : {}) })
+                      .then((made) => pick(made.workflow))
+                      .catch(report);
+                  }}
                 >
-                  <span className="wf-list-name">{row.name}</span>
-                  {row.problems > 0 ? (
-                    <span className="wf-badge danger" title="The workflow has errors">
-                      {row.problems}
-                    </span>
-                  ) : null}
-                </button>
-              </li>
-            ))}
-          </ul>
-          {creating ? (
-            <form
-              className="wf-new"
-              onSubmit={(event) => {
-                event.preventDefault();
-                const form = event.currentTarget;
-                const name = (form.elements.namedItem('name') as HTMLInputElement).value.trim();
-                const preset = newPreset;
-                setCreating(false);
-                if (!name) return;
-                transport
-                  .call('workflow.create', { name, ...(preset ? { preset } : {}) })
-                  .then((made) => pick(made.workflow))
-                  .catch(report);
-              }}
-            >
-              <Input
-                name="name"
-                type="text"
-                placeholder="Name"
-                autoComplete="off"
-                className="h-7 md:text-[13px]"
-                ref={focusWhenShown}
-                onKeyDown={(event) => {
-                  event.stopPropagation();
-                  if (event.key === 'Escape') setCreating(false);
-                }}
-              />
-              <Select
-                open={presetOpen}
-                onOpenChange={setPresetOpen}
-                value={newPreset || NONE}
-                onValueChange={(value) => setNewPreset(value === NONE ? '' : value)}
-              >
-                <SelectTrigger aria-label="Preset" size="sm" className="w-full text-[13px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={NONE} className="text-[13px]">
-                    Only the trigger
-                  </SelectItem>
-                  {(presets?.workflows ?? []).map((preset) => (
-                    <SelectItem key={preset.id} value={preset.id} className="text-[13px]">
-                      {preset.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <div className="wf-new-buttons">
-                <Button variant="ghost" size="xs" onClick={() => setCreating(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit" size="xs" className="ml-auto">
-                  Create
-                </Button>
-              </div>
-            </form>
-          ) : (
-            <div className="wf-side-actions">
-              <button
-                type="button"
-                className="wf-link"
-                onClick={() => {
-                  setNewPreset('');
-                  setCreating(true);
-                }}
-              >
-                + New
-              </button>
-              {shown ? (
-                <>
-                  <button
-                    type="button"
-                    className="wf-link"
-                    onClick={() =>
-                      transport
-                        .call('workflow.duplicate', {
-                          workflow: live.shown.get()?.workflow ?? '',
-                        })
-                        .then((copy) => pick(copy.workflow))
-                        .catch(report)
-                    }
+                  <Input
+                    name="name"
+                    type="text"
+                    placeholder="Name"
+                    autoComplete="off"
+                    className="h-7"
+                    ref={focusWhenShown}
+                    onKeyDown={(event) => {
+                      event.stopPropagation();
+                      if (event.key === 'Escape') setCreating(false);
+                    }}
+                  />
+                  <Select
+                    open={presetOpen}
+                    onOpenChange={setPresetOpen}
+                    value={newPreset || NONE}
+                    onValueChange={(value) => setNewPreset(value === NONE ? '' : value)}
                   >
-                    Duplicate
-                  </button>
-                  {confirmDelete ? (
-                    <button
-                      type="button"
-                      className="wf-link danger"
-                      onClick={() => {
-                        setConfirmDelete(false);
-                        const name = live.shown.get()?.workflow;
-                        if (!name) return;
-                        transport
-                          .call('workflow.delete', { workflow: name })
-                          .then(() => {
-                            live.shown.set(null);
-                            live.selected.set(null);
-                          })
-                          .catch(report);
-                      }}
-                    >
-                      Delete it
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      className="wf-link"
-                      onClick={() => setConfirmDelete(true)}
-                    >
-                      Delete
-                    </button>
-                  )}
-                </>
-              ) : null}
-            </div>
-          )}
-          <h3 className="wf-side-title">
-            Executions
-            <button
-              type="button"
-              className="wf-link wf-side-toggle"
-              aria-pressed={allFolders}
-              onClick={() => setAllFolders((all) => !all)}
-            >
-              {allFolders ? 'All folders' : 'This folder'}
-            </button>
-          </h3>
-          <ul className="wf-list">
-            {rows.map((row) => (
-              <li key={row.id}>
-                <button
-                  type="button"
-                  className={cn('wf-list-item wf-execution', { selected: row.id === execution })}
-                  title={row.folder}
-                  onClick={() => openExecution(row.id)}
+                    <SelectTrigger aria-label="Preset" size="sm" className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={NONE}>Only the trigger</SelectItem>
+                      {(presets?.workflows ?? []).map((preset) => (
+                        <SelectItem key={preset.id} value={preset.id}>
+                          {preset.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <div className="wf-new-buttons">
+                    <Button variant="ghost" size="xs" onClick={() => setCreating(false)}>
+                      Cancel
+                    </Button>
+                    <Button type="submit" size="xs" className="ml-auto">
+                      Create
+                    </Button>
+                  </div>
+                </form>
+              ) : (
+                <div className="wf-side-actions">
+                  <Button
+                    variant="ghost"
+                    size="xs"
+                    className="px-1 text-muted-foreground"
+                    onClick={() => {
+                      setNewPreset('');
+                      setCreating(true);
+                    }}
+                  >
+                    + New
+                  </Button>
+                  {shown ? (
+                    <>
+                      <Button
+                        variant="ghost"
+                        size="xs"
+                        className="px-1 text-muted-foreground"
+                        onClick={() =>
+                          transport
+                            .call('workflow.duplicate', {
+                              workflow: live.shown.get()?.workflow ?? '',
+                            })
+                            .then((copy) => pick(copy.workflow))
+                            .catch(report)
+                        }
+                      >
+                        Duplicate
+                      </Button>
+                      {confirmDelete ? (
+                        <Button
+                          variant="ghost"
+                          size="xs"
+                          className="px-1 text-destructive hover:text-destructive"
+                          onClick={() => {
+                            setConfirmDelete(false);
+                            const name = live.shown.get()?.workflow;
+                            if (!name) return;
+                            transport
+                              .call('workflow.delete', { workflow: name })
+                              .then(() => {
+                                live.shown.set(null);
+                                live.selected.set(null);
+                              })
+                              .catch(report);
+                          }}
+                        >
+                          Delete it
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="ghost"
+                          size="xs"
+                          className="px-1 text-muted-foreground"
+                          onClick={() => setConfirmDelete(true)}
+                        >
+                          Delete
+                        </Button>
+                      )}
+                    </>
+                  ) : null}
+                </div>
+              )}
+              <h3 className="wf-side-title">
+                Executions
+                <Button
+                  variant="ghost"
+                  size="xs"
+                  className="wf-side-toggle h-auto px-1 py-0 text-muted-foreground"
+                  aria-pressed={allFolders}
+                  onClick={() => setAllFolders((all) => !all)}
                 >
-                  <span className={`wf-dot tone-${tone(row.state)}`} aria-hidden="true" />
-                  <span className="wf-list-name">{row.label}</span>
-                  <span className="wf-muted">
-                    {row.state === 'done' ? row.time_text : executionWord(row.state)}
-                  </span>
-                </button>
-              </li>
-            ))}
-            {rows.length === 0 ? (
-              <li className="wf-muted wf-empty">
-                No execution{allFolders ? '' : ' in this folder'}.
-              </li>
-            ) : null}
-          </ul>
-          {paused ? <p className="wf-warn">An execution is paused: a node failed.</p> : null}
+                  {allFolders ? 'All folders' : 'This folder'}
+                </Button>
+              </h3>
+              <ul className="wf-list">
+                {rows.map((row) => (
+                  <li key={row.id}>
+                    <button
+                      type="button"
+                      className={cn('wf-list-item wf-execution', {
+                        selected: row.id === execution,
+                      })}
+                      title={row.folder}
+                      onClick={() => openExecution(row.id)}
+                    >
+                      <span className={`wf-dot tone-${tone(row.state)}`} aria-hidden="true" />
+                      <span className="wf-list-name">{row.label}</span>
+                      <span className="wf-muted">
+                        {row.state === 'done' ? row.time_text : executionWord(row.state)}
+                      </span>
+                    </button>
+                  </li>
+                ))}
+                {rows.length === 0 ? (
+                  <li className="wf-muted wf-empty">
+                    No execution{allFolders ? '' : ' in this folder'}.
+                  </li>
+                ) : null}
+              </ul>
+              {paused ? <p className="wf-warn">An execution is paused: a node failed.</p> : null}
+            </div>
+          </ScrollArea>
         </nav>
         <div className="wf-main">
           {openError ? (

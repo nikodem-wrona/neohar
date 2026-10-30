@@ -151,9 +151,7 @@ function RunState(props: { run: string | null; trouble: Trouble; harness: string
           </CardTitle>
         </CardHeader>
         <CardContent className={cn(PART, 'flex flex-col gap-(--s3)')}>
-          <CardDescription className="text-[length:inherit] [overflow-wrap:anywhere]">
-            {text}
-          </CardDescription>
+          <CardDescription className="[overflow-wrap:anywhere]">{text}</CardDescription>
           {since ? (
             <p className="card-cwd">
               <span className="card-label">Since</span> <time dateTime={since}>{since}</time>

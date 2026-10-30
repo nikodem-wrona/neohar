@@ -68,8 +68,8 @@ export function RenameField(props: {
     <Input
       ref={input}
       className={cn(
-        'rename-field h-[calc(var(--row)-4px)] rounded-(--r-sm) border-foreground bg-background px-(--s1) py-0 caret-foreground shadow-none',
-        form === 'phone' && 'text-[16px] md:text-[16px]',
+        'rename-field h-[calc(var(--row)-4px)] rounded-(--r-sm) border-foreground bg-background px-(--s1) dark:bg-background py-0 caret-foreground shadow-none',
+        form === 'phone' && 'md:text-base',
         props.className,
       )}
       style={props.style}

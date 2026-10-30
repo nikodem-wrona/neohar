@@ -5,10 +5,13 @@
 
 import { RpcError, type SettingEntry, type Transport } from '@neohar/transport';
 import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useAppMaybe } from '../app/context';
 import { Button } from '../components/ui/button';
 import { Field, FieldError, FieldLabel } from '../components/ui/field';
 import { Input } from '../components/ui/input';
+import { ScrollArea } from '../components/ui/scroll-area';
 import { Switch } from '../components/ui/switch';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { useLatest, useValue } from '../lib/hooks';
 import { cn } from '../lib/utils';
 import { useProjectionStore } from '../stores';
@@ -95,7 +98,7 @@ function Row(props: {
       className="setting grid gap-x-[1ch] gap-y-1"
       data-setting={props.path}
     >
-      <FieldLabel htmlFor={id} className="w-auto text-[13px] font-normal text-foreground">
+      <FieldLabel htmlFor={id} className="w-auto font-normal text-foreground">
         {label}
       </FieldLabel>
       {kind === 'boolean' ? (
@@ -123,9 +126,7 @@ function Row(props: {
           Reset
         </Button>
       ) : null}
-      {props.error ? (
-        <FieldError className="col-span-full text-[13px]">{props.error}</FieldError>
-      ) : null}
+      {props.error ? <FieldError className="col-span-full">{props.error}</FieldError> : null}
     </Field>
   );
 }
@@ -191,26 +192,15 @@ export function SettingsView(props: SettingsViewProps) {
       );
   };
 
-  return (
-    <div className="settings">
-      <nav className="settings-nav" aria-label="Sections">
-        {state.order.map((name) => (
-          <button
-            key={name}
-            type="button"
-            className={cn('settings-section-button', { selected: name === active })}
-            aria-current={name === active ? 'page' : undefined}
-            data-section={name}
-            onClick={() => setChosen(name)}
-          >
-            {humanize(name)}
-          </button>
-        ))}
-      </nav>
-      <main className="settings-main">
-        {state.status === 'loading' ? <p className="settings-note">Waiting for the core.</p> : null}
-        {active ? (
-          <section key={active} aria-label={humanize(active)}>
+  // The sections are tabs: a column on the desk, a row that scrolls sideways on a phone. A phone
+  // shows the settings in a sheet that scrolls by itself, so only the desk has a scroll area.
+  const phone = useAppMaybe()?.form === 'phone';
+  const shown = (
+    <>
+      {state.status === 'loading' ? <p className="settings-note">Waiting for the core.</p> : null}
+      {active ? (
+        <TabsContent key={active} value={active}>
+          <section aria-label={humanize(active)}>
             <h1 className="settings-title">{humanize(active)}</h1>
             {props.extra?.(active)}
             {active === 'phone' ? <PhoneSection transport={props.transport} /> : null}
@@ -236,8 +226,42 @@ export function SettingsView(props: SettingsViewProps) {
               );
             })}
           </section>
-        ) : null}
-      </main>
-    </div>
+        </TabsContent>
+      ) : null}
+    </>
+  );
+
+  return (
+    <Tabs
+      className={cn('settings', phone ? 'flex flex-col' : 'grid gap-(--gutter)')}
+      orientation={phone ? 'horizontal' : 'vertical'}
+      value={active ?? ''}
+      onValueChange={setChosen}
+    >
+      <TabsList
+        aria-label="Sections"
+        className="settings-nav h-auto w-auto group-data-[orientation=horizontal]/tabs:h-auto items-stretch justify-start gap-0.5 rounded-xl bg-sidebar p-(--s2)"
+      >
+        {state.order.map((name) => (
+          <TabsTrigger
+            key={name}
+            value={name}
+            data-section={name}
+            className="settings-section-button h-auto flex-none justify-start rounded-md px-(--s3) py-0 leading-(--row) font-normal text-muted-foreground hover:bg-accent hover:text-foreground dark:data-[state=active]:border-transparent dark:data-[state=active]:bg-primary dark:data-[state=active]:text-primary-foreground"
+          >
+            {humanize(name)}
+          </TabsTrigger>
+        ))}
+      </TabsList>
+      {phone ? (
+        <main className="settings-main">{shown}</main>
+      ) : (
+        <main className="settings-main min-h-0 overflow-hidden p-0">
+          <ScrollArea className="h-full">
+            <div className="px-(--s4) py-(--s3)">{shown}</div>
+          </ScrollArea>
+        </main>
+      )}
+    </Tabs>
   );
 }

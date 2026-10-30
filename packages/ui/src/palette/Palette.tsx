@@ -189,7 +189,7 @@ export function Palette() {
               autoComplete="off"
               autoCapitalize="off"
               spellCheck={false}
-              className="h-full py-0 text-[15px]/5 caret-foreground"
+              className="h-full py-0 text-[15px]/[20px] caret-foreground"
               value={text}
               onValueChange={(next) => {
                 setText(next);
@@ -239,7 +239,7 @@ export function Palette() {
                   // A row: the title, then its keys and what it is, both quiet, at the right. The
                   // kinds are a column, so that they line up whether a row has keys or not. The
                   // row under the keys is a step lighter, and its fill is opaque.
-                  className="grid h-8 cursor-pointer grid-cols-[minmax(0,1fr)_auto_9ch] gap-x-3 py-0 pr-2 pl-3 text-[13px]/[18px] data-[disabled=true]:pointer-events-auto data-[disabled=true]:opacity-45 data-[selected=true]:bg-(--bg-focus)"
+                  className="grid h-8 cursor-pointer grid-cols-[minmax(0,1fr)_auto_9ch] gap-x-3 py-0 pr-2 pl-3 text-sm data-[disabled=true]:pointer-events-auto data-[disabled=true]:opacity-45 data-[selected=true]:bg-(--bg-focus)"
                 >
                   <span className="min-w-0 truncate">
                     {segments(item.command.title, item.ranges).map((part, at) => (

@@ -6,7 +6,7 @@ import { Kbd } from '../components/ui/kbd';
 export function PaletteKeys(props: { action: string }) {
   return (
     <div
-      className="flex flex-none gap-4 border-t border-border px-4 py-2 [font:var(--t-small)] text-muted-foreground"
+      className="flex flex-none gap-4 border-t border-border px-4 py-2 text-xs text-muted-foreground"
       aria-hidden="true"
     >
       <span>

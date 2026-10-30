@@ -8,6 +8,8 @@ import { type KeyboardEvent, useCallback, useEffect, useRef, useState } from 're
 import { useApp } from '../app/context';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
+import { ScrollArea } from '../components/ui/scroll-area';
+import { SCROLL_LIST as LIST } from './scroll';
 import { statusLetter, statusWord } from '../changes/model';
 import { cn } from '../lib/utils';
 import { DiffPane, type Loaded } from './DiffPane';
@@ -131,7 +133,7 @@ export function GitHistory(props: {
           type="text"
           placeholder="Filter"
           aria-label="Filter the commits"
-          className="h-auto flex-none rounded-sm px-2 py-0.5 text-[13px]/5 shadow-none md:text-[13px]/5"
+          className="h-auto flex-none rounded-sm px-2 py-0.5 text-sm/5 shadow-none md:text-sm/5"
           value={filter}
           onChange={(event) => setFilter(event.currentTarget.value)}
         />
@@ -141,7 +143,7 @@ export function GitHistory(props: {
           </p>
         ) : null}
         {visible.length > 0 ? (
-          <>
+          <ScrollArea className={LIST}>
             <ul className="git-list" aria-label="Commits" ref={list} onKeyDown={onListKey}>
               {visible.map((commit) => (
                 <li key={commit.hash}>
@@ -184,14 +186,14 @@ export function GitHistory(props: {
               <Button
                 variant="ghost"
                 size="xs"
-                className="self-start text-[13px] font-normal text-muted-foreground"
+                className="self-start text-sm font-normal text-muted-foreground"
                 disabled={loading}
                 onClick={() => page(commits.length)}
               >
                 {loading ? 'Loading…' : 'Show more commits'}
               </Button>
             ) : null}
-          </>
+          </ScrollArea>
         ) : (
           <p className="git-empty">
             {loading ? 'Loading…' : filter ? 'No commit matches.' : 'No commit yet.'}
@@ -211,42 +213,46 @@ export function GitHistory(props: {
                 </p>
                 {detail.body ? <pre className="git-commit-body">{detail.body}</pre> : null}
               </header>
-              <ul className="git-list git-commit-files" aria-label="Files of the commit">
-                {detail.files.map((row) => (
-                  <li key={row.path}>
-                    <button
-                      type="button"
-                      className={cn('git-file', { picked: loaded?.file === row.path })}
-                      aria-pressed={loaded?.file === row.path}
-                      title={row.old_path ? `${row.old_path} → ${row.path}` : row.path}
-                      onClick={() => pickFile(picked, row.path)}
-                    >
-                      <span
-                        className="changes-status"
-                        data-status={row.status}
-                        title={statusWord(row.status)}
+              <ScrollArea
+                className={cn(LIST, 'flex-none [&>[data-slot=scroll-area-viewport]]:max-h-[25vh]')}
+              >
+                <ul className="git-list" aria-label="Files of the commit">
+                  {detail.files.map((row) => (
+                    <li key={row.path}>
+                      <button
+                        type="button"
+                        className={cn('git-file', { picked: loaded?.file === row.path })}
+                        aria-pressed={loaded?.file === row.path}
+                        title={row.old_path ? `${row.old_path} → ${row.path}` : row.path}
+                        onClick={() => pickFile(picked, row.path)}
                       >
-                        <span aria-hidden="true">{statusLetter(row.status)}</span>
-                        <span className="visually-hidden">{statusWord(row.status)}</span>
-                      </span>
-                      <span className="changes-path">
-                        <span className="changes-dir">{row.dir}</span>
-                        <span className="changes-name">{row.name}</span>
-                      </span>
-                      <span className="git-lines">
-                        {!row.binary ? (
-                          <>
-                            <span className="add">+{row.add}</span>{' '}
-                            <span className="del">−{row.del}</span>
-                          </>
-                        ) : (
-                          <span className="changes-binary">binary</span>
-                        )}
-                      </span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
+                        <span
+                          className="changes-status"
+                          data-status={row.status}
+                          title={statusWord(row.status)}
+                        >
+                          <span aria-hidden="true">{statusLetter(row.status)}</span>
+                          <span className="visually-hidden">{statusWord(row.status)}</span>
+                        </span>
+                        <span className="changes-path">
+                          <span className="changes-dir">{row.dir}</span>
+                          <span className="changes-name">{row.name}</span>
+                        </span>
+                        <span className="git-lines">
+                          {!row.binary ? (
+                            <>
+                              <span className="add">+{row.add}</span>{' '}
+                              <span className="del">−{row.del}</span>
+                            </>
+                          ) : (
+                            <span className="changes-binary">binary</span>
+                          )}
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </ScrollArea>
               {detail.truncated ? (
                 <p className="git-note">The list shows the first 1,000 files.</p>
               ) : null}

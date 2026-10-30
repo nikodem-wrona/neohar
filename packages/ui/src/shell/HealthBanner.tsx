@@ -3,7 +3,10 @@
 // follow, each with the hint that the core gives.
 
 import { useApp } from '../app/context';
+import { Alert } from '../components/ui/alert';
 import { useSelect } from '../lib/hooks';
+import { cn } from '../lib/utils';
+import { BANNER, BANNER_HINT, BANNER_WARNING } from './banner';
 
 export function HealthBanner() {
   const { stores } = useApp();
@@ -13,20 +16,23 @@ export function HealthBanner() {
   return (
     <>
       {degraded ? (
-        <div className="banner banner-storage" role="alert">
+        <Alert
+          className={cn('banner-storage', BANNER, 'bg-destructive font-semibold text-on-signal')}
+          role="alert"
+        >
           Storage is degraded: {degraded.reason}. Changes are not saved.
-        </div>
+        </Alert>
       ) : null}
       {(health?.warnings ?? []).map((warning) => (
-        <div
+        <Alert
           key={warning.id}
-          className="banner banner-warning"
+          className={cn('banner-warning', BANNER, BANNER_WARNING)}
           role="status"
           data-warning={warning.id}
         >
           <span>{warning.text}</span>
-          {warning.hint ? <span className="banner-hint">{warning.hint}</span> : null}
-        </div>
+          {warning.hint ? <span className={BANNER_HINT}>{warning.hint}</span> : null}
+        </Alert>
       ))}
     </>
   );

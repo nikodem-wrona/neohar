@@ -6,6 +6,8 @@ import { type ChangeRow, RpcError } from '@neohar/transport';
 import { type KeyboardEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { useApp } from '../app/context';
 import { Input } from '../components/ui/input';
+import { ScrollArea } from '../components/ui/scroll-area';
+import { SCROLL_LIST as LIST } from './scroll';
 import { statusLetter, statusWord } from '../changes/model';
 import { useLatest } from '../lib/hooks';
 import { cn } from '../lib/utils';
@@ -93,50 +95,52 @@ export function GitChanges(props: {
           type="text"
           placeholder="Filter"
           aria-label="Filter the changed files"
-          className="h-auto flex-none rounded-sm px-2 py-0.5 text-[13px]/5 shadow-none md:text-[13px]/5"
+          className="h-auto flex-none rounded-sm px-2 py-0.5 text-sm/5 shadow-none md:text-sm/5"
           value={filter}
           onChange={(event) => setFilter(event.currentTarget.value)}
         />
         {props.truncated ? <p className="git-note">The list shows the first 1,000 files.</p> : null}
         {shown.length > 0 ? (
-          <ul className="git-list" aria-label="Changed files" ref={list} onKeyDown={onListKey}>
-            {shown.map((row) => (
-              <li key={row.path}>
-                <button
-                  type="button"
-                  className={cn('git-file', { picked: picked === row.path })}
-                  data-path={row.path}
-                  aria-pressed={picked === row.path}
-                  tabIndex={picked === row.path || (picked === null && row === shown[0]) ? 0 : -1}
-                  title={row.old_path ? `${row.old_path} → ${row.path}` : row.path}
-                  onClick={() => setPicked(row.path)}
-                >
-                  <span
-                    className="changes-status"
-                    data-status={row.status}
-                    title={statusWord(row.status)}
+          <ScrollArea className={LIST}>
+            <ul className="git-list" aria-label="Changed files" ref={list} onKeyDown={onListKey}>
+              {shown.map((row) => (
+                <li key={row.path}>
+                  <button
+                    type="button"
+                    className={cn('git-file', { picked: picked === row.path })}
+                    data-path={row.path}
+                    aria-pressed={picked === row.path}
+                    tabIndex={picked === row.path || (picked === null && row === shown[0]) ? 0 : -1}
+                    title={row.old_path ? `${row.old_path} → ${row.path}` : row.path}
+                    onClick={() => setPicked(row.path)}
                   >
-                    <span aria-hidden="true">{statusLetter(row.status)}</span>
-                    <span className="visually-hidden">{statusWord(row.status)}</span>
-                  </span>
-                  <span className="changes-path">
-                    <span className="changes-dir">{row.dir}</span>
-                    <span className="changes-name">{row.name}</span>
-                  </span>
-                  <span className="git-lines">
-                    {!row.binary ? (
-                      <>
-                        <span className="add">+{row.add}</span>{' '}
-                        <span className="del">−{row.del}</span>
-                      </>
-                    ) : (
-                      <span className="changes-binary">binary</span>
-                    )}
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
+                    <span
+                      className="changes-status"
+                      data-status={row.status}
+                      title={statusWord(row.status)}
+                    >
+                      <span aria-hidden="true">{statusLetter(row.status)}</span>
+                      <span className="visually-hidden">{statusWord(row.status)}</span>
+                    </span>
+                    <span className="changes-path">
+                      <span className="changes-dir">{row.dir}</span>
+                      <span className="changes-name">{row.name}</span>
+                    </span>
+                    <span className="git-lines">
+                      {!row.binary ? (
+                        <>
+                          <span className="add">+{row.add}</span>{' '}
+                          <span className="del">−{row.del}</span>
+                        </>
+                      ) : (
+                        <span className="changes-binary">binary</span>
+                      )}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </ScrollArea>
         ) : (
           <p className="git-empty">
             {props.counted ? (filter ? 'No file matches.' : 'No changes.') : 'Counting…'}

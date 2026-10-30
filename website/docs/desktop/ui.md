@@ -29,15 +29,15 @@ of the core and sends a command for each action of the person
 
 | Part | Code | What it shows |
 |---|---|---|
-| Command line | `shell/CommandBar.tsx` | On macOS also the title bar: the window buttons lie over its left end, and a press on its empty parts moves the window. A search field in the middle that opens the palette in place, and the attention line: the count of `attention` as an amber pill and the first interaction; a click answers it as `⌘⇧A` does. With no wait the line is empty |
+| Command line | `shell/CommandBar.tsx` | On macOS also the title bar: the window buttons lie over its left end, and a press on its empty parts moves the window. A search field in the middle that opens the palette in place, and the attention line: the count of `attention` as an amber Badge and the first interaction; a click answers it as `⌘⇧A` does. With no wait the line is empty. The field and the attention line are Buttons with key caps |
 | Board | `board/` | A strip for each agent run, in the order of the core: a card with the border and tint of its state, the badge, the state in four letters and the work, then the harness and the cost. A click shows the pane in any tab and workspace, and a right click opens a menu with Show the pane, Show in Git view and Execute a workflow here. A drag of a strip onto another strip puts its run at that place (`agent.move`); the core keeps the order for every window and across a restart, and a new run in a pane takes the place of the run that ended there. When every run fits, the strips share the board up to 48 characters. The runs that do not fit are behind `+N` (`board/fit.ts`), whose popover lists every agent and turns amber when one of them waits. The board is two lines high, or one when it is narrower than 100 characters; a new agent never changes its height |
-| Left column | `shell/Sidebar.tsx` | The workspaces and their tabs. It folds to a rail, as the drawer does, and under 1000 px it starts folded. A rail button is an icon (`shell/icons.tsx`) with its name as the tooltip |
-| Tab bar and layout | `shell/TabBar.tsx`, `layout/` | The tabs of the workspace and the layout tree of the shown tab: splits, floating panes, zoom |
+| Left column | `shell/Sidebar.tsx` | The workspaces and their tabs. It folds to a rail, as the drawer does, and under 1000 px it starts folded. A rail button is an icon (`shell/icons.tsx`) with its name as the tooltip. It is not the Sidebar of shadcn/ui. That Sidebar is fixed to the edge of the window and has widths in rem and its own state. Thus it does not fit the grid of the shell, the width in characters and the rail of 36 px. The controls of the column are Buttons with Tooltips |
+| Tab bar and layout | `shell/TabBar.tsx`, `layout/` | The tabs of the workspace and the layout tree of the shown tab: splits, floating panes, zoom. Each tab is a Button with `role="tab"`, not the Tabs of shadcn/ui. Radix Tabs selects a tab on a press and when an arrow key moves the focus. That breaks the drags and the selection through the core. A right click on a tab opens a Context Menu with Rename, Move left, Move right and Close, the same items as the long press on a phone |
 | Git view | `git/` | It takes the place of the tab bar and the layout (`⌘⇧G`): the Repository, Worktree and Branch menus, the changes or the history, and a diff. Both side columns fold while it shows, and the focus report has `panes_hidden`, so the core sends no frames |
 | Workflows view | `workflows/` | It takes the same place as the Git view (`⌘⇧E`), and the two never show at the same time: the workflows and the executions, the canvas of a workflow, the node details and the panel of an execution. It loads as a lazy chunk when it opens the first time. See [Workflows](/docs/guides/workflows) |
-| Drawer | `shell/Drawer.tsx` | Four tabs (below). Under 1280 px it starts folded to a rail. It never covers a pane |
-| Status bar | `shell/StatusBar.tsx` | Function keys (the reserved chords as clickable gray key caps; Answer is amber while an agent waits), harness limits, health warnings, `canvas2d` after a fallback, the machine, and after a rule the switches of the Git view and the Workflows view. The left column and the drawer fold and open from their arrows and rails. The Workflows switch has a dot while an execution is paused or waits for the person |
-| Banners | `shell/HealthBanner.tsx`, `shell/LinkBanner.tsx` | Degraded storage and doctor notes; a link to a remote machine that is down (input is off while it is) |
+| Drawer | `shell/Drawer.tsx` | Four tabs (below), the Tabs of shadcn/ui that `view.drawerTab` controls. Inbox, Timeline and Changes scroll in a Scroll Area. Under 1280 px it starts folded to a rail. It never covers a pane |
+| Status bar | `shell/StatusBar.tsx` | Function keys (the reserved chords as Buttons with gray key caps, `shell/Cap.tsx` on Kbd; Answer is amber while an agent waits), harness limits, health warnings, `canvas2d` after a fallback, the machine, and after a rule the buttons of the Git view and the Workflows view in the group "Views". The limits, the renderer, "Next key goes to the pane" and the count of red warnings are Badges. The text of the usage and of the warnings is in Tooltips. The Git and Workflows buttons are pressed while their view shows. The left column and the drawer fold and open from their arrows and rails. The Workflows button has a dot while an execution is paused or waits for the person |
+| Banners | `shell/FailureBanner.tsx`, `shell/HealthBanner.tsx`, `shell/LinkBanner.tsx` | Alerts of shadcn/ui: a command of the window that failed; degraded storage and doctor notes; a link to a remote machine that is down (input is off while it is) |
 | Toasts | `app/toasts.ts`, `shell/Toasts.tsx` | Short messages in the bottom right corner, such as an answer that arrived, in the Toaster of shadcn/ui (Sonner). `app/toasts.ts` keeps the text, the time and the limit of 3. Each one goes after 5 s, but not while the pointer is on the toasts |
 | Layers | `palette/`, `shell/CloseConfirm.tsx`, `shell/PressMenu.tsx`, `shell/PhoneSheets.tsx`, `shell/Tip.tsx` | The layers of shadcn/ui on Radix over the window (see below) |
 
@@ -49,7 +49,7 @@ of the core and sends a command for each action of the person
 | Alert Dialog | The close confirmation (`shell/CloseConfirm.tsx`), the question of the Git view before a switch or a pull (`git/GitConfirm.tsx`) |
 | Dialog | The large view of a file (`files/FileModal.tsx`), the execute dialog and the node details of the Workflows view, the pairing of a phone |
 | Dropdown Menu | The menu of a Files row, the menu of a long press (`shell/PressMenu.tsx`), the `⋯` menu of a pane on a phone |
-| Context Menu | The menu of a board strip (right click) |
+| Context Menu | The menu of a board strip and the menu of a tab (right click) |
 | Popover with Command | The Repository, Worktree and Branch menus of the Git view, the node picker of the Workflows view, the list behind `+N` of the board |
 | Sheet | The sheets of the phone. They are not modal, and they go into `.shell`, not under the body |
 | Tooltip | The name of an icon button (`shell/Tip.tsx`, with one `TooltipProvider` in the shell) |
@@ -94,7 +94,7 @@ or `useSelect`. The window has
 no `StrictMode` of React: it runs each effect two times, and a second attach of a pane loses its
 screen.
 
-The status bar follows `workflow_executions` for the dot of its Workflows switch. The Workflows
+The status bar follows `workflow_executions` for the dot of its Workflows button. The Workflows
 view also follows `workflows`, and `pane_text:<pane>` for the screen of a working agent.
 
 ## Panes, drags and closing
@@ -211,19 +211,25 @@ gives the focus back with `useFocusReturn` (`shell/focus.ts`).
   over the rules of the chrome. The phone app adds `phone.css` in the layer `phone`
   (`phone/layer.css`).
 - **Components.** The controls are shadcn/ui components in `packages/ui/src/components/ui/`
-  (alert dialog, badge, button, card, checkbox, command, context menu, dialog, dropdown menu, field,
-  input, kbd, label, popover, radio group, select, separator, sheet, sonner, switch, textarea,
-  tooltip). The forms of the settings, the cards, the Workflows view, the Git view and the phone
-  use them. The badge has the tones of
-  neohar as variants: neutral (the default), muted, info, ok, warn and error. `cn()` in
-  `lib/utils.ts` joins classes with `clsx` and `tailwind-merge`. `@/` is `packages/ui/src`.
+  (alert, alert dialog, badge, button, card, checkbox, command, context menu, dialog, dropdown menu,
+  field, input, kbd, label, popover, radio group, scroll area, select, separator, sheet, sonner,
+  switch, tabs, textarea, toggle, toggle group, tooltip). The chrome, the cards, the forms, the Git
+  view, the Workflows view and the phone use them. The sections of the settings are Tabs (a column
+  on the desk, a row that scrolls to the side on a phone). Changes and History of the Git view are
+  Tabs, and its lists scroll in a Scroll Area. The lists and the execution panel of the Workflows
+  view scroll in Scroll Areas. On the key bar of a phone, Ctrl, Alt and Compose are Toggles. The
+  badge has the tones of neohar as variants: neutral (the default), muted, info, ok, warn and
+  error. `cn()` in `lib/utils.ts` joins classes with `clsx` and `tailwind-merge`. `@/` is
+  `packages/ui/src`.
 - **Tailwind CSS 4.** `@tailwindcss/vite` builds it for the desk, the phone and the shell test.
   `styles/theme.css` holds the theme, the utilities and `tw-animate-css`. Its `@theme inline` maps
   the colour names of shadcn/ui to the tokens of `tokens.css`, so a theme of the person changes the
   components too. The names are not variables on the root element, because `--accent` is the
   accent of the chrome that the core sets. There is no Tailwind preflight. The parts of a shadcn/ui
   component (`data-slot`) get a small reset in the layer `reset`. The chrome is dark only, so the
-  variant `dark:` always applies.
+  variant `dark:` always applies. The root font is 13 px, so `theme.css` sets the scale: a step of
+  `--spacing` is 4 px, and `text-xs`, `text-sm`, `text-base` and `text-lg` are 11/14, 13/18, 16/24
+  and 18/28 px (size/line height).
 - **Fonts.** `ui.font_family` and `ui.font_size` set the surface font; the default list starts
   with Hack Nerd Font Mono and falls back to Menlo. The page loads the faces that the host serves
   over `nh://font/` before it measures cells. The data of the chrome (state codes, costs,

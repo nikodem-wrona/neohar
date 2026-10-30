@@ -704,7 +704,6 @@ test('the soft keyboard and the key bar type into the pane of a phone', async ({
     const surface = `[data-pane="${made.pane}"] .pane-surface`;
     await expect(page.locator(surface)).toBeVisible({ timeout: 20_000 });
     await expect(page.locator('.layout .pane.focused')).toHaveCount(1, { timeout: 20_000 });
-
     // The program sets its terminal to raw mode, which drops the input that it has not read yet,
     // and then says that it is ready. The keys go after that.
     await expect
@@ -715,7 +714,7 @@ test('the soft keyboard and the key bar type into the pane of a phone', async ({
 
     // A tap on the pane in focus opens the keyboard: the key bar takes the place of the dock.
     await tapAt(page, surface, 40, 40);
-    await expect(page.locator('.key-bar')).toBeVisible();
+    await expect(page.getByRole('toolbar', { name: 'Keys' })).toBeVisible();
     await expect(page.locator('.phone-dock')).toHaveCount(0);
     const field = page.locator(`[data-pane="${made.pane}"] .pane-input`);
     await expect(field).toBeFocused();
@@ -732,7 +731,7 @@ test('the soft keyboard and the key bar type into the pane of a phone', async ({
     await expect.poll(() => bytesOf(log), { timeout: 20_000 }).toBe('teh\x7f\x7fhe x');
 
     // The key bar: Esc, and Ctrl for the next key.
-    const bar = page.locator('.key-bar');
+    const bar = page.getByRole('toolbar', { name: 'Keys' });
     await bar.getByRole('button', { name: 'Escape' }).click();
     await bar.getByRole('button', { name: 'Ctrl' }).click();
     await expect(bar.getByRole('button', { name: 'Ctrl' })).toHaveAttribute('aria-pressed', 'true');
@@ -878,7 +877,7 @@ test('the keyboard of the phone claims the size of the pane', async ({ page, req
   // The keyboard opens: the phone claims the lease, and the PTY gets the size of the phone.
   await page.waitForTimeout(600);
   await tapAt(page, surface, 40, 40);
-  await expect(page.locator('.key-bar')).toBeVisible();
+  await expect(page.getByRole('toolbar', { name: 'Keys' })).toBeVisible();
   await expect
     .poll(async () => (await sizeOf(c, made.pane)).geometry_owner)
     .toBe(phoneSize.geometry_owner);
@@ -973,7 +972,7 @@ test('a key that the phone sends while the core is down arrives once after the r
     await expect(page.locator(surface)).toBeVisible({ timeout: 20_000 });
     await expect(page.locator('.layout .pane.focused')).toHaveCount(1, { timeout: 20_000 });
     await tapAt(page, surface, 40, 40);
-    await expect(page.locator('.key-bar')).toBeVisible();
+    await expect(page.getByRole('toolbar', { name: 'Keys' })).toBeVisible();
 
     // The core dies, and its holders keep the panes. A key goes into the outbox, and the transport
     // sends it when the socket is back and the pane is restored. The holder applies its id once.

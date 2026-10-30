@@ -38,80 +38,12 @@
     overflow: hidden;
   }
 
-  /* A tab is a row high. Its hover is one step under the card of the selected tab, so that the
-     tab under the pointer never looks selected. The fill comes and goes in 150 ms, and a press
-     moves the control down by 1 px. */
-  .tab,
-  .tab-new {
-    --tab-hover: color-mix(in oklch, var(--text) 5%, transparent);
-    display: flex;
-    align-items: center;
-    height: var(--row);
-    border-radius: var(--r-tab);
-    color: var(--text-dim);
-    white-space: nowrap;
-  }
-
-  .tab-new {
-    justify-content: center;
-    width: var(--row);
-  }
-
-  /* The cross has a slot at the right that it keeps when it is hidden, so that no tab moves when
-     the pointer comes. */
-  .tab {
-    gap: var(--s1);
-    min-width: 0;
-    padding: 0 var(--s2) 0 var(--s4);
-    -webkit-user-select: none;
-    user-select: none;
-  }
-
-  @media (prefers-reduced-motion: no-preference) {
-    .tab,
-    .tab-new,
-    .tab-close {
-      transition-property: background-color, color, opacity, translate;
-      transition-duration: 150ms;
-      transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-    }
-  }
-
-  .tab:active,
-  .tab-new:active:enabled {
-    translate: 0 1px;
-  }
-
-  /* The handle of the tab, from `data-handle`, so that the text of the tab stays its name. The bar
-     sets it only with `ui.show_handles`. */
-  .tab[data-handle]::before {
-    content: attr(data-handle);
-    color: var(--text-dim);
-  }
-
+  /* A tab and the button of a new tab are Buttons of shadcn/ui (`shell/TabBar.tsx`), with their
+     look in their classes. The name of a tab is cut with an ellipsis. */
   .tab-name {
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
-  }
-
-  .tab:hover,
-  .tab-new:hover:enabled {
-    background: var(--tab-hover);
-    color: var(--text);
-  }
-
-  .tab:active,
-  .tab-new:active:enabled {
-    background: var(--bg-card);
-  }
-
-  /* The selected tab is a card on the panel. Its name keeps the weight of the other names, so that
-     the text and the width of a tab do not change when it becomes selected. */
-  .tab.selected {
-    background: var(--bg-card);
-    color: var(--text);
-    box-shadow: inset 0 0 0 1px var(--hairline);
   }
 
   /* The cross of a tab: on the selected tab and under the pointer. It is not red: a close is not
@@ -129,6 +61,14 @@
     pointer-events: none;
   }
 
+  @media (prefers-reduced-motion: no-preference) {
+    .tab-close {
+      transition-property: background-color, color, opacity;
+      transition-duration: 150ms;
+      transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    }
+  }
+
   .tab:hover .tab-close,
   .tab.selected .tab-close {
     opacity: 1;
@@ -140,10 +80,6 @@
     color: var(--text);
   }
 
-  .tab-new:disabled {
-    opacity: 0.4;
-  }
-
   .tab-rename {
     position: absolute;
     z-index: 1;
@@ -153,11 +89,6 @@
     border-radius: var(--r-tab);
   }
 
-  .tab.drop-target,
-  .side-tab.drop-target {
-    box-shadow: inset 0 0 0 1px var(--text);
-  }
-
   /* A drag of a tab or a pane. The page draws no copy under the pointer: the cursor and the
      dim source show the drag, and a target shows its outline. */
   .shell.dragging,
@@ -165,7 +96,6 @@
     cursor: grabbing;
   }
 
-  .tab.lifted,
   .pane.lifted > .pane-title,
   .files-row.lifted {
     opacity: 0.5;
@@ -500,74 +430,6 @@
     color: var(--text-dim);
   }
 
-  /* What is wrong with the core: a banner over the tab bar. */
-  .banner {
-    display: flex;
-    gap: 1ch;
-    padding: 0 8px;
-    line-height: 20px;
-    border-bottom: 1px solid var(--line);
-  }
-
-  .banner-storage {
-    background: var(--danger);
-    color: var(--on-signal);
-    font-weight: 600;
-  }
-
-  .banner-warning {
-    background: var(--bg-raised);
-    color: var(--text);
-    box-shadow: inset 2px 0 0 var(--caution);
-  }
-
-  .banner-hint {
-    color: var(--text-dim);
-  }
-
-  /* A link that is down: the window waits for it and takes no input. */
-  .banner-link {
-    background: var(--bg-raised);
-    color: var(--text);
-    box-shadow: inset 2px 0 0 var(--danger);
-  }
-
-  .banner-link-text {
-    font-weight: 600;
-  }
-
-  /* A command of this window that failed: the message of the core, its code and a cross. */
-  .banner-failure {
-    align-items: center;
-    background: var(--bg-raised);
-    color: var(--text);
-    box-shadow: inset 2px 0 0 var(--danger);
-  }
-
-  .banner-failure-text {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .banner-close {
-    display: flex;
-    flex: none;
-    align-items: center;
-    justify-content: center;
-    width: 16px;
-    height: 16px;
-    margin-left: auto;
-    border-radius: var(--r-sm);
-    color: var(--text-dim);
-  }
-
-  .banner-close:hover {
-    background: var(--hairline);
-    color: var(--text);
-  }
-
   .main-body {
     display: flex;
     flex: 1;
@@ -689,14 +551,5 @@
   .pane.path-over {
     outline: 1px dashed var(--text);
     outline-offset: -1px;
-  }
-}
-
-@layer states {
-  /* A press on a tab selects it, so the card of the selected tab is the answer to the press, and
-     not reverse white. */
-  .tab:active:not(:disabled) {
-    background: var(--bg-card);
-    color: var(--text);
   }
 }

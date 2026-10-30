@@ -6,6 +6,7 @@
 
 import { useState } from 'react';
 import { useLayer } from '../app/layer';
+import { Button } from '../components/ui/button';
 import {
   Command,
   CommandGroup,
@@ -105,19 +106,27 @@ export function GitMenu(props: GitMenuProps) {
   };
 
   return (
-    <div className="git-menu-anchor">
+    <div className="min-w-0">
       <Popover open={open} onOpenChange={onOpenChange}>
         <PopoverTrigger asChild>
-          <button type="button" className={cn('git-menu-button', { open })}>
-            <span className="git-menu-label">{props.label}</span>
-            <span className="git-menu-line">
-              <span className="git-menu-value">{props.value}</span>
-              {props.note ? <span className="git-menu-note">{props.note}</span> : null}
-              <span className="git-menu-arrow" aria-hidden="true">
+          {/* The name of the menu over its value, as the menus of GitHub Desktop. */}
+          <Button
+            variant="ghost"
+            className="h-auto max-w-[40ch] min-w-0 shrink flex-col items-start gap-0 px-2 py-0.5 text-left text-sm/4 font-normal data-[state=open]:bg-accent"
+          >
+            <span className="text-(length:--size-small) text-muted-foreground">{props.label}</span>
+            <span className="flex max-w-full min-w-0 items-baseline gap-[1ch]">
+              <span className="min-w-0 truncate font-semibold">{props.value}</span>
+              {props.note ? (
+                <span className="flex-none text-(length:--size-small) whitespace-nowrap text-muted-foreground">
+                  {props.note}
+                </span>
+              ) : null}
+              <span className="flex-none text-muted-foreground" aria-hidden="true">
                 ▾
               </span>
             </span>
-          </button>
+          </Button>
         </PopoverTrigger>
         <PopoverContent
           align="start"
@@ -154,7 +163,7 @@ export function GitMenu(props: GitMenuProps) {
                         disabled={item.disabled === true}
                         data-key={item.key}
                         onSelect={() => pick(item)}
-                        className="grid cursor-pointer grid-cols-[minmax(0,max-content)_minmax(0,1fr)] gap-x-[1ch] gap-y-0 px-2 py-0.5 text-[13px]/[18px] data-[disabled=true]:cursor-default data-[disabled=true]:text-muted-foreground data-[disabled=true]:opacity-100"
+                        className="grid cursor-pointer grid-cols-[minmax(0,max-content)_minmax(0,1fr)] gap-x-[1ch] gap-y-0 px-2 py-0.5 text-sm data-[disabled=true]:cursor-default data-[disabled=true]:text-muted-foreground data-[disabled=true]:opacity-100"
                       >
                         <span
                           className={cn(
@@ -190,7 +199,7 @@ export function GitMenu(props: GitMenuProps) {
                     <CommandItem
                       key={action.label}
                       value={actionValue(index)}
-                      className="cursor-pointer px-2 py-0.5 text-[13px]/[18px] data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground"
+                      className="cursor-pointer px-2 py-0.5 text-sm data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground"
                       onSelect={() => {
                         setOpen(false);
                         action.run();

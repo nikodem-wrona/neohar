@@ -158,39 +158,15 @@
   padding: 0 var(--s2);
 }
 
-.phone-workspaces {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: var(--control);
-  height: var(--control);
-  color: var(--text);
-}
-
-.phone-workspaces[aria-pressed='true'] {
-  background: var(--bg-hover);
-  border-radius: var(--r-sm);
-}
-
-.shell.phone .ticker :is(.ticker-title, .handle, kbd) {
+/* The Button of the left column, the field of the command line and the cap of the attention line
+   have their phone sizes in their classes (`shell/CommandBar.tsx`). */
+.shell.phone .ticker :is(.ticker-title, .handle) {
   display: none;
-}
-
-.shell.phone .ticker-next,
-.shell.phone .cmdline {
-  min-height: 36px;
 }
 
 /* Each control of the chrome has the height of a finger. */
 .shell.phone
-  :is(
-    .tab,
-    .drawer-tab,
-    .phone-dock-button,
-    .phone-sheet-close,
-    .phone-more-row,
-    .settings-section-button
-  ) {
+  :is(.tab, .phone-dock-button, .phone-sheet-close, .phone-more-row, .settings-section-button) {
   min-height: var(--control);
 }
 
@@ -236,11 +212,6 @@
 
 /* With no hover, the parts that a hover shows are always on. */
 @media (hover: none) {
-  .shell.phone .row-close {
-    opacity: 1;
-    pointer-events: auto;
-  }
-
   .shell.phone .scrollbar.active {
     opacity: 1;
   }
@@ -513,25 +484,7 @@
   scrollbar-width: none;
 }
 
-.key {
-  flex: none;
-  min-width: var(--control);
-  min-height: var(--control);
-  padding: 0 var(--s2);
-  border-radius: var(--r-sm);
-  background: var(--bg-hover);
-  color: var(--text);
-  font: 500 15px / 1 var(--font-data);
-}
-
-.key[aria-pressed='true'] {
-  background: var(--text);
-  color: var(--bg);
-}
-
-.key[data-locked='true'] {
-  box-shadow: inset 0 -3px 0 var(--accent);
-}
+/* The keys are the Button and the Toggle of shadcn/ui (`pane/KeyBar.tsx`). */
 
 /* The bar of a selection that a long press made: Copy and Paste. */
 .selection-bar {

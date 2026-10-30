@@ -87,9 +87,7 @@ export function ExecuteDialog(props: {
             props.onExecute(base.trim() || null, notes.trim() || null);
           }}
         >
-          <DialogTitle className="dialog-title text-[length:inherit] leading-[inherit]">
-            Execute {props.name}
-          </DialogTitle>
+          <DialogTitle className="dialog-title text-sm">Execute {props.name}</DialogTitle>
           <p className="wf-execute-folder">
             <span className="wf-muted">Folder</span> <code>{props.folder}</code>
             {props.facts?.branch ? (
@@ -100,7 +98,7 @@ export function ExecuteDialog(props: {
             ) : null}
           </p>
           {!props.facts?.repo ? (
-            <p className="wf-muted">
+            <p className="wf-muted m-0">
               neohar reads no git facts here: the folder is not in a git repository that you trust.
             </p>
           ) : null}
@@ -110,7 +108,7 @@ export function ExecuteDialog(props: {
             </FieldLabel>
             <Input
               id={`${id}-base`}
-              className="h-8 md:text-[13px]"
+              className="h-8"
               type="text"
               autoComplete="off"
               spellCheck={false}
@@ -138,12 +136,12 @@ export function ExecuteDialog(props: {
               </FieldLabel>
               {/* The select has no value of its own: it shows the agent of the last pick. */}
               <Select onValueChange={take}>
-                <SelectTrigger id={`${id}-agent`} size="sm" className="w-full text-[13px]">
+                <SelectTrigger id={`${id}-agent`} size="sm" className="w-full">
                   <SelectValue placeholder="Pick an agent" />
                 </SelectTrigger>
                 <SelectContent>
                   {props.agents.map((agent) => (
-                    <SelectItem key={agent.id} value={agent.id} className="text-[13px]">
+                    <SelectItem key={agent.id} value={agent.id}>
                       {agentName(agent)}
                     </SelectItem>
                   ))}

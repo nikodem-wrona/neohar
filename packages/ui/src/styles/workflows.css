@@ -21,40 +21,6 @@
     min-width: 0;
   }
 
-  .wf-bar > button:not(.git-menu-button) {
-    padding: 2px var(--s2);
-    white-space: nowrap;
-    color: var(--text-dim);
-  }
-
-  .wf-bar > button:hover:not(:disabled) {
-    background: var(--bg-hover);
-    color: var(--text);
-  }
-
-  .wf-bar > button:disabled {
-    opacity: 0.45;
-  }
-
-  .wf-bar > .wf-execute-button {
-    background: var(--accent);
-    color: var(--on-signal);
-    font-weight: 600;
-  }
-
-  .wf-bar > .wf-execute-button:hover:not(:disabled) {
-    background: var(--accent);
-    color: var(--on-signal);
-    filter: brightness(1.08);
-  }
-
-  .wf-name {
-    max-width: 32ch;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    font-weight: 600;
-  }
-
   .wf-spacer {
     flex: 1;
   }
@@ -81,12 +47,11 @@
     grid-template-columns: minmax(22ch, 30ch) minmax(0, 1fr) minmax(32ch, 48ch);
   }
 
+  /* The list scrolls in a Scroll Area (`WorkflowsView.tsx`). */
   .wf-side {
     display: flex;
     flex-direction: column;
     min-height: 0;
-    overflow: auto;
-    padding: var(--s2) 0;
     border-right: 1px solid var(--hairline);
   }
 
@@ -165,19 +130,6 @@
     display: flex;
     gap: var(--s2);
     padding: var(--s1) var(--s3);
-  }
-
-  .wf-link {
-    padding: 0;
-    color: var(--text-dim);
-  }
-
-  .wf-link:hover {
-    color: var(--text);
-  }
-
-  .wf-link.danger {
-    color: var(--danger);
   }
 
   .wf-new {
@@ -428,16 +380,6 @@
     background: var(--bg-raised);
   }
 
-  .wf-toolbar button {
-    padding: 2px var(--s2);
-    color: var(--text-dim);
-  }
-
-  .wf-toolbar button:hover {
-    background: var(--bg-hover);
-    color: var(--text);
-  }
-
   .wf-zoom {
     min-width: 6ch;
     font-size: var(--size-small);
@@ -457,11 +399,11 @@
 
   /* --- the panel of an execution ------------------------------------------------------------- */
 
+  /* The panel scrolls in a Scroll Area (`ExecutionPanel.tsx`). */
   .wf-panel {
     display: flex;
     flex-direction: column;
     min-height: 0;
-    overflow: auto;
     border-left: 1px solid var(--hairline);
   }
 
@@ -492,27 +434,6 @@
     flex-wrap: wrap;
     gap: var(--s1);
     margin-top: var(--s2);
-  }
-
-  .wf-panel-actions button {
-    padding: 2px var(--s2);
-    border: 1px solid var(--line);
-  }
-
-  .wf-panel-actions button:hover {
-    border-color: var(--text);
-  }
-
-  .wf-panel-actions .primary {
-    border-color: var(--accent);
-    background: var(--accent);
-    color: var(--on-signal);
-    font-weight: 600;
-  }
-
-  .wf-panel-actions .wf-danger {
-    border-color: var(--danger);
-    color: var(--danger);
   }
 
   .wf-panel-nodes {

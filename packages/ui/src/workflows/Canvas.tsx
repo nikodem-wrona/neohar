@@ -27,7 +27,8 @@ import {
   useState,
 } from 'react';
 import { isDrag } from '../app/drag';
-import { Tooltip, TooltipContent, TooltipTrigger } from '../components/ui/tooltip';
+import { Button } from '../components/ui/button';
+import { Tip } from '../shell/Tip';
 import { useLatest, useSelect, useValue } from '../lib/hooks';
 import { cn } from '../lib/utils';
 import { createValue } from '../lib/value';
@@ -91,13 +92,15 @@ function capture(area: HTMLElement | null, event: { pointerId: number }): void {
 /** A button that shows only a sign. Its name is its label, and a tooltip shows it. */
 function SignButton({ tip, ...rest }: { tip: string } & ComponentProps<'button'>) {
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <button type="button" aria-label={tip} {...rest} />
-      </TooltipTrigger>
-      <TooltipContent>{tip}</TooltipContent>
-    </Tooltip>
+    <Tip text={tip}>
+      <button type="button" aria-label={tip} {...rest} />
+    </Tip>
   );
+}
+
+/** A button of the toolbar of the canvas. */
+function ToolButton(props: ComponentProps<typeof Button>) {
+  return <Button variant="ghost" size="xs" className="px-2 text-muted-foreground" {...props} />;
 }
 
 /** The card of a node. It renders again only when its node, its state or its problem changes. */
@@ -458,8 +461,7 @@ export function Canvas(props: CanvasProps) {
       </div>
       <div className="wf-toolbar" role="toolbar" aria-label="Canvas">
         {editing ? (
-          <button
-            type="button"
+          <ToolButton
             title="Add a node (Tab)"
             onClick={(event) => {
               const box = area.current?.getBoundingClientRect();
@@ -471,22 +473,26 @@ export function Canvas(props: CanvasProps) {
             }}
           >
             + Add
-          </button>
+          </ToolButton>
         ) : null}
-        <SignButton tip="Zoom out" onClick={() => zoomBy(1 / 1.25)}>
-          −
-        </SignButton>
+        <Tip text="Zoom out" side="top">
+          <ToolButton aria-label="Zoom out" onClick={() => zoomBy(1 / 1.25)}>
+            −
+          </ToolButton>
+        </Tip>
         <span className="wf-zoom">{zoomText}</span>
-        <SignButton tip="Zoom in" onClick={() => zoomBy(1.25)}>
-          +
-        </SignButton>
-        <button type="button" title="Show the whole workflow (⌘0)" onClick={fit}>
+        <Tip text="Zoom in" side="top">
+          <ToolButton aria-label="Zoom in" onClick={() => zoomBy(1.25)}>
+            +
+          </ToolButton>
+        </Tip>
+        <ToolButton title="Show the whole workflow (⌘0)" onClick={fit}>
           Fit
-        </button>
+        </ToolButton>
         {editing ? (
-          <button type="button" title="Put the nodes in columns" onClick={() => props.onTidy()}>
+          <ToolButton title="Put the nodes in columns" onClick={() => props.onTidy()}>
             Tidy up
-          </button>
+          </ToolButton>
         ) : null}
       </div>
       {editing ? (

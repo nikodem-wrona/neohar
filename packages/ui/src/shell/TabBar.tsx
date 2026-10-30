@@ -7,7 +7,11 @@
 // stays its name. A double click
 // or F2 on a tab opens a field for a new name. A tab may hold no field, so the field lies
 // over the tab and is not in the list of the tabs. On a phone, a long press on a tab opens its
-// menu: Rename, Close and a move to either side.
+// menu: Rename, Close and a move to either side. On the desk, a right click opens the same menu.
+//
+// A tab is a Button of shadcn/ui with the role `tab`, and its menu is a Context Menu. The Tabs of
+// shadcn/ui do not fit: Radix selects a tab on the press of the button and on the focus of an arrow
+// key, and here a press can start a drag and the core selects the tab after a click.
 
 import type { TabValue } from '@neohar/transport';
 import {
@@ -20,11 +24,21 @@ import {
   useState,
 } from 'react';
 import { useApp } from '../app/context';
+import { useLayer } from '../app/layer';
+import { Button } from '../components/ui/button';
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from '../components/ui/context-menu';
 import { showHandles } from '../app/preferences';
 import { dragged, dropTarget, pressToDrag, type Dragged } from '../app/drag';
 import { onLongPress } from '../app/press';
 import { useLatest, useSelect, useValue } from '../lib/hooks';
+import type { MenuAction } from '../app/view';
 import { cn } from '../lib/utils';
+import { CHROME_BUTTON } from './chrome';
 import { requestClose } from './close';
 import { RenameField } from './RenameField';
 import { Tip } from './Tip';
@@ -97,9 +111,13 @@ export function TabBar() {
         />
       ) : null}
       <Tip text="New tab">
-        <button
-          type="button"
-          className="tab-new"
+        <Button
+          variant="ghost"
+          className={cn(
+            CHROME_BUTTON,
+            TAB_MOTION,
+            'tab-new size-(--row) justify-center rounded-(--r-tab) disabled:opacity-40',
+          )}
           aria-label="New tab"
           disabled={!workspace}
           onClick={create}
@@ -107,11 +125,19 @@ export function TabBar() {
           <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true">
             <path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1.5" fill="none" />
           </svg>
-        </button>
+        </Button>
       </Tip>
     </div>
   );
 }
+
+/**
+ * A tab is a row high. Its hover is one step under the card of the selected tab, so that the tab
+ * under the pointer never looks selected. The fill comes and goes in 150 ms, and a press moves the
+ * control down by 1 px and shows the card: the press selects the tab.
+ */
+const TAB_MOTION =
+  'transition-[background-color,color,opacity,translate] duration-150 ease-[cubic-bezier(0.4,0,0.2,1)] hover:bg-[color-mix(in_oklch,var(--text)_5%,transparent)] hover:text-foreground active:translate-y-px active:bg-(--bg-card) active:text-foreground motion-reduce:transition-none dark:hover:bg-[color-mix(in_oklch,var(--text)_5%,transparent)]';
 
 function isLifted(item: Dragged | null, id: string): boolean {
   return item?.kind === 'tab' && item.id === id;
@@ -131,7 +157,7 @@ const Tab = memo(function Tab(props: {
   handle: string | undefined;
   setOver: Dispatch<SetStateAction<string | null>>;
 }) {
-  const { transport, run, report, windowId, view } = useApp();
+  const { transport, run, report, windowId, view, form } = useApp();
   const { tab, setOver } = props;
   // The place of the tab when a long press ends, which is later than this render.
   const latest = useLatest({ index: props.index, count: props.count });
@@ -144,20 +170,52 @@ const Tab = memo(function Tab(props: {
       .then((closing) => view.closing.set(closing))
       .catch(report);
   };
+  // The menu of the tab: a long press on a phone, a right click on the desk.
+  const menuItems = (at: number, count: number): MenuAction[] => [
+    { label: 'Rename', run: () => rename(tab.id) },
+    ...(at > 0
+      ? [
+          {
+            label: 'Move left',
+            run: () => run('tab.move', { tab: tab.id, index: at - 1 }),
+          },
+        ]
+      : []),
+    ...(at < count - 1
+      ? [
+          {
+            label: 'Move right',
+            run: () => run('tab.move', { tab: tab.id, index: at + 1 }),
+          },
+        ]
+      : []),
+    { label: 'Close', run: () => close(tab), danger: true },
+  ];
+  const [menuOpen, setMenuOpen] = useState(false);
+  useLayer(menuOpen);
   const drop = (item: Dragged, target: string, index: number): void => {
     setOver(null);
     if (item.kind === 'tab') run('tab.move', { tab: item.id, index });
     else if (item.kind === 'pane') run('pane.move', { pane: item.id, tab: target });
   };
-  return (
-    <button
-      type="button"
+  const button = (
+    // The cross has a slot at the right that it keeps when it is hidden, so that no tab moves
+    // when the pointer comes. The selected tab is a card on the panel, and its name keeps the
+    // weight of the other names. With `ui.show_handles`, the handle comes before the name.
+    <Button
+      variant="ghost"
       role="tab"
-      className={cn('tab', {
-        selected: props.selected,
-        'drop-target': props.target,
-        lifted: props.lifted,
-      })}
+      className={cn(
+        CHROME_BUTTON,
+        TAB_MOTION,
+        'tab h-(--row) min-w-0 justify-start gap-(--s1) rounded-(--r-tab) pr-(--s2) pl-(--s4) select-none',
+        props.selected &&
+          'selected bg-(--bg-card) text-foreground shadow-[inset_0_0_0_1px_var(--hairline)] hover:bg-(--bg-card) dark:hover:bg-(--bg-card)',
+        props.target && 'drop-target shadow-[inset_0_0_0_1px_var(--text)]',
+        props.lifted && 'lifted opacity-50',
+        props.handle !== undefined &&
+          'before:text-muted-foreground before:content-[attr(data-handle)]',
+      )}
       aria-selected={props.selected}
       data-tab={tab.id}
       data-handle={props.handle}
@@ -197,26 +255,7 @@ const Tab = memo(function Tab(props: {
             x,
             y,
             title: tab.name,
-            items: [
-              { label: 'Rename', run: () => rename(tab.id) },
-              ...(at > 0
-                ? [
-                    {
-                      label: 'Move left',
-                      run: () => run('tab.move', { tab: tab.id, index: at - 1 }),
-                    },
-                  ]
-                : []),
-              ...(at < count - 1
-                ? [
-                    {
-                      label: 'Move right',
-                      run: () => run('tab.move', { tab: tab.id, index: at + 1 }),
-                    },
-                  ]
-                : []),
-              { label: 'Close', run: () => close(tab), danger: true },
-            ],
+            items: menuItems(at, count),
           });
         });
       }}
@@ -238,6 +277,23 @@ const Tab = memo(function Tab(props: {
           </svg>
         </span>
       </Tip>
-    </button>
+    </Button>
+  );
+  if (form === 'phone') return button;
+  return (
+    <ContextMenu onOpenChange={setMenuOpen}>
+      <ContextMenuTrigger asChild>{button}</ContextMenuTrigger>
+      <ContextMenuContent aria-label={`Actions of ${tab.name}`} className="w-[220px]">
+        {menuItems(props.index, props.count).map((item) => (
+          <ContextMenuItem
+            key={item.label}
+            variant={item.danger === true ? 'destructive' : 'default'}
+            onSelect={() => item.run()}
+          >
+            {item.label}
+          </ContextMenuItem>
+        ))}
+      </ContextMenuContent>
+    </ContextMenu>
   );
 });

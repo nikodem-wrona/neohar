@@ -4,7 +4,10 @@
 // guesses nothing about the network.
 
 import { useApp } from '../app/context';
+import { Alert } from '../components/ui/alert';
 import { useSelect } from '../lib/hooks';
+import { cn } from '../lib/utils';
+import { BANNER, BANNER_FAULT, BANNER_HINT } from './banner';
 
 /** Whether the link of this window is down. A window without `link` is local. */
 export function linkIsDown(state: string | undefined): boolean {
@@ -16,9 +19,13 @@ export function LinkBanner() {
   const link = useSelect(stores.link, (state) => state.byKey['_']);
   const down = linkIsDown(link?.state) ? link : undefined;
   return down ? (
-    <div className="banner banner-link" role="alert" data-link-state={down.state}>
-      <span className="banner-link-text">{down.text}</span>
-      {down.reason ? <span className="banner-hint">{down.reason}</span> : null}
-    </div>
+    <Alert
+      className={cn('banner-link', BANNER, BANNER_FAULT)}
+      role="alert"
+      data-link-state={down.state}
+    >
+      <span className="font-semibold">{down.text}</span>
+      {down.reason ? <span className={BANNER_HINT}>{down.reason}</span> : null}
+    </Alert>
   ) : null;
 }

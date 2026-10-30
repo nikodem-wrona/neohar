@@ -97,6 +97,20 @@
   --font-sans: var(--font-ui);
   --font-mono: var(--font-data);
 
+  /* The root has a font of 13 px (`base.css`), so a unit of rem is 13 px. The steps of space and
+     the sizes of the type are in pixels: a step is 4 px, as the grid of the chrome is, and a
+     component of shadcn/ui has the size that it has on the web. `text-sm` is the body of the chrome
+     and `text-xs` its small text; `text-base` is 16 px, so that Safari does not zoom into a field. */
+  --spacing: 4px;
+  --text-xs: 11px;
+  --text-xs--line-height: 14px;
+  --text-sm: 13px;
+  --text-sm--line-height: 18px;
+  --text-base: 16px;
+  --text-base--line-height: 24px;
+  --text-lg: 18px;
+  --text-lg--line-height: 28px;
+
   /* The three radii of the chrome: a control, a pane or a card, a dialog. */
   --radius-sm: var(--r-sm);
   --radius-md: var(--r-sm);

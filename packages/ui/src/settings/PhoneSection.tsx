@@ -123,9 +123,7 @@ function PairDialog(props: {
           if (before instanceof HTMLElement) before.focus();
         }}
       >
-        <DialogTitle className="dialog-title text-[length:inherit] leading-[inherit]">
-          Pair a phone
-        </DialogTitle>
+        <DialogTitle className="dialog-title text-sm">Pair a phone</DialogTitle>
         {pairing ? (
           <>
             <p className="dialog-text">

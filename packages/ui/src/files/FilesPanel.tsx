@@ -289,13 +289,15 @@ export function FilesPanel() {
   /**
    * The large view is out of the page. The focus goes back to the element that had it before the
    * view, also from the pane that took it when the layer closed, or to the row of the file when
-   * that element is gone.
+   * that element is gone. A box that holds the tree, such as the panel of the tab after a click
+   * on a button that WebKit gives no focus, counts as gone.
    */
   const viewedFrom = useRef<Element | null>(null);
   const viewClosed = (): void => {
     const back = viewedFrom.current;
     viewedFrom.current = null;
-    if (back instanceof HTMLElement && back.isConnected && back !== document.body) {
+    const holdsTree = !!back && !!tree.current && back.contains(tree.current);
+    if (back instanceof HTMLElement && back.isConnected && back !== document.body && !holdsTree) {
       back.focus({ preventScroll: true });
     } else if (file) {
       focusRow(file);
@@ -596,6 +598,7 @@ export function FilesPanel() {
                 <DropdownMenuItem
                   key={item.id}
                   data-action={item.id}
+                  className="py-1"
                   // A release on an item without a press on it chooses nothing: the release of
                   // the right click that opened the menu must not choose.
                   onPointerUp={(event) => event.preventDefault()}

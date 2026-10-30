@@ -237,7 +237,7 @@ function StripMenu(props: {
 function StripMenuItems(props: { pane: string; onShow: (pane: string) => void }) {
   const { stores, view } = useApp();
   const folder = useSelect(stores.panes, (state) => state.byKey[props.pane]?.cwd ?? undefined);
-  const item = 'px-2 py-1 text-[13px]/[18px]';
+  const item = 'px-2 py-1 text-sm';
   return (
     <>
       <ContextMenuItem className={item} onSelect={() => props.onShow(props.pane)}>

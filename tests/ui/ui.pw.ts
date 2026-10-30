@@ -1194,7 +1194,7 @@ test('the palette finds a command, runs it, and asks before it stops a program',
 async function openSettings(page: Page, info: Info): Promise<Page> {
   const settings = await page.context().newPage();
   await settings.goto(`/page.html?ws=${info.ws_port}&token=${info.token}&view=settings`);
-  await expect(settings.locator('.settings-nav')).toBeVisible();
+  await expect(settings.getByRole('tablist', { name: 'Sections' })).toBeVisible();
   return settings;
 }
 
@@ -1208,9 +1208,9 @@ test('the settings window shows the settings and the other window follows an edi
   try {
     // Every section of the configuration, with the new ones for the window.
     for (const name of ['Agents', 'Approvals', 'Keys', 'Theme', 'Ui']) {
-      await expect(settings.getByRole('button', { name, exact: true })).toBeVisible();
+      await expect(settings.getByRole('tab', { name, exact: true })).toBeVisible();
     }
-    await settings.getByRole('button', { name: 'Ui', exact: true }).click();
+    await settings.getByRole('tab', { name: 'Ui', exact: true }).click();
     const size = settings.locator('[data-setting="ui.font_size"]');
     const sizeField = size.getByLabel('Font size');
     await expect(sizeField).toHaveValue('13');
@@ -1294,7 +1294,7 @@ test('a text field of the settings writes the config one time, when the value is
         call.method === 'config.set' && (call.params as { key?: string }).key === 'ui.font_size',
     );
   try {
-    await settings.getByRole('button', { name: 'Ui', exact: true }).click();
+    await settings.getByRole('tab', { name: 'Ui', exact: true }).click();
     const field = settings.locator('[data-setting="ui.font_size"]').getByLabel('Font size');
     await expect(field).toHaveValue('13');
 
@@ -1324,7 +1324,7 @@ test('the theme and the keys of the settings change the window that is open', as
   const dialog = page.getByRole('dialog', { name: 'Command palette' });
   try {
     // A colour of the theme is a custom property of the window.
-    await settings.getByRole('button', { name: 'Theme', exact: true }).click();
+    await settings.getByRole('tab', { name: 'Theme', exact: true }).click();
     const accent = settings.locator('[data-setting="theme.accent"]');
     await accent.getByLabel('Accent').fill('#ff0000');
     await accent.getByLabel('Accent').press('Enter');
@@ -1341,7 +1341,7 @@ test('the theme and the keys of the settings change the window that is open', as
       .toBe('#4aea7d');
 
     // A chord of the keys: the new chord opens the palette, and the old one is free.
-    await settings.getByRole('button', { name: 'Keys', exact: true }).click();
+    await settings.getByRole('tab', { name: 'Keys', exact: true }).click();
     const chord = settings.locator('[data-setting="keys.palette_open"]');
     await chord.getByLabel('Palette open').fill('mod+j');
     await chord.getByLabel('Palette open').press('Enter');
@@ -2695,11 +2695,14 @@ test('the Workflows view builds a workflow on the canvas and shows its execution
       params,
     ] as const) as Promise<T>;
   // The switch of the status bar opens the view over the tab bar and the panes.
-  await page.locator('.status-views button', { hasText: 'Workflows' }).click();
+  await page
+    .getByRole('group', { name: 'Views' })
+    .getByRole('button', { name: 'Workflows' })
+    .click();
   await expect(page.locator('.wf-view')).toBeVisible();
   await expect(page.locator('.tabbar')).toHaveCount(0);
   // A new workflow from the preset Review has the trigger, three reviews and the report.
-  await page.locator('.wf-side-actions button', { hasText: '+ New' }).click();
+  await page.getByRole('button', { name: '+ New' }).click();
   await page.getByPlaceholder('Name').fill('Review');
   await page.getByRole('combobox', { name: 'Preset' }).click();
   await page.getByRole('option', { name: /^Review/ }).click();
@@ -2741,14 +2744,17 @@ test('the Workflows view builds a workflow on the canvas and shows its execution
   await expect(details).toHaveCount(0);
 
   // An execution shows its nodes with their states, and a panel with the execution.
-  await page.locator('.wf-execute-button').click();
+  await page.getByRole('button', { name: 'Execute workflow' }).click();
   const execute = page.getByRole('dialog', { name: /^Execute / });
   await expect(execute).toBeVisible();
   await execute.getByRole('button', { name: 'Execute', exact: true }).click();
   await expect(page.locator('.wf-panel')).toBeVisible();
   await expect(page.locator('.wf-execution')).toHaveCount(1);
   await expect(page.locator('.wf-node[data-node="start"] .wf-node-state')).toContainText('done');
-  await page.locator('.wf-panel-head button', { hasText: 'Cancel' }).click();
+  await page
+    .getByRole('complementary', { name: 'Execution' })
+    .getByRole('button', { name: 'Cancel', exact: true })
+    .click();
   await expect(page.locator('.wf-panel-title')).toContainText('cancelled');
 
   // Escape closes the view, and the tab bar is back.
@@ -2767,9 +2773,12 @@ test('Escape closes the picker and the dialogs of the Workflows view, and the fo
   const { makeWorkspace } = await openShell(page, request);
   const project = await realpath(await mkdtemp(join(tmpdir(), 'nh-wf-')));
   await makeWorkspace('Layers', { root: project });
-  await page.locator('.status-views button', { hasText: 'Workflows' }).click();
+  await page
+    .getByRole('group', { name: 'Views' })
+    .getByRole('button', { name: 'Workflows' })
+    .click();
   await expect(page.locator('.wf-view')).toBeVisible();
-  await page.locator('.wf-side-actions button', { hasText: '+ New' }).click();
+  await page.getByRole('button', { name: '+ New' }).click();
   await page.getByPlaceholder('Name').fill('Layers');
   await page.getByRole('combobox', { name: 'Preset' }).click();
   await page.getByRole('option', { name: /^Review/ }).click();
@@ -2980,4 +2989,14 @@ test('Escape closes the question of a close, and the focus goes back to its butt
   // The tip of an icon button shows under the pointer, and its name stays the label.
   await cross.hover();
   await expect(page.getByRole('tooltip', { name: 'Close pane' })).toBeVisible();
+
+  // A right click on a tab opens its menu, as a long press does on a phone, and Escape closes it.
+  await page
+    .getByRole('tablist', { name: 'Tabs' })
+    .getByRole('tab', { selected: true })
+    .click({ button: 'right' });
+  const menu = page.getByRole('menu', { name: /^Actions of / });
+  await expect(menu.getByRole('menuitem')).toHaveText(['Rename', 'Close']);
+  await page.keyboard.press('Escape');
+  await expect(menu).toHaveCount(0);
 });

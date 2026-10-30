@@ -28,6 +28,7 @@ import { type KeyboardEvent, useEffect, useRef, useState } from 'react';
 import { useApp } from '../app/context';
 import { showPane } from '../app/show';
 import { Button } from '../components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { windowFolder } from '../files/folder';
 import { useRows, useSelect, useValue } from '../lib/hooks';
 import { cn } from '../lib/utils';
@@ -53,6 +54,10 @@ import {
 } from './model';
 
 type Side = 'changes' | 'history';
+
+/** A tab of the side: the selected one is a card, as a tab of the tab bar. */
+const TAB =
+  'h-[26px] flex-1 rounded-(--r-tab) border-0 text-sm font-normal text-muted-foreground hover:bg-accent data-[state=active]:bg-card data-[state=active]:font-semibold data-[state=active]:shadow-[inset_0_0_0_1px_var(--hairline)] dark:data-[state=active]:bg-card dark:data-[state=active]:border-0';
 
 export function GitView() {
   const { stores, transport, run, report, windowId, view } = useApp();
@@ -223,38 +228,41 @@ export function GitView() {
     }
     if (current.trust) return <TrustPrompt ask={current.trust} className="git-center" />;
     return (
-      <div className="git-body">
-        <div className="git-tabs" role="tablist" aria-label="Changes or history">
-          <button
-            type="button"
-            role="tab"
-            className={cn('git-tab', { selected: side === 'changes' })}
-            aria-selected={side === 'changes'}
-            onClick={() => setSide('changes')}
-          >
+      // The tabs are the Tabs of shadcn/ui. A panel lays out its side and its detail in the grid of
+      // the body, so it has no box of its own (`contents`).
+      <Tabs
+        value={side}
+        onValueChange={(value) => setSide(value as Side)}
+        className="git-body grid gap-0"
+      >
+        <TabsList
+          aria-label="Changes or history"
+          className="git-tabs h-auto w-auto justify-stretch gap-1 rounded-none bg-transparent px-2 py-1 group-data-[orientation=horizontal]/tabs:h-auto"
+        >
+          <TabsTrigger value="changes" className={TAB}>
             Changes
-            {current.changes ? <span className="git-count">{current.changes.files}</span> : null}
-          </button>
-          <button
-            type="button"
-            role="tab"
-            className={cn('git-tab', { selected: side === 'history' })}
-            aria-selected={side === 'history'}
-            onClick={() => setSide('history')}
-          >
+            {current.changes ? (
+              <span className="ml-[1ch] font-mono text-(length:--size-data) font-normal text-muted-foreground">
+                {current.changes.files}
+              </span>
+            ) : null}
+          </TabsTrigger>
+          <TabsTrigger value="history" className={TAB}>
             History
-          </button>
-        </div>
-        {side === 'changes' ? (
+          </TabsTrigger>
+        </TabsList>
+        <TabsContent value="changes" className="contents">
           <GitChanges
             rows={rows}
             subject={subject}
             truncated={current.changes?.truncated ?? false}
             counted={current.changes !== undefined}
           />
-        ) : null}
-        {side === 'history' ? <GitHistory head={current.commit ?? null} subject={subject} /> : null}
-      </div>
+        </TabsContent>
+        <TabsContent value="history" className="contents">
+          <GitHistory head={current.commit ?? null} subject={subject} />
+        </TabsContent>
+      </Tabs>
     );
   };
 
@@ -308,7 +316,7 @@ export function GitView() {
           <Button
             variant="ghost"
             size="xs"
-            className="text-[13px] font-normal text-live"
+            className="text-sm font-normal text-live"
             title="Show the pane of the first agent"
             onClick={showFirstAgent}
           >
@@ -320,7 +328,7 @@ export function GitView() {
           // Fetch or pull, with the time of the last fetch under it. A pull is the action that goes.
           <Button
             variant="ghost"
-            className="h-auto flex-col items-end gap-0 px-2 py-0.5 text-[13px]/4 font-normal disabled:opacity-100"
+            className="h-auto flex-col items-end gap-0 px-2 py-0.5 text-sm/4 font-normal disabled:opacity-100"
             disabled={remote.kind === 'busy'}
             title={shown?.fetch_note ?? shown?.fetched_text ?? undefined}
             onClick={onRemote}
@@ -344,7 +352,7 @@ export function GitView() {
         <Button
           variant="ghost"
           size="xs"
-          className="text-[13px] font-normal text-muted-foreground"
+          className="text-sm font-normal text-muted-foreground"
           title="Close the Git view (Esc)"
           onClick={() => view.closeGit()}
         >
@@ -367,7 +375,7 @@ export function GitView() {
           <Button
             variant="outline"
             size="xs"
-            className="text-[13px] font-normal text-foreground"
+            className="text-sm font-normal text-foreground"
             onClick={() => {
               const stash = shown.stash;
               if (stash) write('git.unstash', { window: windowId, stash: stash.commit });

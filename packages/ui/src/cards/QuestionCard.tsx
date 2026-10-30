@@ -71,7 +71,7 @@ export function QuestionCard(props: {
         <Label
           key={option.label}
           htmlFor={id}
-          className="flex cursor-pointer items-start gap-3 rounded-md border border-foreground/16 bg-background/25 px-3 py-2.5 text-[13px] leading-[18px] font-normal transition-colors hover:border-foreground/32 hover:bg-foreground/4 has-[[data-state=checked]]:border-foreground has-[[data-state=checked]]:bg-foreground/8 has-[:disabled]:cursor-default has-[:disabled]:hover:border-foreground/16 has-[:disabled]:hover:bg-background/25"
+          className="flex cursor-pointer items-start gap-3 rounded-md border border-foreground/16 bg-background/25 px-3 py-2.5 text-sm font-normal transition-colors hover:border-foreground/32 hover:bg-foreground/4 has-[[data-state=checked]]:border-foreground has-[[data-state=checked]]:bg-foreground/8 has-[:disabled]:cursor-default has-[:disabled]:hover:border-foreground/16 has-[:disabled]:hover:bg-background/25"
         >
           <span className="flex min-w-0 flex-1 flex-col gap-0.5">
             <span className="font-semibold [overflow-wrap:anywhere] text-foreground">

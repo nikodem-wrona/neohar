@@ -3,13 +3,20 @@
 // it. The cross of a workspace or of a tab closes it. A double click on the name of a
 // workspace or of a tab, or F2 on a tab, opens a field for a new name. The column folds to
 // a rail, as the drawer does. On a phone, the list of the machines comes after the workspaces.
+//
+// The column stays a custom part made of the Buttons and Tooltips of shadcn/ui. The Sidebar of
+// shadcn/ui is fixed to the edge of the window with a width in rem and its own open state and
+// sheet, and this column lies in the grid of the shell, under the command line and the board,
+// with a width in characters that the rule drags (`view.columns`) and a rail of 36 px.
 
 import { type ReactNode, useState } from 'react';
 import { useApp } from '../app/context';
+import { Button } from '../components/ui/button';
 import { dropTarget } from '../app/drag';
 import { useRows, useSelect, useValue } from '../lib/hooks';
 import { cn } from '../lib/utils';
 import { requestClose, type CloseTarget } from './close';
+import { CHROME_BUTTON, RAIL_BUTTON } from './chrome';
 import { Icon } from './icons';
 import { Tip } from './Tip';
 import { onLongPress } from '../app/press';
@@ -53,16 +60,19 @@ export function Sidebar(props: { extra?: () => ReactNode } = {}) {
         <span className="band-title">Workspaces</span>
         <span className="band-count">{workspaces.length}</span>
         <Tip text="Fold the workspaces to a rail">
-          <button
-            type="button"
-            className="column-fold"
+          <Button
+            variant="ghost"
+            className={cn(
+              CHROME_BUTTON,
+              'column-fold -mr-1.5 ml-auto h-6.5 px-1.5 has-[>svg]:px-1.5',
+            )}
             aria-label="Fold the left column"
             onClick={() => view.leftOpen.set(false)}
           >
             <svg viewBox="0 0 16 16" width="10" height="10" aria-hidden="true">
               <path d="M10 3l-5 5 5 5" fill="none" stroke="currentColor" strokeWidth="1.5" />
             </svg>
-          </button>
+          </Button>
         </Tip>
       </div>
       <ul className="workspaces">
@@ -70,7 +80,7 @@ export function Sidebar(props: { extra?: () => ReactNode } = {}) {
           const editsWorkspace = edits('workspace', workspace.id);
           return (
             <li key={workspace.id} className="workspace" data-workspace={workspace.id}>
-              <div className="workspace-name">
+              <div className="workspace-name group/row">
                 {editsWorkspace ? (
                   <RenameField
                     target={editsWorkspace}
@@ -110,9 +120,12 @@ export function Sidebar(props: { extra?: () => ReactNode } = {}) {
                   </span>
                 )}
                 <Tip text="Close workspace">
-                  <button
-                    type="button"
-                    className="row-close"
+                  <Button
+                    variant="ghost"
+                    className={cn(
+                      CHROME_BUTTON,
+                      'row-close size-4.5 opacity-50 group-hover/row:opacity-100 hover:text-destructive focus-visible:opacity-100 [@media(hover:none)]:opacity-100',
+                    )}
                     data-action="workspace-close"
                     aria-label={`Close workspace ${workspace.name}`}
                     onClick={() =>
@@ -120,14 +133,14 @@ export function Sidebar(props: { extra?: () => ReactNode } = {}) {
                     }
                   >
                     <CloseIcon />
-                  </button>
+                  </Button>
                 </Tip>
               </div>
               <ul className="workspace-tabs">
                 {workspace.tabs.map((tab) => {
                   const editsTab = edits('tab', tab.id);
                   return (
-                    <li key={tab.id} className="side-tab-row">
+                    <li key={tab.id} className="side-tab-row group/row">
                       {editsTab ? (
                         <RenameField
                           target={editsTab}
@@ -135,12 +148,17 @@ export function Sidebar(props: { extra?: () => ReactNode } = {}) {
                           label={`Name of tab ${tab.handle}`}
                         />
                       ) : (
-                        <button
-                          type="button"
-                          className={cn('side-tab', {
-                            selected: tab.id === shownTab,
-                            'drop-target': over === tab.id,
-                          })}
+                        <Button
+                          variant="ghost"
+                          className={cn(
+                            CHROME_BUTTON,
+                            'side-tab block h-[calc(var(--row)-4px)] min-w-0 truncate rounded-(--r-tab) px-(--s2) text-left hover:bg-(--bg-hover) hover:text-muted-foreground dark:hover:bg-(--bg-hover)',
+                            // The tab that the window shows, as the selected tab of the tab bar: a
+                            // quiet "you are here", with no change of weight.
+                            tab.id === shownTab &&
+                              'selected bg-(--bg-hover) text-foreground shadow-[inset_0_0_0_1px_var(--hairline)] hover:text-foreground',
+                            over === tab.id && 'drop-target shadow-[inset_0_0_0_1px_var(--text)]',
+                          )}
                           data-side-tab={tab.id}
                           aria-keyshortcuts="F2"
                           onClick={() => select(tab.id)}
@@ -181,18 +199,21 @@ export function Sidebar(props: { extra?: () => ReactNode } = {}) {
                           }}
                         >
                           {tab.name}
-                        </button>
+                        </Button>
                       )}
                       <Tip text="Close tab">
-                        <button
-                          type="button"
-                          className="row-close"
+                        <Button
+                          variant="ghost"
+                          className={cn(
+                            CHROME_BUTTON,
+                            'row-close size-4.5 opacity-50 group-hover/row:opacity-100 hover:text-destructive focus-visible:opacity-100 [@media(hover:none)]:opacity-100',
+                          )}
                           data-action="tab-close"
                           aria-label={`Close tab ${tab.name}`}
                           onClick={() => close({ kind: 'tab', id: tab.id, name: tab.name })}
                         >
                           <CloseIcon />
-                        </button>
+                        </Button>
                       </Tip>
                     </li>
                   );
@@ -202,9 +223,16 @@ export function Sidebar(props: { extra?: () => ReactNode } = {}) {
           );
         })}
       </ul>
-      <button type="button" className="new-workspace" onClick={create}>
+      <Button
+        variant="ghost"
+        className={cn(
+          CHROME_BUTTON,
+          "new-workspace mt-(--s2) block h-(--row) truncate px-(--s2) text-left before:content-['+_']",
+        )}
+        onClick={create}
+      >
         New workspace
-      </button>
+      </Button>
       {props.extra?.()}
     </nav>
   );
@@ -216,14 +244,14 @@ export function LeftRail() {
   return (
     <nav className="left-rail" aria-label="Folded left column">
       <Tip text="Workspaces" side="right">
-        <button
-          type="button"
-          className="rail-button"
+        <Button
+          variant="ghost"
+          className={cn(CHROME_BUTTON, RAIL_BUTTON)}
           aria-label="Show Workspaces"
           onClick={() => view.leftOpen.set(true)}
         >
           <Icon name="workspaces" />
-        </button>
+        </Button>
       </Tip>
     </nav>
   );

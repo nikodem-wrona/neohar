@@ -22,6 +22,7 @@ import { useRows, useSelect, useValue } from '../lib/hooks';
 import { cn } from '../lib/utils';
 import { SettingsView } from '../settings/SettingsView';
 import { limitText } from '../timeline/model';
+import { Cap } from './Cap';
 import { useFocusReturn } from './focus';
 import { chordText, FUNCTION_KEYS } from './keys';
 
@@ -33,7 +34,7 @@ const SWIPE_CLOSE = 60;
  * places a sheet of a phone, and the sheet is a panel of the chrome, as the columns are.
  */
 const IN_GRID =
-  'static inset-auto z-20 h-auto w-auto max-w-none gap-0 border-0 bg-transparent shadow-none backdrop-filter-none sm:max-w-none';
+  'static inset-auto z-20 h-auto w-auto max-w-none gap-0 border-0 bg-transparent shadow-none outline-none backdrop-filter-none sm:max-w-none';
 
 /** The edge of a sheet: the hairline and the shadow of glass. */
 const EDGE = 'shadow-[inset_0_0_0_1px_var(--hairline),var(--glass-shadow)]';
@@ -214,7 +215,7 @@ function More(props: { actions: ActionContext; keymap: Keymap }) {
                 onClick={() => run(key.command)}
               >
                 <span>{key.label}</span>
-                {chord ? <kbd className="cap">{chord}</kbd> : null}
+                {chord ? <Cap>{chord}</Cap> : null}
               </button>
             </li>
           );
