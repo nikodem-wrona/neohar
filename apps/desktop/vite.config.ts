@@ -5,8 +5,8 @@ import { defineConfig } from 'vite';
 
 // The dev server serves the page to the Tauri window (`mise run app:dev`). The port is fixed
 // because `tauri.conf.json` names it. The packages of the workspace live above this directory.
-// Lightning CSS (a dependency of Vite) reads the styles and lowers them for Safari 17: the
-// popover API needs it (macOS 14). Tailwind CSS makes the classes of the shadcn/ui components, and
+// Lightning CSS (a dependency of Vite) reads the styles and lowers them for Safari 17, the WebKit
+// of macOS 14. Tailwind CSS makes the classes of the shadcn/ui components, and
 // `@/` is the source of the UI package, as the shadcn/ui CLI writes it.
 export default defineConfig({
   plugins: [react(), tailwindcss()],
