@@ -262,6 +262,21 @@ fn question_request(
     })
 }
 
+/// Whether keys can type the answer to a question: one question, and one option, a set of
+/// options or a text of the person's own. The dialog of a harness takes an option or a text, not
+/// both.
+pub(crate) fn question_typable(
+    payload: &QuestionPayload,
+    decision: &nh_proto::api::calls::agent::QuestionDecision,
+) -> Result<(), &'static str> {
+    question_request(payload, decision, Asks::Anything).map(drop)
+}
+
+/// Keys answer a question only in a dialog of one question: the harness shows one at a time.
+pub(crate) fn keys_answer(payload: &InteractionPayload) -> bool {
+    !matches!(payload, InteractionPayload::Question(q) if q.questions.len() > 1)
+}
+
 // --- the service ---------------------------------------------------------------------------------
 
 /// Starts the sequences of keys. One task for each sequence.

@@ -92,12 +92,13 @@ for you.** Looking means that the window has the focus and the pane has the keyb
 | Card | Answers |
 |---|---|
 | Approval | **Allow**, **Allow `<rule>` always** (a session rule too), **Deny** (type a reason first if you want), **Deny and stop**. Keys `1` to `4` pick them |
-| Question | Choose the options, or type your own answer, then **Answer** |
+| Question | Choose the options or type your own answer, not both, then **Answer** |
 | Plan | **Approve**, or **Request changes** with feedback |
 
 The card shows the command or the diff, its risk and the last lines of the pane. At a **high**
 risk, Deny starts selected, a number key only selects, and Enter on the button answers. "Display
-only" means the agent is not linked to its pane: answer in the pane, or run `nh agent link`.
+only" means that neohar cannot type the answer into the pane. The agent is not linked to its pane
+(run `nh agent link`), or the request has more than one question. Answer in the pane.
 Invisible characters, such as the direction control U+202E, show as escapes like `<U+202E>`,
 and they make the risk high.
 

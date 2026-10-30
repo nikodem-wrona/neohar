@@ -243,7 +243,8 @@ fn open(
         && matches!(
             kind,
             InteractionKind::Approval | InteractionKind::Question | InteractionKind::PlanReview
-        );
+        )
+        && crate::keystrokes::keys_answer(&rendered.payload);
     let channels = if bound {
         channels_of(&caps, kind, mode, keystroke)
     } else {

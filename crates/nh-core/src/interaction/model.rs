@@ -451,7 +451,22 @@ impl Interaction {
                 Ok(())
             }
             (InteractionPayload::Question(payload), Decision::Question(d)) => {
-                validate_question(payload, d)
+                validate_question(payload, d)?;
+                // Keys type the answer into the dialog of the harness, so the answer must fit it.
+                if self.channel_for_decision() == AnswerChannel::Keystroke {
+                    crate::keystrokes::question_typable(payload, d).map_err(|reason| {
+                        Refusal::Invalid(
+                            match reason {
+                                "several_questions" => {
+                                    "the dialog shows one question at a time: answer it in the pane"
+                                }
+                                _ => "choose an option or type your own answer, not both",
+                            }
+                            .to_owned(),
+                        )
+                    })?;
+                }
+                Ok(())
             }
             (InteractionPayload::PlanReview(_), Decision::PlanReview(d)) => {
                 // Approval of a plan has no native channel in a TUI.

@@ -796,6 +796,44 @@ fn question_answers_are_checked_against_the_options() {
 }
 
 #[test]
+fn keys_take_an_option_or_a_text_and_one_question() {
+    let answer = |payload: InteractionPayload, answers| {
+        let mut open = spec(InteractionKind::Question, payload);
+        open.channels = vec![AnswerChannel::Keystroke];
+        open.mode = GateMode::Observe;
+        let (mut interaction, _) = Interaction::open(id(6), "i6".to_owned(), open, at(1_000));
+        interaction.answer(
+            Decision::Question(QuestionDecision { answers }),
+            "ui",
+            Via::Card,
+        )
+    };
+    let one = || {
+        let InteractionPayload::Question(mut payload) = question_payload() else {
+            unreachable!("a question");
+        };
+        payload.questions.truncate(1);
+        InteractionPayload::Question(payload)
+    };
+    use nh_proto::api::calls::agent::QuestionAnswer as A;
+    let a = |question: &str, selected: &[&str], text: Option<&str>| A {
+        question: question.to_owned(),
+        selected: selected.iter().map(|s| (*s).to_owned()).collect(),
+        text: text.map(str::to_owned),
+    };
+    assert!(answer(one(), vec![a("Which?", &["A"], None)]).is_ok());
+    assert!(answer(one(), vec![a("Which?", &[], Some("C"))]).is_ok());
+    assert!(matches!(
+        answer(one(), vec![a("Which?", &["A"], Some("and C"))]),
+        Err(Refusal::Invalid(_))
+    ));
+    assert!(matches!(
+        answer(question_payload(), vec![a("Which?", &["A"], None)]),
+        Err(Refusal::Invalid(_))
+    ));
+}
+
+#[test]
 fn a_plan_is_approved_only_with_keystrokes_and_rejected_with_feedback() {
     let plan = |channels: Vec<AnswerChannel>| {
         let mut open = spec(

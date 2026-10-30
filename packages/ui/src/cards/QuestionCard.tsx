@@ -1,5 +1,7 @@
 // The card of a question: the last message of the agent, each question with its
-// options and their descriptions, a free text, and one button that sends all the answers.
+// options and their descriptions, a free text, and one button that sends all the answers. An
+// answer is the options or the text, not both: keys type it into the dialog of the harness,
+// which takes one.
 
 import type { InteractionValue, QuestionAnswer } from '@neohar/transport';
 import { createSignal, For, Show } from 'solid-js';
@@ -61,13 +63,14 @@ export function QuestionCard(props: {
                     type={question.multi_select ? 'checkbox' : 'radio'}
                     name={`${props.interaction.id}-${at()}`}
                     checked={(selected()[at()] ?? []).includes(option.label)}
-                    onChange={() =>
+                    onChange={() => {
                       setSelected((all) =>
                         all.map((list, i) =>
                           i === at() ? toggled(list, option.label, !!question.multi_select) : list,
                         ),
-                      )
-                    }
+                      );
+                      setTexts((all) => all.map((text, i) => (i === at() ? '' : text)));
+                    }}
                   />
                   <span class="card-option-label">{option.label}</span>
                   <Show when={option.description}>
@@ -85,6 +88,9 @@ export function QuestionCard(props: {
               onInput={(event) => {
                 const value = event.currentTarget.value;
                 setTexts((all) => all.map((text, i) => (i === at() ? value : text)));
+                if (value.trim()) {
+                  setSelected((all) => all.map((list, i) => (i === at() ? [] : list)));
+                }
               }}
             />
           </fieldset>
