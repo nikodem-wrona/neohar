@@ -19,7 +19,7 @@ go to `playwright test`. `NEOHAR_CHROMIUM` names a Chromium that is already on t
 The real UI packages run in Playwright WebKit (the engine of the macOS webview) against a headless
 `nh daemon --dev-ws` with real holders. Playwright cannot drive the WKWebView of the app, so the page
 uses the dev WebSocket transport instead of the Tauri channel. The test also runs `axe-core` on the
-drawer, the palette and the search, and checks that hostile text in an approval card stays inert.
+drawer and the palette, and checks that hostile text in an approval card stays inert.
 
 ```bash
 mise run test:shell                      # tests/ui/ui.pw.ts

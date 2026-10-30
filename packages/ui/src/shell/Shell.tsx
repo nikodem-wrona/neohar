@@ -34,7 +34,6 @@ import { sampleRefresh } from '../focus/refresh';
 import { revealed } from '../app/reveal';
 import { LayoutView } from '../layout/LayoutView';
 import { Palette } from '../palette/Palette';
-import { SearchOverlay } from '../search/SearchOverlay';
 import { Board } from '../board/Board';
 import { GitView } from '../git/GitView';
 import { windowFolder } from '../files/folder';
@@ -109,7 +108,6 @@ export function Shell(props: ShellProps = {}) {
       }),
     showDrawer: view.showDrawer,
     togglePalette: () => view.setPaletteOpen((open) => !open),
-    toggleSearch: () => view.setSearchOpen((open) => !open),
     toggleGit: () => {
       if (form !== 'phone') view.toggleGit();
     },
@@ -299,9 +297,6 @@ export function Shell(props: ShellProps = {}) {
       <Mirror />
       <Show when={view.paletteOpen()}>
         <Palette />
-      </Show>
-      <Show when={view.searchOpen()}>
-        <SearchOverlay />
       </Show>
       <Show when={view.closing()}>{(closing) => <CloseConfirm closing={closing()} />}</Show>
       <StatusBar actions={actions} keymap={keymap} />

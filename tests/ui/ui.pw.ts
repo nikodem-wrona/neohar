@@ -1795,70 +1795,6 @@ test('the Timeline tab shows the turns of the agent in focus with its usage', as
   }
 });
 
-test('the search finds a line that left the screen and shows the pane at that line', async ({
-  page,
-  request,
-}) => {
-  const { api, calls, makeWorkspace } = await openShell(page, request);
-  // The needle is the first line, so the numbers push it off the screen. Words that no other test
-  // prints keep the hit unique in a core that other tests used.
-  const needle = 'zebrafinch quartz ledger';
-  const made = await makeWorkspace('Search', {
-    command: {
-      argv: ['/bin/sh', '-c', `echo '${needle} [one]'; seq 1 120; echo ready; exec sleep 600`],
-    },
-  });
-  await expect(page.locator(`[data-pane="${made.pane}"]`)).toBeVisible();
-  // The lines are in the archive when the core flushes it, and the search flushes it first.
-  await expect
-    .poll(async () => (await api<{ text: string }>('pane.read', { pane: made.pane })).text, {
-      timeout: 20_000,
-    })
-    .toContain('ready');
-  await page.locator(`[data-pane="${made.pane}"] .pane-surface`).click();
-  const dialog = page.getByRole('dialog', { name: 'Search scrollback' });
-
-  // ⌘⇧F opens the search, and the input has the keyboard.
-  await page.keyboard.press('Meta+Shift+KeyF');
-  await expect(dialog).toBeVisible();
-  await expect(dialog.getByRole('textbox')).toBeFocused();
-
-  // Typing asks the core, and the hit shows the pane, the line and the match.
-  await page.keyboard.type('zebrafinch quartz');
-  const hit = dialog.getByRole('option');
-  await expect(hit).toHaveCount(1, { timeout: 20_000 });
-  await expect(hit.locator('mark').first()).toHaveText('zebrafinch');
-  await expect(hit).toContainText('[one]');
-  await expect(hit).toHaveAttribute('data-line', '0');
-  const queries = await calls('search.query');
-  expect(queries.at(-1)?.params).toMatchObject({ query: 'zebrafinch quartz' });
-
-  // The scope "This pane" asks for the focused pane only.
-  await dialog.getByRole('button', { name: 'This pane' }).click();
-  await expect(hit).toHaveCount(1);
-  expect((await calls('search.query')).at(-1)?.params).toMatchObject({ pane: made.pane });
-
-  // Enter shows the pane in this window and scrolls it to the line.
-  await page.keyboard.press('Enter');
-  await expect(dialog).toHaveCount(0);
-  expect((await calls('palette.execute')).at(-1)?.params).toMatchObject({
-    command: `go.pane:${made.pane}`,
-  });
-  expect((await calls('pane.scroll')).at(-1)?.params).toMatchObject({
-    pane: made.pane,
-    top_line: 0,
-  });
-  await expect(page.locator(`[data-pane="${made.pane}"]`)).toHaveClass(/focused/);
-
-  // A query with no match says so, and Escape closes the search.
-  await page.keyboard.press('Meta+Shift+KeyF');
-  await expect(dialog).toBeVisible();
-  await page.keyboard.type('nothinglikethis');
-  await expect(dialog).toContainText('No line matches.', { timeout: 20_000 });
-  await page.keyboard.press('Escape');
-  await expect(dialog).toHaveCount(0);
-});
-
 test('a program that writes the clipboard waits for an answer in the pane', async ({
   page,
   request,
@@ -1925,14 +1861,10 @@ test('the shell has no serious accessibility violation (axe smoke test)', async 
     await page.getByRole('tab', { name }).click();
     expect(await violations(), `the ${name} tab`).toEqual([]);
   }
-  // The palette and the search are dialogs over the window.
+  // The palette is a dialog over the window.
   await page.keyboard.press('Meta+KeyK');
   await expect(page.getByRole('dialog', { name: 'Command palette' })).toBeVisible();
   expect(await violations(), 'the palette').toEqual([]);
-  await page.keyboard.press('Escape');
-  await page.keyboard.press('Meta+Shift+KeyF');
-  await expect(page.getByRole('dialog', { name: 'Search scrollback' })).toBeVisible();
-  expect(await violations(), 'the search').toEqual([]);
   await page.keyboard.press('Escape');
   // The question before a tab closes with a program in it.
   await expect

@@ -2291,7 +2291,7 @@ export interface PaletteExecute {
 
 /**
  * What `palette.execute` did. Some commands belong to the page and not to the core, for
- * example the search. The core then names the action, and the page does it.
+ * example the inbox. The core then names the action, and the page does it.
  */
 export interface PaletteExecuted {
   ui?: string | null;
@@ -3128,29 +3128,6 @@ export interface ScrollbackParams {
   count: number;
   from_line: number;
   pane: RefPaneId;
-}
-
-export interface SearchHit {
-  at?: Timestamp | null;
-  /** The absolute line. */
-  line: number;
-  pane: PaneId;
-  text: Spans;
-}
-
-export interface SearchQuery {
-  limit?: number | null;
-  pane?: RefPaneId | null;
-  query: string;
-  workspace?: RefWorkspaceId | null;
-}
-
-export interface SearchResults {
-  hits: SearchHit[];
-  /** A job that goes on searching the archive. Its result has the later hits. */
-  job?: JobId | null;
-  /** More hits exist than `limit`. */
-  truncated?: boolean;
 }
 
 export type SelectMode = 'simple' | 'word' | 'line' | 'block';
@@ -4115,7 +4092,6 @@ export interface MethodMap {
   };
   'doctor.run': { params: DoctorRun; result: DoctorReport };
   'debug.bundle': { params: DebugBundle; result: DebugBundled };
-  'search.query': { params: SearchQuery; result: SearchResults };
   'palette.query': { params: PaletteQuery; result: PaletteResults };
   'palette.execute': { params: PaletteExecute; result: PaletteExecuted };
   'rich.diff': { params: RichDiff; result: Diff };
@@ -4288,7 +4264,6 @@ export type UiMethod =
   | 'integration.doctor'
   | 'integration.capabilities'
   | 'doctor.run'
-  | 'search.query'
   | 'palette.query'
   | 'palette.execute'
   | 'rich.diff'
@@ -4413,7 +4388,6 @@ export type CliMethod =
   | 'integration.capabilities'
   | 'doctor.run'
   | 'debug.bundle'
-  | 'search.query'
   | 'jobs.cancel';
 
 /** The methods that the `pane` scope may call. */
@@ -4584,7 +4558,6 @@ export const METHOD_SCOPES: { readonly [M in Method]: readonly Scope[] } = {
   'integration.capabilities': ['ui', 'cli', 'phone'],
   'doctor.run': ['ui', 'cli', 'phone'],
   'debug.bundle': ['cli'],
-  'search.query': ['ui', 'cli', 'phone'],
   'palette.query': ['ui', 'phone'],
   'palette.execute': ['ui', 'phone'],
   'rich.diff': ['ui', 'phone'],

@@ -24,8 +24,6 @@ export interface ActionContext {
   showDrawer(tab: DrawerTab): void;
   /** Opens the palette, or closes it when it is open. */
   togglePalette(): void;
-  /** Opens the search of the scrollback, or closes it when it is open. */
-  toggleSearch(): void;
   /** Opens the Git view on the folder of the window, or closes it when it is open. */
   toggleGit(): void;
   /** Opens the Workflows view on the folder of the window, or closes it when it is open. */
@@ -82,7 +80,6 @@ const ACTIONS: Readonly<Record<string, Action>> = {
       })
       .catch(ctx.report);
   },
-  'search.open': (ctx) => ctx.toggleSearch(),
   'git.open': (ctx) => ctx.toggleGit(),
   'workflows.open': (ctx) => ctx.toggleWorkflows(),
   // The peek does not exist yet. Its key stays reserved.

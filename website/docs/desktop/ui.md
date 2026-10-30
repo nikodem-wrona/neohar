@@ -38,7 +38,7 @@ of the core and sends a command for each action of the person
 | Drawer | `shell/Drawer.tsx` | Four tabs (below). Under 1280 px it starts folded to a rail. It never covers a pane |
 | Status bar | `shell/StatusBar.tsx` | Function keys (the reserved chords as clickable gray key caps; Answer is amber while an agent waits), harness limits, health warnings, `canvas2d` after a fallback, the machine, and after a rule the switches of the left column (Workspaces), the drawer, the Git view and the Workflows view. The Workflows switch has a dot while an execution is paused or waits for the person |
 | Banners | `shell/HealthBanner.tsx`, `shell/LinkBanner.tsx` | Degraded storage and doctor notes; a link to a remote machine that is down (input is off while it is) |
-| Dialogs | `palette/`, `search/`, `shell/CloseConfirm.tsx` | The palette (`⌘K`), scrollback search (`⌘⇧F`), the close confirmation |
+| Dialogs | `palette/`, `shell/CloseConfirm.tsx` | The palette (`⌘K`), the close confirmation |
 
 The widths of the left column and the drawer are in characters; a drag of the rule changes them,
 and the page keeps them in local storage because they are not business state.
@@ -52,8 +52,8 @@ of its agent on the board has a lighter fill and keeps the colour of its state, 
 louder than the focus.
 
 **Showing a pane.** `pane.focus` takes only a pane that the window draws. A click on a
-strip of the board, on Open of a notice or an inbox line, on the attention line or on a search
-hit therefore runs the palette command `go.pane:<id>` (`app/show.ts`): the window shows the tab
+strip of the board, on Open of a notice or an inbox line or on the attention line therefore
+runs the palette command `go.pane:<id>` (`app/show.ts`): the window shows the tab
 of the pane, in any workspace, and the pane gets the focus.
 
 ## Stores

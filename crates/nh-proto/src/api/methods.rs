@@ -285,7 +285,6 @@ impl Method {
                 | Self::IntegrationCapabilities
                 | Self::DoctorRun
                 | Self::DebugBundle
-                | Self::SearchQuery
                 | Self::PaletteQuery
                 | Self::RichDiff
                 | Self::RichMarkdown
@@ -553,8 +552,7 @@ methods! {
     DoctorRun "doctor.run" BOTH (DoctorRun) -> DoctorReport;
     DebugBundle "debug.bundle" CLI (DebugBundle) -> DebugBundled;
 
-    // search, palette, rich content, timeline and jobs
-    SearchQuery "search.query" BOTH (SearchQuery) -> SearchResults;
+    // palette, rich content, timeline and jobs
     PaletteQuery "palette.query" UI (PaletteQuery) -> PaletteResults;
     PaletteExecute "palette.execute" UI (PaletteExecute) -> PaletteExecuted;
     RichDiff "rich.diff" UI (RichDiff) -> crate::api::rich::Diff;
@@ -792,7 +790,6 @@ mod tests {
                     "capabilities",
                 ],
             ),
-            ("search", &["query"]),
             ("palette", &["query", "execute"]),
             ("rich", &["diff", "markdown", "highlight"]),
             ("timeline", &["page", "item"]),
@@ -842,7 +839,6 @@ mod tests {
             "pane.list",
             "agent.show",
             "projection.subscribe",
-            "search.query",
             "config.set",
             "window.focus_report",
             "adapter.signal",

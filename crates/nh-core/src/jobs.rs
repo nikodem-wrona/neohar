@@ -1,9 +1,8 @@
 //! Jobs: commands that take long.
 //!
-//! A command that needs more than a moment (`agent.start`, a search over the archive) starts a
-//! job and returns its id. The worker reports progress through a [`JobHandle`], and the `jobs`
-//! projection shows it. A job ends in one of three states: `done`, `failed` or `cancelled`, and an
-//! end state does not change again.
+//! A command that needs more than a moment (`agent.start`) starts a job and returns its id. The
+//! worker reports progress through a [`JobHandle`], and the `jobs` projection shows it. A job ends
+//! in one of three states: `done`, `failed` or `cancelled`, and an end state does not change again.
 //!
 //! - **Cancel.** `jobs.cancel` marks the job `cancelled` at once and tells the worker through its
 //!   [`CancelToken`]. The worker stops when it can. What it reports after that is ignored.

@@ -1058,7 +1058,6 @@ impl CoreHandle {
             || integration_calls::handles(method)
             || rich_calls::handles(method)
             || crate::transcripts::calls::handles(method)
-            || crate::search::handles(method)
             || crate::session::handles(method)
             || crate::askpass::handles(method)
             || crate::machines::handles(method)
@@ -1090,8 +1089,6 @@ impl CoreHandle {
                 rich_calls::run(&self.inner, call).await
             } else if crate::transcripts::calls::handles(method) {
                 crate::transcripts::calls::run(&self.inner, call).await
-            } else if crate::search::handles(method) {
-                crate::search::run(&self.inner, call).await
             } else if crate::session::handles(method) {
                 crate::session::run(&self.inner, call).await
             } else if crate::askpass::handles(method) {

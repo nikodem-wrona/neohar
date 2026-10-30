@@ -1,5 +1,5 @@
 //! Params and results of `events.*`, `projection.*`, `config.*`, `policy.*`, `integration.*`,
-//! `search.*`, `palette.*`, `rich.*`, `timeline.*` and `jobs.*`.
+//! `palette.*`, `rich.*`, `timeline.*` and `jobs.*`.
 
 use std::collections::BTreeMap;
 
@@ -8,10 +8,9 @@ use serde_json::Value;
 use crate::api::{
     common::{Harness, wire},
     events::{Cursor, Event, EventFilter},
-    ids::{JobId, PaneId, Ref, RunId, WindowId, WorkspaceId},
+    ids::{JobId, Ref, RunId, WindowId},
     model::{Capabilities, PaletteCommand, SettingsSection, TimelineItem},
     projections::{Projection, ProjectionMessage},
-    rich::Spans,
     time::Timestamp,
 };
 
@@ -374,36 +373,7 @@ wire! {
         pub files: u32,
     }
 
-    // --- search, palette, rich, timeline, jobs ---
-
-    pub struct SearchQuery {
-        pub query: String,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        pub pane: Option<Ref<PaneId>>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        pub workspace: Option<Ref<WorkspaceId>>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        pub limit: Option<u32>,
-    }
-
-    pub struct SearchHit {
-        pub pane: PaneId,
-        /// The absolute line.
-        pub line: u64,
-        pub text: Spans,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        pub at: Option<Timestamp>,
-    }
-
-    pub struct SearchResults {
-        pub hits: Vec<SearchHit>,
-        /// More hits exist than `limit`.
-        #[serde(default)]
-        pub truncated: bool,
-        /// A job that goes on searching the archive. Its result has the later hits.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        pub job: Option<JobId>,
-    }
+    // --- palette, rich, timeline, jobs ---
 
     pub struct PaletteQuery {
         pub query: String,
@@ -436,7 +406,7 @@ wire! {
     }
 
     /// What `palette.execute` did. Some commands belong to the page and not to the core, for
-    /// example the search. The core then names the action, and the page does it.
+    /// example the inbox. The core then names the action, and the page does it.
     pub struct PaletteExecuted {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         pub ui: Option<String>,

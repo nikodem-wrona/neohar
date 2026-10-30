@@ -55,7 +55,6 @@ nh workspace list
 nh pane list --workspace w1
 nh agent list
 nh pane read w1:p2                          # the visible screen as text
-nh search query "panicked at" --pane w1:p2  # the history of the panes
 nh fs list .                                # the files and folders of a folder
 ```
 

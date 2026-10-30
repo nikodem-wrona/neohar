@@ -39,7 +39,6 @@ Commands:
   config       The configuration
   policy       Rules that decide approvals
   integration  The hooks of the harnesses
-  search       Search the scrollback
   jobs         Long commands
 
 Options:
@@ -76,5 +75,4 @@ Options:
 | [`nh config`](/docs/reference/cli/commands/config) | The configuration | `get`, `set`, `reload`, `edit` |
 | [`nh policy`](/docs/reference/cli/commands/policy) | Rules that decide approvals | `list`, `add`, `remove`, `suggest` |
 | [`nh integration`](/docs/reference/cli/commands/integration) | The hooks of the harnesses | `list`, `install`, `status`, `uninstall`, `doctor`, `capabilities` |
-| [`nh search`](/docs/reference/cli/commands/search) | Search the scrollback | `query` |
 | [`nh jobs`](/docs/reference/cli/commands/jobs) | Long commands | `cancel` |

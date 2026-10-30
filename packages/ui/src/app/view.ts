@@ -118,7 +118,6 @@ export function createViewState() {
   const [pressMenu, setPressMenu] = createSignal<PressMenu | null>(null);
   const [barCtrl, setBarCtrl] = createSignal<Sticky>('off');
   const [barAlt, setBarAlt] = createSignal<Sticky>('off');
-  const [searchOpen, setSearchOpen] = createSignal(false);
   const [focusedCard, setFocusedCard] = createSignal<string | null>(null);
   const [closing, setClosing] = createSignal<Closing | null>(null);
   const [renaming, setRenaming] = createSignal<RenameTarget | null>(null);
@@ -191,9 +190,6 @@ export function createViewState() {
     },
     paletteOpen,
     setPaletteOpen,
-    /** The search of the scrollback is open. */
-    searchOpen,
-    setSearchOpen,
     /**
      * Does what a command of the page asks for. The core names it in `palette.execute`. A rename
      * edits the tab or the workspace that the window shows, and the field of a workspace opens a
@@ -208,8 +204,6 @@ export function createViewState() {
       } else if (id === 'inbox.open') {
         setDrawerTab('inbox');
         setDrawerOpen(true);
-      } else if (id === 'search.open') {
-        setSearchOpen(true);
       } else if (id === 'git.open') {
         if (gitOpen()) closeGit();
         else openGit();

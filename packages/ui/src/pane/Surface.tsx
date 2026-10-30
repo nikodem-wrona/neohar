@@ -90,13 +90,9 @@ export function Surface(props: { id: PaneId; focused: boolean }) {
 
   // The core says which pane has the focus, and the page moves the DOM focus to the input.
   createEffect(() => {
-    // The palette, the search, the question of a close and the field of a new name have the focus
-    // while they are open, and the pane takes it back when they close.
-    const overlay =
-      view.paletteOpen() ||
-      view.searchOpen() ||
-      view.closing() !== null ||
-      view.renaming() !== null;
+    // The palette, the question of a close and the field of a new name have the focus while they
+    // are open, and the pane takes it back when they close.
+    const overlay = view.paletteOpen() || view.closing() !== null || view.renaming() !== null;
     // A phone opens its keyboard only for a tap: a focus from code would cover half of the screen
     // when the person only looks.
     if (phone) return;

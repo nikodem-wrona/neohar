@@ -1,6 +1,6 @@
 ---
 title: Workspaces and panes
-description: "Workspaces, tabs and panes, the command line of the window, the default shortcuts, and how to search the scrollback."
+description: "Workspaces, tabs and panes, the command line of the window, the default shortcuts, and the scrollback."
 sidebar_position: 2
 ---
 
@@ -81,7 +81,6 @@ with `nh config set keys.palette_open mod+j`.
 | `⌘D`, `⌘⇧D` | Split the pane right, down |
 | `⌘⇧I` | Show the Inbox |
 | `⌘⇧A` | Answer next: show the most urgent card |
-| `⌘⇧F` | Search the scrollback |
 | `⌘⇧G` | Open or close the Git view |
 | `⌘⇧E` | Open or close the Workflows view |
 | `⌘⇧N`, `⌘N` | New window |
@@ -94,23 +93,12 @@ with `nh config set keys.palette_open mod+j`.
 In a pane, drag to select. A double click selects a word and a triple click a line. Hold Shift to
 select in a program that uses the mouse.
 
-## Search and scrollback
+## Scrollback
 
 A pane keeps about 900 lines above the screen in memory, which the wheel and the scrollbar scroll.
-Every line that leaves the screen also goes to an archive on disk, which the search reads. The
-archive survives quits, crashes and updates. It goes when the pane closes.
-
-Press `⌘⇧F` and type words. Choose **All panes**, **This workspace** or **This pane**. Enter on a
-hit shows its pane at that line.
-
-- Each word of two letters or more also finds longer words that start with it: `migr fail` finds
-  "migration failed". Case does not matter.
-- The search finds lines that left the screen. A line that is still on the screen is not in the
-  archive yet.
-- A hit older than the history in memory opens the pane at its oldest line in memory. Read such a
-  line with `nh pane read`.
+Every line that leaves the screen also goes to an archive on disk. The archive survives quits,
+crashes and updates. It goes when the pane closes. Read the older lines with `nh pane read`:
 
 ```bash
-nh search query "migration failed" --workspace w3
 nh pane read w3:p5 --lines '{"from": 0, "to": 200}'   # absolute lines from the archive
 ```

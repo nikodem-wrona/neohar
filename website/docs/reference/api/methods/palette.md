@@ -1,7 +1,7 @@
 ---
 title: "palette.*"
 description: "The command palette: the core ranks and runs the commands."
-sidebar_position: 27
+sidebar_position: 26
 toc_max_heading_level: 2
 ---
 

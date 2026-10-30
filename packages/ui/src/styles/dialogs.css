@@ -1,5 +1,5 @@
-/* What lies over the window: the palette on the command line, the search of the scrollback, the
-   question before a close, the large view of a file, and the dialog of the settings. */
+/* What lies over the window: the palette on the command line, the question before a close, the
+   large view of a file, and the dialog of the settings. */
 @layer components {
   /* --- the palette: the command line, open ------------------------------------------------------ */
 
@@ -191,43 +191,6 @@
     background: var(--bg-hover);
     color: var(--text-dim);
     font-weight: 400;
-  }
-
-  /* The search of the scrollback. It uses the frame of the palette, and a hit has
-     its pane and line at the left, as the result of a search in files has. */
-  .search-scopes {
-    display: flex;
-    gap: var(--s1);
-    padding: var(--s2) var(--s4) var(--s1);
-  }
-
-  .search-scope {
-    padding: 2px 10px;
-    border: 0;
-    border-radius: var(--r-sm);
-    color: var(--text-dim);
-  }
-
-  .search-scope:hover {
-    background: var(--bg-hover);
-  }
-
-  .search-scope[aria-pressed='true'] {
-    background: var(--bg-focus);
-    color: var(--text);
-  }
-
-  .search-hit {
-    grid-template-columns: minmax(0, 16ch) minmax(0, 1fr);
-  }
-
-  .search-hit .palette-category {
-    text-align: left;
-  }
-
-  .search-hit .palette-title {
-    font-family: var(--font-data);
-    font-size: var(--size-data);
   }
 
   /* --- dialogs and banners ---------------------------------------------------------------------- */

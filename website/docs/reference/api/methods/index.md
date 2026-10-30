@@ -1,6 +1,6 @@
 ---
 title: "Methods"
-description: "All 176 JSON-RPC methods of the core, by namespace."
+description: "All 175 JSON-RPC methods of the core, by namespace."
 sidebar_label: "Methods"
 ---
 
@@ -11,15 +11,15 @@ Do not edit it by hand. Change the source and run `bun run gen` in `website/`.
 
 :::
 
-The core has 176 methods in 31 namespaces. A method name is `<namespace>.<verb>`. Each method lists its callers (scopes); a caller that is not on the list gets [`permission_denied`](/docs/reference/api/errors#permission-denied).
+The core has 175 methods in 30 namespaces. A method name is `<namespace>.<verb>`. Each method lists its callers (scopes); a caller that is not on the list gets [`permission_denied`](/docs/reference/api/errors#permission-denied).
 
 | Scope | Who | Methods |
 |---|---|---|
-| `ui` | the UI, over the `rpc` command of the Tauri host or the WebSocket | 157 |
-| `cli` | the CLI and any other client on the API socket | 115 |
+| `ui` | the UI, over the `rpc` command of the Tauri host or the WebSocket | 156 |
+| `cli` | the CLI and any other client on the API socket | 114 |
 | `pane` | a hook shim, with the token of a pane | 4 |
 | `dev` | development and test builds only | 4 |
-| `phone` | a paired phone, over the listener of the phone | 153 |
+| `phone` | a paired phone, over the listener of the phone | 152 |
 
 | Namespace | What it is for | Methods |
 |---|---|---|
@@ -48,7 +48,6 @@ The core has 176 methods in 31 namespaces. A method name is `<namespace>.<verb>`
 | [`integration`](/docs/reference/api/methods/integration) | The hooks that neohar installs into Claude Code and Codex. | [`integration.list`](/docs/reference/api/methods/integration#integration-list), [`integration.install`](/docs/reference/api/methods/integration#integration-install), [`integration.status`](/docs/reference/api/methods/integration#integration-status), [`integration.uninstall`](/docs/reference/api/methods/integration#integration-uninstall), [`integration.doctor`](/docs/reference/api/methods/integration#integration-doctor), [`integration.capabilities`](/docs/reference/api/methods/integration#integration-capabilities) |
 | [`doctor`](/docs/reference/api/methods/doctor) | The checks of `nh doctor`. | [`doctor.run`](/docs/reference/api/methods/doctor#doctor-run) |
 | [`debug`](/docs/reference/api/methods/debug) | Bug reports and tools for development builds. | [`debug.bundle`](/docs/reference/api/methods/debug#debug-bundle), [`debug.screen`](/docs/reference/api/methods/debug#debug-screen), [`debug.answer`](/docs/reference/api/methods/debug#debug-answer), [`debug.spawn_panes`](/docs/reference/api/methods/debug#debug-spawn-panes), [`debug.drop_links`](/docs/reference/api/methods/debug#debug-drop-links) |
-| [`search`](/docs/reference/api/methods/search) | Search of the scrollback archive. | [`search.query`](/docs/reference/api/methods/search#search-query) |
 | [`palette`](/docs/reference/api/methods/palette) | The command palette: the core ranks and runs the commands. | [`palette.query`](/docs/reference/api/methods/palette#palette-query), [`palette.execute`](/docs/reference/api/methods/palette#palette-execute) |
 | [`rich`](/docs/reference/api/methods/rich) | Rich content on demand: diffs, sanitized markdown and highlighted code. | [`rich.diff`](/docs/reference/api/methods/rich#rich-diff), [`rich.markdown`](/docs/reference/api/methods/rich#rich-markdown), [`rich.highlight`](/docs/reference/api/methods/rich#rich-highlight) |
 | [`timeline`](/docs/reference/api/methods/timeline) | Older items of the timeline of a run. | [`timeline.page`](/docs/reference/api/methods/timeline#timeline-page), [`timeline.item`](/docs/reference/api/methods/timeline#timeline-item) |

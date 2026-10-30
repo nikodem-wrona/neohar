@@ -53,7 +53,7 @@ pub use policy_rows::{FingerprintRow, PolicyRuleRow};
 pub use runs::RunRow;
 pub use scrollback::{
     ArchivedLine, ArchivedRun, FLUSH_INTERVAL_MS, Flushed, PageBuilder, PageError, SEGMENT_BYTES,
-    SEGMENT_LINES, ScrollbackHit, ScrollbackWriter, SearchScope, SegmentInfo,
+    SEGMENT_LINES, ScrollbackWriter, SegmentInfo,
 };
 pub use usage_rows::{TranscriptState, UsageTotals};
 pub use workflow_rows::{ExecutionRow, NodeRow};

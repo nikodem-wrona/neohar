@@ -174,13 +174,6 @@ pub const COMMANDS: &[Spec] = &[
         Needs::Nothing,
     ),
     spec(
-        "search.open",
-        "Search scrollback",
-        "Search",
-        Some("⌘⇧F"),
-        Needs::Page,
-    ),
-    spec(
         "inbox.open",
         "Open the inbox",
         "Go to",

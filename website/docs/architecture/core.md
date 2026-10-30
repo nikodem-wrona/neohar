@@ -13,7 +13,7 @@ The core runs on its **own** tokio runtime (threads `nh-core-N`), separate from 
 Every call goes through `CoreHandle::call_as(origin, method, params)`: the webview through the Tauri command `rpc`, the CLI and the hook shim through `api.sock`, a remote client through `link.sock`, and the tests directly.
 
 1. **Authorize.** The scope of the origin (`ui`, `cli`, `pane`, `dev`) is checked against the method in the contract. An unknown name is `method_not_found`; a method that is not for the caller is `permission_denied`.
-2. **Direct handlers.** Calls that act on live processes or do slow work run on the caller's task: input, resize, paste, selection, render acks, files, search, the doctor and others. When they change state, they still ask the actor.
+2. **Direct handlers.** Calls that act on live processes or do slow work run on the caller's task: input, resize, paste, selection, render acks, files, the doctor and others. When they change state, they still ask the actor.
 3. **The state actor** runs everything else that changes state.
 4. A method of the contract that nothing implements answers `unsupported`.
 
@@ -45,9 +45,9 @@ A new database gets the schema of version 15 from one file, [`0015_schema.sql`](
 
 **Degraded mode.** A full disk or an I/O error sets a flag in the store. Writes are refused at once, a probe tries again every 10 s, and `health.storage` shows the reason. Panes, input, rendering, reads and the configuration keep working; the palette disables the commands that write.
 
-**Scrollback archive.** Lines that leave a pane's in-memory history (at most 900 lines) go to zstd segments under `scrollback/<pane>/`, flushed at least once a second and indexed in an FTS5 table. `search.query` searches it; each word of a query matches the start of a word.
+**Scrollback archive.** Lines that leave a pane's in-memory history (at most 900 lines) go to zstd segments under `scrollback/<pane>/`, flushed at least once a second. The scrollback of a pane and `pane.read` read them.
 
-**Retention** ([retention.rs](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-core/src/retention.rs)). When the core starts and then once an hour, it deletes events older than `events.sync_retention` (7 days), and events of the audit kinds older than `events.audit_retention` (90 days). A client with a cursor below the deleted events gets `truncated`. The same pass deletes the interactions that ended before `events.audit_retention`, with their delivery records. When `scrollback.max_bytes_per_pane` is above 0, the same pass deletes the oldest segments of each pane over the cap; the newest segment stays. The default is no cap, so the scrollback and its FTS5 index stay on disk (mode 0600) with no limit. A change of these settings starts a new pass within a minute.
+**Retention** ([retention.rs](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-core/src/retention.rs)). When the core starts and then once an hour, it deletes events older than `events.sync_retention` (7 days), and events of the audit kinds older than `events.audit_retention` (90 days). A client with a cursor below the deleted events gets `truncated`. The same pass deletes the interactions that ended before `events.audit_retention`, with their delivery records. When `scrollback.max_bytes_per_pane` is above 0, the same pass deletes the oldest segments of each pane over the cap; the newest segment stays. The default is no cap, so the scrollback stays on disk (mode 0600) with no limit. A change of these settings starts a new pass within a minute.
 
 :::note[Not wired yet]
 Projection versions live in memory only: after a restart of the core, a client gets `resync` and a new snapshot.

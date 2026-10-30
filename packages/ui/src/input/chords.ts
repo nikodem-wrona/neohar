@@ -173,7 +173,6 @@ export const DEFAULT_KEYS: Readonly<Record<string, string>> = {
   inbox_open: 'mod+shift+i',
   interaction_answer_next: 'mod+shift+a',
   peek_sibling: 'mod+shift+p',
-  search_open: 'mod+shift+f',
   git_open: 'mod+shift+g',
   workflows_open: 'mod+shift+e',
   window_new: 'mod+shift+n',

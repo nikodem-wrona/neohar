@@ -59,7 +59,6 @@ mod retention;
 mod rich_calls;
 pub mod router;
 mod runtime;
-mod search;
 pub mod session;
 pub mod shims;
 pub mod sidecar;

@@ -6765,7 +6765,7 @@ expression: document()
       "type": "object"
     },
     "PaletteExecuted": {
-      "description": "What `palette.execute` did. Some commands belong to the page and not to the core, for\nexample the search. The core then names the action, and the page does it.",
+      "description": "What `palette.execute` did. Some commands belong to the page and not to the core, for\nexample the inbox. The core then names the action, and the page does it.",
       "properties": {
         "ui": {
           "type": [
@@ -9282,107 +9282,6 @@ expression: document()
         "pane",
         "from_line",
         "count"
-      ],
-      "type": "object"
-    },
-    "SearchHit": {
-      "properties": {
-        "at": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/Timestamp"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "line": {
-          "description": "The absolute line.",
-          "format": "uint64",
-          "minimum": 0,
-          "type": "integer"
-        },
-        "pane": {
-          "$ref": "#/$defs/PaneId"
-        },
-        "text": {
-          "$ref": "#/$defs/Spans"
-        }
-      },
-      "required": [
-        "pane",
-        "line",
-        "text"
-      ],
-      "type": "object"
-    },
-    "SearchQuery": {
-      "properties": {
-        "limit": {
-          "format": "uint32",
-          "minimum": 0,
-          "type": [
-            "integer",
-            "null"
-          ]
-        },
-        "pane": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RefPaneId"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "query": {
-          "type": "string"
-        },
-        "workspace": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RefWorkspaceId"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        }
-      },
-      "required": [
-        "query"
-      ],
-      "type": "object"
-    },
-    "SearchResults": {
-      "properties": {
-        "hits": {
-          "items": {
-            "$ref": "#/$defs/SearchHit"
-          },
-          "type": "array"
-        },
-        "job": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/JobId"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "description": "A job that goes on searching the archive. Its result has the later hits."
-        },
-        "truncated": {
-          "default": false,
-          "description": "More hits exist than `limit`.",
-          "type": "boolean"
-        }
-      },
-      "required": [
-        "hits"
       ],
       "type": "object"
     },
@@ -14516,20 +14415,6 @@ expression: document()
       },
       "scopes": [
         "cli"
-      ]
-    },
-    {
-      "name": "search.query",
-      "params": {
-        "$ref": "#/$defs/SearchQuery"
-      },
-      "result": {
-        "$ref": "#/$defs/SearchResults"
-      },
-      "scopes": [
-        "ui",
-        "cli",
-        "phone"
       ]
     },
     {

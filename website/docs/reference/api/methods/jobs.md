@@ -1,7 +1,7 @@
 ---
 title: "jobs.*"
 description: "Long commands that run as jobs."
-sidebar_position: 30
+sidebar_position: 29
 toc_max_heading_level: 2
 ---
 

@@ -1,5 +1,5 @@
 // The keys of a list over the window, in its last row: the arrows move, Enter does the action of
-// the row and Escape closes the list. The palette and the search of the scrollback show it.
+// the row and Escape closes the list. The palette shows it.
 
 export function PaletteKeys(props: { action: string }) {
   return (

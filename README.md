@@ -53,7 +53,7 @@ neohar is not a new agent and not a new terminal. You use the real `claude` and 
 
 **Work**
 
-- **Workspaces, tabs and panes.** Split, float or pop out panes. The Rust core parses the terminal output and the window draws it with WebGL2. The search finds text in the scrollback of all panes.
+- **Workspaces, tabs and panes.** Split, float or pop out panes. The Rust core parses the terminal output and the window draws it with WebGL2.
 - **Files, Changes and Git.** The Files tab shows the folder of the focused pane. The Changes tab shows its git changes and diffs. The Git view shows the worktrees, branches, changes and history of its repository, with the agents in each worktree. It can switch the branch, fetch and pull.
 - **Workflows.** Connect Claude Code and Codex agents on a canvas, for example a code review, a business-logic review and a security review. Execute the workflow in a folder. The last message of each agent is its report, and a Report node writes one report with links to them.
 

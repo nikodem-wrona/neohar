@@ -127,8 +127,8 @@ global_hotkey = "ctrl+alt+cmd+n"
 # Code" or "Zed". An empty text opens a file with its default app and a folder in the
 # Finder.
 editor = ""
-# Whether the tab bar, the strip of a pane, the attention line, the Inbox and the search show the
-# handles of tabs and panes, such as "w1:t2" and "w1:p3". Off, a pane goes by its title.
+# Whether the tab bar, the strip of a pane, the attention line and the Inbox show the handles of
+# tabs and panes, such as "w1:t2" and "w1:p3". Off, a pane goes by its title.
 show_handles = false
 
 [theme]
@@ -162,7 +162,6 @@ pane_split_down = "mod+shift+d"
 inbox_open = "mod+shift+i"
 interaction_answer_next = "mod+shift+a"
 peek_sibling = "mod+shift+p"
-search_open = "mod+shift+f"
 git_open = "mod+shift+g"
 workflows_open = "mod+shift+e"
 window_new = "mod+shift+n"

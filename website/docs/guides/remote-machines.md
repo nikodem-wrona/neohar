@@ -75,7 +75,7 @@ nh integration install all --machine studio
 
 ## What works in a remote window
 
-Everything of a local window works: panes, splits, scrollback, search, agents, cards, the Inbox,
+Everything of a local window works: panes, splits, scrollback, agents, cards, the Inbox,
 the Files and Changes tabs. Notifications, the badge and the tray show on your Mac, with the
 label in the title. Also:
 

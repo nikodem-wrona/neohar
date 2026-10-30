@@ -907,19 +907,6 @@
   },
   {
     "path": [
-      "search"
-    ],
-    "about": "Search the scrollback"
-  },
-  {
-    "path": [
-      "search",
-      "query"
-    ],
-    "about": "Search the scrollback of the panes"
-  },
-  {
-    "path": [
       "jobs"
     ],
     "about": "Long commands"

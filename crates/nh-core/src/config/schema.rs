@@ -294,7 +294,6 @@ pub struct Keys {
     pub inbox_open: String,
     pub interaction_answer_next: String,
     pub peek_sibling: String,
-    pub search_open: String,
     pub git_open: String,
     pub workflows_open: String,
     pub window_new: String,

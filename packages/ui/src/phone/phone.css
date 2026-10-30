@@ -706,7 +706,7 @@
       var(--glass-shadow);
   }
 
-  /* The palette and the search take the width of the screen. */
+  /* The palette takes the width of the screen. */
   .shell.phone .palette {
     left: var(--s1);
     right: var(--s1);

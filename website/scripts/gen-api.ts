@@ -89,7 +89,6 @@ const namespaces: Record<string, string> = {
   integration: 'The hooks that neohar installs into Claude Code and Codex.',
   doctor: 'The checks of `nh doctor`.',
   debug: 'Bug reports and tools for development builds.',
-  search: 'Search of the scrollback archive.',
   palette: 'The command palette: the core ranks and runs the commands.',
   rich: 'Rich content on demand: diffs, sanitized markdown and highlighted code.',
   timeline: 'Older items of the timeline of a run.',

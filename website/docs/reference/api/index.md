@@ -14,12 +14,12 @@ The UI, the CLI and the hook shim all call the core through one contract. Its ve
 
 | Part | Count | Reference |
 |---|---|---|
-| Methods | 176 | [Methods](/docs/reference/api/methods) |
+| Methods | 175 | [Methods](/docs/reference/api/methods) |
 | Projections | 30 | [Projections](/docs/reference/api/projections) |
 | Event kinds | 59 | [Events](/docs/reference/api/events) |
 | Streams | 4 | [Streams](/docs/reference/api/streams) |
 | Error codes | 43 | [Errors](/docs/reference/api/errors) |
-| Named types | 478 | [Types](/docs/reference/api/types) |
+| Named types | 475 | [Types](/docs/reference/api/types) |
 
 ## Protocol versions
 
@@ -79,11 +79,11 @@ Every message is one JSON-RPC 2.0 object.
 
 | Scope | Who | Methods |
 |---|---|---|
-| `ui` | the UI, over the `rpc` command of the Tauri host or the WebSocket | 157 |
-| `cli` | the CLI and any other client on the API socket | 115 |
+| `ui` | the UI, over the `rpc` command of the Tauri host or the WebSocket | 156 |
+| `cli` | the CLI and any other client on the API socket | 114 |
 | `pane` | a hook shim, with the token of a pane | 4 |
 | `dev` | development and test builds only | 4 |
-| `phone` | a paired phone, over the listener of the phone | 153 |
+| `phone` | a paired phone, over the listener of the phone | 152 |
 
 ## Namespaces
 
@@ -114,7 +114,6 @@ Every message is one JSON-RPC 2.0 object.
 | [`integration`](/docs/reference/api/methods/integration) | The hooks that neohar installs into Claude Code and Codex. | 6 |
 | [`doctor`](/docs/reference/api/methods/doctor) | The checks of `nh doctor`. | 1 |
 | [`debug`](/docs/reference/api/methods/debug) | Bug reports and tools for development builds. | 5 |
-| [`search`](/docs/reference/api/methods/search) | Search of the scrollback archive. | 1 |
 | [`palette`](/docs/reference/api/methods/palette) | The command palette: the core ranks and runs the commands. | 2 |
 | [`rich`](/docs/reference/api/methods/rich) | Rich content on demand: diffs, sanitized markdown and highlighted code. | 3 |
 | [`timeline`](/docs/reference/api/methods/timeline) | Older items of the timeline of a run. | 2 |

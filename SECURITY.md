@@ -60,7 +60,7 @@ neohar keeps its data in `state.db` and in the scrollback archive, in the data d
 
 - The interactions keep their payload: the command, the input of the tool, a diff with the contents of files, and the last lines of the pane. When an interaction ends, neohar removes the secrets that it can find from the stored payload and decision (`nh-redact`). The redaction can miss a secret. An open interaction keeps its full payload, because the core needs it to deliver the answer after a restart.
 - neohar deletes the ended interactions and their delivery records when they are older than `events.audit_retention` (90 days by default).
-- The scrollback of each pane, and its search index, stay on disk with no limit by default. Set `scrollback.max_bytes_per_pane` in `config.toml` to limit the archive of each pane. The text of the scrollback is not redacted.
+- The scrollback of each pane stays on disk with no limit by default. Set `scrollback.max_bytes_per_pane` in `config.toml` to limit the archive of each pane. The text of the scrollback is not redacted.
 
 ## Git repositories
 

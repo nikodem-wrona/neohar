@@ -33,7 +33,7 @@ Write the keys that you want to change in `~/.config/neohar/config.toml` (or `$N
 | [`[phone]`](#phone) | `enabled`, `port`, `https_port`, `url`, `contact`, `keep_awake`, `font_size`, `keys` |
 | [`[ui]`](#ui) | `font_family`, `font_size`, `macos_option_as_alt`, `global_hotkey`, `editor`, `show_handles` |
 | [`[theme]`](#theme) | `bg`, `bg_raised`, `bg_hover`, `line`, `text`, `text_dim`, `accent`, `danger` |
-| [`[keys]`](#keys) | `palette_open`, `tab_next`, `tab_previous`, `pane_focus_left`, `pane_focus_right`, `pane_focus_up`, `pane_focus_down`, `pane_split_right`, `pane_split_down`, `inbox_open`, `interaction_answer_next`, `peek_sibling`, `search_open`, `git_open`, `workflows_open`, `window_new`, `pass_through` |
+| [`[keys]`](#keys) | `palette_open`, `tab_next`, `tab_previous`, `pane_focus_left`, `pane_focus_right`, `pane_focus_up`, `pane_focus_down`, `pane_split_right`, `pane_split_down`, `inbox_open`, `interaction_answer_next`, `peek_sibling`, `git_open`, `workflows_open`, `window_new`, `pass_through` |
 
 ## `[machines]` {#machines}
 
@@ -225,7 +225,7 @@ keys = ["|", "/", "~", "-"]
 | `macos_option_as_alt` | `"none"` | Which Option keys of a Mac act as Alt: "none", "left", "right" or "both". |
 | `global_hotkey` | `"ctrl+alt+cmd+n"` | The chord that shows neohar and the card that waits longest, from any application. The modifiers are `ctrl`, `alt`, `shift` and `cmd`, joined with "+", then a letter or a digit. An empty text turns the hotkey off. |
 | `editor` | `""` | The app that opens a file or a folder of the Files tab, by its name, such as "Visual Studio Code" or "Zed". An empty text opens a file with its default app and a folder in the Finder. |
-| `show_handles` | `false` | Whether the tab bar, the strip of a pane, the attention line, the Inbox and the search show the handles of tabs and panes, such as "w1:t2" and "w1:p3". Off, a pane goes by its title. |
+| `show_handles` | `false` | Whether the tab bar, the strip of a pane, the attention line and the Inbox show the handles of tabs and panes, such as "w1:t2" and "w1:p3". Off, a pane goes by its title. |
 
 ```toml
 [ui]
@@ -278,7 +278,6 @@ danger = "#ff5251"
 | `inbox_open` | `"mod+shift+i"` |  |
 | `interaction_answer_next` | `"mod+shift+a"` |  |
 | `peek_sibling` | `"mod+shift+p"` |  |
-| `search_open` | `"mod+shift+f"` |  |
 | `git_open` | `"mod+shift+g"` |  |
 | `workflows_open` | `"mod+shift+e"` |  |
 | `window_new` | `"mod+shift+n"` |  |
@@ -298,7 +297,6 @@ pane_split_down = "mod+shift+d"
 inbox_open = "mod+shift+i"
 interaction_answer_next = "mod+shift+a"
 peek_sibling = "mod+shift+p"
-search_open = "mod+shift+f"
 git_open = "mod+shift+g"
 workflows_open = "mod+shift+e"
 window_new = "mod+shift+n"
@@ -437,8 +435,8 @@ global_hotkey = "ctrl+alt+cmd+n"
 # Code" or "Zed". An empty text opens a file with its default app and a folder in the
 # Finder.
 editor = ""
-# Whether the tab bar, the strip of a pane, the attention line, the Inbox and the search show the
-# handles of tabs and panes, such as "w1:t2" and "w1:p3". Off, a pane goes by its title.
+# Whether the tab bar, the strip of a pane, the attention line and the Inbox show the handles of
+# tabs and panes, such as "w1:t2" and "w1:p3". Off, a pane goes by its title.
 show_handles = false
 
 [theme]
@@ -472,7 +470,6 @@ pane_split_down = "mod+shift+d"
 inbox_open = "mod+shift+i"
 interaction_answer_next = "mod+shift+a"
 peek_sibling = "mod+shift+p"
-search_open = "mod+shift+f"
 git_open = "mod+shift+g"
 workflows_open = "mod+shift+e"
 window_new = "mod+shift+n"

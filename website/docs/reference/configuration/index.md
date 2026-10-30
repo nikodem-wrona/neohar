@@ -15,7 +15,7 @@ neohar has one configuration file, `config.toml`, that holds only what you chang
 - **Merge.** Tables merge key by key at every depth. Every other value replaces the default, also a list: `setup = ["make"]` is the whole list.
 - **Types.** The merged table is checked against typed structs. A wrong type or an out-of-range value makes the whole file invalid. Times are text with a unit: `"500ms"`, `"90s"`, `"30m"`, `"7d"`.
 - **Last good configuration.** A file with an error never takes a good configuration away. The core keeps the last good one and shows one warning in `health`. At the start, a bad file gives the defaults and the warning.
-- **Unknown keys.** A key that `defaults.toml` does not have is ignored with a warning; the rest of the file applies. An invalid `[[policy.rule]]` is a warning too. The keys that older versions had (`input.confirm_multiline_paste_to_agents`, `search.index_transcripts`, `update.manifest_check` and every key of `[tasks]`) are ignored with no warning and one line in the log.
+- **Unknown keys.** A key that `defaults.toml` does not have is ignored with a warning; the rest of the file applies. An invalid `[[policy.rule]]` is a warning too. The keys that older versions had (`input.confirm_multiline_paste_to_agents`, `keys.search_open`, `search.index_transcripts`, `update.manifest_check` and every key of `[tasks]`) are ignored with no warning and one line in the log.
 - **Hot reload.** The core watches the directory and reads the file when it has been quiet for 200 ms. Most settings apply at their next use; `[ui]`, `[theme]` and `[keys]` change the open windows at once.
 
 Each value has a source: `default` (not in the file), `file`, or `ui` (written by `config.set` in this session).
@@ -76,4 +76,4 @@ editor = "Zed"
 | `[theme]` | Eight CSS colours of the window chrome |
 | `[keys]` | The reserved chords of a window, named by command id with `_` for `.` (`palette_open = "mod+k"`) |
 | `[events]` | `sync_retention` (`7d`) and `audit_retention` (`90d`, for interactions, policy and agent state): how long the event log keeps events. The ended interactions and their delivery records also go after `audit_retention`. The core deletes older rows at the start and then once an hour |
-| `[scrollback]` | `max_bytes_per_pane`: the most bytes of archive for one pane. Above it, the same pass deletes the oldest segments. `0` (the default) is no limit. The archive and its search index stay on disk (mode 0600), and their text is not redacted. Set a limit if the panes show secrets |
+| `[scrollback]` | `max_bytes_per_pane`: the most bytes of archive for one pane. Above it, the same pass deletes the oldest segments. `0` (the default) is no limit. The archive stays on disk (mode 0600), and its text is not redacted. Set a limit if the panes show secrets |

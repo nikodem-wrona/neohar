@@ -124,7 +124,6 @@ pub const NOUNS: &[(&str, &str)] = &[
     ("config", "The configuration"),
     ("policy", "Rules that decide approvals"),
     ("integration", "The hooks of the harnesses"),
-    ("search", "Search the scrollback"),
     ("jobs", "Long commands"),
 ];
 
@@ -803,13 +802,6 @@ pub const VERBS: &[Verb] = &[
         "integration.capabilities",
         "Show what each harness version can do",
         &[],
-    ),
-    verb(
-        "search",
-        "query",
-        "search.query",
-        "Search the scrollback of the panes",
-        &["query"],
     ),
     verb("jobs", "cancel", "jobs.cancel", "Cancel a job", &["job"]),
 ];
