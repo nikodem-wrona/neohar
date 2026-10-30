@@ -43,6 +43,10 @@ fn spins(pane: &Pane) -> u64 {
         .unwrap_or(0)
 }
 
+/// Two styles and a grapheme (an `e` with a combining acute accent), then quiet.
+const STYLED: &str = "printf '\\033[31mred\\033[0m \\033[1;34mblue\\033[0m e\\314\\201'; sleep 60";
+const STYLED_ROW: &str = "red blue e\u{301}";
+
 /// The command of a pane that runs `script` in `sh`.
 fn sh(script: &str) -> Value {
     json!({ "argv": ["/bin/sh", "-c", script] })
@@ -119,6 +123,33 @@ async fn ack(h: &Harness, window: &str, frame: &Frame) {
         json!({ "window": window, "acks": [{ "pane": frame.pane, "rev": frame.rev }] }),
     )
     .await;
+}
+
+/// Applies and acknowledges the frames of `window` until `grid` shows the row `line` and the pane
+/// is quiet.
+async fn follow_until(
+    h: &Harness,
+    window: &str,
+    frames: &mut Frames,
+    grid: &mut ClientGrid,
+    line: &str,
+) {
+    let deadline = Instant::now() + core_support::TIMEOUT;
+    loop {
+        let left = deadline
+            .checked_duration_since(Instant::now())
+            .unwrap_or_else(|| panic!("the client sees {line:?}"));
+        let frame = frames.next(left).await.expect("another frame");
+        grid.apply(&frame).expect("the frame applies");
+        ack(h, window, &frame).await;
+        if has_row(&rows(grid), line) {
+            break;
+        }
+    }
+    while let Some(frame) = frames.next(Duration::from_millis(300)).await {
+        grid.apply(&frame).expect("the frame applies");
+        ack(h, window, &frame).await;
+    }
 }
 
 async fn focus(h: &Harness, window: &str, pane: &Pane) {
@@ -232,6 +263,66 @@ async fn a_hidden_window_gets_no_frames_and_a_keyframe_when_shown() {
     let mut grid = ClientGrid::new();
     grid.apply(&shown).expect("the keyframe applies");
     assert_eq!(rows(&grid).len(), 8);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn the_keyframe_after_a_view_that_covered_the_panes_brings_every_style_again() {
+    let h = Harness::start();
+    let (w, _pane) = one_pane(&h, sh(STYLED), 40, 4).await;
+    let mut frames = Frames::open(&h.handle, &w, 120.0);
+    let mut seen = ClientGrid::new();
+    follow_until(&h, &w, &mut frames, &mut seen, STYLED_ROW).await;
+    let report = |hidden: bool| {
+        json!({
+            "window": w, "focused": true, "visible": true, "refresh_hz": 120.0,
+            "panes_hidden": hidden,
+        })
+    };
+    // The Git view covers the panes, and the page forgets each pane that it stops drawing.
+    h.call("window.focus_report", report(true)).await;
+    while frames.next(Duration::from_millis(300)).await.is_some() {}
+    h.call("window.focus_report", report(false)).await;
+    let shown = frames
+        .next(core_support::TIMEOUT)
+        .await
+        .expect("a frame when the view closes");
+    assert_eq!(shown.kind, FrameKind::Keyframe);
+    let mut fresh = ClientGrid::new();
+    fresh.apply(&shown).expect("the keyframe applies");
+    assert_eq!(
+        fresh
+            .dump()
+            .expect("the keyframe brings every style and grapheme of its cells"),
+        seen.dump().expect("the client screen resolves")
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_keyframe_that_the_client_asks_for_brings_every_style_again() {
+    let h = Harness::start();
+    let (w, pane) = one_pane(&h, sh(STYLED), 40, 4).await;
+    let mut frames = Frames::open(&h.handle, &w, 120.0);
+    let mut seen = ClientGrid::new();
+    follow_until(&h, &w, &mut frames, &mut seen, STYLED_ROW).await;
+    // The page drew the pane again after it forgot it, and the decoder asks for a keyframe.
+    h.call(
+        "render.ack",
+        json!({ "window": w, "acks": [], "need_keyframe": [pane.render_id()] }),
+    )
+    .await;
+    let next = frames
+        .next(core_support::TIMEOUT)
+        .await
+        .expect("a frame after the request");
+    assert_eq!(next.kind, FrameKind::Keyframe);
+    let mut fresh = ClientGrid::new();
+    fresh.apply(&next).expect("the keyframe applies");
+    assert_eq!(
+        fresh
+            .dump()
+            .expect("the keyframe brings every style and grapheme of its cells"),
+        seen.dump().expect("the client screen resolves")
+    );
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

@@ -137,6 +137,17 @@ pub(crate) struct Entry {
     watcher: JoinHandle<()>,
 }
 
+impl Entry {
+    /// Starts the pane again from nothing, for a webview that may have forgotten it: the page
+    /// forgets each pane that it stops drawing. The next frame is a keyframe with every style and
+    /// grapheme of its cells, and no frame in flight counts.
+    fn restart(&mut self) {
+        self.client = ClientState::new();
+        self.inflight.clear();
+        self.force_keyframe = true;
+    }
+}
+
 impl Drop for Entry {
     fn drop(&mut self) {
         self.watcher.abort();
@@ -462,9 +473,7 @@ impl RenderServer {
             state.generation += 1;
             state.stream = Some(Stream { sink });
             for entry in &mut state.entries {
-                entry.client = ClientState::new();
-                entry.inflight.clear();
-                entry.force_keyframe = true;
+                entry.restart();
             }
             state.generation
         };
@@ -499,9 +508,9 @@ impl RenderServer {
                     .find(|e| e.pane.render_id() == *pane)
                 {
                     // The client dropped the frames that follow the bad one too, and it will not
-                    // acknowledge them.
-                    entry.inflight.clear();
-                    entry.force_keyframe = true;
+                    // acknowledge them. It can also be a pane that the page forgot and draws
+                    // again, without the styles of the frames before.
+                    entry.restart();
                 }
             }
         }
@@ -523,9 +532,9 @@ impl RenderServer {
                 state.refresh_hz = clamp_hz(hz);
             }
             if revealed {
+                // A view that covered the panes, such as the Git view, made the page forget them.
                 for entry in &mut state.entries {
-                    entry.inflight.clear();
-                    entry.force_keyframe = true;
+                    entry.restart();
                 }
             }
         }
