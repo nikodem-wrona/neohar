@@ -19,7 +19,7 @@ import { badgeOf, harnessName } from '../agents/badge';
 import { HarnessBadge } from '../agents/HarnessBadge';
 import { useApp } from '../app/context';
 import { paneName, showHandles } from '../app/preferences';
-import { dragged, dropTarget, pressToDrag } from '../app/drag';
+import { dropTarget, pressToDrag } from '../app/drag';
 import { Badge } from '../kit/Badge';
 import { Button } from '../kit/Button';
 import { Popover } from '../kit/Popover';
@@ -28,6 +28,7 @@ import { readClipboard, writeClipboard } from '../input/clipboard';
 import { requestClose } from '../shell/close';
 import { detailsTitle, paneDetails, stripTitle } from './details';
 import { tabPanes } from './tree';
+import { dragged } from '../lib/solid';
 
 /** How far a finger moves sideways on the strip of the single view to show another pane. */
 const SWIPE = 48;

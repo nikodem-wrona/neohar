@@ -10,6 +10,7 @@ import type { RenderHost } from '../render';
 import type { Stores } from '../stores';
 import type { Failures } from './failures';
 import type { Toasts } from './toasts';
+import type { Bridged } from '../lib/solid';
 import type { ViewState } from './view';
 
 /**
@@ -34,7 +35,7 @@ export interface App {
   form: Form;
   stores: Stores;
   windowId: string;
-  view: ViewState;
+  view: Bridged<ViewState>;
   /** What the window sends to its panes. */
   input: InputSender;
   /** The keyboard layer: it turns a DOM key event into a logical key. */

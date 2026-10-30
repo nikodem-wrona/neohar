@@ -13,12 +13,13 @@ import type { AgentValue } from '@neohar/transport';
 import { createEffect, createMemo, createSignal, For, onCleanup, onMount, Show } from 'solid-js';
 import { badgeOf, workOf } from '../agents/badge';
 import { useApp } from '../app/context';
-import { dragged, dropTarget, pressToDrag, type Dragged } from '../app/drag';
+import { dropTarget, pressToDrag, type Dragged } from '../app/drag';
 import { showPane } from '../app/show';
 import { hasUsage, usageText } from '../timeline/model';
 import { BOARD_LIST, BoardList } from './BoardList';
 import { fitStrips, waitsBehind } from './fit';
 import { Strip } from './Strip';
+import { dragged } from '../lib/solid';
 
 /** The probe that measures one character of the chrome font: 20 zeros. */
 const PROBE = '0'.repeat(20);

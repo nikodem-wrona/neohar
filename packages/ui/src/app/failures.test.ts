@@ -47,7 +47,7 @@ test('a command that fails shows its message and its code', async () => {
   failures.run('pane.restart', { pane: 'p3' });
   expect(calls).toEqual([{ method: 'pane.restart', params: { pane: 'p3' } }]);
   await settle();
-  expect(failures.shown()).toEqual({
+  expect(failures.shown.get()).toEqual({
     id: 1,
     code: 'pane_gone',
     message: 'the pane p3 has no process',
@@ -60,7 +60,7 @@ test('a command that works shows nothing', async () => {
   const failures = createFailures(fake, timers);
   failures.run('tab.create', { workspace: 'w1' });
   await settle();
-  expect(failures.shown()).toBeNull();
+  expect(failures.shown.get()).toBeNull();
   expect(timers.pending()).toBe(0);
 });
 
@@ -71,12 +71,12 @@ test('the banner goes after a time, and a new failure takes the place of the las
   failures.run('tab.select', { tab: 't9', window: 'W' });
   await settle();
   failures.report(new RpcError('busy', 'try again'));
-  expect(failures.shown()).toEqual({ id: 2, code: 'busy', message: 'try again' });
+  expect(failures.shown.get()).toEqual({ id: 2, code: 'busy', message: 'try again' });
   // The second failure starts the time again.
   expect(timers.pauses).toEqual([FAILURE_SHOW_MS, FAILURE_SHOW_MS]);
   expect(timers.pending()).toBe(1);
   timers.run();
-  expect(failures.shown()).toBeNull();
+  expect(failures.shown.get()).toBeNull();
 });
 
 test('the person closes the banner', () => {
@@ -84,16 +84,16 @@ test('the person closes the banner', () => {
   const failures = createFailures(transport(null).fake, timers);
   failures.report(new RpcError('internal', 'a fault'));
   failures.dismiss();
-  expect(failures.shown()).toBeNull();
+  expect(failures.shown.get()).toBeNull();
   expect(timers.pending()).toBe(0);
 });
 
 test('a fault of the page and a rejected value that is not an error show too', () => {
   const failures = createFailures(transport(null).fake, manualTimers());
   failures.report(new TypeError('x is undefined'));
-  expect(failures.shown()).toMatchObject({ code: 'error', message: 'x is undefined' });
+  expect(failures.shown.get()).toMatchObject({ code: 'error', message: 'x is undefined' });
   failures.report('gone');
-  expect(failures.shown()).toMatchObject({ code: 'error', message: 'gone' });
+  expect(failures.shown.get()).toMatchObject({ code: 'error', message: 'gone' });
 });
 
 test('a promise of the page that nobody handled shows until the report stops', () => {

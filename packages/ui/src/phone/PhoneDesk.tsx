@@ -21,6 +21,7 @@ import { createFailures, reportRejections } from '../app/failures';
 import { createToasts } from '../app/toasts';
 import { showPane } from '../app/show';
 import { createViewState } from '../app/view';
+import { bridge } from '../lib/solid';
 import { watchDeliveries } from '../cards/deliveries';
 import { CardHostProvider } from '../cards/host';
 import { Keyboard } from '../input/keyboard';
@@ -68,12 +69,13 @@ export function PhoneDesk(props: PhoneDeskProps) {
   const toasts = createToasts();
   const deliveries = watchDeliveries(stores, toasts);
   const own = createPhoneStores(props.home);
-  const view = createViewState();
+  const view = bridge(createViewState());
   // A hardware keyboard of an iPhone has the chords of a Mac: `mod` is Command.
   const keyboard = new Keyboard({ platform: 'macos', optionAsAlt: 'none' });
   // A key that the socket lost goes again with its id after a reconnect.
   const input = new InputSender(transport, pageFrames, undefined, { outbox: true });
   onCleanup(() => {
+    deliveries.stop();
     stores.close();
     own.close();
     failures.dismiss();

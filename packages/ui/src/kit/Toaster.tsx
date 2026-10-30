@@ -6,8 +6,10 @@
 
 import { For, Match, Show, Switch } from 'solid-js';
 import type { Toasts, ToastTone } from '../app/toasts';
+import { accessor } from '../lib/solid';
 
 export function Toaster(props: { toasts: Toasts }) {
+  const shown = accessor(props.toasts.shown);
   return (
     <section
       class="toaster"
@@ -17,7 +19,7 @@ export function Toaster(props: { toasts: Toasts }) {
       onPointerLeave={() => props.toasts.resume()}
     >
       <ol class="toaster-list">
-        <For each={props.toasts.shown()}>
+        <For each={shown()}>
           {(toast) => (
             <li
               class="toast"

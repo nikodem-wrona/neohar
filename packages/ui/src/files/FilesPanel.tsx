@@ -15,7 +15,7 @@ import { createEffect, createMemo, createSignal, For, on, onCleanup, Show } from
 import { useApp } from '../app/context';
 import { onLongPress } from '../app/press';
 import { writeClipboard } from '../input/clipboard';
-import { dragged, pressToDrag } from '../app/drag';
+import { pressToDrag } from '../app/drag';
 import { FileIcon } from './FileIcon';
 import { FileModal } from './FileModal';
 import { FileView } from './FileView';
@@ -32,6 +32,7 @@ import {
   visibleRows,
   withoutFolder,
 } from './model';
+import { dragged } from '../lib/solid';
 
 /** What the page keeps of a root while it shows another one. */
 interface Kept {

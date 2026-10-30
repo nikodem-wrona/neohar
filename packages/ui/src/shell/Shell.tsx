@@ -25,7 +25,6 @@ import {
   Switch,
 } from 'solid-js';
 import { useApp } from '../app/context';
-import { dragged } from '../app/drag';
 import { loadFaces } from '../app/faces';
 import { fontOf, keymapOf, optionAsAlt, themeVariables } from '../app/preferences';
 import { DEFAULT_FONT_FAMILY, DEFAULT_FONT_PX } from '../render/defaults';
@@ -56,6 +55,7 @@ import { PressMenu } from './PressMenu';
 import { LeftRail, Sidebar } from './Sidebar';
 import { StatusBar } from './StatusBar';
 import { TabBar } from './TabBar';
+import { dragged } from '../lib/solid';
 
 /** Under this width the drawer starts folded. */
 const NARROW_DRAWER = '(max-width: 1279px)';

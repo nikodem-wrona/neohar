@@ -12,10 +12,11 @@
 import { createSignal, For, Show, type JSX } from 'solid-js';
 import { useApp } from '../app/context';
 import { showHandles } from '../app/preferences';
-import { dragged, dropTarget, pressToDrag, type Dragged } from '../app/drag';
+import { dropTarget, pressToDrag, type Dragged } from '../app/drag';
 import { onLongPress } from '../app/press';
 import { requestClose } from './close';
 import { RenameField } from './RenameField';
+import { dragged } from '../lib/solid';
 
 export function TabBar() {
   const { stores, transport, run, report, windowId, view } = useApp();

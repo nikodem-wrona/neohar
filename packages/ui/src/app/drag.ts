@@ -9,9 +9,9 @@
 // A finger drags only after a long press: a finger that moves before it scrolls the
 // list, and the press is no drag.
 
-import { createSignal } from 'solid-js';
 import { LONG_PRESS_MS } from '../input/touch';
 import { realTimers } from '../lib/timing';
+import { createValue, type Source } from '../lib/value';
 
 export type Dragged =
   | { kind: 'tab'; id: string }
@@ -31,11 +31,11 @@ export interface DropTarget {
 /** How far the pointer moves with the button down before a press is a drag, in CSS pixels. */
 export const DRAG_THRESHOLD = 4;
 
-const [dragged, setDragged] = createSignal<Dragged | null>(null);
+const draggedNow = createValue<Dragged | null>(null);
 const targets = new WeakMap<Element, DropTarget>();
 
 /** What the person drags now, or null. */
-export { dragged };
+export const dragged: Source<Dragged | null> = draggedNow;
 
 /** Makes `element` a target of drops. */
 export function dropTarget(element: Element, target: DropTarget): void {
@@ -62,7 +62,7 @@ function targetAt(x: number, y: number, item: Dragged): Element | null {
  * nothing. The click that comes after the release of a drag does not reach the page.
  */
 export function pressToDrag(press: PointerEvent, item: Dragged): void {
-  if (press.button !== 0 || dragged()) return;
+  if (press.button !== 0 || draggedNow.get()) return;
   let started = false;
   // A finger: the drag waits for a long press.
   const armed = press.pointerType === 'touch' ? press.timeStamp + LONG_PRESS_MS : 0;
@@ -83,7 +83,7 @@ export function pressToDrag(press: PointerEvent, item: Dragged): void {
         return;
       }
       started = true;
-      setDragged(item);
+      draggedNow.set(item);
     }
     hover(targetAt(event.clientX, event.clientY, item));
   };
@@ -94,7 +94,7 @@ export function pressToDrag(press: PointerEvent, item: Dragged): void {
     window.removeEventListener('pointercancel', finish, true);
     const target = over;
     hover(null);
-    setDragged(null);
+    draggedNow.set(null);
     if (!started) return;
     swallowClick();
     if (event.type === 'pointerup' && target) targets.get(target)?.drop(item);

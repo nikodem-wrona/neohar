@@ -29,10 +29,10 @@ test('a toast shows for a time and then goes', () => {
   const timers = manualTimers();
   const toasts = createToasts(timers);
   toasts.show({ title: 'Answer delivered', tone: 'ok' });
-  expect(toasts.shown()).toEqual([{ id: 1, title: 'Answer delivered', tone: 'ok' }]);
+  expect(toasts.shown.get()).toEqual([{ id: 1, title: 'Answer delivered', tone: 'ok' }]);
   expect(timers.pauses).toEqual([TOAST_SHOW_MS]);
   timers.run();
-  expect(toasts.shown()).toEqual([]);
+  expect(toasts.shown.get()).toEqual([]);
 });
 
 test('a toast that the person closes goes at once, with its timer', () => {
@@ -41,7 +41,7 @@ test('a toast that the person closes goes at once, with its timer', () => {
   toasts.show({ title: 'One', tone: 'ok' });
   toasts.show({ title: 'Two', tone: 'error' });
   toasts.dismiss(1);
-  expect(toasts.shown().map((toast) => toast.title)).toEqual(['Two']);
+  expect(toasts.shown.get().map((toast) => toast.title)).toEqual(['Two']);
   expect(timers.pending()).toBe(1);
 });
 
@@ -49,7 +49,7 @@ test('a new toast pushes out the oldest one over the limit', () => {
   const timers = manualTimers();
   const toasts = createToasts(timers);
   for (let n = 1; n <= TOAST_LIMIT + 1; n += 1) toasts.show({ title: `T${n}`, tone: 'ok' });
-  expect(toasts.shown().map((toast) => toast.id)).toEqual([2, 3, 4]);
+  expect(toasts.shown.get().map((toast) => toast.id)).toEqual([2, 3, 4]);
   expect(timers.pending()).toBe(TOAST_LIMIT);
 });
 
@@ -64,7 +64,7 @@ test('no toast goes while the pointer is on them, and each gets its whole time a
   toasts.resume();
   expect(timers.pending()).toBe(2);
   timers.run();
-  expect(toasts.shown()).toEqual([]);
+  expect(toasts.shown.get()).toEqual([]);
 });
 
 test('clear removes every toast and every timer', () => {
@@ -73,6 +73,6 @@ test('clear removes every toast and every timer', () => {
   toasts.show({ title: 'One', tone: 'ok' });
   toasts.show({ title: 'Two', tone: 'warn', description: 'More' });
   toasts.clear();
-  expect(toasts.shown()).toEqual([]);
+  expect(toasts.shown.get()).toEqual([]);
   expect(timers.pending()).toBe(0);
 });

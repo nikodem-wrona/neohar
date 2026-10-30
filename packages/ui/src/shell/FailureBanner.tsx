@@ -4,11 +4,13 @@
 
 import { Show } from 'solid-js';
 import { useApp } from '../app/context';
+import { accessor } from '../lib/solid';
 
 export function FailureBanner() {
   const { failures } = useApp();
+  const shown = accessor(failures.shown);
   return (
-    <Show when={failures.shown()} keyed>
+    <Show when={shown()} keyed>
       {(failure) => (
         <div class="banner banner-failure" role="alert" data-code={failure.code}>
           <span class="banner-failure-text">{failure.message}</span>

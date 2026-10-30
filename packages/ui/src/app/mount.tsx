@@ -11,6 +11,7 @@ import { CardHostProvider } from '../cards/host';
 import { Keyboard } from '../input/keyboard';
 import { InputSender } from '../input/sender';
 import { pageFrames } from '../lib/frames';
+import { bridge } from '../lib/solid';
 import { RenderHost } from '../render';
 import { SettingsView } from '../settings/SettingsView';
 import { Shell } from '../shell/Shell';
@@ -49,7 +50,7 @@ export function mountApp(
     const stores = createStores(transport, windowId);
     const toasts = createToasts();
     const deliveries = watchDeliveries(stores, toasts);
-    const view = createViewState();
+    const view = bridge(createViewState());
     const host = options.decoder
       ? RenderHost.create({ transport, windowId, decoder: options.decoder })
       : undefined;
@@ -98,6 +99,7 @@ export function mountApp(
     return {
       dispose: () => {
         unmount();
+        deliveries.stop();
         host?.stop();
         stores.close();
         stopRejections();
