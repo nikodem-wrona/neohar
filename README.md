@@ -69,7 +69,7 @@ neohar is not a new agent and not a new terminal. You use the real `claude` and 
 flowchart LR
   subgraph app["neohar.app (Tauri)"]
     core["nh-core (Rust library)"]
-    webview["Webview: SolidJS UI + WebGL2"]
+    webview["Webview: React UI + WebGL2"]
     core -- "projections, frames" --> webview
     webview -- "commands (JSON-RPC)" --> core
   end
@@ -208,7 +208,7 @@ mise run app:dev    # the app from the working tree, with its config and data in
 |---|---|
 | [`crates/`](crates/) | The Rust workspace: the core (`nh-core`), the `nh` sidecar, the holder, the wire types, the terminal engine, the adapters, the phone server |
 | [`apps/`](apps/) | The Tauri desktop app and the phone app |
-| [`packages/`](packages/) | The SolidJS UI, the transport and the WASM decoder of the frames |
+| [`packages/`](packages/) | The React UI, the transport and the WASM decoder of the frames |
 | [`tools/`](tools/) | The recorder of the harnesses, the mock model server, the test and bench tools |
 | [`website/`](website/) | The documentation site (Docusaurus) |
 
@@ -231,7 +231,7 @@ Do not report a vulnerability in a public issue. [SECURITY.md](SECURITY.md) tell
 
 ## Acknowledgments
 
-neohar uses the work of many projects, for example [Tauri](https://tauri.app), [alacritty_terminal](https://github.com/alacritty/alacritty), [SolidJS](https://www.solidjs.com), [SQLite](https://sqlite.org) through [rusqlite](https://github.com/rusqlite/rusqlite), [Tokio](https://tokio.rs) and [postcard](https://github.com/jamesmunns/postcard). [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md) gives the licenses of all the code and data of other authors in `neohar.app`.
+neohar uses the work of many projects, for example [Tauri](https://tauri.app), [alacritty_terminal](https://github.com/alacritty/alacritty), [React](https://react.dev), [SQLite](https://sqlite.org) through [rusqlite](https://github.com/rusqlite/rusqlite), [Tokio](https://tokio.rs) and [postcard](https://github.com/jamesmunns/postcard). [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md) gives the licenses of all the code and data of other authors in `neohar.app`.
 
 ## License
 

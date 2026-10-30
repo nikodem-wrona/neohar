@@ -137,6 +137,14 @@ The release script writes the section of `CHANGELOG.md` from the commits since t
 - Wire types live only in `nh-proto`.
 - The `holder` and `frame` modules change only by appends. Never reorder or remove a variant or a field. Holders outlive the app, so a new core must talk to old holders.
 
+### UI
+
+- The UI uses React 19 and TypeScript, Vite and Bun. Do not add `StrictMode`: it runs each effect two times, and a second attach of a pane loses its screen.
+- `packages/ui` can import only `react`, `react-dom/client`, `@neohar/transport`, `@neohar/proto-wasm` and relative modules. The ESLint rule `neohar/ui-imports` enforces this.
+- The rules `react-hooks/rules-of-hooks` and `react-hooks/exhaustive-deps` are errors in `packages/ui`.
+- Do not use `onBeforeInput`. React makes it from other events, and it is not the native `beforeinput`. Use `addEventListener('beforeinput', …)`. The ESLint rule `neohar/no-synthetic-beforeinput` enforces this.
+- Make each new component from its equivalent in [shadcn/ui](https://ui.shadcn.com/). `neohar/ui-imports` refuses an import of a shadcn package. Thus, port the component to React in `packages/ui/src/kit/` and use the tokens of `styles/tokens.css`. Its styles go in `styles/kit.css`, with the class prefix `ui-`. Before you add a component, look in `kit/` for one that you can use or extend.
+
 ### The thin-presentation rule
 
 The webview paints what the core sends. All logic lives in the core (Rust).

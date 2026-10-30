@@ -43,7 +43,7 @@ mise installs these tools at these versions (`mise install`):
 | [`check:gen`](#check-gen) | Fail when packages/transport/src/generated.ts is not what `nh api schema` makes |  |
 | [`check:notices`](#check-notices) | Fail when THIRD_PARTY_LICENSES.md is not what gen:notices writes (offline) |  |
 | [`check:deps`](#check-deps) | Check the crate dependency rules (scripts/check-deps.ts) and the wasm-bindgen pin |  |
-| [`check:bundle`](#check-bundle) | Fail when the gzipped scripts, styles and WASM of the webview are over 400 KB, or those of the phone app over 250 KB. It builds both first |  |
+| [`check:bundle`](#check-bundle) | Fail when the gzipped scripts, styles and WASM of the webview or of the phone app are over 400 KB, or the first chunk of the phone app is over 250 KB. It builds both first |  |
 | [`check:docs`](#check-docs) | Fail when a generated page of website/docs is not what `bun run gen` writes, or when the page checker finds a fault (offline, writes nothing). The CLI pages need an nh binary in target/ that is newer than crates/nh/src |  |
 | [`check:holder-size`](#check-holder-size) | Fail when crates/nh-hold/src has more than 2,500 lines of code |  |
 | [`check:commits`](#check-commits) | Fail when a commit that @{upstream} does not have is not a Conventional Commit (scripts/commits.ts) |  |
@@ -169,7 +169,7 @@ bun scripts/check-deps.ts
 
 ### `check:bundle` {#check-bundle}
 
-Fail when the gzipped scripts, styles and WASM of the webview are over 400 KB, or those of the phone app over 250 KB. It builds both first
+Fail when the gzipped scripts, styles and WASM of the webview or of the phone app are over 400 KB, or the first chunk of the phone app is over 250 KB. It builds both first
 
 **Depends on:** [`build:wasm`](#build-wasm)
 

@@ -67,7 +67,7 @@ description = "Check the crate dependency rules (scripts/check-deps.ts) and the 
 run = "bun scripts/check-deps.ts"
 
 [tasks."check:bundle"]
-description = "Fail when the gzipped scripts, styles and WASM of the webview are over 400 KB, or those of the phone app over 250 KB. It builds both first"
+description = "Fail when the gzipped scripts, styles and WASM of the webview or of the phone app are over 400 KB, or the first chunk of the phone app is over 250 KB. It builds both first"
 depends = ["build:wasm"]
 run = ["bun run --cwd apps/desktop build", "bun run --cwd apps/web build", "bun scripts/check-bundle.ts"]
 

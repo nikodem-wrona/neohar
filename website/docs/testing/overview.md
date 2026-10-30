@@ -51,7 +51,7 @@ The generated list of every task is on [mise tasks](/docs/getting-started/mise-t
 | `check:notices` | `THIRD_PARTY_LICENSES.md` equals what `mise run gen:notices` writes. It runs cargo-about offline, in about 25 s |
 | `check:docs` | Each generated page of `website/docs` equals what `bun run gen` in `website/` writes, and the page checker (`bun run check`) finds no fault. It writes nothing and needs no network. It checks the CLI pages only with an `nh` binary that is newer than `crates/nh/src` |
 | `check:holder-size` | `crates/nh-hold/src` stays under 2,500 lines of code |
-| `check:bundle` | The gzipped scripts, styles and WASM of the webview and of the phone app stay under 300 KB each, and the first chunk of the phone app (what loads before the first paint) under 150 KB |
+| `check:bundle` | The gzipped scripts, styles and WASM of the webview and of the phone app stay under 400 KB each, and the first chunk of the phone app (what loads before the first paint) under 250 KB |
 
 **Crate dependency rules.** [scripts/check-deps.ts](https://github.com/nikodem-wrona/neohar/blob/main/scripts/check-deps.ts)
 gives each crate a list of workspace crates that it may use and crates that must not be in its tree.

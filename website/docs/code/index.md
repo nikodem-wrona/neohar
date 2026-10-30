@@ -4,7 +4,7 @@ description: The crates, the packages, the dependency rules and the conventions 
 sidebar_position: 1
 ---
 
-The repository is a Cargo workspace and a Bun workspace in one tree. Rust does the work: the core, the holder, the VT engine, the store, the adapters and every tool. TypeScript paints: a SolidJS UI, a transport and a thin wrapper around a WASM decoder. The members are listed in [`Cargo.toml`](https://github.com/nikodem-wrona/neohar/blob/main/Cargo.toml) and [`package.json`](https://github.com/nikodem-wrona/neohar/blob/main/package.json). The tools are on [Tools](/docs/code/tools).
+The repository is a Cargo workspace and a Bun workspace in one tree. Rust does the work: the core, the holder, the VT engine, the store, the adapters and every tool. TypeScript paints: a React UI, a transport and a thin wrapper around a WASM decoder. The members are listed in [`Cargo.toml`](https://github.com/nikodem-wrona/neohar/blob/main/Cargo.toml) and [`package.json`](https://github.com/nikodem-wrona/neohar/blob/main/package.json). The tools are on [Tools](/docs/code/tools).
 
 How each part works is in [Architecture](/docs/architecture/overview), [Agents](/docs/agents/overview) and [Desktop app](/docs/desktop/overview). This page is the map.
 
@@ -31,7 +31,7 @@ How each part works is in [Architecture](/docs/architecture/overview), [Agents](
 |---|---|---|
 | [`@neohar/desktop`](https://github.com/nikodem-wrona/neohar/tree/main/apps/desktop) | The webview entry. It mounts the shell or the settings view. | [`src/main.ts`](https://github.com/nikodem-wrona/neohar/blob/main/apps/desktop/src/main.ts) |
 | [`@neohar/web`](https://github.com/nikodem-wrona/neohar/tree/main/apps/web) | The entry of the phone app. `mise run build:web` builds it into `target/web-dist`, and the build of `nh-web` puts it into the binary. | [`src/main.ts`](https://github.com/nikodem-wrona/neohar/blob/main/apps/web/src/main.ts) |
-| [`@neohar/ui`](https://github.com/nikodem-wrona/neohar/tree/main/packages/ui) | The SolidJS shell (sidebar, tabs, layout, drawer with the inbox and the Files and Changes tabs, the Git and Workflows views, cards, palette, settings), the keyboard layer, and the WebGL2 and Canvas2D renderers. `phone/` is the second shell, for the phone, with no renderer. | [`shell/`](https://github.com/nikodem-wrona/neohar/tree/main/packages/ui/src/shell), [`surface/`](https://github.com/nikodem-wrona/neohar/tree/main/packages/ui/src/surface), [`phone/`](https://github.com/nikodem-wrona/neohar/tree/main/packages/ui/src/phone) |
+| [`@neohar/ui`](https://github.com/nikodem-wrona/neohar/tree/main/packages/ui) | The React shell (sidebar, tabs, layout, drawer with the inbox and the Files and Changes tabs, the Git and Workflows views, cards, palette, settings), the keyboard layer, and the WebGL2 and Canvas2D renderers. `phone/` is the second shell, for the phone, with no renderer. | [`shell/`](https://github.com/nikodem-wrona/neohar/tree/main/packages/ui/src/shell), [`surface/`](https://github.com/nikodem-wrona/neohar/tree/main/packages/ui/src/surface), [`phone/`](https://github.com/nikodem-wrona/neohar/tree/main/packages/ui/src/phone) |
 | [`@neohar/transport`](https://github.com/nikodem-wrona/neohar/tree/main/packages/transport) | The `Transport` interface, `TauriTransport`, `WebSocketTransport`, the projection follower, the input outbox, and the generated API types. | [`index.ts`](https://github.com/nikodem-wrona/neohar/blob/main/packages/transport/src/index.ts), [`projection.ts`](https://github.com/nikodem-wrona/neohar/blob/main/packages/transport/src/projection.ts) |
 | [`proto-wasm`](https://github.com/nikodem-wrona/neohar/tree/main/packages/proto-wasm) | The frame decoder: `nh-proto` frames into typed arrays in WASM memory. `mise run build:wasm` builds it into `pkg/` (not committed). | [`decoder.rs`](https://github.com/nikodem-wrona/neohar/blob/main/packages/proto-wasm/src/decoder.rs) |
 
@@ -60,7 +60,7 @@ The test packages under [`tests/`](https://github.com/nikodem-wrona/neohar/tree/
 | `neohar-desktop` | `nh-core`, `nh-proto`, `nh-remote`, `nh-web` | — |
 | `proto-wasm` | `nh-proto` | tokio |
 
-The same check fails when the `wasm-bindgen` command line in `mise.toml` differs from the crate in `Cargo.lock`. On the TypeScript side, ESLint lets `packages/ui` import only `solid-js`, `@neohar/transport` and `@neohar/proto-wasm`, and [`scripts/tauri-commands.ts`](https://github.com/nikodem-wrona/neohar/blob/main/scripts/tauri-commands.ts) lets only `packages/transport` call Tauri, and only `rpc`, `subscribe` and `stream`.
+The same check fails when the `wasm-bindgen` command line in `mise.toml` differs from the crate in `Cargo.lock`. On the TypeScript side, ESLint lets `packages/ui` import only `react`, `react-dom/client`, `@neohar/transport` and `@neohar/proto-wasm`, and [`scripts/tauri-commands.ts`](https://github.com/nikodem-wrona/neohar/blob/main/scripts/tauri-commands.ts) lets only `packages/transport` call Tauri, and only `rpc`, `subscribe` and `stream`.
 
 ## Conventions
 

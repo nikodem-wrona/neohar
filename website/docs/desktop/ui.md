@@ -4,7 +4,7 @@ description: "What a neohar window shows and how packages/ui builds it: the layo
 sidebar_position: 2
 ---
 
-A window is the SolidJS shell of [`packages/ui`](https://github.com/nikodem-wrona/neohar/tree/main/packages/ui),
+A window is the React shell of [`packages/ui`](https://github.com/nikodem-wrona/neohar/tree/main/packages/ui),
 mounted by `mountApp` with a transport and the id of a row of `windows`. It paints the projections
 of the core and sends a command for each action of the person
 ([thin presentation](/docs/desktop/overview)). For how to use it, see
@@ -67,6 +67,14 @@ of the pane, in any workspace, and the pane gets the focus.
 `git_worktrees:<window>`, `git_branches:<window>`, `git_changes:<window>` and `git_repos` while the
 Git view shows. No store derives data
 from another one; a lookup by id is allowed.
+
+A store has `get`, `subscribe` and `rows`. A component reads its rows with `useRows`
+(`lib/hooks.ts`), or opens its own store with `useProjectionStore`. The view state of the window
+(`app/view.ts`, the drags, the toasts, the failures) is in small values with `get`, `set` and
+`subscribe` (`lib/value.ts`), with no framework in them. A component reads a value with `useValue`
+or `useSelect`. The window has
+no `StrictMode` of React: it runs each effect two times, and a second attach of a pane loses its
+screen.
 
 The status bar follows `workflow_executions` for the dot of its Workflows switch. The Workflows
 view also follows `workflows`, and `pane_text:<pane>` for the screen of a working agent.

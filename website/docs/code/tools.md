@@ -19,7 +19,7 @@ The tools under [`tools/`](https://github.com/nikodem-wrona/neohar/tree/main/too
 | [`nh-bench`](https://github.com/nikodem-wrona/neohar/tree/main/tools/nh-bench) | Writes the frame files of the render tests (`gen-frames`). | `test:gpu` |
 | [`nh-keytest`](https://github.com/nikodem-wrona/neohar/tree/main/tools/nh-keytest) | The keyboard fidelity matrix: the cases through the real encoder, and the server of the browser test. | a Rust test in `mise run test`; `test:keyboard` |
 | [`gen-ts`](https://github.com/nikodem-wrona/neohar/tree/main/tools/gen-ts) | Writes `packages/transport/src/generated.ts` from `nh api schema`. | `gen:api`, `check:gen` |
-| [`eslint-plugin-neohar`](https://github.com/nikodem-wrona/neohar/tree/main/tools/eslint-plugin-neohar) | The thin-presentation rules of the webview: an import allowlist, no HTML injection, no timers, no sorting or locale formatting. | `check:eslint` |
+| [`eslint-plugin-neohar`](https://github.com/nikodem-wrona/neohar/tree/main/tools/eslint-plugin-neohar) | The thin-presentation rules of the webview: an import allowlist, no HTML injection, no synthetic `beforeinput` of React, no timers, no sorting or locale formatting. | `check:eslint` |
 
 The heavy runs (`bench`, `test:harness`, and the chaos tool by hand) are not part of `mise run test`. They run on a Mac: the chaos tool needs a release build, and `test:harness` needs both harnesses installed.
 
@@ -32,7 +32,7 @@ The heavy runs (`bench`, `test:harness`, and the chaos tool by hand) are not par
 | `commits.ts` | `check:commits`, the commit-msg hook, the commits workflow | The types and the scopes of a commit message, and its lint |
 | `release.ts` | `release`, `check:version`, the release workflow | The version files, the next version from the commits, the sections of `CHANGELOG.md` |
 | `check-deps.ts` | `check:deps` | The crate dependency rules and the `wasm-bindgen` pin |
-| `check-bundle.ts` | `check:bundle` | The gzipped bundles of the webview and of the phone app against 300 KB each, and the first chunk of the phone app against 150 KB |
+| `check-bundle.ts` | `check:bundle` | The gzipped bundles of the webview and of the phone app against 400 KB each, and the first chunk of the phone app against 250 KB |
 | `holder-size.ts` | `check:holder-size` | The lines of code of `crates/nh-hold/src` against 2,500 |
 | `gen-notices.ts` | `gen:notices`, `check:notices` | Writes `THIRD_PARTY_LICENSES.md` from cargo-about (`about.toml`) and `node_modules` |
 | `tauri-commands.ts` | its test in `bun test` | The webview calls only `rpc`, `subscribe` and `stream` |

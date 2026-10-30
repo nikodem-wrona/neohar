@@ -21,7 +21,7 @@ neohar supports two harnesses, **Claude Code** and **Codex**, and nothing else.
 flowchart LR
   subgraph app["neohar.app (Tauri)"]
     core["nh-core (Rust library)"]
-    webview["Webview: SolidJS UI + WebGL2"]
+    webview["Webview: React UI + WebGL2"]
     core -- "projections, frames" --> webview
     webview -- "commands (JSON-RPC)" --> core
   end

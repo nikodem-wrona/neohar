@@ -62,7 +62,7 @@ A change to the API in `nh-proto` has three generated outputs. Make all three in
 
 - **Harnesses:** Claude Code and Codex, and no other harness. No extension transport, no generic agent protocol, no external adapter protocol, no plugin system.
 - **Name:** `neohar`, lowercase everywhere, also in `neohar.app` and at the start of a sentence.
-- **UI:** SolidJS and TypeScript, Vite, Bun.
+- **UI:** React 19 and TypeScript, Vite, Bun. No `StrictMode`: it runs each effect two times, and a second attach of a pane loses its screen.
 - **VT engine:** `alacritty_terminal` behind the `VtEngine` trait, with `wezterm-term` as the named fallback. Not libghostty-vt: the cut points of the holder make parser-state snapshots unnecessary, and the Tauri build must stay free of foreign toolchains.
 - **Directories:** config in `~/.config/neohar/`, data in the app-support directory of the platform, and runtime sockets under `/tmp/neohar-$UID/` on macOS and `$XDG_RUNTIME_DIR` on Linux. On macOS, a socket path under `$TMPDIR` is longer than the limit.
 - **Heavy tests:** the budget, GPU, chaos, live-harness and remote suites run locally, never in CI.
@@ -83,7 +83,7 @@ These pieces take several files to see together.
 [CONTRIBUTING.md](CONTRIBUTING.md) has the full list. In short:
 
 - **Rust:** `thiserror` in libraries, `anyhow` only in binaries and tools. No `unwrap()` outside tests. `tracing` everywhere except `nh-hold` and the hook shim. Every `unsafe` block has a `// SAFETY:` comment. `scripts/check-deps.ts` holds the crate dependency rules (for example, no `tokio` in `nh-proto`, `nh-hold` or `nh-term`).
-- **UI components:** make each new component from its equivalent in [shadcn/ui](https://ui.shadcn.com/). The UI is Solid, not React, and the ESLint rule `neohar/ui-imports` refuses an import of a shadcn package. Thus, port the component to Solid in `packages/ui/src/kit/` and use the tokens of `styles/tokens.css`. Its styles go in `styles/kit.css`, with the class prefix `ui-`. Before you add a component, look in `kit/` for one that you can use or extend.
+- **UI components:** make each new component from its equivalent in [shadcn/ui](https://ui.shadcn.com/). The ESLint rule `neohar/ui-imports` refuses an import of a shadcn package. Thus, port the component to React in `packages/ui/src/kit/` and use the tokens of `styles/tokens.css`. Its styles go in `styles/kit.css`, with the class prefix `ui-`. Before you add a component, look in `kit/` for one that you can use or extend.
 - **Wire types** live only in `nh-proto`. The `holder` and `frame` modules change only by appends: never reorder or remove a variant or a field.
 - **Temporary directories.** Every test sets the three `NEOHAR_*_DIR` variables. Harness tests also set `HOME`, `CLAUDE_CONFIG_DIR` and `CODEX_HOME`. The tests do not change `PATH`, so a core can run an installed `claude` or `codex` to read its version. No test uses the network outside `127.0.0.1`. A test that starts holders kills them on drop.
 - **Gates, not skips.** No `#[ignore]` or `.skip` to make a check pass. An environment variable gates each test that needs a live harness, a GPU or an installed program. Its `mise` task sets the variable.
