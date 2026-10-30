@@ -4,7 +4,7 @@
 // window. The phone app names `phone` and has no pane to show.
 
 import type { Transport, Via } from '@neohar/transport';
-import { createContext, useContext } from 'solid-js';
+import { createContext, useContext } from 'react';
 
 export interface CardHost {
   transport: Transport;
@@ -21,7 +21,7 @@ export interface CardHost {
   report: (failure: unknown) => void;
 }
 
-const CardHostContext = createContext<CardHost>();
+const CardHostContext = createContext<CardHost | undefined>(undefined);
 
 export const CardHostProvider = CardHostContext.Provider;
 

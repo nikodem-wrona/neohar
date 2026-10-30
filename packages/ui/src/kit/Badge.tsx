@@ -1,19 +1,20 @@
-// The Badge of shadcn/ui (ui.shadcn.com), in Solid, on the tokens of the chrome: a short label in a
+// The Badge of shadcn/ui (ui.shadcn.com), in React, on the tokens of the chrome: a short label in a
 // pill. The tone gives its colour, with the meaning that the tokens give each colour. The other
 // attributes go to the element.
 
-import { type JSX, splitProps } from 'solid-js';
+import type { ComponentProps } from 'react';
 
 export type BadgeTone = 'neutral' | 'info' | 'ok' | 'warn' | 'error' | 'muted';
 
-export function Badge(
-  props: { tone?: BadgeTone | undefined } & JSX.HTMLAttributes<HTMLSpanElement>,
-) {
-  const [own, rest] = splitProps(props, ['tone', 'class']);
+export function Badge({
+  tone,
+  className,
+  ...rest
+}: { tone?: BadgeTone | undefined } & ComponentProps<'span'>) {
   return (
     <span
-      class={own.class ? `ui-badge ${own.class}` : 'ui-badge'}
-      data-tone={own.tone ?? 'neutral'}
+      className={className ? `ui-badge ${className}` : 'ui-badge'}
+      data-tone={tone ?? 'neutral'}
       {...rest}
     />
   );

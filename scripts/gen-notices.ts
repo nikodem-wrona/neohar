@@ -8,7 +8,8 @@
 // of the app. It runs offline and reads only the files of the crates in the cargo registry. The
 // script merges the results, so that each license text comes one time.
 //
-// JavaScript: the packages in `dependencies` of the two apps, through their workspace packages.
+// JavaScript: the packages in `dependencies` of the two apps, through their workspace packages, and
+// the dependencies of those packages.
 // The devDependencies do not ship. Two more items are in the bundles: the tslib helpers that
 // @tauri-apps/api copies into its code, and the module preload code of Vite. When a dependency
 // changes, look at the `sources` of the source map of apps/desktop to find what the bundle has.
@@ -16,7 +17,7 @@
 // Data: the art of material-icon-theme (`mise run gen:icons`) and the syntax definitions that
 // syntect bundles.
 
-import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -227,8 +228,12 @@ function readPackage(dir: string): PackageJson {
 
 /** The folder of package `name` as `from` sees it: its own node_modules, then the root. */
 function packageDir(name: string, from: string): string {
-  for (const dir of [join(from, 'node_modules', name), join(root, 'node_modules', name)]) {
-    if (existsSync(join(dir, 'package.json'))) return dir;
+  // As Node resolves: the `node_modules` of the package, then those of each folder above it. A
+  // package of bun keeps its dependencies beside it, in the folder above its real path.
+  for (let dir = realpathSync(from); ; dir = dirname(dir)) {
+    const candidate = join(dir, 'node_modules', name);
+    if (existsSync(join(candidate, 'package.json'))) return candidate;
+    if (dirname(dir) === dir) break;
   }
   throw new Error(`cannot find the package ${name} from ${from}: run bun install`);
 }
@@ -249,7 +254,7 @@ function upTo(text: string, stop: string): string {
   return clean(text.slice(0, at));
 }
 
-/** The packages in `dependencies` of the apps, through the workspace packages. */
+/** The packages in `dependencies` of the apps, through the workspace packages and their own dependencies. */
 function jsItems(): Item[] {
   const workspaces = new Map<string, string>();
   for (const parent of ['packages', 'apps']) {
@@ -265,8 +270,15 @@ function jsItems(): Item[] {
     seen.add(dir);
     for (const [name, range] of Object.entries(readPackage(dir).dependencies ?? {})) {
       const local = workspaces.get(name);
-      if (range.startsWith('workspace:') && local) walk(local);
-      else if (!found.has(name)) found.set(name, packageDir(name, dir));
+      if (range.startsWith('workspace:') && local) {
+        walk(local);
+      } else if (!found.has(name)) {
+        // A dependency of a dependency goes into the bundle too, such as `scheduler` of
+        // `react-dom`.
+        const external = packageDir(name, dir);
+        found.set(name, external);
+        walk(external);
+      }
     }
   };
   for (const app of JS_APPS) walk(join(root, app));

@@ -12,8 +12,17 @@ import type {
   WorkflowNode,
   WorkflowProblem,
 } from '@neohar/transport';
-import { createSignal, For, onCleanup, onMount, Show } from 'solid-js';
+import {
+  type ComponentProps,
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react';
 import { useApp } from '../app/context';
+import { useLatest } from '../lib/hooks';
 import { debounce } from '../lib/timing';
 import { RichHtml } from '../rich/RichHtml';
 import { outside } from '../shell/modal';
@@ -27,6 +36,68 @@ import {
   referenceChips,
   runLine,
 } from './model';
+
+/**
+ * A select that shows a value of the node. The choice of the person stays in it until the core
+ * gives the next value.
+ */
+function ValueSelect(props: {
+  value: string;
+  onChange: (value: string) => void;
+  children: ReactNode;
+}) {
+  const field = useRef<HTMLSelectElement>(null);
+  useLayoutEffect(() => {
+    if (field.current) field.current.value = props.value;
+  }, [props.value]);
+  return (
+    <select ref={field} onChange={(event) => props.onChange(event.currentTarget.value)}>
+      {props.children}
+    </select>
+  );
+}
+
+/** A check box that shows a value of the node, as `ValueSelect` does. */
+function ValueCheck(props: { checked: boolean; onChange: (checked: boolean) => void }) {
+  const box = useRef<HTMLInputElement>(null);
+  useLayoutEffect(() => {
+    if (box.current) box.current.checked = props.checked;
+  }, [props.checked]);
+  return (
+    <input
+      type="checkbox"
+      ref={box}
+      onChange={(event) => props.onChange(event.currentTarget.checked)}
+    />
+  );
+}
+
+/**
+ * A field that shows a value of the node, as `ValueSelect` does. It sends the text on the native
+ * `change` (on blur or Enter), not for each key.
+ */
+function ValueField({
+  value,
+  onCommit,
+  ...rest
+}: { value: string; onCommit: (text: string) => void } & Omit<
+  ComponentProps<'input'>,
+  'value' | 'onChange' | 'ref'
+>) {
+  const field = useRef<HTMLInputElement>(null);
+  const commit = useLatest(onCommit);
+  useLayoutEffect(() => {
+    if (field.current) field.current.value = value;
+  }, [value]);
+  useEffect(() => {
+    const element = field.current;
+    if (!element) return;
+    const change = (): void => commit.current(element.value);
+    element.addEventListener('change', change);
+    return () => element.removeEventListener('change', change);
+  }, [commit]);
+  return <input {...rest} ref={field} />;
+}
 
 export interface NodeDetailsProps {
   graph: WorkflowGraph;
@@ -42,63 +113,72 @@ export interface NodeDetailsProps {
 
 export function NodeDetails(props: NodeDetailsProps) {
   const { transport } = useApp();
-  let dialog: HTMLDialogElement | undefined;
-  let promptField: HTMLTextAreaElement | undefined;
-  const [prompt, setPrompt] = createSignal(
+  const dialog = useRef<HTMLDialogElement>(null);
+  const promptField = useRef<HTMLTextAreaElement>(null);
+  const [prompt, setPrompt] = useState(() =>
     props.node.kind === 'report' ? (props.node.summary_prompt ?? '') : (props.node.prompt ?? ''),
   );
-  const [title, setTitle] = createSignal(props.node.title ?? '');
-  const [output, setOutput] = createSignal<string | null>(null);
-  const [outputNote, setOutputNote] = createSignal(
+  const [title, setTitle] = useState(props.node.title ?? '');
+  const [output, setOutput] = useState<string | null>(null);
+  const [outputNote, setOutputNote] = useState(
     'No execution in this folder has a report of this node yet.',
   );
+  // The saves that wait read the node and the callback of now.
+  const latest = useLatest(props);
 
-  const savePrompt = debounce((text: string) => {
-    if (props.node.kind === 'report') props.onChange({ summary_prompt: text.trim() ? text : null });
-    else props.onChange({ prompt: text });
-  }, 500);
-  const saveTitle = debounce((text: string) => props.onChange({ title: text }), 500);
+  const [savePrompt] = useState(() =>
+    debounce((text: string) => {
+      const { node, onChange } = latest.current;
+      if (node.kind === 'report') onChange({ summary_prompt: text.trim() ? text : null });
+      else onChange({ prompt: text });
+    }, 500),
+  );
+  const [saveTitle] = useState(() =>
+    debounce((text: string) => latest.current.onChange({ title: text }), 500),
+  );
   const flush = (): void => {
     savePrompt.cancel();
     saveTitle.cancel();
     const kept =
       props.node.kind === 'report' ? (props.node.summary_prompt ?? '') : (props.node.prompt ?? '');
-    if (prompt() !== kept && props.node.kind !== 'manual') {
+    if (prompt !== kept && props.node.kind !== 'manual') {
       if (props.node.kind === 'report')
-        props.onChange({ summary_prompt: prompt().trim() ? prompt() : null });
-      else props.onChange({ prompt: prompt() });
+        props.onChange({ summary_prompt: prompt.trim() ? prompt : null });
+      else props.onChange({ prompt });
     }
-    if (title() !== (props.node.title ?? '')) props.onChange({ title: title() });
+    if (title !== (props.node.title ?? '')) props.onChange({ title });
   };
   const close = (): void => {
     flush();
     props.onClose();
   };
 
-  onMount(() => {
-    dialog?.showModal();
-    const last = props.last?.nodes.find((n) => n.node === props.node.id);
-    if (props.last && last?.report) {
+  // A layout effect: its cleanup runs before the dialog leaves the page, so `close()` can give
+  // the focus back.
+  useLayoutEffect(() => {
+    const element = dialog.current;
+    element?.showModal();
+    const { last: execution, node } = latest.current;
+    const last = execution?.nodes.find((n) => n.node === node.id);
+    if (execution && last?.report) {
       transport
-        .call('workflow.report', { execution: props.last.id, node: props.node.id })
+        .call('workflow.report', { execution: execution.id, node: node.id })
         .then((report) => setOutput(report.markdown.html))
         .catch(() => setOutputNote('The report of the last execution is gone.'));
     }
-  });
-  onCleanup(() => {
-    if (dialog?.open) dialog.close();
-  });
+    return () => {
+      if (element?.open) element.close();
+    };
+  }, [latest, transport]);
 
-  const choice = () => props.choices.find((c) => c.harness === props.node.harness);
-  const efforts = () => {
-    const model = choice()?.models.find((m) => m.id === props.node.model);
-    return model?.efforts?.length ? model.efforts : (choice()?.efforts ?? []);
-  };
+  const choice = props.choices.find((c) => c.harness === props.node.harness);
+  const model = choice?.models.find((m) => m.id === props.node.model);
+  const efforts = model?.efforts?.length ? model.efforts : (choice?.efforts ?? []);
   const insert = (text: string): void => {
-    const field = promptField;
-    const start = field?.selectionStart ?? prompt().length;
-    const end = field?.selectionEnd ?? prompt().length;
-    const next = insertAt(prompt(), start, end, text);
+    const field = promptField.current;
+    const start = field?.selectionStart ?? prompt.length;
+    const end = field?.selectionEnd ?? prompt.length;
+    const next = insertAt(prompt, start, end, text);
     setPrompt(next.text);
     savePrompt(next.text);
     queueMicrotask(() => {
@@ -106,188 +186,188 @@ export function NodeDetails(props: NodeDetailsProps) {
       field?.setSelectionRange(next.at, next.at);
     });
   };
-  const inputs = () =>
-    inputsOf(props.node)
-      .map((id) => props.graph.nodes.find((n) => n.id === id))
-      .filter((n): n is WorkflowNode => n !== undefined && n.kind !== 'manual');
+  const inputs = inputsOf(props.node)
+    .map((id) => props.graph.nodes.find((n) => n.id === id))
+    .filter((n): n is WorkflowNode => n !== undefined && n.kind !== 'manual');
   const lastOf = (id: string) => props.last?.nodes.find((n) => n.node === id);
-  const issues = () => problemsOf(props.problems, props.node.id);
+  const issues = problemsOf(props.problems, props.node.id);
+  const onLimit = useCallback(
+    (text: string) => {
+      const value = Number.parseInt(text, 10);
+      latest.current.onChange({ time_limit_min: Number.isFinite(value) ? value : null });
+    },
+    [latest],
+  );
 
   return (
     <dialog
-      class="dialog wf-details"
+      className="dialog wf-details"
       aria-labelledby="wf-details-title"
-      ref={(element) => (dialog = element)}
+      ref={dialog}
       onCancel={(event) => {
         event.preventDefault();
         close();
       }}
       onMouseDown={(event) => {
-        if (event.target === event.currentTarget && outside(event, event.currentTarget)) close();
+        if (event.target === event.currentTarget && outside(event.nativeEvent, event.currentTarget))
+          close();
       }}
       onKeyDown={(event) => event.stopPropagation()}
     >
-      <header class="wf-details-head">
-        <h2 id="wf-details-title" class="dialog-title">
+      <header className="wf-details-head">
+        <h2 id="wf-details-title" className="dialog-title">
           {kindName(props.node.kind)} · {nodeTitle(props.node)}
         </h2>
-        <span class="wf-details-id">{props.node.id}</span>
-        <span class="wf-spacer" />
-        <button type="button" class="dialog-cancel" onClick={close}>
+        <span className="wf-details-id">{props.node.id}</span>
+        <span className="wf-spacer" />
+        <button type="button" className="dialog-cancel" onClick={close}>
           Done
         </button>
       </header>
-      <Show when={issues().length > 0}>
-        <ul class="wf-details-problems" role="alert">
-          <For each={issues()}>{(issue) => <li>{issue.text}</li>}</For>
+      {issues.length > 0 ? (
+        <ul className="wf-details-problems" role="alert">
+          {issues.map((issue, index) => (
+            // A problem has no id, and the list is new with each answer of the core.
+            <li key={index}>{issue.text}</li>
+          ))}
         </ul>
-      </Show>
-      <div class="wf-details-body">
-        <section class="wf-details-col" aria-label="Input">
+      ) : null}
+      <div className="wf-details-body">
+        <section className="wf-details-col" aria-label="Input">
           <h3>Input</h3>
-          <Show
-            when={props.node.kind !== 'manual'}
-            fallback={
-              <p class="wf-muted">
-                The trigger has no input. It gives the facts of an execution to the nodes after it.
-              </p>
-            }
-          >
-            <p class="wf-muted">Click a chip to put its reference into the prompt.</p>
-            <div class="wf-chips">
-              <For each={referenceChips(props.graph, props.node)}>
-                {(chip) => (
+          {props.node.kind !== 'manual' ? (
+            <>
+              <p className="wf-muted">Click a chip to put its reference into the prompt.</p>
+              <div className="wf-chips">
+                {referenceChips(props.graph, props.node).map((chip) => (
                   <button
+                    key={chip.text}
                     type="button"
-                    class="wf-chip"
+                    className="wf-chip"
                     title={chip.text}
                     disabled={props.node.kind === 'manual'}
                     onClick={() => insert(chip.text)}
                   >
                     {chip.label}
                   </button>
-                )}
-              </For>
-            </div>
-            <ul class="wf-inputs">
-              <For each={inputs()}>
-                {(input) => (
-                  <li>
-                    <span class="wf-input-title">{nodeTitle(input)}</span>
-                    <span class="wf-muted">
+                ))}
+              </div>
+              <ul className="wf-inputs">
+                {inputs.map((input) => (
+                  <li key={input.id}>
+                    <span className="wf-input-title">{nodeTitle(input)}</span>
+                    <span className="wf-muted">
                       {lastOf(input.id) ? runLine(lastOf(input.id)) : 'no report yet'}
                     </span>
                   </li>
-                )}
-              </For>
-            </ul>
-          </Show>
+                ))}
+              </ul>
+            </>
+          ) : (
+            <p className="wf-muted">
+              The trigger has no input. It gives the facts of an execution to the nodes after it.
+            </p>
+          )}
         </section>
-        <section class="wf-details-col wf-details-settings" aria-label="Settings">
+        <section className="wf-details-col wf-details-settings" aria-label="Settings">
           <h3>Settings</h3>
-          <label class="wf-field">
+          <label className="wf-field">
             <span>Title</span>
             <input
               type="text"
-              autocomplete="off"
-              spellcheck={false}
-              value={title()}
-              onInput={(event) => {
+              autoComplete="off"
+              spellCheck={false}
+              value={title}
+              onChange={(event) => {
                 setTitle(event.currentTarget.value);
                 saveTitle(event.currentTarget.value);
               }}
               onBlur={flush}
             />
           </label>
-          <Show when={props.node.kind === 'agent'}>
-            <div class="wf-field-row">
-              <label class="wf-field">
-                <span>Harness</span>
-                <select
-                  value={props.node.harness ?? ''}
-                  onChange={(event) => {
-                    const value = event.currentTarget.value;
-                    props.onChange({
-                      harness: value === 'claude' || value === 'codex' ? value : null,
-                      model: null,
-                      effort: null,
-                    });
-                  }}
-                >
-                  <option value="claude">{harnessName('claude')}</option>
-                  <option value="codex">{harnessName('codex')}</option>
-                </select>
-              </label>
-              <label class="wf-field">
-                <span>Model</span>
-                <select
-                  value={props.node.model ?? ''}
-                  onChange={(event) =>
-                    props.onChange({ model: event.currentTarget.value || null, effort: null })
-                  }
-                >
-                  <option value="">Default</option>
-                  <For each={choice()?.models ?? []}>
-                    {(model) => <option value={model.id}>{model.label}</option>}
-                  </For>
-                  <Show
-                    when={
-                      props.node.model &&
-                      !(choice()?.models ?? []).some((m) => m.id === props.node.model)
-                    }
+          {props.node.kind === 'agent' ? (
+            <>
+              <div className="wf-field-row">
+                <label className="wf-field">
+                  <span>Harness</span>
+                  <ValueSelect
+                    value={props.node.harness ?? ''}
+                    onChange={(value) => {
+                      props.onChange({
+                        harness: value === 'claude' || value === 'codex' ? value : null,
+                        model: null,
+                        effort: null,
+                      });
+                    }}
                   >
-                    <option value={props.node.model ?? ''}>{props.node.model}</option>
-                  </Show>
-                </select>
-              </label>
-              <label class="wf-field">
-                <span>Effort</span>
-                <select
-                  value={props.node.effort ?? ''}
-                  onChange={(event) =>
-                    props.onChange({ effort: event.currentTarget.value || null })
-                  }
-                >
-                  <option value="">Default</option>
-                  <For each={efforts()}>{(effort) => <option value={effort}>{effort}</option>}</For>
-                  <Show when={props.node.effort && !efforts().includes(props.node.effort)}>
-                    <option value={props.node.effort ?? ''}>{props.node.effort}</option>
-                  </Show>
-                </select>
-              </label>
-            </div>
-            <div class="wf-field-row">
-              <label class="wf-check">
-                <input
-                  type="checkbox"
-                  checked={props.node.can_edit === true}
-                  onChange={(event) => props.onChange({ can_edit: event.currentTarget.checked })}
-                />
-                <span>Can edit files</span>
-              </label>
-              <label class="wf-field wf-field-small">
-                <span>Time limit, min</span>
-                <input
-                  type="number"
-                  min="1"
-                  max="1440"
-                  placeholder="60"
-                  value={props.node.time_limit_min ?? ''}
-                  onChange={(event) => {
-                    const value = Number.parseInt(event.currentTarget.value, 10);
-                    props.onChange({ time_limit_min: Number.isFinite(value) ? value : null });
-                  }}
-                />
-              </label>
-            </div>
-          </Show>
-          <Show when={props.node.kind === 'report'}>
-            <label class="wf-field">
+                    <option value="claude">{harnessName('claude')}</option>
+                    <option value="codex">{harnessName('codex')}</option>
+                  </ValueSelect>
+                </label>
+                <label className="wf-field">
+                  <span>Model</span>
+                  <ValueSelect
+                    value={props.node.model ?? ''}
+                    onChange={(value) => props.onChange({ model: value || null, effort: null })}
+                  >
+                    <option value="">Default</option>
+                    {(choice?.models ?? []).map((model) => (
+                      <option key={model.id} value={model.id}>
+                        {model.label}
+                      </option>
+                    ))}
+                    {props.node.model &&
+                    !(choice?.models ?? []).some((m) => m.id === props.node.model) ? (
+                      <option value={props.node.model ?? ''}>{props.node.model}</option>
+                    ) : null}
+                  </ValueSelect>
+                </label>
+                <label className="wf-field">
+                  <span>Effort</span>
+                  <ValueSelect
+                    value={props.node.effort ?? ''}
+                    onChange={(value) => props.onChange({ effort: value || null })}
+                  >
+                    <option value="">Default</option>
+                    {efforts.map((effort) => (
+                      <option key={effort} value={effort}>
+                        {effort}
+                      </option>
+                    ))}
+                    {props.node.effort && !efforts.includes(props.node.effort) ? (
+                      <option value={props.node.effort ?? ''}>{props.node.effort}</option>
+                    ) : null}
+                  </ValueSelect>
+                </label>
+              </div>
+              <div className="wf-field-row">
+                <label className="wf-check">
+                  <ValueCheck
+                    checked={props.node.can_edit === true}
+                    onChange={(checked) => props.onChange({ can_edit: checked })}
+                  />
+                  <span>Can edit files</span>
+                </label>
+                <label className="wf-field wf-field-small">
+                  <span>Time limit, min</span>
+                  <ValueField
+                    type="number"
+                    min="1"
+                    max="1440"
+                    placeholder="60"
+                    value={String(props.node.time_limit_min ?? '')}
+                    onCommit={onLimit}
+                  />
+                </label>
+              </div>
+            </>
+          ) : null}
+          {props.node.kind === 'report' ? (
+            <label className="wf-field">
               <span>Summary by</span>
-              <select
+              <ValueSelect
                 value={props.node.summary_by ?? ''}
-                onChange={(event) => {
-                  const value = event.currentTarget.value;
+                onChange={(value) => {
                   props.onChange({
                     summary_by: value === 'claude' || value === 'codex' ? value : null,
                   });
@@ -296,51 +376,50 @@ export function NodeDetails(props: NodeDetailsProps) {
                 <option value="">No summary</option>
                 <option value="claude">{harnessName('claude')}</option>
                 <option value="codex">{harnessName('codex')}</option>
-              </select>
+              </ValueSelect>
             </label>
-          </Show>
-          <Show
-            when={
-              props.node.kind === 'agent' || (props.node.kind === 'report' && props.node.summary_by)
-            }
-          >
-            <label class="wf-field wf-field-grow">
-              <span>{props.node.kind === 'report' ? 'Summary prompt (optional)' : 'Prompt'}</span>
-              <textarea
-                class="wf-prompt"
-                spellcheck={false}
-                value={prompt()}
-                ref={(element) => (promptField = element)}
-                onInput={(event) => {
-                  setPrompt(event.currentTarget.value);
-                  savePrompt(event.currentTarget.value);
-                }}
-                onBlur={flush}
-              />
-            </label>
-            <p class="wf-muted wf-footer-note">
-              neohar adds a footer to the prompt: the paths of the input reports, and the rules. The
-              agent asks no questions
-              {props.node.can_edit || props.node.kind === 'report' ? '' : ', edits no files'} and
-              ends its turn with its full report in Markdown
-              {props.node.kind === 'report'
-                ? '.'
-                : ', with a last line "Verdict: pass", "warn" or "fail".'}
-            </p>
-          </Show>
-          <Show when={props.node.kind === 'report' && !props.node.summary_by}>
-            <p class="wf-muted">
+          ) : null}
+          {props.node.kind === 'agent' ||
+          (props.node.kind === 'report' && props.node.summary_by) ? (
+            <>
+              <label className="wf-field wf-field-grow">
+                <span>{props.node.kind === 'report' ? 'Summary prompt (optional)' : 'Prompt'}</span>
+                <textarea
+                  className="wf-prompt"
+                  spellCheck={false}
+                  value={prompt}
+                  ref={promptField}
+                  onChange={(event) => {
+                    setPrompt(event.currentTarget.value);
+                    savePrompt(event.currentTarget.value);
+                  }}
+                  onBlur={flush}
+                />
+              </label>
+              <p className="wf-muted wf-footer-note">
+                neohar adds a footer to the prompt: the paths of the input reports, and the rules.
+                The agent asks no questions
+                {props.node.can_edit || props.node.kind === 'report' ? '' : ', edits no files'} and
+                ends its turn with its full report in Markdown
+                {props.node.kind === 'report'
+                  ? '.'
+                  : ', with a last line "Verdict: pass", "warn" or "fail".'}
+              </p>
+            </>
+          ) : null}
+          {props.node.kind === 'report' && !props.node.summary_by ? (
+            <p className="wf-muted">
               The node writes report.md: the facts of the execution, a table of the inputs with
               their verdicts, and a link to each report.
             </p>
-          </Show>
+          ) : null}
         </section>
-        <section class="wf-details-col" aria-label="Output">
+        <section className="wf-details-col" aria-label="Output">
           <h3>Output</h3>
-          <Show when={props.node.kind !== 'manual'}>
+          {props.node.kind !== 'manual' ? (
             <button
               type="button"
-              class="wf-secondary"
+              className="wf-secondary"
               title="Execute only this node, with the reports of the last execution as its inputs"
               onClick={() => {
                 flush();
@@ -349,14 +428,14 @@ export function NodeDetails(props: NodeDetailsProps) {
             >
               Execute this node
             </button>
-          </Show>
-          <Show when={output()} fallback={<p class="wf-muted">{outputNote()}</p>}>
-            {(html) => (
-              <div class="wf-report">
-                <RichHtml html={html()} />
-              </div>
-            )}
-          </Show>
+          ) : null}
+          {output ? (
+            <div className="wf-report">
+              <RichHtml html={output} />
+            </div>
+          ) : (
+            <p className="wf-muted">{outputNote}</p>
+          )}
         </section>
       </div>
     </dialog>

@@ -11,15 +11,27 @@
 // each root stay while the page lives.
 
 import { type FsEntry, type FsReadResult, RpcError } from '@neohar/transport';
-import { createEffect, createMemo, createSignal, For, on, onCleanup, Show } from 'solid-js';
+import {
+  type KeyboardEvent,
+  memo,
+  type PointerEvent,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useApp } from '../app/context';
 import { onLongPress } from '../app/press';
 import { writeClipboard } from '../input/clipboard';
-import { pressToDrag } from '../app/drag';
+import { dragged, pressToDrag } from '../app/drag';
+import { useLatest, useSelect, useValue } from '../lib/hooks';
+import { cn } from '../lib/utils';
 import { FileIcon } from './FileIcon';
 import { FileModal } from './FileModal';
 import { FileView } from './FileView';
-import { windowFolder } from './folder';
+import { useWindowFolder } from './folder';
 import {
   clampSplit,
   keepSplit,
@@ -32,7 +44,6 @@ import {
   visibleRows,
   withoutFolder,
 } from './model';
-import { dragged } from '../lib/solid';
 
 /** What the page keeps of a root while it shows another one. */
 interface Kept {
@@ -58,50 +69,56 @@ function keyOf(row: Row): string {
   return row.kind === 'entry' ? row.entry.path : row.key;
 }
 
+/** What a row of the tree does to the tab. The functions stay the same while the tab lives. */
+interface RowActions {
+  activate: (entry: FsEntry) => void;
+  focus: (path: string) => void;
+  showMenu: (entry: FsEntry, x: number, y: number) => void;
+}
+
 export function FilesPanel() {
   const { stores, transport, run, windowId, input, form } = useApp();
-  const shown = () => stores.windows.state.byKey[windowId];
-  const root = createMemo(() => windowFolder(stores, windowId));
+  const focusedPane = useSelect(stores.windows, (state) => state.byKey[windowId]?.focused_pane);
+  const root = useWindowFolder(stores, windowId);
 
-  const [listings, setListings] = createSignal<ReadonlyMap<string, Listing>>(new Map());
-  const [open, setOpen] = createSignal<ReadonlySet<string>>(new Set());
-  const [file, setFile] = createSignal<string | null>(null);
-  const [preview, setPreview] = createSignal<FsReadResult | null>(null);
-  const [fileError, setFileError] = createSignal<string | null>(null);
-  const [focusPath, setFocusPath] = createSignal<string | null>(null);
-  const [message, setMessage] = createSignal<{ text: string; error: boolean } | null>(null);
-  const [menu, setMenu] = createSignal<{ entry: FsEntry; x: number; y: number } | null>(null);
-  const [split, setSplit] = createSignal(storedSplit());
+  const [listings, setListings] = useState<ReadonlyMap<string, Listing>>(() => new Map());
+  const [open, setOpen] = useState<ReadonlySet<string>>(() => new Set());
+  const [file, setFile] = useState<string | null>(null);
+  const [preview, setPreview] = useState<FsReadResult | null>(null);
+  const [fileError, setFileError] = useState<string | null>(null);
+  const [focusPath, setFocusPath] = useState<string | null>(null);
+  const [message, setMessage] = useState<{ text: string; error: boolean } | null>(null);
+  const [menu, setMenu] = useState<{ entry: FsEntry; x: number; y: number } | null>(null);
+  const [split, setSplit] = useState(storedSplit);
   // The large view of the open file.
-  const [viewing, setViewing] = createSignal(false);
+  const [viewing, setViewing] = useState(false);
 
-  const rows = createMemo(() => {
-    const at = root();
-    return at ? visibleRows(at, listings(), open()) : [];
-  });
-  const rowMap = createMemo(() => new Map(rows().map((row) => [keyOf(row), row])));
-  const keys = createMemo(() => rows().map(keyOf));
+  const rows = useMemo(
+    () => (root ? visibleRows(root, listings, open) : []),
+    [root, listings, open],
+  );
+  const rowMap = new Map(rows.map((row) => [keyOf(row), row]));
   /** The row in the tab order: the one with the focus, else the first entry. */
-  const tabStop = createMemo(() => {
-    const path = focusPath();
-    if (path !== null && rowMap().has(path)) return path;
-    const first = rows().find((row) => row.kind === 'entry');
+  const tabStop = (() => {
+    if (focusPath !== null && rowMap.has(focusPath)) return focusPath;
+    const first = rows.find((row) => row.kind === 'entry');
     return first?.kind === 'entry' ? first.entry.path : null;
-  });
+  })();
 
-  let tree: HTMLDivElement | undefined;
-  let menuBox: HTMLDivElement | undefined;
-  let panel: HTMLDivElement | undefined;
+  const tree = useRef<HTMLDivElement>(null);
+  const menuBox = useRef<HTMLDivElement | null>(null);
+  const panel = useRef<HTMLDivElement>(null);
   // An answer that comes after a newer call, or for another root, is dropped.
-  let generation = 0;
-  const asked = new Map<string, number>();
-  let reads = 0;
+  const generation = useRef(0);
+  const asked = useRef(new Map<string, number>()).current;
+  const reads = useRef(0);
+  const rootNow = useLatest(root);
 
   const list = (path: string): void => {
     const mine = (asked.get(path) ?? 0) + 1;
     asked.set(path, mine);
-    const gen = generation;
-    const current = () => gen === generation && asked.get(path) === mine;
+    const gen = generation.current;
+    const current = () => gen === generation.current && asked.get(path) === mine;
     transport
       .call('fs.list', { path })
       .then((result) => {
@@ -110,7 +127,11 @@ export function FilesPanel() {
       .catch((failure: unknown) => {
         if (!current()) return;
         // An open folder that is gone closes.
-        if (path !== root() && failure instanceof RpcError && failure.code === 'not_found') {
+        if (
+          path !== rootNow.current &&
+          failure instanceof RpcError &&
+          failure.code === 'not_found'
+        ) {
           setOpen((before) => withoutFolder(before, path));
           setListings((before) => {
             const next = new Map(before);
@@ -125,9 +146,9 @@ export function FilesPanel() {
   };
 
   const read = (path: string): void => {
-    const mine = ++reads;
-    const gen = generation;
-    const current = () => gen === generation && mine === reads;
+    const mine = ++reads.current;
+    const gen = generation.current;
+    const current = () => gen === generation.current && mine === reads.current;
     transport
       .call('fs.read', { path })
       .then((result) => {
@@ -142,41 +163,25 @@ export function FilesPanel() {
       });
   };
 
-  const refresh = (): void => {
-    const at = root();
+  /** Lists the root and the open folders of `at`, and reads its open file, again. */
+  const refreshOf = (
+    at: string | undefined,
+    openNow: ReadonlySet<string>,
+    shownFile: string | null,
+  ): void => {
     if (!at) return;
     list(at);
-    for (const path of open()) list(path);
-    const shownFile = file();
+    for (const path of openNow) list(path);
     if (shownFile) read(shownFile);
   };
+  const refresh = (): void => refreshOf(root, open, file);
 
   const keep = (at: string | undefined): void => {
-    if (at) kept.set(at, { open: [...open()], file: file(), focus: focusPath() });
+    if (at) kept.set(at, { open: [...open], file, focus: focusPath });
   };
 
-  // A new root shows its tree as the person left it, listed again.
-  createEffect(
-    on(root, (next, previous) => {
-      keep(previous);
-      generation += 1;
-      const back = next ? kept.get(next) : undefined;
-      setListings(new Map());
-      setOpen(new Set(back?.open ?? []));
-      setFile(back?.file ?? null);
-      setPreview(null);
-      setFileError(null);
-      setFocusPath(back?.focus ?? null);
-      setMessage(null);
-      setMenu(null);
-      setViewing(false);
-      refresh();
-    }),
-  );
-  onCleanup(() => keep(root()));
-
   const toggle = (path: string): void => {
-    if (open().has(path)) {
+    if (open.has(path)) {
       setOpen((before) => withoutFolder(before, path));
     } else {
       setOpen((before) => new Set(before).add(path));
@@ -185,7 +190,7 @@ export function FilesPanel() {
   };
 
   const openFile = (path: string): void => {
-    if (file() === path) return;
+    if (file === path) return;
     setFile(path);
     setPreview(null);
     setFileError(null);
@@ -211,7 +216,7 @@ export function FilesPanel() {
   };
 
   const insert = (path: string, pane?: string): void => {
-    const target = pane ?? shown()?.focused_pane ?? undefined;
+    const target = pane ?? focusedPane ?? undefined;
     if (!target) {
       setMessage({ text: 'No pane has the focus. Click a pane first.', error: true });
       return;
@@ -241,7 +246,7 @@ export function FilesPanel() {
 
   const act = (id: MenuItem['id'], path: string): void => {
     setMenu(null);
-    const at = root();
+    const at = root;
     switch (id) {
       case 'open':
         openFile(path);
@@ -271,21 +276,25 @@ export function FilesPanel() {
   };
 
   /** Closes the large view. The focus goes back to the row when the element that had it is gone. */
+  const closedView = useRef(false);
   const closeView = (): void => {
-    if (!viewing()) return;
+    if (!viewing) return;
+    closedView.current = true;
     setViewing(false);
-    const shownFile = file();
-    if (shownFile && document.activeElement === document.body) focusRow(shownFile);
   };
+  // The large view is out of the page now, and its `close()` gave the focus back if it could.
+  useEffect(() => {
+    if (viewing || !closedView.current) return;
+    closedView.current = false;
+    if (file && document.activeElement === document.body) focusRow(file);
+  });
 
   /** The path that the person drags onto a pane now. */
-  const liftedPath = (): string | null => {
-    const item = dragged();
-    return item?.kind === 'path' ? item.path : null;
-  };
+  const item = useValue(dragged);
+  const liftedPath = item?.kind === 'path' ? item.path : null;
 
   const rowElement = (path: string): HTMLElement | null =>
-    tree?.querySelector<HTMLElement>(`[data-path="${CSS.escape(path)}"]`) ?? null;
+    tree.current?.querySelector<HTMLElement>(`[data-path="${CSS.escape(path)}"]`) ?? null;
 
   const focusRow = (path: string): void => {
     setFocusPath(path);
@@ -300,19 +309,53 @@ export function FilesPanel() {
   };
 
   const closeMenu = (): void => {
-    const shownMenu = menu();
+    const shownMenu = menu;
     setMenu(null);
     if (shownMenu) focusRow(shownMenu.entry.path);
   };
 
-  const onTreeKey = (event: KeyboardEvent): void => {
+  // The effects and the rows read the functions of the last render.
+  const latest = useLatest({ keep, refreshOf, activate, showMenu, root });
+  const rowActions = useMemo<RowActions>(
+    () => ({
+      activate: (entry) => latest.current.activate(entry),
+      focus: setFocusPath,
+      showMenu: (entry, x, y) => latest.current.showMenu(entry, x, y),
+    }),
+    [latest],
+  );
+
+  // A new root shows its tree as the person left it, listed again.
+  const shownRoot = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    const now = latest.current;
+    now.keep(shownRoot.current);
+    shownRoot.current = root;
+    generation.current += 1;
+    const back = root ? kept.get(root) : undefined;
+    const backOpen = new Set(back?.open ?? []);
+    const backFile = back?.file ?? null;
+    setListings(new Map());
+    setOpen(backOpen);
+    setFile(backFile);
+    setPreview(null);
+    setFileError(null);
+    setFocusPath(back?.focus ?? null);
+    setMessage(null);
+    setMenu(null);
+    setViewing(false);
+    now.refreshOf(root, backOpen, backFile);
+  }, [root, latest]);
+  useEffect(() => () => latest.current.keep(latest.current.root), [latest]);
+
+  const onTreeKey = (event: KeyboardEvent<HTMLDivElement>): void => {
     const target = (event.target as HTMLElement).closest<HTMLElement>('[data-path]');
     const path = target?.dataset['path'];
     if (path === undefined) return;
-    const action = keyAction(rows(), path, event.key, event.shiftKey);
+    const action = keyAction(rows, path, event.key, event.shiftKey);
     if (action.type === 'none') return;
     event.preventDefault();
-    const row = rowMap().get(action.path);
+    const row = rowMap.get(action.path);
     switch (action.type) {
       case 'focus':
         focusRow(action.path);
@@ -334,21 +377,36 @@ export function FilesPanel() {
 
   // The menu is a popover in the top layer: a click elsewhere closes it. It stays in the
   // window and takes the focus.
-  createEffect(() => {
-    if (!menu() || !menuBox) return;
-    if (!menuBox.matches(':popover-open')) menuBox.showPopover();
-    const box = menuBox.getBoundingClientRect();
-    if (box.right > window.innerWidth - 4) {
-      menuBox.style.left = `${Math.max(4, window.innerWidth - box.width - 4)}px`;
+  useLayoutEffect(() => {
+    const box = menuBox.current;
+    if (!menu || !box) return;
+    if (!box.matches(':popover-open')) box.showPopover();
+    const rect = box.getBoundingClientRect();
+    if (rect.right > window.innerWidth - 4) {
+      box.style.left = `${Math.max(4, window.innerWidth - rect.width - 4)}px`;
     }
-    if (box.bottom > window.innerHeight - 4) {
-      menuBox.style.top = `${Math.max(4, window.innerHeight - box.height - 4)}px`;
+    if (rect.bottom > window.innerHeight - 4) {
+      box.style.top = `${Math.max(4, window.innerHeight - rect.height - 4)}px`;
     }
-    menuBox.querySelector<HTMLElement>('[role="menuitem"]')?.focus();
-  });
+    box.querySelector<HTMLElement>('[role="menuitem"]')?.focus();
+  }, [menu]);
 
-  const onMenuKey = (event: KeyboardEvent): void => {
-    const items = [...(menuBox?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? [])];
+  // A click outside the menu closes the popover, and the menu goes with it.
+  const menuRef = useCallback((element: HTMLDivElement | null) => {
+    menuBox.current = element;
+    if (!element) return;
+    const toggled = (event: Event): void => {
+      if ((event as ToggleEvent).newState === 'closed') setMenu(null);
+    };
+    element.addEventListener('toggle', toggled);
+    return () => {
+      element.removeEventListener('toggle', toggled);
+      menuBox.current = null;
+    };
+  }, []);
+
+  const onMenuKey = (event: KeyboardEvent<HTMLDivElement>): void => {
+    const items = [...(menuBox.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? [])];
     const at = items.indexOf(document.activeElement as HTMLElement);
     if (event.key === 'Escape' || event.key === 'Tab') {
       event.preventDefault();
@@ -365,18 +423,21 @@ export function FilesPanel() {
   };
 
   // The rule between the tree and the file: a drag or the arrow keys change the share.
-  const onRulePointer = (event: PointerEvent): void => {
-    if (event.button !== 0 || !panel) return;
-    const rule = event.currentTarget as HTMLElement;
+  const onRulePointer = (event: PointerEvent<HTMLDivElement>): void => {
+    const element = panel.current;
+    if (event.button !== 0 || !element) return;
+    const rule = event.currentTarget;
     rule.setPointerCapture(event.pointerId);
     rule.classList.add('dragging');
-    const box = panel.getBoundingClientRect();
-    const move = (moved: PointerEvent): void => {
-      setSplit(clampSplit((moved.clientY - box.top) / Math.max(1, box.height)));
+    const box = element.getBoundingClientRect();
+    let share = split;
+    const move = (moved: globalThis.PointerEvent): void => {
+      share = clampSplit((moved.clientY - box.top) / Math.max(1, box.height));
+      setSplit(share);
     };
     const end = (): void => {
       rule.classList.remove('dragging');
-      keepSplit(split());
+      keepSplit(share);
       rule.removeEventListener('pointermove', move);
       rule.removeEventListener('pointerup', end);
       rule.removeEventListener('pointercancel', end);
@@ -385,210 +446,214 @@ export function FilesPanel() {
     rule.addEventListener('pointerup', end);
     rule.addEventListener('pointercancel', end);
   };
-  const onRuleKey = (event: KeyboardEvent): void => {
+  const onRuleKey = (event: KeyboardEvent<HTMLDivElement>): void => {
     const by = event.shiftKey ? 0.15 : 0.05;
-    if (event.key === 'ArrowUp') setSplit(clampSplit(split() - by));
-    else if (event.key === 'ArrowDown') setSplit(clampSplit(split() + by));
+    let next: number;
+    if (event.key === 'ArrowUp') next = clampSplit(split - by);
+    else if (event.key === 'ArrowDown') next = clampSplit(split + by);
     else return;
+    setSplit(next);
     event.preventDefault();
-    keepSplit(split());
+    keepSplit(next);
   };
 
   return (
-    <div class="files-panel" ref={(element) => (panel = element)}>
-      <Show when={root()} fallback={<p class="drawer-empty">This tab has no folder.</p>}>
-        {(at) => (
-          <>
-            <header class="files-head">
-              <span class="files-root" title={at()}>
-                <span class="files-root-name">{lastPart(at())}</span>
-                <span class="files-root-path">{at()}</span>
-              </span>
-              <button
-                type="button"
-                class="files-refresh"
-                title="List the open folders and read the open file again"
-                onClick={refresh}
-              >
-                Refresh
-              </button>
-            </header>
-            <Show when={message()}>
-              {(note) => (
-                <p
-                  class="files-message"
-                  classList={{ error: note().error }}
-                  role={note().error ? 'alert' : 'status'}
-                >
-                  {note().text}
-                </p>
-              )}
-            </Show>
-            <div
-              class="files-tree"
-              role="tree"
-              aria-label="Files"
-              ref={(element) => (tree = element)}
-              style={file() ? { flex: `0 0 ${split() * 100}%` } : undefined}
-              onKeyDown={onTreeKey}
+    <div className="files-panel" ref={panel}>
+      {root ? (
+        <>
+          <header className="files-head">
+            <span className="files-root" title={root}>
+              <span className="files-root-name">{lastPart(root)}</span>
+              <span className="files-root-path">{root}</span>
+            </span>
+            <button
+              type="button"
+              className="files-refresh"
+              title="List the open folders and read the open file again"
+              onClick={refresh}
             >
-              <Show when={listings().has(at())} fallback={<p class="drawer-empty">Listing…</p>}>
-                <For each={keys()}>
-                  {(key) => (
-                    <Show when={rowMap().get(key)}>
-                      {(row) => {
-                        const first = row();
-                        if (first.kind === 'note') {
-                          return (
-                            <div
-                              role="treeitem"
-                              aria-disabled="true"
-                              aria-level={first.depth + 1}
-                              class="files-note"
-                              classList={{ error: first.error }}
-                              style={{ 'padding-left': `${first.depth * 2 + 2.5}ch` }}
-                            >
-                              {first.text}
-                            </div>
-                          );
-                        }
-                        const entry = () => {
-                          const now = row();
-                          return now.kind === 'entry' ? now : first;
-                        };
-                        const isDir = () => entry().entry.kind === 'dir';
-                        return (
-                          <div
-                            role="treeitem"
-                            class="files-row"
-                            classList={{
-                              hidden: entry().entry.hidden,
-                              other: entry().entry.kind === 'other',
-                              current: file() === key,
-                              'menu-open': menu()?.entry.path === key,
-                              lifted: liftedPath() === key,
-                            }}
-                            data-path={key}
-                            data-kind={entry().entry.kind}
-                            aria-level={entry().depth + 1}
-                            aria-expanded={isDir() ? entry().open : undefined}
-                            aria-selected={file() === key}
-                            aria-busy={entry().busy}
-                            tabIndex={tabStop() === key ? 0 : -1}
-                            title={entry().entry.path}
-                            style={{ 'padding-left': `${entry().depth * 2 + 0.5}ch` }}
-                            onClick={() => activate(entry().entry)}
-                            onFocus={() => setFocusPath(key)}
-                            onContextMenu={(event) => {
-                              event.preventDefault();
-                              showMenu(entry().entry, event.clientX, event.clientY);
-                            }}
-                            // A press that moves drags the path onto a pane, with pointer
-                            // events. A press that does not move is a click.
-                            onPointerDown={(event) => {
-                              pressToDrag(event, { kind: 'path', path: key });
-                              // A phone has no right click: a long press opens the menu.
-                              onLongPress(event, (x, y) => showMenu(entry().entry, x, y));
-                            }}
-                          >
-                            <span class="files-arrow" aria-hidden="true">
-                              {isDir() ? (entry().open ? '▾' : '▸') : ''}
-                            </span>
-                            <FileIcon
-                              icon={entry().entry.icon}
-                              folder={isDir()}
-                              open={entry().open}
-                            />
-                            <span class="files-name">{entry().entry.name}</span>
-                            <Show when={entry().entry.link}>
-                              <span class="files-link" title="A symbolic link">
-                                →
-                              </span>
-                            </Show>
-                          </div>
-                        );
-                      }}
-                    </Show>
-                  )}
-                </For>
-              </Show>
-            </div>
-            <Show when={file()}>
-              {(path) => (
-                <>
-                  <div
-                    class="files-rule"
-                    role="separator"
-                    aria-orientation="horizontal"
-                    aria-label="Size of the tree"
-                    aria-valuenow={Math.round(split() * 100)}
-                    aria-valuemin={15}
-                    aria-valuemax={85}
-                    tabindex="0"
-                    onPointerDown={onRulePointer}
-                    onKeyDown={onRuleKey}
-                  />
-                  <FileView
-                    path={path()}
-                    preview={preview()}
-                    error={fileError()}
-                    onAction={act}
-                    onClose={() => {
-                      setFile(null);
-                      setPreview(null);
-                      setFileError(null);
-                    }}
-                  />
-                  <Show when={viewing()}>
-                    <FileModal
-                      path={path()}
-                      preview={preview()}
-                      error={fileError()}
-                      message={message()}
-                      onAction={act}
-                      onClose={closeView}
-                    />
-                  </Show>
-                </>
-              )}
-            </Show>
-          </>
-        )}
-      </Show>
-      <Show when={menu()}>
-        {(shownMenu) => (
+              Refresh
+            </button>
+          </header>
+          {message ? (
+            <p
+              className={cn('files-message', { error: message.error })}
+              role={message.error ? 'alert' : 'status'}
+            >
+              {message.text}
+            </p>
+          ) : null}
           <div
-            class="files-menu"
-            role="menu"
-            popover="auto"
-            aria-label={`Actions of ${shownMenu().entry.name}`}
-            ref={(element) => {
-              menuBox = element;
-              // A click outside the menu closes the popover, and the menu goes with it.
-              element.addEventListener('toggle', (event) => {
-                if ((event as ToggleEvent).newState === 'closed') setMenu(null);
-              });
-            }}
-            style={{ left: `${shownMenu().x}px`, top: `${shownMenu().y}px` }}
-            onKeyDown={onMenuKey}
+            className="files-tree"
+            role="tree"
+            aria-label="Files"
+            ref={tree}
+            style={file ? { flex: `0 0 ${split * 100}%` } : undefined}
+            onKeyDown={onTreeKey}
           >
-            <For each={menuItems(shownMenu().entry.kind, form !== 'phone')}>
-              {(item) => (
-                <button
-                  type="button"
-                  role="menuitem"
-                  class="files-menu-item"
-                  data-action={item.id}
-                  tabIndex={-1}
-                  onClick={() => act(item.id, shownMenu().entry.path)}
-                >
-                  {item.label}
-                </button>
-              )}
-            </For>
+            {listings.has(root) ? (
+              rows.map((row) =>
+                row.kind === 'note' ? (
+                  <div
+                    key={row.key}
+                    role="treeitem"
+                    aria-disabled="true"
+                    aria-level={row.depth + 1}
+                    className={cn('files-note', { error: row.error })}
+                    style={{ paddingLeft: `${row.depth * 2 + 2.5}ch` }}
+                  >
+                    {row.text}
+                  </div>
+                ) : (
+                  <FileRow
+                    key={row.entry.path}
+                    entry={row.entry}
+                    depth={row.depth}
+                    open={row.open}
+                    busy={row.busy}
+                    current={file === row.entry.path}
+                    menuOpen={menu?.entry.path === row.entry.path}
+                    lifted={liftedPath === row.entry.path}
+                    tabStop={tabStop === row.entry.path}
+                    actions={rowActions}
+                  />
+                ),
+              )
+            ) : (
+              <p className="drawer-empty">Listing…</p>
+            )}
           </div>
-        )}
-      </Show>
+          {file ? (
+            <>
+              <div
+                className="files-rule"
+                role="separator"
+                aria-orientation="horizontal"
+                aria-label="Size of the tree"
+                aria-valuenow={Math.round(split * 100)}
+                aria-valuemin={15}
+                aria-valuemax={85}
+                tabIndex={0}
+                onPointerDown={onRulePointer}
+                onKeyDown={onRuleKey}
+              />
+              <FileView
+                path={file}
+                preview={preview}
+                error={fileError}
+                onAction={act}
+                onClose={() => {
+                  setFile(null);
+                  setPreview(null);
+                  setFileError(null);
+                }}
+              />
+              {viewing ? (
+                <FileModal
+                  path={file}
+                  preview={preview}
+                  error={fileError}
+                  message={message}
+                  onAction={act}
+                  onClose={closeView}
+                />
+              ) : null}
+            </>
+          ) : null}
+        </>
+      ) : (
+        <p className="drawer-empty">This tab has no folder.</p>
+      )}
+      {menu ? (
+        <div
+          className="files-menu"
+          role="menu"
+          popover="auto"
+          aria-label={`Actions of ${menu.entry.name}`}
+          ref={menuRef}
+          style={{ left: `${menu.x}px`, top: `${menu.y}px` }}
+          onKeyDown={onMenuKey}
+        >
+          {menuItems(menu.entry.kind, form !== 'phone').map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              role="menuitem"
+              className="files-menu-item"
+              data-action={item.id}
+              tabIndex={-1}
+              onClick={() => act(item.id, menu.entry.path)}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }
+
+/** A row of an entry of the tree. */
+const FileRow = memo(function FileRow(props: {
+  entry: FsEntry;
+  depth: number;
+  open: boolean;
+  busy: boolean;
+  /** The open file. */
+  current: boolean;
+  menuOpen: boolean;
+  lifted: boolean;
+  tabStop: boolean;
+  actions: RowActions;
+}) {
+  const { entry, actions } = props;
+  const key = entry.path;
+  const isDir = entry.kind === 'dir';
+  // A long press opens the menu of the entry of now.
+  const entryNow = useLatest(entry);
+  return (
+    <div
+      role="treeitem"
+      className={cn('files-row', {
+        hidden: entry.hidden,
+        other: entry.kind === 'other',
+        current: props.current,
+        'menu-open': props.menuOpen,
+        lifted: props.lifted,
+      })}
+      data-path={key}
+      data-kind={entry.kind}
+      aria-level={props.depth + 1}
+      aria-expanded={isDir ? props.open : undefined}
+      aria-selected={props.current}
+      aria-busy={props.busy}
+      tabIndex={props.tabStop ? 0 : -1}
+      title={entry.path}
+      style={{ paddingLeft: `${props.depth * 2 + 0.5}ch` }}
+      onClick={() => actions.activate(entry)}
+      onFocus={() => actions.focus(key)}
+      onContextMenu={(event) => {
+        event.preventDefault();
+        actions.showMenu(entry, event.clientX, event.clientY);
+      }}
+      // A press that moves drags the path onto a pane, with pointer
+      // events. A press that does not move is a click.
+      onPointerDown={(event) => {
+        pressToDrag(event.nativeEvent, { kind: 'path', path: key });
+        // A phone has no right click: a long press opens the menu.
+        onLongPress(event.nativeEvent, (x, y) => actions.showMenu(entryNow.current, x, y));
+      }}
+    >
+      <span className="files-arrow" aria-hidden="true">
+        {isDir ? (props.open ? '▾' : '▸') : ''}
+      </span>
+      <FileIcon icon={entry.icon} folder={isDir} open={props.open} />
+      <span className="files-name">{entry.name}</span>
+      {entry.link ? (
+        <span className="files-link" title="A symbolic link">
+          →
+        </span>
+      ) : null}
+    </div>
+  );
+});

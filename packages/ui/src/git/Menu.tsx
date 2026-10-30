@@ -3,7 +3,8 @@
 // core gives the items in their order, and the menu only keeps the ones that match the filter. The
 // popover is in the top layer, so a click beside it closes it.
 
-import { createMemo, createSignal, For, Show } from 'solid-js';
+import { type KeyboardEvent, useEffect, useRef, useState } from 'react';
+import { cn } from '../lib/utils';
 import { matches, moveIndex } from './model';
 
 export interface MenuItem {
@@ -41,47 +42,61 @@ export interface GitMenuProps {
   empty: string;
 }
 
+/** The groups with the items that match `filter`, and no empty group. */
+function filtered(groups: MenuGroup[], filter: string): MenuGroup[] {
+  return groups
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) => matches(filter, [item.title, item.detail, item.agents])),
+    }))
+    .filter((group) => group.items.length > 0);
+}
+
 export function GitMenu(props: GitMenuProps) {
-  let trigger: HTMLButtonElement | undefined;
-  let panel: HTMLDivElement | undefined;
-  let field: HTMLInputElement | undefined;
-  const [open, setOpen] = createSignal(false);
-  const [filter, setFilter] = createSignal('');
-  const [active, setActive] = createSignal(0);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const panel = useRef<HTMLDivElement>(null);
+  const field = useRef<HTMLInputElement>(null);
+  const [open, setOpen] = useState(false);
+  const [filter, setFilter] = useState('');
+  const [active, setActive] = useState(0);
   const id = `git-menu-${props.label.toLowerCase()}`;
 
-  const shown = createMemo(() =>
-    props.groups
-      .map((group) => ({
-        ...group,
-        items: group.items.filter((item) =>
-          matches(filter(), [item.title, item.detail, item.agents]),
-        ),
-      }))
-      .filter((group) => group.items.length > 0),
-  );
-  const flat = createMemo(() => shown().flatMap((group) => group.items));
-  const actions = () => props.actions?.(filter()) ?? [];
+  const shown = filtered(props.groups, filter);
+  const flat = shown.flatMap((group) => group.items);
+  const actions = props.actions?.(filter) ?? [];
+
+  useEffect(() => {
+    const element = panel.current;
+    if (!element) return;
+    const toggle = (event: Event): void => {
+      setOpen((event as ToggleEvent).newState === 'open');
+    };
+    element.addEventListener('toggle', toggle);
+    return () => element.removeEventListener('toggle', toggle);
+  }, []);
 
   const close = (): void => {
-    if (panel?.matches(':popover-open')) panel.hidePopover();
+    if (panel.current?.matches(':popover-open')) panel.current.hidePopover();
   };
   const show = (): void => {
-    if (!panel || !trigger) return;
-    const box = trigger.getBoundingClientRect();
-    panel.style.left = `${Math.max(4, Math.min(box.left, window.innerWidth - 360))}px`;
-    panel.style.top = `${box.bottom + 4}px`;
+    if (!panel.current || !trigger.current) return;
+    const box = trigger.current.getBoundingClientRect();
+    panel.current.style.left = `${Math.max(4, Math.min(box.left, window.innerWidth - 360))}px`;
+    panel.current.style.top = `${box.bottom + 4}px`;
     setFilter('');
-    const current = flat().findIndex((item) => item.current);
+    // The filter is empty from now on: the current item is found in every item.
+    const current = filtered(props.groups, '')
+      .flatMap((group) => group.items)
+      .findIndex((item) => item.current);
     setActive(Math.max(0, current));
-    panel.showPopover();
-    field?.focus();
+    panel.current.showPopover();
+    field.current?.focus();
   };
   const pick = (item: MenuItem | undefined): void => {
     if (!item || item.disabled) return;
     close();
     props.onPick(item.key);
-    trigger?.focus();
+    trigger.current?.focus();
   };
 
   const onKey = (event: KeyboardEvent): void => {
@@ -89,134 +104,126 @@ export function GitMenu(props: GitMenuProps) {
       event.preventDefault();
       event.stopPropagation();
       close();
-      trigger?.focus();
+      trigger.current?.focus();
       return;
     }
     if (event.key === 'Enter') {
       event.preventDefault();
-      const item = flat()[active()];
+      const item = flat[active];
       if (item) pick(item);
-      else actions()[0]?.run();
+      else actions[0]?.run();
       if (!item) close();
       return;
     }
-    const to = moveIndex(flat().length, active(), event.key);
+    const to = moveIndex(flat.length, active, event.key);
     if (to === null) return;
     event.preventDefault();
     setActive(to);
-    panel?.querySelector<HTMLElement>(`[data-index="${to}"]`)?.scrollIntoView({ block: 'nearest' });
+    panel.current
+      ?.querySelector<HTMLElement>(`[data-index="${to}"]`)
+      ?.scrollIntoView({ block: 'nearest' });
   };
 
   return (
-    <div class="git-menu-anchor">
+    <div className="git-menu-anchor">
       <button
         type="button"
-        class="git-menu-button"
-        classList={{ open: open() }}
+        className={cn('git-menu-button', { open })}
         aria-haspopup="listbox"
-        aria-expanded={open()}
+        aria-expanded={open}
         aria-controls={id}
-        ref={(element) => (trigger = element)}
-        onClick={() => (open() ? close() : show())}
+        ref={trigger}
+        onClick={() => (open ? close() : show())}
       >
-        <span class="git-menu-label">{props.label}</span>
-        <span class="git-menu-line">
-          <span class="git-menu-value">{props.value}</span>
-          <Show when={props.note}>{(note) => <span class="git-menu-note">{note()}</span>}</Show>
-          <span class="git-menu-arrow" aria-hidden="true">
+        <span className="git-menu-label">{props.label}</span>
+        <span className="git-menu-line">
+          <span className="git-menu-value">{props.value}</span>
+          {props.note ? <span className="git-menu-note">{props.note}</span> : null}
+          <span className="git-menu-arrow" aria-hidden="true">
             ▾
           </span>
         </span>
       </button>
-      <div
-        id={id}
-        class="git-menu"
-        popover="auto"
-        ref={(element) => {
-          panel = element;
-          element.addEventListener('toggle', (event) => {
-            setOpen((event as ToggleEvent).newState === 'open');
-          });
-        }}
-        onKeyDown={onKey}
-      >
+      <div id={id} className="git-menu" popover="auto" ref={panel} onKeyDown={onKey}>
         <input
-          class="git-menu-filter"
+          className="git-menu-filter"
           type="text"
           placeholder="Filter"
           aria-label={`Filter the ${props.label.toLowerCase()} menu`}
-          aria-activedescendant={flat()[active()] ? `${id}-${active()}` : undefined}
-          value={filter()}
-          ref={(element) => (field = element)}
-          onInput={(event) => {
+          aria-activedescendant={flat[active] ? `${id}-${active}` : undefined}
+          value={filter}
+          ref={field}
+          onChange={(event) => {
             setFilter(event.currentTarget.value);
             setActive(0);
           }}
         />
-        <div class="git-menu-list" role="listbox" aria-label={props.label}>
-          <Show when={flat().length > 0} fallback={<p class="git-menu-empty">{props.empty}</p>}>
-            <For each={shown()}>
-              {(group) => (
-                <div class="git-menu-group" role="group" aria-label={group.title}>
-                  <Show when={group.title}>
-                    <div class="git-menu-group-title" aria-hidden="true">
-                      {group.title}
+        <div className="git-menu-list" role="listbox" aria-label={props.label}>
+          {flat.length > 0 ? (
+            shown.map((group, at) => (
+              <div
+                key={group.title ?? at}
+                className="git-menu-group"
+                role="group"
+                aria-label={group.title}
+              >
+                {group.title ? (
+                  <div className="git-menu-group-title" aria-hidden="true">
+                    {group.title}
+                  </div>
+                ) : null}
+                {group.items.map((item) => {
+                  const index = flat.indexOf(item);
+                  return (
+                    <div
+                      key={item.key}
+                      id={`${id}-${index}`}
+                      className={cn('git-menu-item', {
+                        active: index === active,
+                        current: item.current === true,
+                        disabled: item.disabled === true,
+                      })}
+                      role="option"
+                      aria-selected={item.current === true}
+                      aria-disabled={item.disabled === true}
+                      data-index={index}
+                      data-key={item.key}
+                      onPointerMove={() => setActive(index)}
+                      onClick={() => pick(item)}
+                    >
+                      <span className="git-menu-item-title">{item.title}</span>
+                      {item.detail ? (
+                        <span className="git-menu-item-detail">{item.detail}</span>
+                      ) : null}
+                      {item.agents ? (
+                        <span className="git-menu-item-agents">{item.agents}</span>
+                      ) : null}
                     </div>
-                  </Show>
-                  <For each={group.items}>
-                    {(item) => {
-                      const index = () => flat().indexOf(item);
-                      return (
-                        <div
-                          id={`${id}-${index()}`}
-                          class="git-menu-item"
-                          classList={{
-                            active: index() === active(),
-                            current: item.current === true,
-                            disabled: item.disabled === true,
-                          }}
-                          role="option"
-                          aria-selected={item.current === true}
-                          aria-disabled={item.disabled === true}
-                          data-index={index()}
-                          data-key={item.key}
-                          onPointerMove={() => setActive(index())}
-                          onClick={() => pick(item)}
-                        >
-                          <span class="git-menu-item-title">{item.title}</span>
-                          <Show when={item.detail}>
-                            {(detail) => <span class="git-menu-item-detail">{detail()}</span>}
-                          </Show>
-                          <Show when={item.agents}>
-                            {(agents) => <span class="git-menu-item-agents">{agents()}</span>}
-                          </Show>
-                        </div>
-                      );
-                    }}
-                  </For>
-                </div>
-              )}
-            </For>
-          </Show>
+                  );
+                })}
+              </div>
+            ))
+          ) : (
+            <p className="git-menu-empty">{props.empty}</p>
+          )}
         </div>
-        <Show when={actions().length > 0}>
-          <div class="git-menu-actions">
-            <For each={actions()}>
-              {(action) => (
-                <button
-                  type="button"
-                  class="git-menu-action"
-                  onClick={() => {
-                    close();
-                    action.run();
-                  }}
-                >
-                  {action.label}
-                </button>
-              )}
-            </For>
+        {actions.length > 0 ? (
+          <div className="git-menu-actions">
+            {actions.map((action) => (
+              <button
+                key={action.label}
+                type="button"
+                className="git-menu-action"
+                onClick={() => {
+                  close();
+                  action.run();
+                }}
+              >
+                {action.label}
+              </button>
+            ))}
           </div>
-        </Show>
+        ) : null}
       </div>
     </div>
   );

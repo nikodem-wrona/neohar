@@ -5,9 +5,19 @@
 // of the page comes back as an action that the page does (`inbox.open`).
 
 import { RpcError, type PaletteMatch } from '@neohar/transport';
-import { createEffect, createSignal, For, onCleanup, onMount, Show } from 'solid-js';
+import {
+  Fragment,
+  type KeyboardEvent,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useApp } from '../app/context';
 import { debounce, realTimers } from '../lib/timing';
+import { cn } from '../lib/utils';
 import { SearchIcon } from '../shell/icons';
 import { segments } from './highlight';
 import { PaletteKeys } from './Keys';
@@ -31,57 +41,58 @@ function questionOf(failure: RpcError): string {
 
 export function Palette() {
   const { stores, transport, report, windowId, view } = useApp();
-  const [text, setText] = createSignal('');
-  const [items, setItems] = createSignal<PaletteMatch[]>([]);
-  const [selected, setSelected] = createSignal(0);
-  const [message, setMessage] = createSignal<string | null>(null);
-  const [confirm, setConfirm] = createSignal<{ command: string; question: string } | null>(null);
-  let input: HTMLInputElement | undefined;
-  let list: HTMLUListElement | undefined;
+  const [text, setText] = useState('');
+  const [items, setItems] = useState<PaletteMatch[]>([]);
+  const [selected, setSelected] = useState(0);
+  const [message, setMessage] = useState<string | null>(null);
+  const [confirm, setConfirm] = useState<{ command: string; question: string } | null>(null);
+  const input = useRef<HTMLInputElement>(null);
+  const list = useRef<HTMLUListElement>(null);
   /** The number of the newest query, so that a late answer to an older one is dropped. */
-  let newest = 0;
+  const newest = useRef(0);
 
   /** Whether keys wait for their query. Enter then asks at once and runs the best match. */
-  let waiting = false;
+  const waiting = useRef(false);
 
   /** Asks the core and shows the answer, unless a newer query was asked. Gives the commands. */
-  const ask = (query: string): Promise<PaletteMatch[]> => {
-    const mine = ++newest;
-    return transport
-      .call('palette.query', { query, limit: LIMIT, window: windowId })
-      .then((result) => {
-        if (mine !== newest) return [];
-        waiting = false;
-        setItems(result.items);
-        setSelected(0);
-        return result.items;
-      })
-      .catch((failure: unknown) => {
-        if (mine === newest) {
-          waiting = false;
-          setMessage(
-            failure instanceof RpcError ? failure.message : 'The palette cannot ask the core.',
-          );
-        }
-        return [];
-      });
-  };
-  const later = debounce(
-    (query: string) => void ask(query).catch(report),
-    QUERY_DELAY_MS,
-    realTimers,
+  const ask = useCallback(
+    (query: string): Promise<PaletteMatch[]> => {
+      const mine = ++newest.current;
+      return transport
+        .call('palette.query', { query, limit: LIMIT, window: windowId })
+        .then((result) => {
+          if (mine !== newest.current) return [];
+          waiting.current = false;
+          setItems(result.items);
+          setSelected(0);
+          return result.items;
+        })
+        .catch((failure: unknown) => {
+          if (mine === newest.current) {
+            waiting.current = false;
+            setMessage(
+              failure instanceof RpcError ? failure.message : 'The palette cannot ask the core.',
+            );
+          }
+          return [];
+        });
+    },
+    [transport, windowId],
   );
-  onCleanup(() => later.cancel());
-  onMount(() => {
+  const later = useMemo(
+    () => debounce((query: string) => void ask(query).catch(report), QUERY_DELAY_MS, realTimers),
+    [ask, report],
+  );
+  useEffect(() => () => later.cancel(), [later]);
+  useEffect(() => {
     ask('').catch(report);
-    input?.focus();
-  });
+    input.current?.focus();
+  }, [ask, report]);
 
   // The command under the keys stays in view.
-  createEffect(() => {
-    selected();
-    list?.querySelector('[aria-selected="true"]')?.scrollIntoView({ block: 'nearest' });
-  });
+  useLayoutEffect(() => {
+    list.current?.querySelector('[aria-selected="true"]')?.scrollIntoView({ block: 'nearest' });
+  }, [selected]);
 
   const run = (match: PaletteMatch, force = false): void => {
     if (!match.command.enabled) return;
@@ -95,8 +106,8 @@ export function Palette() {
       })
       .then((result) => {
         // The action first: a field that it opens takes the focus before the palette closes.
-        if (result.ui) view.pageAction(result.ui, stores.windows.state.byKey[windowId]);
-        view.setPaletteOpen(false);
+        if (result.ui) view.pageAction(result.ui, stores.windows.get().byKey[windowId]);
+        view.paletteOpen.set(false);
       })
       .catch((failure: unknown) => {
         if (failure instanceof RpcError && failure.code === 'confirm_required') {
@@ -108,7 +119,7 @@ export function Palette() {
   };
 
   const onKey = (e: KeyboardEvent): void => {
-    const count = items().length;
+    const count = items.length;
     if (e.key === 'ArrowDown') {
       e.preventDefault();
       setSelected((at) => Math.min(at + 1, Math.max(count - 1, 0)));
@@ -117,10 +128,10 @@ export function Palette() {
       setSelected((at) => Math.max(at - 1, 0));
     } else if (e.key === 'Enter') {
       e.preventDefault();
-      if (waiting) {
+      if (waiting.current) {
         // The keys have not had their answer yet. Ask now, and run the best match of the answer.
         later.cancel();
-        ask(text())
+        ask(text)
           .then((found) => {
             const first = found[0];
             if (first) run(first);
@@ -128,110 +139,101 @@ export function Palette() {
           .catch(report);
         return;
       }
-      const match = items()[selected()];
+      const match = items[selected];
       if (match) run(match);
     } else if (e.key === 'Escape') {
       e.preventDefault();
-      view.setPaletteOpen(false);
+      view.paletteOpen.set(false);
     }
   };
 
   return (
     <div
-      class="palette-backdrop"
+      className="palette-backdrop"
       onMouseDown={(e) => {
-        if (e.target === e.currentTarget) view.setPaletteOpen(false);
+        if (e.target === e.currentTarget) view.paletteOpen.set(false);
       }}
     >
-      <div class="palette" role="dialog" aria-modal="true" aria-label="Command palette">
-        <div class="palette-field">
+      <div className="palette" role="dialog" aria-modal="true" aria-label="Command palette">
+        <div className="palette-field">
           <SearchIcon />
           <input
-            ref={(element) => (input = element)}
-            class="palette-input"
+            ref={input}
+            className="palette-input"
             type="text"
             role="combobox"
             aria-expanded="true"
             aria-controls="palette-list"
-            aria-activedescendant={items().length > 0 ? `palette-option-${selected()}` : undefined}
+            aria-activedescendant={items.length > 0 ? `palette-option-${selected}` : undefined}
             placeholder="Search commands, tabs and panes"
-            autocomplete="off"
-            autocapitalize="off"
-            spellcheck={false}
-            value={text()}
-            onInput={(e) => {
+            autoComplete="off"
+            autoCapitalize="off"
+            spellCheck={false}
+            value={text}
+            onChange={(e) => {
               setText(e.currentTarget.value);
               setConfirm(null);
               setMessage(null);
-              waiting = true;
+              waiting.current = true;
               later(e.currentTarget.value);
             }}
             onKeyDown={onKey}
           />
         </div>
-        <Show when={confirm()}>
-          {(question) => (
-            <div class="palette-confirm" role="alert">
-              <span>{question().question}</span>
-              <button
-                type="button"
-                data-action="palette-force"
-                onClick={() => {
-                  const match = items().find((item) => item.command.id === question().command);
-                  if (match) run(match, true);
-                }}
-              >
-                Do it anyway
-              </button>
-              <button type="button" data-action="palette-keep" onClick={() => setConfirm(null)}>
-                Keep it
-              </button>
-            </div>
-          )}
-        </Show>
-        <Show when={message()}>
-          <p class="palette-message" role="alert">
-            {message()}
+        {confirm ? (
+          <div className="palette-confirm" role="alert">
+            <span>{confirm.question}</span>
+            <button
+              type="button"
+              data-action="palette-force"
+              onClick={() => {
+                const match = items.find((item) => item.command.id === confirm.command);
+                if (match) run(match, true);
+              }}
+            >
+              Do it anyway
+            </button>
+            <button type="button" data-action="palette-keep" onClick={() => setConfirm(null)}>
+              Keep it
+            </button>
+          </div>
+        ) : null}
+        {message ? (
+          <p className="palette-message" role="alert">
+            {message}
           </p>
-        </Show>
-        <ul
-          class="palette-list"
-          id="palette-list"
-          role="listbox"
-          ref={(element) => (list = element)}
-        >
-          <For each={items()}>
-            {(item, index) => (
-              <li
-                id={`palette-option-${index()}`}
-                class="palette-item"
-                classList={{
-                  selected: index() === selected(),
-                  disabled: !item.command.enabled,
-                }}
-                role="option"
-                aria-selected={index() === selected()}
-                aria-disabled={!item.command.enabled}
-                title={item.command.disabled_reason ?? undefined}
-                onMouseMove={() => setSelected(index())}
-                onClick={() => run(item)}
-              >
-                <span class="palette-title">
-                  <For each={segments(item.command.title, item.ranges)}>
-                    {(part) => (part.hit ? <mark>{part.text}</mark> : part.text)}
-                  </For>
-                </span>
-                <Show when={item.command.shortcut} fallback={<span />}>
-                  <kbd class="palette-shortcut">{item.command.shortcut}</kbd>
-                </Show>
-                <span class="palette-category">{item.command.category}</span>
-              </li>
-            )}
-          </For>
+        ) : null}
+        <ul className="palette-list" id="palette-list" role="listbox" ref={list}>
+          {items.map((item, index) => (
+            <li
+              key={item.command.id}
+              id={`palette-option-${index}`}
+              className={cn('palette-item', {
+                selected: index === selected,
+                disabled: !item.command.enabled,
+              })}
+              role="option"
+              aria-selected={index === selected}
+              aria-disabled={!item.command.enabled}
+              title={item.command.disabled_reason ?? undefined}
+              onMouseMove={() => setSelected(index)}
+              onClick={() => run(item)}
+            >
+              <span className="palette-title">
+                {segments(item.command.title, item.ranges).map((part, at) => (
+                  <Fragment key={at}>{part.hit ? <mark>{part.text}</mark> : part.text}</Fragment>
+                ))}
+              </span>
+              {item.command.shortcut ? (
+                <kbd className="palette-shortcut">{item.command.shortcut}</kbd>
+              ) : (
+                <span />
+              )}
+              <span className="palette-category">{item.command.category}</span>
+            </li>
+          ))}
         </ul>
-        <Show when={items().length === 0}>
-          <p class="palette-empty">No command matches.</p>
-        </Show>
+        {items.length === 0 ? <p className="palette-empty">No command matches.</p> : null}
         <PaletteKeys action="Run" />
       </div>
     </div>

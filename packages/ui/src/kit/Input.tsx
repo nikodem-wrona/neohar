@@ -1,14 +1,13 @@
-// The Input of shadcn/ui (ui.shadcn.com), in Solid, on the tokens of the chrome: a field of one
+// The Input of shadcn/ui (ui.shadcn.com), in React, on the tokens of the chrome: a field of one
 // line with a ring for the focus. The attributes go to the element.
 
-import { type JSX, splitProps } from 'solid-js';
+import type { ComponentProps } from 'react';
 
-export function Input(props: JSX.InputHTMLAttributes<HTMLInputElement>) {
-  const [own, rest] = splitProps(props, ['class', 'type']);
+export function Input({ className, type, ...rest }: ComponentProps<'input'>) {
   return (
     <input
-      type={own.type ?? 'text'}
-      class={own.class ? `ui-input ${own.class}` : 'ui-input'}
+      type={type ?? 'text'}
+      className={className ? `ui-input ${className}` : 'ui-input'}
       {...rest}
     />
   );

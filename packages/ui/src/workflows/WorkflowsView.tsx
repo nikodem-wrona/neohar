@@ -20,21 +20,15 @@ import {
   type WorkflowPresets,
   type WorkflowShown,
 } from '@neohar/transport';
-import {
-  createEffect,
-  createMemo,
-  createSignal,
-  For,
-  on,
-  onCleanup,
-  onMount,
-  Show,
-} from 'solid-js';
+import { type KeyboardEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { useApp } from '../app/context';
 import { windowFolder } from '../files/folder';
 import { GitMenu, type MenuGroup } from '../git/Menu';
 import { isAbsolutePath } from '../git/model';
-import { createProjectionStore } from '../stores';
+import { useRows, useValue } from '../lib/hooks';
+import { cn } from '../lib/utils';
+import { createValue } from '../lib/value';
+import { useProjectionStore } from '../stores';
 import { Canvas } from './Canvas';
 import { ExecuteDialog } from './ExecuteDialog';
 import { ExecutionPanel } from './ExecutionPanel';
@@ -60,110 +54,155 @@ interface Picking {
   from?: string | undefined;
 }
 
+/** Selects the text of the field when it shows. */
+function selectWhenShown(element: HTMLInputElement | null): void {
+  if (element) queueMicrotask(() => element.select());
+}
+
+/** Gives the focus to the field when it shows. */
+function focusWhenShown(element: HTMLInputElement | null): void {
+  if (element) queueMicrotask(() => element.focus());
+}
+
 export function WorkflowsView() {
   const { stores, transport, report, windowId, view } = useApp();
-  const workflows = createProjectionStore(transport, 'workflows');
-  const executions = createProjectionStore(transport, 'workflow_executions');
-  onCleanup(() => {
-    workflows.close();
-    executions.close();
-  });
-  let root: HTMLElement | undefined;
+  const workflows = useProjectionStore(transport, 'workflows');
+  const executions = useProjectionStore(transport, 'workflow_executions');
+  const root = useRef<HTMLElement>(null);
 
-  const [folder, setFolder] = createSignal<string | null>(null);
-  const [facts, setFacts] = createSignal<WorkflowFacts | null>(null);
-  const [allFolders, setAllFolders] = createSignal(false);
-  const [selected, setSelected] = createSignal<string | null>(null);
-  const [shown, setShown] = createSignal<WorkflowShown | null>(null);
-  const [openError, setOpenError] = createSignal<string | null>(null);
-  const [execution, setExecution] = createSignal<string | null>(null);
-  const [executionGraph, setExecutionGraph] = createSignal<WorkflowGraph | null>(null);
-  const [node, setNode] = createSignal<string | null>(null);
-  const [details, setDetails] = createSignal<string | null>(null);
-  const [picking, setPicking] = createSignal<Picking | null>(null);
-  const [executing, setExecuting] = createSignal(false);
-  const [presets, setPresets] = createSignal<WorkflowPresets | null>(null);
-  const [choices, setChoices] = createSignal<HarnessChoices[]>([]);
-  const [creating, setCreating] = createSignal(false);
-  const [renaming, setRenaming] = createSignal(false);
-  const [confirmDelete, setConfirmDelete] = createSignal(false);
+  // The state that the answers of the core and the saves read at once, before the next render
+  // shows it. The folder of the request, else the folder of the window, from the start.
+  const [live] = useState(() => ({
+    folder: createValue<string | null>(
+      view.workflowsTarget.get().folder ?? windowFolder(stores, windowId) ?? null,
+    ),
+    selected: createValue<string | null>(null),
+    shown: createValue<WorkflowShown | null>(null),
+    execution: createValue<string | null>(null),
+  }));
+  const folder = useValue(live.folder);
+  const selected = useValue(live.selected);
+  const shown = useValue(live.shown);
+  const execution = useValue(live.execution);
+  const [facts, setFacts] = useState<WorkflowFacts | null>(null);
+  const [allFolders, setAllFolders] = useState(false);
+  const [openError, setOpenError] = useState<string | null>(null);
+  const [executionGraph, setExecutionGraph] = useState<WorkflowGraph | null>(null);
+  const [node, setNode] = useState<string | null>(null);
+  const [details, setDetails] = useState<string | null>(null);
+  const [picking, setPicking] = useState<Picking | null>(null);
+  const [executing, setExecuting] = useState(false);
+  const [presets, setPresets] = useState<WorkflowPresets | null>(null);
+  const [choices, setChoices] = useState<HarnessChoices[]>([]);
+  const [creating, setCreating] = useState(false);
+  const [renaming, setRenaming] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   // The folder of the request, else the folder of the window.
-  createEffect(
-    on(view.workflowsTarget, (target) => {
-      setFolder(target.folder ?? windowFolder(stores, windowId) ?? null);
-    }),
-  );
-  createEffect(
-    on(folder, (path) => {
-      setFacts(null);
-      if (!path) return;
-      transport
-        .call('workflow.facts', { folder: path })
-        .then((found) => {
-          if (folder() === path) setFacts(found);
-        })
-        .catch(() => setFacts(null));
-    }),
-  );
-  onMount(() => {
-    root?.focus();
+  const target = useValue(view.workflowsTarget);
+  useEffect(() => {
+    live.folder.set(target.folder ?? windowFolder(stores, windowId) ?? null);
+  }, [target, live, stores, windowId]);
+  useEffect(() => {
+    setFacts(null);
+    if (!folder) return;
+    transport
+      .call('workflow.facts', { folder })
+      .then((found) => {
+        if (live.folder.get() === folder) setFacts(found);
+      })
+      .catch(() => setFacts(null));
+  }, [folder, transport, live]);
+  useEffect(() => {
+    root.current?.focus();
     transport.call('workflow.presets', {}).then(setPresets).catch(report);
     transport
       .call('agent.choices', {})
       .then((found) => setChoices(found.harnesses))
       .catch(() => setChoices([]));
-  });
+  }, [transport, report]);
 
   // --- the workflow that the canvas edits ---------------------------------------------------
 
-  const load = (name: string): void => {
-    setOpenError(null);
-    transport
-      .call('workflow.show', { workflow: name })
-      .then((found) => {
-        if (selected() === name) setShown(found);
-      })
-      .catch((failure: unknown) => {
-        setShown(null);
-        setOpenError(failure instanceof RpcError ? failure.message : 'The workflow does not open.');
-      });
-  };
-  const pick = (name: string): void => {
-    setExecution(null);
-    setNode(null);
-    setSelected(name);
-    load(name);
-  };
-  // The first workflow opens by itself.
-  createEffect(() => {
-    if (selected() === null && workflows.state.status === 'live') {
-      const first = workflows.state.order[0];
-      if (first) pick(first);
-    }
-  });
-  // A file that changed by hand, or in another window, loads again.
-  let saving = 0;
-  createEffect(() => {
-    const name = selected();
-    const row = name ? workflows.state.byKey[name] : undefined;
-    const current = shown();
-    if (!name || !current || saving > 0) return;
-    if (!row && workflows.state.status === 'live') {
-      setShown(null);
-      setSelected(null);
-    } else if (row && row.revision !== current.revision && current.workflow === name) {
+  const load = useCallback(
+    (name: string): void => {
+      setOpenError(null);
+      transport
+        .call('workflow.show', { workflow: name })
+        .then((found) => {
+          if (live.selected.get() === name) live.shown.set(found);
+        })
+        .catch((failure: unknown) => {
+          live.shown.set(null);
+          setOpenError(
+            failure instanceof RpcError ? failure.message : 'The workflow does not open.',
+          );
+        });
+    },
+    [transport, live],
+  );
+  const pick = useCallback(
+    (name: string): void => {
+      live.execution.set(null);
+      setNode(null);
+      live.selected.set(name);
       load(name);
+    },
+    [live, load],
+  );
+  // The first workflow opens by itself.
+  const listed = useValue(workflows);
+  const workflowRows = useRows(workflows);
+  const firstWorkflow = listed.order[0];
+  useEffect(() => {
+    if (selected === null && listed.status === 'live') {
+      if (firstWorkflow) pick(firstWorkflow);
     }
-  });
+  }, [selected, listed.status, firstWorkflow, pick]);
+  // A file that changed by hand, or in another window, loads again. The check runs at once after
+  // each change of the workflow, of its row or of the graph, so that a save in progress is seen.
+  const saving = useRef(0);
+  useEffect(() => {
+    let seen: { row: unknown; status: string } | null = null;
+    const check = (): void => {
+      const name = live.selected.get();
+      const state = workflows.get();
+      const row = name ? state.byKey[name] : undefined;
+      const current = live.shown.get();
+      seen = { row, status: state.status };
+      if (!name || !current || saving.current > 0) return;
+      if (!row && state.status === 'live') {
+        live.shown.set(null);
+        live.selected.set(null);
+      } else if (row && row.revision !== current.revision && current.workflow === name) {
+        load(name);
+      }
+    };
+    const onWorkflows = (): void => {
+      const name = live.selected.get();
+      const state = workflows.get();
+      const row = name ? state.byKey[name] : undefined;
+      if (seen && seen.row === row && seen.status === state.status) return;
+      check();
+    };
+    check();
+    const stops = [
+      live.selected.subscribe(check),
+      live.shown.subscribe(check),
+      workflows.subscribe(onWorkflows),
+    ];
+    return () => {
+      for (const stop of stops) stop();
+    };
+  }, [live, workflows, load]);
 
-  let queue: Promise<unknown> = Promise.resolve();
+  const queue = useRef<Promise<unknown>>(Promise.resolve());
   /** Saves a change of the graph after the saves before it, on the graph of the last answer. */
   const edit = (change: (graph: WorkflowGraph) => WorkflowGraph | null): void => {
-    saving += 1;
-    queue = queue
+    saving.current += 1;
+    queue.current = queue.current
       .then(() => {
-        const current = shown();
+        const current = live.shown.get();
         if (!current) return undefined;
         const next = change(current.graph);
         if (!next) return undefined;
@@ -173,38 +212,38 @@ export function WorkflowsView() {
             revision: current.revision,
             graph: next,
           })
-          .then(setShown);
+          .then((found) => live.shown.set(found));
       })
       .catch((failure: unknown) => {
-        const name = selected();
+        const name = live.selected.get();
         if (failure instanceof RpcError && failure.code === 'conflict' && name) load(name);
         report(failure);
       })
       .finally(() => {
-        saving -= 1;
+        saving.current -= 1;
       });
   };
   const step = (method: 'workflow.undo' | 'workflow.redo' | 'workflow.layout'): void => {
-    const current = shown();
+    const current = live.shown.get();
     if (!current) return;
-    saving += 1;
-    queue = queue
+    saving.current += 1;
+    queue.current = queue.current
       .then(() => {
-        const latest = shown() ?? current;
+        const latest = live.shown.get() ?? current;
         return (
           method === 'workflow.layout'
             ? transport.call(method, { workflow: latest.workflow, revision: latest.revision })
             : transport.call(method, { workflow: latest.workflow })
-        ).then(setShown);
+        ).then((found) => live.shown.set(found));
       })
       .catch(report)
       .finally(() => {
-        saving -= 1;
+        saving.current -= 1;
       });
   };
 
   const addPreset = (preset: WorkflowNodePreset): void => {
-    const at = picking();
+    const at = picking;
     setPicking(null);
     if (!at) return;
     let made: string | null = null;
@@ -213,42 +252,38 @@ export function WorkflowsView() {
       made = added.id;
       return added.graph;
     });
-    queue = queue.then(() => {
+    queue.current = queue.current.then(() => {
       if (made) setNode(made);
     });
   };
 
   // --- executions -----------------------------------------------------------------------------
 
-  const rows = createMemo(() =>
-    executions.rows().filter((row) => allFolders() || !folder() || row.folder === folder()),
-  );
-  const current = (): ExecutionValue | undefined => {
-    const id = execution();
-    return id ? executions.state.byKey[id] : undefined;
-  };
+  const executionRows = useRows(executions);
+  const executionState = useValue(executions);
+  const rows = executionRows.filter((row) => allFolders || !folder || row.folder === folder);
+  const current: ExecutionValue | undefined = execution
+    ? executionState.byKey[execution]
+    : undefined;
   const openExecution = (id: string): void => {
-    setExecution(id);
+    live.execution.set(id);
     setNode(null);
     setExecutionGraph(null);
     transport
       .call('workflow.execution', { execution: id })
       .then((found) => {
-        if (execution() === id) setExecutionGraph(found.graph);
+        if (live.execution.get() === id) setExecutionGraph(found.graph);
       })
       .catch(report);
   };
   /** The last execution of the workflow in the folder, for the reports of before. */
-  const last = () =>
-    executions
-      .rows()
-      .find(
-        (row) => row.workflow === selected() && row.folder === folder() && row.state !== 'running',
-      );
+  const last = executionRows.find(
+    (row) => row.workflow === selected && row.folder === folder && row.state !== 'running',
+  );
 
   const execute = (base: string | null, notes: string | null, only?: string): void => {
-    const name = selected();
-    const path = folder();
+    const name = live.selected.get();
+    const path = live.folder.get();
     setExecuting(false);
     if (!name || !path) return;
     transport
@@ -265,6 +300,8 @@ export function WorkflowsView() {
 
   // --- the bar --------------------------------------------------------------------------------
 
+  const panes = useRows(stores.panes);
+  const tree = useRows(stores.tree);
   const folderGroups = (): MenuGroup[] => {
     const seen = new Set<string>();
     const items: MenuGroup['items'] = [];
@@ -275,37 +312,36 @@ export function WorkflowsView() {
         key: path,
         title: folderName(path),
         detail: detail ?? path,
-        current: path === folder(),
+        current: path === folder,
       });
     };
-    add(folder());
-    for (const pane of stores.panes.rows()) add(pane.cwd);
-    for (const workspace of stores.tree.rows()) add(workspace.root);
+    add(folder);
+    for (const pane of panes) add(pane.cwd);
+    for (const workspace of tree) add(workspace.root);
     return [{ items }];
   };
-  const agents = (): AgentValue[] => stores.agents.rows();
-  const paused = () => rows().some((row) => row.state === 'paused');
+  const agents: AgentValue[] = useRows(stores.agents);
+  const paused = rows.some((row) => row.state === 'paused');
 
-  const graph = (): WorkflowGraph | null =>
-    execution() ? executionGraph() : (shown()?.graph ?? null);
-  const detailsNode = (): WorkflowNode | undefined => {
-    const id = details();
-    return id ? shown()?.graph.nodes.find((n) => n.id === id) : undefined;
-  };
-  const problems = () => shown()?.problems ?? [];
-  const canExecute = () => !!shown() && problems().length === 0 && !!folder();
+  const graph: WorkflowGraph | null = execution ? executionGraph : (shown?.graph ?? null);
+  const detailsNode: WorkflowNode | undefined = details
+    ? shown?.graph.nodes.find((n) => n.id === details)
+    : undefined;
+  const problems = shown?.problems ?? [];
+  const canExecute = !!shown && problems.length === 0 && !!folder;
+  const banner = !execution ? problemsOf(problems, null)[0] : undefined;
 
   const onKey = (event: KeyboardEvent): void => {
     if (event.defaultPrevented) return;
     if (event.key === 'Escape') {
       event.preventDefault();
-      if (picking()) setPicking(null);
-      else if (node()) setNode(null);
+      if (picking) setPicking(null);
+      else if (node) setNode(null);
       else view.closeWorkflows();
       return;
     }
     const mod = event.metaKey || event.ctrlKey;
-    if (mod && event.key.toLowerCase() === 'z' && !execution()) {
+    if (mod && event.key.toLowerCase() === 'z' && !execution) {
       event.preventDefault();
       step(event.shiftKey ? 'workflow.redo' : 'workflow.undo');
     }
@@ -313,102 +349,99 @@ export function WorkflowsView() {
 
   return (
     <section
-      class="wf-view"
+      className="wf-view"
       aria-label="Workflows view"
       tabIndex={-1}
-      ref={(element) => (root = element)}
+      ref={root}
       onKeyDown={onKey}
     >
-      <header class="wf-bar">
+      <header className="wf-bar">
         <GitMenu
           label="Folder"
-          value={folder() ? folderName(folder() as string) : 'No folder'}
-          note={facts()?.branch ?? null}
+          value={folder ? folderName(folder) : 'No folder'}
+          note={facts?.branch ?? null}
           groups={folderGroups()}
-          onPick={setFolder}
+          onPick={(path) => live.folder.set(path)}
           actions={(filter) =>
             isAbsolutePath(filter)
-              ? [{ label: `Use ${filter.trim()}`, run: () => setFolder(filter.trim()) }]
+              ? [{ label: `Use ${filter.trim()}`, run: () => live.folder.set(filter.trim()) }]
               : []
           }
           empty="Type the absolute path of a folder."
         />
-        <Show when={shown()}>
-          {(current) => (
-            <Show
-              when={renaming()}
-              fallback={
-                <button
-                  type="button"
-                  class="wf-name"
-                  title="Rename the workflow"
-                  onClick={() => setRenaming(true)}
-                >
-                  {current().graph.name}
-                </button>
-              }
+        {shown ? (
+          renaming ? (
+            <input
+              className="wf-name-field"
+              type="text"
+              autoComplete="off"
+              spellCheck={false}
+              defaultValue={shown.graph.name}
+              ref={selectWhenShown}
+              onKeyDown={(event) => {
+                event.stopPropagation();
+                if (event.key === 'Escape') setRenaming(false);
+                if (event.key === 'Enter') event.currentTarget.blur();
+              }}
+              onBlur={(event) => {
+                const name = event.currentTarget.value.trim();
+                setRenaming(false);
+                if (!name || name === shown.graph.name) return;
+                transport
+                  .call('workflow.rename', { workflow: shown.workflow, name })
+                  .then((renamed) => {
+                    live.selected.set(renamed.workflow);
+                    live.shown.set(renamed);
+                  })
+                  .catch(report);
+              }}
+            />
+          ) : (
+            <button
+              type="button"
+              className="wf-name"
+              title="Rename the workflow"
+              onClick={() => setRenaming(true)}
             >
-              <input
-                class="wf-name-field"
-                type="text"
-                autocomplete="off"
-                spellcheck={false}
-                value={current().graph.name}
-                ref={(element) => queueMicrotask(() => element.select())}
-                onKeyDown={(event) => {
-                  event.stopPropagation();
-                  if (event.key === 'Escape') setRenaming(false);
-                  if (event.key === 'Enter') event.currentTarget.blur();
-                }}
-                onBlur={(event) => {
-                  const name = event.currentTarget.value.trim();
-                  setRenaming(false);
-                  if (!name || name === current().graph.name) return;
-                  transport
-                    .call('workflow.rename', { workflow: current().workflow, name })
-                    .then((renamed) => {
-                      setSelected(renamed.workflow);
-                      setShown(renamed);
-                    })
-                    .catch(report);
-                }}
-              />
-            </Show>
-          )}
-        </Show>
-        <span class="wf-spacer" />
-        <Show when={shown() && !execution()}>
-          <button
-            type="button"
-            title="Undo (⌘Z)"
-            disabled={!shown()?.can_undo}
-            onClick={() => step('workflow.undo')}
-          >
-            Undo
-          </button>
-          <button
-            type="button"
-            title="Redo (⌘⇧Z)"
-            disabled={!shown()?.can_redo}
-            onClick={() => step('workflow.redo')}
-          >
-            Redo
-          </button>
-        </Show>
-        <Show when={execution()}>
-          <button type="button" onClick={() => setExecution(null)}>
+              {shown.graph.name}
+            </button>
+          )
+        ) : null}
+        <span className="wf-spacer" />
+        {shown && !execution ? (
+          <>
+            <button
+              type="button"
+              title="Undo (⌘Z)"
+              disabled={!shown.can_undo}
+              onClick={() => step('workflow.undo')}
+            >
+              Undo
+            </button>
+            <button
+              type="button"
+              title="Redo (⌘⇧Z)"
+              disabled={!shown.can_redo}
+              onClick={() => step('workflow.redo')}
+            >
+              Redo
+            </button>
+          </>
+        ) : null}
+        {execution ? (
+          <button type="button" onClick={() => live.execution.set(null)}>
             Back to the workflow
           </button>
-        </Show>
+        ) : null}
         <button
           type="button"
-          class="wf-execute-button"
-          disabled={!canExecute()}
+          className="wf-execute-button"
+          disabled={!canExecute}
           title={
-            problems().length > 0
+            problems.length > 0
               ? 'The workflow has errors'
-              : folder()
-                ? `Execute in ${folder()}`
+              : folder
+                ? `Execute in ${folder}`
                 : 'Pick a folder first'
           }
           onClick={() => setExecuting(true)}
@@ -417,90 +450,39 @@ export function WorkflowsView() {
         </button>
         <button
           type="button"
-          class="git-close"
+          className="git-close"
           title="Close the Workflows view (Esc)"
           onClick={() => view.closeWorkflows()}
         >
           Close
         </button>
       </header>
-      <div class="wf-body" classList={{ 'with-panel': !!current() }}>
-        <nav class="wf-side" aria-label="Workflows and executions">
-          <h3 class="wf-side-title">Workflows</h3>
-          <ul class="wf-list">
-            <For each={workflows.rows()}>
-              {(row) => (
-                <li>
-                  <button
-                    type="button"
-                    class="wf-list-item"
-                    classList={{ selected: row.workflow === selected() && !execution() }}
-                    onClick={() => pick(row.workflow)}
-                  >
-                    <span class="wf-list-name">{row.name}</span>
-                    <Show when={row.problems > 0}>
-                      <span class="wf-badge danger" title="The workflow has errors">
-                        {row.problems}
-                      </span>
-                    </Show>
-                  </button>
-                </li>
-              )}
-            </For>
-          </ul>
-          <Show
-            when={creating()}
-            fallback={
-              <div class="wf-side-actions">
-                <button type="button" class="wf-link" onClick={() => setCreating(true)}>
-                  + New
+      <div className={cn('wf-body', { 'with-panel': !!current })}>
+        <nav className="wf-side" aria-label="Workflows and executions">
+          <h3 className="wf-side-title">Workflows</h3>
+          <ul className="wf-list">
+            {workflowRows.map((row) => (
+              <li key={row.workflow}>
+                <button
+                  type="button"
+                  className={cn('wf-list-item', {
+                    selected: row.workflow === selected && !execution,
+                  })}
+                  onClick={() => pick(row.workflow)}
+                >
+                  <span className="wf-list-name">{row.name}</span>
+                  {row.problems > 0 ? (
+                    <span className="wf-badge danger" title="The workflow has errors">
+                      {row.problems}
+                    </span>
+                  ) : null}
                 </button>
-                <Show when={shown()}>
-                  <button
-                    type="button"
-                    class="wf-link"
-                    onClick={() =>
-                      transport
-                        .call('workflow.duplicate', { workflow: shown()?.workflow ?? '' })
-                        .then((copy) => pick(copy.workflow))
-                        .catch(report)
-                    }
-                  >
-                    Duplicate
-                  </button>
-                  <Show
-                    when={confirmDelete()}
-                    fallback={
-                      <button type="button" class="wf-link" onClick={() => setConfirmDelete(true)}>
-                        Delete
-                      </button>
-                    }
-                  >
-                    <button
-                      type="button"
-                      class="wf-link danger"
-                      onClick={() => {
-                        setConfirmDelete(false);
-                        const name = shown()?.workflow;
-                        if (!name) return;
-                        transport
-                          .call('workflow.delete', { workflow: name })
-                          .then(() => {
-                            setShown(null);
-                            setSelected(null);
-                          })
-                          .catch(report);
-                      }}
-                    >
-                      Delete it
-                    </button>
-                  </Show>
-                </Show>
-              </div>
-            }
-          >
+              </li>
+            ))}
+          </ul>
+          {creating ? (
             <form
-              class="wf-new"
+              className="wf-new"
               onSubmit={(event) => {
                 event.preventDefault();
                 const form = event.currentTarget;
@@ -518,8 +500,8 @@ export function WorkflowsView() {
                 name="name"
                 type="text"
                 placeholder="Name"
-                autocomplete="off"
-                ref={(element) => queueMicrotask(() => element.focus())}
+                autoComplete="off"
+                ref={focusWhenShown}
                 onKeyDown={(event) => {
                   event.stopPropagation();
                   if (event.key === 'Escape') setCreating(false);
@@ -527,165 +509,190 @@ export function WorkflowsView() {
               />
               <select name="preset">
                 <option value="">Only the trigger</option>
-                <For each={presets()?.workflows ?? []}>
-                  {(preset) => <option value={preset.id}>{preset.label}</option>}
-                </For>
+                {(presets?.workflows ?? []).map((preset) => (
+                  <option key={preset.id} value={preset.id}>
+                    {preset.label}
+                  </option>
+                ))}
               </select>
-              <div class="wf-new-buttons">
-                <button type="button" class="wf-link" onClick={() => setCreating(false)}>
+              <div className="wf-new-buttons">
+                <button type="button" className="wf-link" onClick={() => setCreating(false)}>
                   Cancel
                 </button>
-                <button type="submit" class="primary">
+                <button type="submit" className="primary">
                   Create
                 </button>
               </div>
             </form>
-          </Show>
-          <h3 class="wf-side-title">
+          ) : (
+            <div className="wf-side-actions">
+              <button type="button" className="wf-link" onClick={() => setCreating(true)}>
+                + New
+              </button>
+              {shown ? (
+                <>
+                  <button
+                    type="button"
+                    className="wf-link"
+                    onClick={() =>
+                      transport
+                        .call('workflow.duplicate', {
+                          workflow: live.shown.get()?.workflow ?? '',
+                        })
+                        .then((copy) => pick(copy.workflow))
+                        .catch(report)
+                    }
+                  >
+                    Duplicate
+                  </button>
+                  {confirmDelete ? (
+                    <button
+                      type="button"
+                      className="wf-link danger"
+                      onClick={() => {
+                        setConfirmDelete(false);
+                        const name = live.shown.get()?.workflow;
+                        if (!name) return;
+                        transport
+                          .call('workflow.delete', { workflow: name })
+                          .then(() => {
+                            live.shown.set(null);
+                            live.selected.set(null);
+                          })
+                          .catch(report);
+                      }}
+                    >
+                      Delete it
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      className="wf-link"
+                      onClick={() => setConfirmDelete(true)}
+                    >
+                      Delete
+                    </button>
+                  )}
+                </>
+              ) : null}
+            </div>
+          )}
+          <h3 className="wf-side-title">
             Executions
             <button
               type="button"
-              class="wf-link wf-side-toggle"
-              aria-pressed={allFolders()}
+              className="wf-link wf-side-toggle"
+              aria-pressed={allFolders}
               onClick={() => setAllFolders((all) => !all)}
             >
-              {allFolders() ? 'All folders' : 'This folder'}
+              {allFolders ? 'All folders' : 'This folder'}
             </button>
           </h3>
-          <ul class="wf-list">
-            <For each={rows()}>
-              {(row) => (
-                <li>
-                  <button
-                    type="button"
-                    class="wf-list-item wf-execution"
-                    classList={{ selected: row.id === execution() }}
-                    title={row.folder}
-                    onClick={() => openExecution(row.id)}
-                  >
-                    <span class={`wf-dot tone-${tone(row.state)}`} aria-hidden="true" />
-                    <span class="wf-list-name">{row.label}</span>
-                    <span class="wf-muted">
-                      {row.state === 'done' ? row.time_text : executionWord(row.state)}
-                    </span>
-                  </button>
-                </li>
-              )}
-            </For>
-            <Show when={rows().length === 0}>
-              <li class="wf-muted wf-empty">
-                No execution{allFolders() ? '' : ' in this folder'}.
+          <ul className="wf-list">
+            {rows.map((row) => (
+              <li key={row.id}>
+                <button
+                  type="button"
+                  className={cn('wf-list-item wf-execution', { selected: row.id === execution })}
+                  title={row.folder}
+                  onClick={() => openExecution(row.id)}
+                >
+                  <span className={`wf-dot tone-${tone(row.state)}`} aria-hidden="true" />
+                  <span className="wf-list-name">{row.label}</span>
+                  <span className="wf-muted">
+                    {row.state === 'done' ? row.time_text : executionWord(row.state)}
+                  </span>
+                </button>
               </li>
-            </Show>
+            ))}
+            {rows.length === 0 ? (
+              <li className="wf-muted wf-empty">
+                No execution{allFolders ? '' : ' in this folder'}.
+              </li>
+            ) : null}
           </ul>
-          <Show when={paused()}>
-            <p class="wf-warn">An execution is paused: a node failed.</p>
-          </Show>
+          {paused ? <p className="wf-warn">An execution is paused: a node failed.</p> : null}
         </nav>
-        <div class="wf-main">
-          <Show when={openError()}>
-            {(message) => (
-              <p class="git-error git-banner" role="alert">
-                {message()}
-              </p>
-            )}
-          </Show>
-          <Show when={!execution() && problemsOf(problems(), null)[0]}>
-            {(problem) => (
-              <p class="git-note git-banner" role="status">
-                {problem().text}
-              </p>
-            )}
-          </Show>
-          <Show
-            when={graph()}
-            fallback={
-              <p class="git-empty git-center">
-                {workflows.rows().length === 0
-                  ? 'No workflow yet. Click + New to make one, for example from the Review preset.'
-                  : 'Pick a workflow.'}
-              </p>
-            }
-          >
-            {(shownGraph) => (
-              <Canvas
-                graph={shownGraph()}
-                fitKey={execution() ?? selected() ?? ''}
-                problems={execution() ? [] : problems()}
-                execution={current()}
-                base={execution() ? current()?.base : facts()?.base}
-                selected={node()}
-                onSelect={setNode}
-                onOpen={(id) => {
-                  if (!execution()) setDetails(id);
-                }}
-                onMove={(id, at) => edit((g) => moveNode(g, id, at))}
-                onConnect={(from, to) => edit((g) => connect(g, from, to))}
-                onDisconnect={(from, to) => edit((g) => disconnect(g, from, to))}
-                onDelete={(id) => {
-                  setNode(null);
-                  edit((g) => removeNode(g, id));
-                }}
-                onPick={(screen, at, from) => setPicking({ screen, at, from })}
-                onTidy={() => step('workflow.layout')}
-              />
-            )}
-          </Show>
-        </div>
-        <Show when={current()}>
-          {(found) => (
-            <Show when={executionGraph()}>
-              {(executed) => (
-                <ExecutionPanel execution={found()} graph={executed()} node={node()} />
-              )}
-            </Show>
+        <div className="wf-main">
+          {openError ? (
+            <p className="git-error git-banner" role="alert">
+              {openError}
+            </p>
+          ) : null}
+          {banner ? (
+            <p className="git-note git-banner" role="status">
+              {banner.text}
+            </p>
+          ) : null}
+          {graph ? (
+            <Canvas
+              graph={graph}
+              fitKey={execution ?? selected ?? ''}
+              problems={execution ? [] : problems}
+              execution={current}
+              base={execution ? current?.base : facts?.base}
+              selected={node}
+              onSelect={setNode}
+              onOpen={(id) => {
+                if (!execution) setDetails(id);
+              }}
+              onMove={(id, at) => edit((g) => moveNode(g, id, at))}
+              onConnect={(from, to) => edit((g) => connect(g, from, to))}
+              onDisconnect={(from, to) => edit((g) => disconnect(g, from, to))}
+              onDelete={(id) => {
+                setNode(null);
+                edit((g) => removeNode(g, id));
+              }}
+              onPick={(screen, at, from) => setPicking({ screen, at, from })}
+              onTidy={() => step('workflow.layout')}
+            />
+          ) : (
+            <p className="git-empty git-center">
+              {workflowRows.length === 0
+                ? 'No workflow yet. Click + New to make one, for example from the Review preset.'
+                : 'Pick a workflow.'}
+            </p>
           )}
-        </Show>
+        </div>
+        {current && executionGraph ? (
+          <ExecutionPanel execution={current} graph={executionGraph} node={node} />
+        ) : null}
       </div>
-      <Show when={picking()}>
-        {(at) => (
-          <NodePicker
-            at={at().screen}
-            presets={presets()?.nodes ?? []}
-            onPick={addPreset}
-            onClose={() => setPicking(null)}
-          />
-        )}
-      </Show>
-      <Show when={details()} keyed>
-        {(id) => (
-          <Show when={detailsNode()}>
-            {(found) => (
-              <NodeDetails
-                graph={shown()?.graph ?? { name: '', nodes: [] }}
-                node={found()}
-                problems={problems()}
-                choices={choices()}
-                last={last()}
-                onChange={(patch) => edit((g) => updateNode(g, id, patch))}
-                onExecuteNode={() => {
-                  setDetails(null);
-                  execute(null, null, id);
-                }}
-                onClose={() => setDetails(null)}
-              />
-            )}
-          </Show>
-        )}
-      </Show>
-      <Show when={executing() && shown()}>
-        {(current) => (
-          <ExecuteDialog
-            workflow={current().workflow}
-            name={current().graph.name}
-            folder={folder() ?? ''}
-            facts={facts()}
-            agents={agents()}
-            onExecute={(base, notes) => execute(base, notes)}
-            onCancel={() => setExecuting(false)}
-          />
-        )}
-      </Show>
+      {picking ? (
+        <NodePicker
+          at={picking.screen}
+          presets={presets?.nodes ?? []}
+          onPick={addPreset}
+          onClose={() => setPicking(null)}
+        />
+      ) : null}
+      {details && detailsNode ? (
+        <NodeDetails
+          key={details}
+          graph={shown?.graph ?? { name: '', nodes: [] }}
+          node={detailsNode}
+          problems={problems}
+          choices={choices}
+          last={last}
+          onChange={(patch) => edit((g) => updateNode(g, details, patch))}
+          onExecuteNode={() => {
+            setDetails(null);
+            execute(null, null, details);
+          }}
+          onClose={() => setDetails(null)}
+        />
+      ) : null}
+      {executing && shown ? (
+        <ExecuteDialog
+          workflow={shown.workflow}
+          name={shown.graph.name}
+          folder={folder ?? ''}
+          facts={facts}
+          agents={agents}
+          onExecute={(base, notes) => execute(base, notes)}
+          onCancel={() => setExecuting(false)}
+        />
+      ) : null}
     </section>
   );
 }

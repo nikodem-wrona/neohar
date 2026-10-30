@@ -24,21 +24,13 @@ import {
   type Params,
   RpcError,
 } from '@neohar/transport';
-import {
-  createEffect,
-  createMemo,
-  createSignal,
-  Match,
-  on,
-  onCleanup,
-  onMount,
-  Show,
-  Switch,
-} from 'solid-js';
+import { type KeyboardEvent, useEffect, useRef, useState } from 'react';
 import { useApp } from '../app/context';
 import { showPane } from '../app/show';
 import { windowFolder } from '../files/folder';
-import { createProjectionStore } from '../stores';
+import { useRows, useSelect, useValue } from '../lib/hooks';
+import { cn } from '../lib/utils';
+import { useProjectionStore } from '../stores';
 import { type GitAnswer, GitConfirm } from './GitConfirm';
 import { GitChanges } from './GitChanges';
 import { GitHistory } from './GitHistory';
@@ -63,51 +55,55 @@ type Side = 'changes' | 'history';
 
 export function GitView() {
   const { stores, transport, run, report, windowId, view } = useApp();
-  const head = createProjectionStore(transport, `git_head:${windowId}`);
-  const worktrees = createProjectionStore(transport, `git_worktrees:${windowId}`);
-  const branches = createProjectionStore(transport, `git_branches:${windowId}`);
-  const changes = createProjectionStore(transport, `git_changes:${windowId}`);
-  const repos = createProjectionStore(transport, 'git_repos');
-  onCleanup(() => {
-    for (const store of [head, worktrees, branches, changes, repos]) store.close();
-  });
-  const shown = (): GitHead | undefined => head.state.byKey['_'];
-  const [side, setSide] = createSignal<Side>('changes');
-  const [asked, setAsked] = createSignal<{ question: GitQuestion; answers: GitAnswer[] } | null>(
-    null,
-  );
-  let root: HTMLElement | undefined;
+  const head = useProjectionStore(transport, `git_head:${windowId}`);
+  const worktrees = useProjectionStore(transport, `git_worktrees:${windowId}`);
+  const branches = useProjectionStore(transport, `git_branches:${windowId}`);
+  const changes = useProjectionStore(transport, `git_changes:${windowId}`);
+  const repos = useProjectionStore(transport, 'git_repos');
+  const shown: GitHead | undefined = useSelect(head, (state) => state.byKey['_']);
+  const [side, setSide] = useState<Side>('changes');
+  const [asked, setAsked] = useState<{
+    question: GitQuestion;
+    answers: GitAnswer[];
+    /** A new question is a new dialog. */
+    seq: number;
+  } | null>(null);
+  const askSeq = useRef(0);
+  const root = useRef<HTMLElement>(null);
 
   const follow = (path: string): void => {
     run('git.follow', { window: windowId, path });
   };
   // The view shows the worktree of the folder that the request names, else the folder of the
   // window. Without either, the core keeps the folder that this window named last.
-  createEffect(
-    on(view.gitTarget, (target) => {
-      const folder = target.folder ?? windowFolder(stores, windowId);
-      if (folder) follow(folder);
-    }),
-  );
-  onMount(() => root?.focus());
+  const target = useValue(view.gitTarget);
+  useEffect(() => {
+    const folder = target.folder ?? windowFolder(stores, windowId);
+    if (folder) run('git.follow', { window: windowId, path: folder });
+  }, [target, stores, windowId, run]);
+  useEffect(() => root.current?.focus(), []);
 
-  const subject = createMemo(() => shown()?.worktree ?? null);
-  const rows = (): ChangeRow[] => (subject() ? changes.rows() : []);
+  const subject = shown?.worktree ?? null;
+  const changeRows = useRows(changes);
+  const rows: ChangeRow[] = subject ? changeRows : [];
+  const repoRows = useRows(repos);
+  const worktreeRows = useRows(worktrees);
+  const branchRows = useRows(branches);
 
-  const repoGroups = (): MenuGroup[] => [
+  const repoGroups: MenuGroup[] = [
     {
-      items: repos.rows().map((repo) => ({
+      items: repoRows.map((repo) => ({
         key: repo.root,
         title: repo.name,
         detail: repo.root,
         agents: repoFacts(repo) || null,
-        current: repo.common_dir === shown()?.repo,
+        current: repo.common_dir === shown?.repo,
       })),
     },
   ];
-  const worktreeGroups = (): MenuGroup[] => [
+  const worktreeGroups: MenuGroup[] = [
     {
-      items: worktrees.rows().map((row) => ({
+      items: worktreeRows.map((row) => ({
         key: row.path,
         title: row.name,
         detail: worktreeFacts(row),
@@ -117,16 +113,15 @@ export function GitView() {
       })),
     },
   ];
-  const branchMenu = (): MenuGroup[] =>
-    branchGroups(branches.rows()).map((group) => ({
-      title: group.title,
-      items: group.rows.map((row) => ({
-        key: row.reference,
-        title: row.name,
-        detail: branchFacts(row),
-        current: row.current === true,
-      })),
-    }));
+  const branchMenu: MenuGroup[] = branchGroups(branchRows).map((group) => ({
+    title: group.title,
+    items: group.rows.map((row) => ({
+      key: row.reference,
+      title: row.name,
+      detail: branchFacts(row),
+      current: row.current === true,
+    })),
+  }));
 
   /**
    * Runs a write. A question of the core shows its dialog, and an answer calls again with the
@@ -173,29 +168,27 @@ export function GitView() {
                     },
                   },
                 ];
-        setAsked({ question, answers });
+        askSeq.current += 1;
+        setAsked({ question, answers, seq: askSeq.current });
       },
     );
   };
 
   const pickBranch = (reference: string): void => {
-    if (branches.state.byKey[reference]?.current) return;
+    if (branches.get().byKey[reference]?.current) return;
     write('git.switch', { window: windowId, branch: reference });
   };
 
-  const remote = () => {
-    const current = shown();
-    return current ? fetchButton(current) : null;
-  };
+  const remote = shown ? fetchButton(shown) : null;
   const onRemote = (): void => {
-    const button = remote();
+    const button = remote;
     if (button?.kind === 'fetch') write('git.fetch', { window: windowId });
     if (button?.kind === 'pull') write('git.pull', { window: windowId });
   };
 
   const openPane = (): void => {
-    const folder = shown()?.worktree;
-    const workspace = stores.windows.state.byKey[windowId]?.workspace;
+    const folder = shown?.worktree;
+    const workspace = stores.windows.get().byKey[windowId]?.workspace;
     if (!folder || !workspace) return;
     transport
       .call('tab.create', { workspace, command: { argv: [], cwd: folder } })
@@ -205,7 +198,7 @@ export function GitView() {
   };
 
   const showFirstAgent = (): void => {
-    const pane = shown()?.agents?.[0]?.pane;
+    const pane = shown?.agents?.[0]?.pane;
     if (!pane) return;
     showPane(transport, windowId, pane)
       .then(() => view.closeGit())
@@ -218,19 +211,60 @@ export function GitView() {
     view.closeGit();
   };
 
+  /** The content under the banners: the folder, the trust prompt, or the changes and history. */
+  const body = (current: GitHead) => {
+    if (!current.worktree) {
+      return (
+        <p className="git-empty git-center">
+          The folder {current.folder} is not in a git repository. Pick one in the Repository menu.
+        </p>
+      );
+    }
+    if (current.trust) return <TrustPrompt ask={current.trust} className="git-center" />;
+    return (
+      <div className="git-body">
+        <div className="git-tabs" role="tablist" aria-label="Changes or history">
+          <button
+            type="button"
+            role="tab"
+            className={cn('git-tab', { selected: side === 'changes' })}
+            aria-selected={side === 'changes'}
+            onClick={() => setSide('changes')}
+          >
+            Changes
+            {current.changes ? <span className="git-count">{current.changes.files}</span> : null}
+          </button>
+          <button
+            type="button"
+            role="tab"
+            className={cn('git-tab', { selected: side === 'history' })}
+            aria-selected={side === 'history'}
+            onClick={() => setSide('history')}
+          >
+            History
+          </button>
+        </div>
+        {side === 'changes' ? (
+          <GitChanges
+            rows={rows}
+            subject={subject}
+            truncated={current.changes?.truncated ?? false}
+            counted={current.changes !== undefined}
+          />
+        ) : null}
+        {side === 'history' ? <GitHistory head={current.commit ?? null} subject={subject} /> : null}
+      </div>
+    );
+  };
+
+  const agents = agentsText(shown?.agents);
   return (
-    <section
-      class="git-view"
-      aria-label="Git view"
-      tabIndex={-1}
-      ref={(element) => (root = element)}
-      onKeyDown={onKey}
-    >
-      <header class="git-bar">
+    <section className="git-view" aria-label="Git view" tabIndex={-1} ref={root} onKeyDown={onKey}>
+      <header className="git-bar">
         <GitMenu
           label="Repository"
-          value={shown()?.repo_name ?? 'No repository'}
-          groups={repoGroups()}
+          value={shown?.repo_name ?? 'No repository'}
+          groups={repoGroups}
           onPick={follow}
           actions={(filter) =>
             isAbsolutePath(filter)
@@ -252,157 +286,89 @@ export function GitView() {
         />
         <GitMenu
           label="Worktree"
-          value={shown()?.worktree_name ?? '—'}
-          note={agentsLabel(shown()?.agents)}
-          groups={worktreeGroups()}
+          value={shown?.worktree_name ?? '—'}
+          note={agentsLabel(shown?.agents)}
+          groups={worktreeGroups}
           onPick={follow}
           actions={() =>
-            shown()?.worktree ? [{ label: 'Open a pane in this worktree', run: openPane }] : []
+            shown?.worktree ? [{ label: 'Open a pane in this worktree', run: openPane }] : []
           }
           empty="No worktree."
         />
         <GitMenu
           label="Branch"
-          value={shown() ? branchTitle(shown() as GitHead) : '—'}
-          note={trackText(shown()?.ahead, shown()?.behind) || null}
-          groups={branchMenu()}
+          value={shown ? branchTitle(shown) : '—'}
+          note={trackText(shown?.ahead, shown?.behind) || null}
+          groups={branchMenu}
           onPick={pickBranch}
           empty="No branch matches."
         />
-        <Show when={agentsText(shown()?.agents)}>
-          {(text) => (
-            <button
-              type="button"
-              class="git-agents"
-              title="Show the pane of the first agent"
-              onClick={showFirstAgent}
-            >
-              {text()}
-            </button>
-          )}
-        </Show>
-        <span class="git-spacer" />
-        <Show when={remote()}>
-          {(button) => (
-            <button
-              type="button"
-              class="git-remote"
-              classList={{ pull: button().kind === 'pull' }}
-              disabled={button().kind === 'busy'}
-              title={shown()?.fetch_note ?? shown()?.fetched_text ?? undefined}
-              onClick={onRemote}
-            >
-              <span class="git-remote-label">{button().label}</span>
-              <Show when={shown()?.fetched_text}>
-                {(text) => <span class="git-fetched">{text()}</span>}
-              </Show>
-            </button>
-          )}
-        </Show>
+        {agents ? (
+          <button
+            type="button"
+            className="git-agents"
+            title="Show the pane of the first agent"
+            onClick={showFirstAgent}
+          >
+            {agents}
+          </button>
+        ) : null}
+        <span className="git-spacer" />
+        {remote ? (
+          <button
+            type="button"
+            className={cn('git-remote', { pull: remote.kind === 'pull' })}
+            disabled={remote.kind === 'busy'}
+            title={shown?.fetch_note ?? shown?.fetched_text ?? undefined}
+            onClick={onRemote}
+          >
+            <span className="git-remote-label">{remote.label}</span>
+            {shown?.fetched_text ? <span className="git-fetched">{shown.fetched_text}</span> : null}
+          </button>
+        ) : null}
         <button
           type="button"
-          class="git-close"
+          className="git-close"
           title="Close the Git view (Esc)"
           onClick={() => view.closeGit()}
         >
           Close
         </button>
       </header>
-      <Show when={shown()?.error}>
-        {(error) => (
-          <p class="git-error git-banner" role="alert">
-            {error()}
-          </p>
-        )}
-      </Show>
-      <Show when={shown()?.fetch_note}>
-        {(note) => (
-          <p class="git-note git-banner" role="status">
-            {note()}
-          </p>
-        )}
-      </Show>
-      <Show when={shown()?.stash}>
-        {(stash) => (
-          <p class="git-banner git-stash" role="status">
-            Your changes of {stash().branch} from {stash().time_text} are in a stash.
-            <button
-              type="button"
-              class="git-stash-restore"
-              onClick={() => write('git.unstash', { window: windowId, stash: stash().commit })}
-            >
-              Restore them
-            </button>
-          </p>
-        )}
-      </Show>
-      <Show when={asked()} keyed>
-        {(shownAsk) => (
-          <GitConfirm
-            question={shownAsk.question}
-            answers={shownAsk.answers}
-            onCancel={() => setAsked(null)}
-          />
-        )}
-      </Show>
-      <Show
-        when={shown()}
-        fallback={<p class="git-empty git-center">Looking for the repository…</p>}
-      >
-        {(current) => (
-          <Switch>
-            <Match when={!current().worktree}>
-              <p class="git-empty git-center">
-                The folder {current().folder} is not in a git repository. Pick one in the Repository
-                menu.
-              </p>
-            </Match>
-            <Match when={current().trust}>
-              {(ask) => <TrustPrompt ask={ask()} class="git-center" />}
-            </Match>
-            <Match when={current().worktree}>
-              <div class="git-body">
-                <div class="git-tabs" role="tablist" aria-label="Changes or history">
-                  <button
-                    type="button"
-                    role="tab"
-                    class="git-tab"
-                    classList={{ selected: side() === 'changes' }}
-                    aria-selected={side() === 'changes'}
-                    onClick={() => setSide('changes')}
-                  >
-                    Changes
-                    <Show when={current().changes}>
-                      {(totals) => <span class="git-count">{totals().files}</span>}
-                    </Show>
-                  </button>
-                  <button
-                    type="button"
-                    role="tab"
-                    class="git-tab"
-                    classList={{ selected: side() === 'history' }}
-                    aria-selected={side() === 'history'}
-                    onClick={() => setSide('history')}
-                  >
-                    History
-                  </button>
-                </div>
-                <Show when={side() === 'changes'}>
-                  <GitChanges
-                    rows={rows()}
-                    subject={subject()}
-                    truncated={current().changes?.truncated ?? false}
-                    counted={current().changes !== undefined}
-                  />
-                </Show>
-                <Show when={side() === 'history'}>
-                  <GitHistory head={current().commit ?? null} subject={subject()} />
-                </Show>
-              </div>
-            </Match>
-          </Switch>
-        )}
-      </Show>
+      {shown?.error ? (
+        <p className="git-error git-banner" role="alert">
+          {shown.error}
+        </p>
+      ) : null}
+      {shown?.fetch_note ? (
+        <p className="git-note git-banner" role="status">
+          {shown.fetch_note}
+        </p>
+      ) : null}
+      {shown?.stash ? (
+        <p className="git-banner git-stash" role="status">
+          Your changes of {shown.stash.branch} from {shown.stash.time_text} are in a stash.
+          <button
+            type="button"
+            className="git-stash-restore"
+            onClick={() => {
+              const stash = shown.stash;
+              if (stash) write('git.unstash', { window: windowId, stash: stash.commit });
+            }}
+          >
+            Restore them
+          </button>
+        </p>
+      ) : null}
+      {asked ? (
+        <GitConfirm
+          key={asked.seq}
+          question={asked.question}
+          answers={asked.answers}
+          onCancel={() => setAsked(null)}
+        />
+      ) : null}
+      {shown ? body(shown) : <p className="git-empty git-center">Looking for the repository…</p>}
     </section>
   );
 }

@@ -6,8 +6,9 @@
 // out.
 
 import type { InteractionValue } from '@neohar/transport';
-import { type JSX, Show } from 'solid-js';
+import type { KeyboardEvent, ReactNode, Ref } from 'react';
 import { Badge } from '../kit/Badge';
+import { cn } from '../lib/utils';
 import { stateBadge, type Status, statusOf } from './model';
 
 export function CardFrame(props: {
@@ -16,67 +17,60 @@ export function CardFrame(props: {
   error: string | null;
   /** The title while the card is open, when it is not the title of the interaction. */
   title?: string | undefined;
-  children: JSX.Element;
-  onKeyDown?: (event: KeyboardEvent) => void;
-  ref?: ((element: HTMLElement) => void) | undefined;
+  children: ReactNode;
+  onKeyDown?: ((event: KeyboardEvent<HTMLElement>) => void) | undefined;
+  ref?: Ref<HTMLElement> | undefined;
 }) {
-  const open = () => props.interaction.state === 'open';
-  const status = (): Status | null => statusOf(props.interaction, props.harness);
-  const badge = (): Status | null => stateBadge(props.interaction, props.harness);
+  const open = props.interaction.state === 'open';
+  const status: Status | null = statusOf(props.interaction, props.harness);
+  const badge: Status | null = stateBadge(props.interaction, props.harness);
   return (
     <article
-      class="card"
-      classList={{
+      className={cn('card', {
         [`card-${props.interaction.kind}`]: true,
         [`risk-${props.interaction.risk}`]: props.interaction.kind === 'approval',
-        'card-ended': !open(),
-      }}
+        'card-ended': !open,
+      })}
       data-interaction={props.interaction.id}
       data-state={props.interaction.state}
-      tabindex="0"
+      tabIndex={0}
       aria-label={`${props.interaction.handle}: ${props.interaction.title}`}
       onKeyDown={props.onKeyDown}
       ref={props.ref}
     >
-      <header class="card-head">
-        <h3 class="card-title">
-          {open() ? (props.title ?? props.interaction.title) : props.interaction.title}
+      <header className="card-head">
+        <h3 className="card-title">
+          {open ? (props.title ?? props.interaction.title) : props.interaction.title}
         </h3>
-        <div class="card-meta">
-          <Show when={open() && props.interaction.kind === 'approval'}>
+        <div className="card-meta">
+          {open && props.interaction.kind === 'approval' ? (
             <Badge
-              class="card-risk"
+              className="card-risk"
               data-risk={props.interaction.risk}
               tone={props.interaction.risk === 'high' ? 'error' : 'neutral'}
             >
               {props.interaction.risk} risk
             </Badge>
-          </Show>
-          <Show when={badge()}>
-            {(shown) => (
-              <Badge class="card-state" tone={shown().tone}>
-                {shown().text}
-              </Badge>
-            )}
-          </Show>
-          <span class="card-handle">{props.interaction.handle}</span>
+          ) : null}
+          {badge ? (
+            <Badge className="card-state" tone={badge.tone}>
+              {badge.text}
+            </Badge>
+          ) : null}
+          <span className="card-handle">{props.interaction.handle}</span>
         </div>
       </header>
-      <Show when={open()}>{props.children}</Show>
-      <Show when={status()}>
-        {(line) => (
-          <p class="card-status" data-tone={line().tone} role="status">
-            {line().text}
-          </p>
-        )}
-      </Show>
-      <Show when={props.error}>
-        {(message) => (
-          <p class="card-error" role="alert">
-            {message()}
-          </p>
-        )}
-      </Show>
+      {open ? props.children : null}
+      {status ? (
+        <p className="card-status" data-tone={status.tone} role="status">
+          {status.text}
+        </p>
+      ) : null}
+      {props.error ? (
+        <p className="card-error" role="alert">
+          {props.error}
+        </p>
+      ) : null}
     </article>
   );
 }

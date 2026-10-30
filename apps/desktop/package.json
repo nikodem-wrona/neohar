@@ -15,7 +15,7 @@
     "@neohar/ui": "workspace:*"
   },
   "devDependencies": {
-    "vite": "^8.0.0",
-    "vite-plugin-solid": "2.11.14"
+    "@vitejs/plugin-react": "6.1.2",
+    "vite": "^8.0.0"
   }
 }

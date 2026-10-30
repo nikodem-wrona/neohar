@@ -6,8 +6,9 @@
 // while it is open, and when it closes the focus goes back to where it was.
 
 import type { FsReadResult } from '@neohar/transport';
-import { createEffect, createSignal, For, on, onCleanup, onMount, Show } from 'solid-js';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useApp } from '../app/context';
+import { cn } from '../lib/utils';
 import { outside } from '../shell/modal';
 import { FileBody } from './FileBody';
 import { FileIcon } from './FileIcon';
@@ -21,6 +22,11 @@ const ACTIONS: readonly (MenuItem & { short: string })[] = [
   { id: 'copy-relative', label: 'Copy relative path', short: 'Copy relative' },
   { id: 'insert', label: 'Insert into pane', short: 'Insert' },
 ];
+
+/** The text takes the focus, else the box. */
+function focusText(dialog: HTMLDialogElement | null): void {
+  (dialog?.querySelector<HTMLElement>('.file-body') ?? dialog)?.focus({ preventScroll: true });
+}
 
 export function FileModal(props: {
   /** The path of the open file. */
@@ -37,137 +43,125 @@ export function FileModal(props: {
     (action) => form !== 'phone' || (action.id !== 'open-app' && action.id !== 'reveal'),
   );
   // A Markdown file shows its HTML first. The switch shows its lines.
-  const [source, setSource] = createSignal(false);
-  createEffect(
-    on(
-      () => props.path,
-      () => setSource(false),
-      { defer: true },
-    ),
-  );
+  const [source, setSource] = useState(false);
+  // Another file shows its HTML first again.
+  const [sourceOf, setSourceOf] = useState(props.path);
+  if (sourceOf !== props.path) {
+    setSourceOf(props.path);
+    setSource(false);
+  }
 
-  let dialog: HTMLDialogElement | undefined;
+  const dialog = useRef<HTMLDialogElement>(null);
   // The text takes the focus, so that the arrow keys and Page Down move it at once. While the file
   // is not read yet, the box holds the focus, and the text takes it when it comes.
-  const focusText = (): void => {
-    (dialog?.querySelector<HTMLElement>('.file-body') ?? dialog)?.focus({ preventScroll: true });
-  };
-  onMount(() => {
-    dialog?.showModal();
-    focusText();
-  });
-  createEffect(
-    on(
-      () => props.preview,
-      () => {
-        if (document.activeElement === dialog) focusText();
-      },
-      { defer: true },
-    ),
-  );
-  // `close()` gives the focus back to the element that had it before the view.
-  onCleanup(() => {
-    if (dialog?.open) dialog.close();
-  });
+  useLayoutEffect(() => {
+    const element = dialog.current;
+    element?.showModal();
+    focusText(element);
+    // `close()` gives the focus back to the element that had it before the view.
+    return () => {
+      if (element?.open) element.close();
+    };
+  }, []);
+  const first = useRef(true);
+  useEffect(() => {
+    if (first.current) {
+      first.current = false;
+      return;
+    }
+    if (document.activeElement === dialog.current) focusText(dialog.current);
+  }, [props.preview]);
 
   return (
     // WebKit gives no focus to a button that the person clicks. The box takes it, so that Escape
     // still reaches it after a click on a button.
     <dialog
-      class="file-modal"
+      className="file-modal"
       aria-labelledby="file-modal-title"
       tabIndex={-1}
-      ref={(element) => (dialog = element)}
+      ref={dialog}
       onCancel={(event) => {
         event.preventDefault();
         props.onClose();
       }}
       onMouseDown={(event) => {
-        if (event.target === event.currentTarget && outside(event, event.currentTarget)) {
+        if (
+          event.target === event.currentTarget &&
+          outside(event.nativeEvent, event.currentTarget)
+        ) {
           props.onClose();
         }
       }}
     >
-      <header class="file-modal-head">
-        <Show when={props.preview}>{(preview) => <FileIcon icon={preview().icon} />}</Show>
-        <h2 id="file-modal-title" class="file-modal-title">
+      <header className="file-modal-head">
+        {props.preview ? <FileIcon icon={props.preview.icon} /> : null}
+        <h2 id="file-modal-title" className="file-modal-title">
           {props.preview?.name ?? props.path}
         </h2>
-        <span class="file-modal-path" title={props.path}>
+        <span className="file-modal-path" title={props.path}>
           {props.path}
         </span>
-        <Show when={props.preview}>
-          {(preview) => <span class="file-info">{preview().info}</span>}
-        </Show>
+        {props.preview ? <span className="file-info">{props.preview.info}</span> : null}
         <button
           type="button"
-          class="file-close"
+          className="file-close"
           aria-label="Close the large view"
           title="Close (Escape)"
           onClick={() => props.onClose()}
         >
           <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true">
-            <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.5" />
+            <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.5" />
           </svg>
         </button>
       </header>
-      <div class="file-actions file-modal-actions" role="toolbar" aria-label="File actions">
-        <For each={actions}>
-          {(action) => (
-            <button
-              type="button"
-              class="file-action"
-              data-action={action.id}
-              title={
-                action.id === 'open-app'
-                  ? 'Open the file with the editor of ui.editor, or with the default app of the file'
-                  : action.label
-              }
-              aria-label={action.label}
-              onClick={() => props.onAction(action.id, props.path)}
-            >
-              {action.short}
-            </button>
-          )}
-        </For>
-        <Show when={props.preview?.markdown}>
+      <div className="file-actions file-modal-actions" role="toolbar" aria-label="File actions">
+        {actions.map((action) => (
+          <button
+            key={action.id}
+            type="button"
+            className="file-action"
+            data-action={action.id}
+            title={
+              action.id === 'open-app'
+                ? 'Open the file with the editor of ui.editor, or with the default app of the file'
+                : action.label
+            }
+            aria-label={action.label}
+            onClick={() => props.onAction(action.id, props.path)}
+          >
+            {action.short}
+          </button>
+        ))}
+        {props.preview?.markdown ? (
           <button
             type="button"
-            class="file-action file-source"
-            aria-pressed={source()}
-            title={source() ? 'Show the Markdown' : 'Show the lines'}
-            onClick={() => setSource(!source())}
+            className="file-action file-source"
+            aria-pressed={source}
+            title={source ? 'Show the Markdown' : 'Show the lines'}
+            onClick={() => setSource(!source)}
           >
-            {source() ? 'Rendered' : 'Source'}
+            {source ? 'Rendered' : 'Source'}
           </button>
-        </Show>
-        <Show when={props.message}>
-          {(note) => (
-            <span
-              class="files-message"
-              classList={{ error: note().error }}
-              role={note().error ? 'alert' : 'status'}
-            >
-              {note().text}
-            </span>
-          )}
-        </Show>
+        ) : null}
+        {props.message ? (
+          <span
+            className={cn('files-message', { error: props.message.error })}
+            role={props.message.error ? 'alert' : 'status'}
+          >
+            {props.message.text}
+          </span>
+        ) : null}
       </div>
-      <Show when={props.error}>
-        <p class="file-error" role="alert">
+      {props.error ? (
+        <p className="file-error" role="alert">
           {props.error}
         </p>
-      </Show>
-      <Show
-        when={props.preview}
-        fallback={
-          <Show when={!props.error}>
-            <p class="drawer-empty">Reading the file…</p>
-          </Show>
-        }
-      >
-        {(preview) => <FileBody preview={preview()} source={source()} />}
-      </Show>
+      ) : null}
+      {props.preview ? (
+        <FileBody preview={props.preview} source={source} />
+      ) : !props.error ? (
+        <p className="drawer-empty">Reading the file…</p>
+      ) : null}
     </dialog>
   );
 }

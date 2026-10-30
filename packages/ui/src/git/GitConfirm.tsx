@@ -3,7 +3,9 @@
 // writes the text; this dialog gives the answers that its kind has. Cancel, Escape or a click
 // beside the box keeps everything. It is a modal `<dialog>`, as the close confirmation is.
 
-import { For, onCleanup, onMount } from 'solid-js';
+import { type MouseEvent, useLayoutEffect, useRef } from 'react';
+import { useLatest } from '../lib/hooks';
+import { cn } from '../lib/utils';
 import { outside } from '../shell/modal';
 import type { GitQuestion } from './model';
 
@@ -31,66 +33,71 @@ export function GitConfirm(props: {
   answers: GitAnswer[];
   onCancel: () => void;
 }) {
-  let dialog: HTMLDialogElement | undefined;
-  let first: HTMLButtonElement | undefined;
-  let cancel: HTMLButtonElement | undefined;
+  const dialog = useRef<HTMLDialogElement>(null);
+  const first = useRef<HTMLButtonElement>(null);
+  const cancel = useRef<HTMLButtonElement>(null);
+  const kind = useLatest(props.question.kind);
   // Under a working agent, Enter must not change its files: the focus starts on Cancel.
-  onMount(() => {
-    dialog?.showModal();
-    (props.question.kind === 'agents' ? cancel : first)?.focus();
-  });
-  onCleanup(() => {
-    if (dialog?.open) dialog.close();
-  });
+  // A layout effect: its cleanup runs before the dialog leaves the page, so `close()` can give
+  // the focus back.
+  useLayoutEffect(() => {
+    const element = dialog.current;
+    element?.showModal();
+    (kind.current === 'agents' ? cancel : first).current?.focus();
+    return () => {
+      if (element?.open) element.close();
+    };
+  }, [kind]);
   return (
     <dialog
-      class="confirm git-confirm"
-      classList={{ 'git-confirm-danger': props.question.kind === 'agents' }}
+      className={cn('confirm git-confirm', {
+        'git-confirm-danger': props.question.kind === 'agents',
+      })}
       role="alertdialog"
       aria-labelledby="git-confirm-title"
       aria-describedby="git-confirm-text"
-      ref={(element) => (dialog = element)}
+      ref={dialog}
       onCancel={(event) => {
         event.preventDefault();
         props.onCancel();
       }}
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget && outside(event, event.currentTarget)) {
+      onMouseDown={(event: MouseEvent<HTMLDialogElement>) => {
+        if (
+          event.target === event.currentTarget &&
+          outside(event.nativeEvent, event.currentTarget)
+        ) {
           props.onCancel();
         }
       }}
       onKeyDown={(event) => event.stopPropagation()}
     >
-      <div class="confirm-box">
-        <h2 id="git-confirm-title" class="confirm-title">
+      <div className="confirm-box">
+        <h2 id="git-confirm-title" className="confirm-title">
           {titleOf(props.question)}
         </h2>
-        <p id="git-confirm-text" class="confirm-text">
+        <p id="git-confirm-text" className="confirm-text">
           {props.question.text}
         </p>
-        <div class="confirm-buttons">
+        <div className="confirm-buttons">
           <button
             type="button"
-            class="confirm-cancel"
-            ref={(element) => (cancel = element)}
+            className="confirm-cancel"
+            ref={cancel}
             onClick={() => props.onCancel()}
           >
             Cancel
           </button>
-          <For each={props.answers}>
-            {(answer, index) => (
-              <button
-                type="button"
-                classList={{ 'confirm-danger': answer.danger === true }}
-                ref={(element) => {
-                  if (index() === 0) first = element;
-                }}
-                onClick={() => answer.run()}
-              >
-                {answer.label}
-              </button>
-            )}
-          </For>
+          {props.answers.map((answer, index) => (
+            <button
+              key={answer.label}
+              type="button"
+              className={cn({ 'confirm-danger': answer.danger === true }) || undefined}
+              ref={index === 0 ? first : undefined}
+              onClick={() => answer.run()}
+            >
+              {answer.label}
+            </button>
+          ))}
         </div>
       </div>
     </dialog>

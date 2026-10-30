@@ -37,6 +37,10 @@ ruleTester.run('neohar/no-inner-html', noInnerHtml, {
     { code: 'Object.assign(el, { innerHTML: html });', errors: [forbidden('innerHTML')] },
     { code: 'const { innerHTML } = el;', errors: [forbidden('innerHTML')] },
     { code: 'const a = <div innerHTML={html} />;', errors: [forbidden('innerHTML')] },
+    {
+      code: 'const a = <div dangerouslySetInnerHTML={{ __html: html }} />;',
+      errors: [forbidden('dangerouslySetInnerHTML')],
+    },
     { code: 'const a = <div prop:innerHTML={html} />;', errors: [forbidden('innerHTML')] },
     { code: 'const a = <div {...{ outerHTML: html }} />;', errors: [forbidden('outerHTML')] },
   ],

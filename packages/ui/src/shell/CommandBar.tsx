@@ -6,117 +6,107 @@
 // interaction (`error`, `rate_limited`, `turn_ended`) shows its pane and its state, and a click
 // shows the pane, in any tab. The line shows the handle of the pane only with `ui.show_handles`.
 
-import { Show } from 'solid-js';
 import { useApp } from '../app/context';
 import { showHandles } from '../app/preferences';
 import { showPane } from '../app/show';
 import { troubleOf, troubleText } from '../drawer/group';
 import type { Keymap } from '../input/chords';
 import { type ActionContext, runCommand } from '../keymap/actions';
+import { useRows, useSelect, useValue } from '../lib/hooks';
 import { SearchIcon } from './icons';
 import { chordText } from './keys';
 
-export function CommandBar(props: { actions: ActionContext; keymap: () => Keymap }) {
+export function CommandBar(props: { actions: ActionContext; keymap: Keymap }) {
   const { stores, view, platform, transport, report, windowId, form } = useApp();
-  const count = () => stores.attention.state.order.length;
-  const handles = () => showHandles(stores.settings.state.byKey);
+  const count = useSelect(stores.attention, (state) => state.order.length);
+  const handles = useSelect(stores.settings, (state) => showHandles(state.byKey));
+  const leftOpen = useValue(view.leftOpen);
+  const paletteOpen = useValue(view.paletteOpen);
+  const row = useRows(stores.attention)[0];
   /** The interaction that waits first: the first interaction of the first row of `attention`. */
-  const first = () => {
-    const id = stores.attention.rows()[0]?.interactions[0];
-    return id ? stores.interactions.state.byKey[id] : undefined;
-  };
+  const firstId = row?.interactions[0];
+  const first = useSelect(stores.interactions, (state) =>
+    firstId ? state.byKey[firstId] : undefined,
+  );
   /** The first row when it has no interaction: a run in `error`, `rate_limited` or `turn_ended`. */
-  const trouble = () => {
-    const row = stores.attention.rows()[0];
-    const state = row ? troubleOf(row) : null;
-    if (!row || !state) return undefined;
-    const pane = stores.agents.state.byKey[row.run]?.pane ?? null;
-    return { pane, text: troubleText(state) };
-  };
-  const paneHandle = (pane: string | null | undefined) =>
-    pane ? stores.panes.state.byKey[pane]?.handle : undefined;
-  const paletteChord = () => chordText(props.keymap(), 'palette.open', platform);
-  const answerChord = () => chordText(props.keymap(), 'interaction.answer_next', platform);
+  const troubleState = row ? troubleOf(row) : null;
+  const troublePane = useSelect(stores.agents, (state) =>
+    row && troubleState ? (state.byKey[row.run]?.pane ?? null) : null,
+  );
+  const trouble =
+    row && troubleState ? { pane: troublePane, text: troubleText(troubleState) } : undefined;
+  // The handle of the pane that the line shows: of the interaction, or else of the trouble.
+  const linePane = first ? first.pane : trouble?.pane;
+  const lineHandle = useSelect(stores.panes, (state) =>
+    linePane ? state.byKey[linePane]?.handle : undefined,
+  );
+  const paletteChord = chordText(props.keymap, 'palette.open', platform);
+  const answerChord = chordText(props.keymap, 'interaction.answer_next', platform);
   return (
     // A press on a part of the line that is not a control moves the window, and a double click
     // zooms it, when the window has no title bar. The attribute does nothing in a browser.
-    <header class="commandbar" data-tauri-drag-region="deep">
+    <header className="commandbar" data-tauri-drag-region="deep">
       {/* A phone opens the left column as a sheet from this button. */}
-      <Show when={form === 'phone'} fallback={<span class="brand">neohar</span>}>
+      {form === 'phone' ? (
         <button
           type="button"
-          class="phone-workspaces"
+          className="phone-workspaces"
           aria-label="Workspaces"
-          aria-pressed={view.leftOpen()}
+          aria-pressed={leftOpen}
           onClick={() => {
-            view.setSheet(null);
-            view.setLeftOpen((open) => !open);
+            view.sheet.set(null);
+            view.leftOpen.set(!view.leftOpen.get());
           }}
         >
           <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
-            <path d="M2 4h12M2 8h12M2 12h12" stroke="currentColor" stroke-width="1.5" />
+            <path d="M2 4h12M2 8h12M2 12h12" stroke="currentColor" strokeWidth="1.5" />
           </svg>
         </button>
-      </Show>
+      ) : (
+        <span className="brand">neohar</span>
+      )}
       <button
         type="button"
-        class="cmdline"
+        className="cmdline"
         title="Open the command palette"
         aria-haspopup="dialog"
-        aria-expanded={view.paletteOpen()}
-        onClick={() => view.setPaletteOpen(true)}
+        aria-expanded={paletteOpen}
+        onClick={() => view.paletteOpen.set(true)}
       >
         <SearchIcon />
-        <span class="cmdline-hint">Search or run a command</span>
-        <Show when={paletteChord()}>{(chord) => <kbd class="cap">{chord()}</kbd>}</Show>
+        <span className="cmdline-hint">Search or run a command</span>
+        {paletteChord ? <kbd className="cap">{paletteChord}</kbd> : null}
       </button>
-      <div class="ticker" aria-label="Needs attention" role="status">
-        <Show when={count() > 0}>
-          <span class="badge">{count()} waiting</span>
-        </Show>
-        <Show
-          when={first()}
-          fallback={
-            <Show when={trouble()}>
-              {(row) => (
-                <button
-                  type="button"
-                  class="ticker-next"
-                  title={row().text}
-                  disabled={row().pane === null}
-                  onClick={() => {
-                    const pane = row().pane;
-                    if (pane) showPane(transport, windowId, pane).catch(report);
-                  }}
-                >
-                  <Show when={handles()}>
-                    <span class="handle">{paneHandle(row().pane) ?? '?'}</span>
-                  </Show>
-                  <span class="ticker-title">{row().text}</span>
-                  <span class="ticker-action">Open</span>
-                </button>
-              )}
-            </Show>
-          }
-        >
-          {(waiting) => (
-            <button
-              type="button"
-              class="ticker-next"
-              title={waiting().title}
-              onClick={() => runCommand('interaction.answer_next', props.actions)}
-            >
-              <Show when={handles()}>
-                <span class="handle">{paneHandle(waiting().pane) ?? waiting().handle}</span>
-              </Show>
-              <span class="ticker-title">{waiting().title}</span>
-              <Show when={answerChord()}>
-                {(chord) => <kbd class="cap cap-wait">{chord()}</kbd>}
-              </Show>
-              <span class="ticker-action">Answer</span>
-            </button>
-          )}
-        </Show>
+      <div className="ticker" aria-label="Needs attention" role="status">
+        {count > 0 ? <span className="badge">{count} waiting</span> : null}
+        {first ? (
+          <button
+            type="button"
+            className="ticker-next"
+            title={first.title}
+            onClick={() => runCommand('interaction.answer_next', props.actions)}
+          >
+            {handles ? <span className="handle">{lineHandle ?? first.handle}</span> : null}
+            <span className="ticker-title">{first.title}</span>
+            {answerChord ? <kbd className="cap cap-wait">{answerChord}</kbd> : null}
+            <span className="ticker-action">Answer</span>
+          </button>
+        ) : trouble ? (
+          <button
+            type="button"
+            className="ticker-next"
+            title={trouble.text}
+            disabled={trouble.pane === null}
+            onClick={() => {
+              const pane = trouble.pane;
+              if (pane) showPane(transport, windowId, pane).catch(report);
+            }}
+          >
+            {handles ? <span className="handle">{lineHandle ?? '?'}</span> : null}
+            <span className="ticker-title">{trouble.text}</span>
+            <span className="ticker-action">Open</span>
+          </button>
+        ) : null}
       </div>
     </header>
   );

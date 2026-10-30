@@ -9,181 +9,232 @@
 // over the tab and is not in the list of the tabs. On a phone, a long press on a tab opens its
 // menu: Rename, Close and a move to either side.
 
-import { createSignal, For, Show, type JSX } from 'solid-js';
+import type { TabValue } from '@neohar/transport';
+import {
+  type CSSProperties,
+  type Dispatch,
+  memo,
+  type SetStateAction,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react';
 import { useApp } from '../app/context';
 import { showHandles } from '../app/preferences';
-import { dropTarget, pressToDrag, type Dragged } from '../app/drag';
+import { dragged, dropTarget, pressToDrag, type Dragged } from '../app/drag';
 import { onLongPress } from '../app/press';
+import { useLatest, useSelect, useValue } from '../lib/hooks';
+import { cn } from '../lib/utils';
 import { requestClose } from './close';
 import { RenameField } from './RenameField';
-import { dragged } from '../lib/solid';
 
 export function TabBar() {
-  const { stores, transport, run, report, windowId, view } = useApp();
-  const [over, setOver] = createSignal<string | null>(null);
-  const handles = () => showHandles(stores.settings.state.byKey);
-  let bar: HTMLDivElement | undefined;
-  const shown = () => stores.windows.state.byKey[windowId];
-  const workspace = () => {
-    const id = shown()?.workspace;
-    return id ? stores.tree.state.byKey[id] : undefined;
-  };
-  const select = (tab: string) => run('tab.select', { tab, window: windowId });
+  const { stores, run, windowId, view } = useApp();
+  const [over, setOver] = useState<string | null>(null);
+  const handles = useSelect(stores.settings, (state) => showHandles(state.byKey));
+  const bar = useRef<HTMLDivElement>(null);
+  const shownTab = useSelect(stores.windows, (state) => state.byKey[windowId]?.tab);
+  const workspaceId = useSelect(stores.windows, (state) => state.byKey[windowId]?.workspace);
+  const workspace = useSelect(stores.tree, (state) =>
+    workspaceId ? state.byKey[workspaceId] : undefined,
+  );
+  const renaming = useValue(view.renaming);
+  const lifted = useValue(dragged);
   const create = () => {
-    const id = workspace()?.id;
+    const id = workspace?.id;
     if (id) run('tab.create', { workspace: id });
   };
-  const rename = (tab: string): void => {
-    view.setRenaming({ kind: 'tab', id: tab, place: 'tabbar' });
-  };
-  const tabOf = (id: string) => workspace()?.tabs.find((candidate) => candidate.id === id);
+  const tabOf = (id: string) => workspace?.tabs.find((candidate) => candidate.id === id);
   /** The tab whose name the person edits in this bar, while the bar shows it. */
-  const edited = (): string | undefined => {
-    const target = view.renaming();
+  const edited = ((): string | undefined => {
+    const target = renaming;
     if (target?.kind !== 'tab' || target.place !== 'tabbar') return undefined;
     return tabOf(target.id) ? target.id : undefined;
-  };
+  })();
   /** The place of the field: over the tab, and in the bar when the bar cuts the tab off. */
-  const placeOver = (tab: string): JSX.CSSProperties => {
-    const element = bar?.querySelector<HTMLElement>(`[data-tab="${CSS.escape(tab)}"]`);
-    if (!bar || !element) return {};
+  const [place, setPlace] = useState<CSSProperties>({});
+  // The bar measures the tab once for each field, before the paint.
+  useLayoutEffect(() => {
+    if (edited === undefined) return;
+    const room = bar.current;
+    const element = room?.querySelector<HTMLElement>(`[data-tab="${CSS.escape(edited)}"]`);
+    if (!room || !element) {
+      setPlace({});
+      return;
+    }
     const box = element.getBoundingClientRect();
-    const room = bar.getBoundingClientRect();
-    const left = Math.max(0, Math.min(box.left - room.left, room.width - box.width));
-    return { left: `${left}px`, width: `${box.width}px` };
+    const within = room.getBoundingClientRect();
+    const left = Math.max(0, Math.min(box.left - within.left, within.width - box.width));
+    setPlace({ left: `${left}px`, width: `${box.width}px` });
+  }, [edited]);
+  const tabs = workspace?.tabs ?? [];
+  return (
+    <div className="tabbar" ref={bar}>
+      <div className="tablist" role="tablist" aria-label="Tabs">
+        {tabs.map((tab, index) => (
+          <Tab
+            key={tab.id}
+            tab={tab}
+            index={index}
+            count={tabs.length}
+            selected={tab.id === shownTab}
+            target={over === tab.id}
+            lifted={isLifted(lifted, tab.id)}
+            handle={handles ? tab.handle : undefined}
+            setOver={setOver}
+          />
+        ))}
+      </div>
+      {edited !== undefined ? (
+        <RenameField
+          key={edited}
+          target={{ kind: 'tab', id: edited, place: 'tabbar' }}
+          name={tabOf(edited)?.name ?? ''}
+          label={`Name of tab ${tabOf(edited)?.handle ?? ''}`}
+          className="tab-rename"
+          style={place}
+        />
+      ) : null}
+      <button
+        type="button"
+        className="tab-new"
+        aria-label="New tab"
+        title="New tab"
+        disabled={!workspace}
+        onClick={create}
+      >
+        <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true">
+          <path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1.5" fill="none" />
+        </svg>
+      </button>
+    </div>
+  );
+}
+
+function isLifted(item: Dragged | null, id: string): boolean {
+  return item?.kind === 'tab' && item.id === id;
+}
+
+/** One tab of the bar. It renders again only when its row or its marks change. */
+const Tab = memo(function Tab(props: {
+  tab: TabValue;
+  index: number;
+  /** How many tabs the bar has. */
+  count: number;
+  selected: boolean;
+  /** A dragged item is over the tab. */
+  target: boolean;
+  lifted: boolean;
+  /** The handle that shows before the name, with `ui.show_handles`. */
+  handle: string | undefined;
+  setOver: Dispatch<SetStateAction<string | null>>;
+}) {
+  const { transport, run, report, windowId, view } = useApp();
+  const { tab, setOver } = props;
+  // The place of the tab when a long press ends, which is later than this render.
+  const latest = useLatest({ index: props.index, count: props.count });
+  const select = (id: string) => run('tab.select', { tab: id, window: windowId });
+  const rename = (id: string): void => {
+    view.renaming.set({ kind: 'tab', id, place: 'tabbar' });
   };
-  const close = (tab: { id: string; name: string }): void => {
-    requestClose(transport, { kind: 'tab', id: tab.id, name: tab.name })
-      .then(view.setClosing)
+  const close = (target: { id: string; name: string }): void => {
+    requestClose(transport, { kind: 'tab', id: target.id, name: target.name })
+      .then((closing) => view.closing.set(closing))
       .catch(report);
   };
-  const isLifted = (item: Dragged | null, id: string): boolean =>
-    item?.kind === 'tab' && item.id === id;
   const drop = (item: Dragged, target: string, index: number): void => {
     setOver(null);
     if (item.kind === 'tab') run('tab.move', { tab: item.id, index });
     else if (item.kind === 'pane') run('pane.move', { pane: item.id, tab: target });
   };
   return (
-    <div class="tabbar" ref={(element) => (bar = element)}>
-      <div class="tablist" role="tablist" aria-label="Tabs">
-        <For each={workspace()?.tabs ?? []}>
-          {(tab, index) => (
-            <button
-              type="button"
-              role="tab"
-              class="tab"
-              classList={{
-                selected: tab.id === shown()?.tab,
-                'drop-target': over() === tab.id,
-                lifted: isLifted(dragged(), tab.id),
-              }}
-              aria-selected={tab.id === shown()?.tab}
-              data-tab={tab.id}
-              data-handle={handles() ? tab.handle : undefined}
-              aria-keyshortcuts="Delete F2"
-              onClick={() => select(tab.id)}
-              onDblClick={() => rename(tab.id)}
-              onAuxClick={(event) => {
-                if (event.button !== 1) return;
-                event.preventDefault();
-                close(tab);
-              }}
-              onKeyDown={(event) => {
-                if (event.key === 'F2') {
-                  event.preventDefault();
-                  rename(tab.id);
-                  return;
-                }
-                if (event.key !== 'Delete' && event.key !== 'Backspace') return;
-                event.preventDefault();
-                close(tab);
-              }}
-              ref={(element) =>
-                dropTarget(element, {
-                  accepts: (item) =>
-                    (item.kind === 'tab' || item.kind === 'pane') && item.id !== tab.id,
-                  enter: () => setOver(tab.id),
-                  leave: () => setOver((current) => (current === tab.id ? null : current)),
-                  drop: (item) => drop(item, tab.id, index()),
-                })
-              }
-              onPointerDown={(event) => {
-                pressToDrag(event, { kind: 'tab', id: tab.id });
-                onLongPress(event, (x, y) => {
-                  const count = workspace()?.tabs.length ?? 0;
-                  const at = index();
-                  view.setPressMenu({
-                    x,
-                    y,
-                    title: tab.name,
-                    items: [
-                      { label: 'Rename', run: () => rename(tab.id) },
-                      ...(at > 0
-                        ? [
-                            {
-                              label: 'Move left',
-                              run: () => run('tab.move', { tab: tab.id, index: at - 1 }),
-                            },
-                          ]
-                        : []),
-                      ...(at < count - 1
-                        ? [
-                            {
-                              label: 'Move right',
-                              run: () => run('tab.move', { tab: tab.id, index: at + 1 }),
-                            },
-                          ]
-                        : []),
-                      { label: 'Close', run: () => close(tab), danger: true },
-                    ],
-                  });
-                });
-              }}
-            >
-              <span class="tab-name">{tab.name}</span>
-              {/* A pointer target only: a button in a tab is not allowed, and Delete closes the
-                  tab from the keyboard. */}
-              <span
-                class="tab-close"
-                aria-hidden="true"
-                title="Close tab"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  close(tab);
-                }}
-              >
-                <svg viewBox="0 0 16 16" width="12" height="12">
-                  <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.5" />
-                </svg>
-              </span>
-            </button>
-          )}
-        </For>
-      </div>
-      <Show when={edited()} keyed>
-        {(id) => (
-          <RenameField
-            target={{ kind: 'tab', id, place: 'tabbar' }}
-            name={tabOf(id)?.name ?? ''}
-            label={`Name of tab ${tabOf(id)?.handle ?? ''}`}
-            class="tab-rename"
-            style={placeOver(id)}
-          />
-        )}
-      </Show>
-      <button
-        type="button"
-        class="tab-new"
-        aria-label="New tab"
-        title="New tab"
-        disabled={!workspace()}
-        onClick={create}
+    <button
+      type="button"
+      role="tab"
+      className={cn('tab', {
+        selected: props.selected,
+        'drop-target': props.target,
+        lifted: props.lifted,
+      })}
+      aria-selected={props.selected}
+      data-tab={tab.id}
+      data-handle={props.handle}
+      aria-keyshortcuts="Delete F2"
+      onClick={() => select(tab.id)}
+      onDoubleClick={() => rename(tab.id)}
+      onAuxClick={(event) => {
+        if (event.button !== 1) return;
+        event.preventDefault();
+        close(tab);
+      }}
+      onKeyDown={(event) => {
+        if (event.key === 'F2') {
+          event.preventDefault();
+          rename(tab.id);
+          return;
+        }
+        if (event.key !== 'Delete' && event.key !== 'Backspace') return;
+        event.preventDefault();
+        close(tab);
+      }}
+      ref={(element) => {
+        if (!element) return;
+        dropTarget(element, {
+          accepts: (item) => (item.kind === 'tab' || item.kind === 'pane') && item.id !== tab.id,
+          enter: () => setOver(tab.id),
+          leave: () => setOver((current) => (current === tab.id ? null : current)),
+          drop: (item) => drop(item, tab.id, latest.current.index),
+        });
+      }}
+      onPointerDown={(event) => {
+        pressToDrag(event.nativeEvent, { kind: 'tab', id: tab.id });
+        onLongPress(event.nativeEvent, (x, y) => {
+          const count = latest.current.count;
+          const at = latest.current.index;
+          view.pressMenu.set({
+            x,
+            y,
+            title: tab.name,
+            items: [
+              { label: 'Rename', run: () => rename(tab.id) },
+              ...(at > 0
+                ? [
+                    {
+                      label: 'Move left',
+                      run: () => run('tab.move', { tab: tab.id, index: at - 1 }),
+                    },
+                  ]
+                : []),
+              ...(at < count - 1
+                ? [
+                    {
+                      label: 'Move right',
+                      run: () => run('tab.move', { tab: tab.id, index: at + 1 }),
+                    },
+                  ]
+                : []),
+              { label: 'Close', run: () => close(tab), danger: true },
+            ],
+          });
+        });
+      }}
+    >
+      <span className="tab-name">{tab.name}</span>
+      {/* A pointer target only: a button in a tab is not allowed, and Delete closes the
+          tab from the keyboard. */}
+      <span
+        className="tab-close"
+        aria-hidden="true"
+        title="Close tab"
+        onClick={(event) => {
+          event.stopPropagation();
+          close(tab);
+        }}
       >
-        <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true">
-          <path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="1.5" fill="none" />
+        <svg viewBox="0 0 16 16" width="12" height="12">
+          <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.5" />
         </svg>
-      </button>
-    </div>
+      </span>
+    </button>
   );
-}
+});

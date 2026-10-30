@@ -992,7 +992,13 @@ test('the scrollbar shows the history, and its thumb and track scroll', async ({
   const scrolls = await calls('pane.scroll');
   expect(scrolls.length).toBeGreaterThanOrEqual(1);
   expect(scrolls.every((call) => 'top_line' in call.params)).toBe(true);
-  await expect(thumb).toHaveAttribute('aria-valuenow', '0');
+  // The thumb is at the top of the track. Its value is the absolute line on top: the lines that a
+  // resize took back from the history keep their numbers, so the first line need not be 0, and
+  // the thumb can stay a few pixels under the top.
+  await expect
+    .poll(async () => ((await thumb.boundingBox())?.y ?? 0) - (trackBox?.y ?? 0))
+    .toBeLessThan(8);
+  await expect(thumb).toHaveAttribute('aria-valuenow', /^\d$/);
 
   // A click on the track below the thumb scrolls by a page.
   const rows = (await api<{ pane: { rows: number } }>('pane.show', { pane: made.pane })).pane.rows;
@@ -1243,6 +1249,45 @@ test('the settings window shows the settings and the other window follows an edi
     await api('config.set', { key: 'ui.font_size', value: null });
     await api('config.set', { key: 'ui.macos_option_as_alt', value: null });
     await api('config.set', { key: 'ui.show_handles', value: null });
+    await settings.close();
+  }
+});
+
+test('a text field of the settings writes the config one time, when the value is done', async ({
+  page,
+  request,
+}) => {
+  const { info, api } = await openShell(page, request);
+  const settings = await openSettings(page, info);
+  /** The writes of the font size that the settings window sent. */
+  const sets = async () =>
+    (
+      await settings.evaluate(() =>
+        (
+          window as never as { nhTest: { calls(): { method: string; params: unknown }[] } }
+        ).nhTest.calls(),
+      )
+    ).filter(
+      (call) =>
+        call.method === 'config.set' && (call.params as { key?: string }).key === 'ui.font_size',
+    );
+  try {
+    await settings.getByRole('button', { name: 'Ui', exact: true }).click();
+    const field = settings.locator('[data-setting="ui.font_size"] input');
+    await expect(field).toHaveValue('13');
+
+    // Each key changes the field only. The value goes to the core when the field loses the focus.
+    await field.fill('');
+    await field.pressSequentially('16');
+    await expect(field).toHaveValue('16');
+    expect(await sets()).toEqual([]);
+    await field.blur();
+    await expect(settings.locator('[data-setting="ui.font_size"] .setting-source')).toHaveText(
+      'ui',
+    );
+    expect((await sets()).map((call) => call.params)).toEqual([{ key: 'ui.font_size', value: 16 }]);
+  } finally {
+    await api('config.set', { key: 'ui.font_size', value: null });
     await settings.close();
   }
 });

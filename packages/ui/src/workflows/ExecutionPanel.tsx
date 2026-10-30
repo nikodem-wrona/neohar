@@ -4,19 +4,20 @@
 // Skip, and a node whose agent ended offers "Continue in a tab".
 
 import type { ExecutionValue, WorkflowGraph } from '@neohar/transport';
-import { createEffect, createSignal, For, on, onCleanup, Show } from 'solid-js';
+import { useEffect, useState } from 'react';
 import { useApp } from '../app/context';
+import { useLatest, useRows } from '../lib/hooks';
 import { RichHtml } from '../rich/RichHtml';
-import { createProjectionStore } from '../stores';
+import { useProjectionStore } from '../stores';
 import { executionWord, nodeTitle, runLine, stateWord, tone } from './model';
 
 function Screen(props: { pane: string }) {
   const { transport } = useApp();
-  const text = createProjectionStore(transport, `pane_text:${props.pane}`);
-  onCleanup(() => text.close());
+  const text = useProjectionStore(transport, `pane_text:${props.pane}`);
+  const rows = useRows(text);
   return (
-    <pre class="wf-screen" role="region" aria-label="The screen of the agent">
-      {text.rows().join('\n')}
+    <pre className="wf-screen" role="region" aria-label="The screen of the agent">
+      {rows.join('\n')}
     </pre>
   );
 }
@@ -27,69 +28,75 @@ export function ExecutionPanel(props: {
   node: string | null;
 }) {
   const { transport, run, report, windowId } = useApp();
-  const [html, setHtml] = createSignal<string | null>(null);
-  const [copied, setCopied] = createSignal<string | null>(null);
-  const selected = () =>
-    props.node ? props.execution.nodes.find((n) => n.node === props.node) : undefined;
-  const spec = () => (props.node ? props.graph.nodes.find((n) => n.id === props.node) : undefined);
+  const [html, setHtml] = useState<string | null>(null);
+  const [copied, setCopied] = useState<string | null>(null);
+  const selected = props.node
+    ? props.execution.nodes.find((n) => n.node === props.node)
+    : undefined;
+  const spec = props.node ? props.graph.nodes.find((n) => n.id === props.node) : undefined;
   // The report that the panel shows: the one of the node, else report.md.
-  const reportKey = () => {
-    const node = selected();
-    if (node) return node.report ? `${props.execution.id}:${node.node}:${node.report}` : null;
-    return props.execution.report ? `${props.execution.id}::${props.execution.report}` : null;
-  };
-  createEffect(
-    on(reportKey, (key) => {
-      setHtml(null);
-      if (!key) return;
-      const node = selected()?.node;
-      transport
-        .call('workflow.report', {
-          execution: props.execution.id,
-          ...(node ? { node } : {}),
-        })
-        .then((shown) => {
-          if (reportKey() === key) setHtml(shown.markdown.html);
-        })
-        .catch(report);
-    }),
-  );
-  const ended = () => props.execution.state === 'done' || props.execution.state === 'cancelled';
+  const reportKey = selected
+    ? selected.report
+      ? `${props.execution.id}:${selected.node}:${selected.report}`
+      : null
+    : props.execution.report
+      ? `${props.execution.id}::${props.execution.report}`
+      : null;
+  const latestKey = useLatest(reportKey);
+  const execution = props.execution.id;
+  const reportNode = selected?.node;
+  // The key names the execution, the node and the report: a new key asks for the report again.
+  useEffect(() => {
+    setHtml(null);
+    if (!reportKey) return;
+    transport
+      .call('workflow.report', {
+        execution,
+        ...(reportNode ? { node: reportNode } : {}),
+      })
+      .then((shown) => {
+        if (latestKey.current === reportKey) setHtml(shown.markdown.html);
+      })
+      .catch(report);
+  }, [reportKey, transport, execution, reportNode, latestKey, report]);
+  const ended = props.execution.state === 'done' || props.execution.state === 'cancelled';
+  const screen =
+    selected && (selected.state === 'working' || selected.state === 'needs_you')
+      ? selected.pane
+      : null;
 
   return (
-    <aside class="wf-panel" aria-label="Execution">
-      <header class="wf-panel-head">
-        <div class="wf-panel-title">
-          <span class={`wf-dot tone-${tone(props.execution.state)}`} aria-hidden="true" />
+    <aside className="wf-panel" aria-label="Execution">
+      <header className="wf-panel-head">
+        <div className="wf-panel-title">
+          <span className={`wf-dot tone-${tone(props.execution.state)}`} aria-hidden="true" />
           <strong>{props.execution.label}</strong>
-          <span class="wf-muted">{executionWord(props.execution.state)}</span>
+          <span className="wf-muted">{executionWord(props.execution.state)}</span>
         </div>
-        <p class="wf-muted">
+        <p className="wf-muted">
           {props.execution.time_text}
-          <Show when={props.execution.branch}>
-            {(branch) => (
-              <>
-                {' · '}
-                <code>{branch()}</code>
-                <Show when={props.execution.head}>{(head) => <> @ {head()}</>}</Show>
-              </>
-            )}
-          </Show>
-          <Show when={props.execution.base}>{(base) => <> · base {base()}</>}</Show>
+          {props.execution.branch ? (
+            <>
+              {' · '}
+              <code>{props.execution.branch}</code>
+              {props.execution.head ? <> @ {props.execution.head}</> : null}
+            </>
+          ) : null}
+          {props.execution.base ? <> · base {props.execution.base}</> : null}
         </p>
-        <Show when={props.execution.tree_changed}>
-          <p class="wf-warn">The tree changed during the execution.</p>
-        </Show>
-        <div class="wf-panel-actions">
-          <Show when={!ended()}>
+        {props.execution.tree_changed ? (
+          <p className="wf-warn">The tree changed during the execution.</p>
+        ) : null}
+        <div className="wf-panel-actions">
+          {!ended ? (
             <button
               type="button"
-              class="wf-danger"
+              className="wf-danger"
               onClick={() => run('workflow.cancel', { execution: props.execution.id })}
             >
               Cancel
             </button>
-          </Show>
+          ) : null}
           <button
             type="button"
             title={props.execution.dir}
@@ -112,113 +119,93 @@ export function ExecutionPanel(props: {
             Copy to folder
           </button>
         </div>
-        <Show when={copied()}>{(path) => <p class="wf-muted">Copied to {path()}</p>}</Show>
+        {copied ? <p className="wf-muted">Copied to {copied}</p> : null}
       </header>
-      <Show
-        when={selected()}
-        fallback={
-          <ul class="wf-panel-nodes">
-            <For each={props.execution.nodes}>
-              {(node) => {
-                const found = props.graph.nodes.find((n) => n.id === node.node);
-                return (
-                  <li>
-                    <span class={`wf-dot tone-${tone(node.state)}`} aria-hidden="true" />
-                    <span>{found ? nodeTitle(found) : node.node}</span>
-                    <span class="wf-muted">{runLine(node)}</span>
-                  </li>
-                );
-              }}
-            </For>
-          </ul>
-        }
-      >
-        {(node) => (
-          <section class="wf-panel-node" aria-label="Node">
-            <h3>
-              {spec() ? nodeTitle(spec() as NonNullable<ReturnType<typeof spec>>) : node().node}
-              <span class="wf-muted"> · {stateWord(node().state)}</span>
-            </h3>
-            <p class="wf-muted">{runLine(node())}</p>
-            <Show when={node().reason}>{(reason) => <p class="wf-reason">{reason()}</p>}</Show>
-            <div class="wf-panel-actions">
-              <Show when={node().state === 'failed'}>
-                <button
-                  type="button"
-                  class="primary"
-                  onClick={() =>
-                    run('workflow.retry', { execution: props.execution.id, node: node().node })
-                  }
-                >
-                  Retry
-                </button>
-              </Show>
-              <Show
-                when={
-                  (node().state === 'failed' ||
-                    node().state === 'waiting' ||
-                    node().state === 'queued') &&
-                  !ended()
+      {selected ? (
+        <section className="wf-panel-node" aria-label="Node">
+          <h3>
+            {spec ? nodeTitle(spec) : selected.node}
+            <span className="wf-muted"> · {stateWord(selected.state)}</span>
+          </h3>
+          <p className="wf-muted">{runLine(selected)}</p>
+          {selected.reason ? <p className="wf-reason">{selected.reason}</p> : null}
+          <div className="wf-panel-actions">
+            {selected.state === 'failed' ? (
+              <button
+                type="button"
+                className="primary"
+                onClick={() =>
+                  run('workflow.retry', { execution: props.execution.id, node: selected.node })
                 }
               >
-                <button
-                  type="button"
-                  onClick={() =>
-                    run('workflow.skip', { execution: props.execution.id, node: node().node })
-                  }
-                >
-                  Skip
-                </button>
-              </Show>
-              <Show
-                when={(node().state === 'working' || node().state === 'needs_you') && node().run}
+                Retry
+              </button>
+            ) : null}
+            {(selected.state === 'failed' ||
+              selected.state === 'waiting' ||
+              selected.state === 'queued') &&
+            !ended ? (
+              <button
+                type="button"
+                onClick={() =>
+                  run('workflow.skip', { execution: props.execution.id, node: selected.node })
+                }
               >
-                <button
-                  type="button"
-                  title="Show the tab of the agent in the tab bar"
-                  onClick={() =>
-                    run('workflow.reveal', {
-                      execution: props.execution.id,
-                      node: node().node,
-                      window: windowId,
-                    })
-                  }
-                >
-                  Open as tab
-                </button>
-              </Show>
-              <Show when={node().resumable}>
-                <button
-                  type="button"
-                  title="Start the agent again with its conversation, in a new tab"
-                  onClick={() =>
-                    run('workflow.continue', {
-                      execution: props.execution.id,
-                      node: node().node,
-                      window: windowId,
-                    })
-                  }
-                >
-                  Continue in a tab
-                </button>
-              </Show>
-            </div>
-            <Show
-              when={(node().state === 'working' || node().state === 'needs_you') && node().pane}
-              keyed
-            >
-              {(pane) => <Screen pane={pane} />}
-            </Show>
-          </section>
-        )}
-      </Show>
-      <Show when={html()}>
-        {(shown) => (
-          <div class="wf-report">
-            <RichHtml html={shown()} />
+                Skip
+              </button>
+            ) : null}
+            {(selected.state === 'working' || selected.state === 'needs_you') && selected.run ? (
+              <button
+                type="button"
+                title="Show the tab of the agent in the tab bar"
+                onClick={() =>
+                  run('workflow.reveal', {
+                    execution: props.execution.id,
+                    node: selected.node,
+                    window: windowId,
+                  })
+                }
+              >
+                Open as tab
+              </button>
+            ) : null}
+            {selected.resumable ? (
+              <button
+                type="button"
+                title="Start the agent again with its conversation, in a new tab"
+                onClick={() =>
+                  run('workflow.continue', {
+                    execution: props.execution.id,
+                    node: selected.node,
+                    window: windowId,
+                  })
+                }
+              >
+                Continue in a tab
+              </button>
+            ) : null}
           </div>
-        )}
-      </Show>
+          {screen ? <Screen key={screen} pane={screen} /> : null}
+        </section>
+      ) : (
+        <ul className="wf-panel-nodes">
+          {props.execution.nodes.map((node) => {
+            const found = props.graph.nodes.find((n) => n.id === node.node);
+            return (
+              <li key={node.node}>
+                <span className={`wf-dot tone-${tone(node.state)}`} aria-hidden="true" />
+                <span>{found ? nodeTitle(found) : node.node}</span>
+                <span className="wf-muted">{runLine(node)}</span>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      {html ? (
+        <div className="wf-report">
+          <RichHtml html={html} />
+        </div>
+      ) : null}
     </aside>
   );
 }

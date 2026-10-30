@@ -3,9 +3,10 @@
 // why. The core reads the facts of the folder and starts the execution.
 
 import type { AgentValue, WorkflowFacts } from '@neohar/transport';
-import { createSignal, For, onCleanup, onMount, Show } from 'solid-js';
+import { useLayoutEffect, useRef, useState } from 'react';
 import { harnessName } from '../agents/badge';
 import { useApp } from '../app/context';
+import { useSelect } from '../lib/hooks';
 import { outside } from '../shell/modal';
 
 export function ExecuteDialog(props: {
@@ -19,20 +20,24 @@ export function ExecuteDialog(props: {
   onCancel(): void;
 }) {
   const { transport, stores, report } = useApp();
-  let dialog: HTMLDialogElement | undefined;
-  let first: HTMLInputElement | undefined;
-  const [base, setBase] = createSignal(props.facts?.base ?? '');
-  const [notes, setNotes] = createSignal('');
-  onMount(() => {
-    dialog?.showModal();
-    first?.focus();
-  });
-  onCleanup(() => {
-    if (dialog?.open) dialog.close();
-  });
+  const dialog = useRef<HTMLDialogElement>(null);
+  const first = useRef<HTMLInputElement>(null);
+  const [base, setBase] = useState(props.facts?.base ?? '');
+  const [notes, setNotes] = useState('');
+  const panes = useSelect(stores.panes, (state) => state.byKey);
+  // A layout effect: its cleanup runs before the dialog leaves the page, so `close()` can give
+  // the focus back.
+  useLayoutEffect(() => {
+    const element = dialog.current;
+    element?.showModal();
+    first.current?.focus();
+    return () => {
+      if (element?.open) element.close();
+    };
+  }, []);
 
   const agentName = (agent: AgentValue): string => {
-    const pane = agent.pane ? stores.panes.state.byKey[agent.pane] : undefined;
+    const pane = agent.pane ? panes[agent.pane] : undefined;
     const title = pane?.title?.trim();
     return title ? `${harnessName(agent.harness)} · ${title}` : harnessName(agent.harness);
   };
@@ -46,82 +51,85 @@ export function ExecuteDialog(props: {
 
   return (
     <dialog
-      class="dialog wf-execute"
+      className="dialog wf-execute"
       aria-labelledby="wf-execute-title"
-      ref={(element) => (dialog = element)}
+      ref={dialog}
       onCancel={(event) => {
         event.preventDefault();
         props.onCancel();
       }}
       onMouseDown={(event) => {
-        if (event.target === event.currentTarget && outside(event, event.currentTarget)) {
+        if (
+          event.target === event.currentTarget &&
+          outside(event.nativeEvent, event.currentTarget)
+        ) {
           props.onCancel();
         }
       }}
       onKeyDown={(event) => event.stopPropagation()}
     >
       <form
-        class="wf-execute-form"
+        className="wf-execute-form"
         onSubmit={(event) => {
           event.preventDefault();
-          props.onExecute(base().trim() || null, notes().trim() || null);
+          props.onExecute(base.trim() || null, notes.trim() || null);
         }}
       >
-        <h2 id="wf-execute-title" class="dialog-title">
+        <h2 id="wf-execute-title" className="dialog-title">
           Execute {props.name}
         </h2>
-        <p class="wf-execute-folder">
-          <span class="wf-muted">Folder</span> <code>{props.folder}</code>
-          <Show when={props.facts?.branch}>
-            {(branch) => (
-              <>
-                {' '}
-                <span class="wf-muted">on</span> <code>{branch()}</code>
-              </>
-            )}
-          </Show>
+        <p className="wf-execute-folder">
+          <span className="wf-muted">Folder</span> <code>{props.folder}</code>
+          {props.facts?.branch ? (
+            <>
+              {' '}
+              <span className="wf-muted">on</span> <code>{props.facts.branch}</code>
+            </>
+          ) : null}
         </p>
-        <Show when={!props.facts?.repo}>
-          <p class="wf-muted">
+        {!props.facts?.repo ? (
+          <p className="wf-muted">
             neohar reads no git facts here: the folder is not in a git repository that you trust.
           </p>
-        </Show>
-        <label class="wf-field">
+        ) : null}
+        <label className="wf-field">
           <span>Base of the changes</span>
           <input
             type="text"
-            autocomplete="off"
-            spellcheck={false}
+            autoComplete="off"
+            spellCheck={false}
             placeholder="main"
-            value={base()}
-            ref={(element) => (first = element)}
-            onInput={(event) => setBase(event.currentTarget.value)}
+            value={base}
+            ref={first}
+            onChange={(event) => setBase(event.currentTarget.value)}
           />
         </label>
-        <label class="wf-field wf-field-grow">
+        <label className="wf-field wf-field-grow">
           <span>Notes: what you built and why</span>
           <textarea
-            class="wf-notes"
-            value={notes()}
-            onInput={(event) => setNotes(event.currentTarget.value)}
+            className="wf-notes"
+            value={notes}
+            onChange={(event) => setNotes(event.currentTarget.value)}
           />
         </label>
-        <Show when={props.agents.length > 0}>
-          <label class="wf-field">
+        {props.agents.length > 0 ? (
+          <label className="wf-field">
             <span>Take the notes from the prompts of an agent</span>
-            <select value="" onChange={(event) => take(event.currentTarget.value)}>
+            <select defaultValue="" onChange={(event) => take(event.currentTarget.value)}>
               <option value="">Pick an agent</option>
-              <For each={props.agents}>
-                {(agent) => <option value={agent.id}>{agentName(agent)}</option>}
-              </For>
+              {props.agents.map((agent) => (
+                <option key={agent.id} value={agent.id}>
+                  {agentName(agent)}
+                </option>
+              ))}
             </select>
           </label>
-        </Show>
-        <div class="dialog-buttons">
-          <button type="button" class="dialog-cancel" onClick={() => props.onCancel()}>
+        ) : null}
+        <div className="dialog-buttons">
+          <button type="button" className="dialog-cancel" onClick={() => props.onCancel()}>
             Cancel
           </button>
-          <button type="submit" class="primary">
+          <button type="submit" className="primary">
             Execute
           </button>
         </div>

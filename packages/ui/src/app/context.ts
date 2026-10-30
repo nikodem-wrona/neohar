@@ -2,7 +2,7 @@
 // core shows, and the id of this window.
 
 import type { Method, Params, Transport } from '@neohar/transport';
-import { createContext, useContext } from 'solid-js';
+import { createContext, useContext } from 'react';
 import type { Platform } from '../input/clipboard';
 import type { Keyboard } from '../input/keyboard';
 import type { InputSender } from '../input/sender';
@@ -10,7 +10,6 @@ import type { RenderHost } from '../render';
 import type { Stores } from '../stores';
 import type { Failures } from './failures';
 import type { Toasts } from './toasts';
-import type { Bridged } from '../lib/solid';
 import type { ViewState } from './view';
 
 /**
@@ -35,7 +34,7 @@ export interface App {
   form: Form;
   stores: Stores;
   windowId: string;
-  view: Bridged<ViewState>;
+  view: ViewState;
   /** What the window sends to its panes. */
   input: InputSender;
   /** The keyboard layer: it turns a DOM key event into a logical key. */
@@ -50,7 +49,7 @@ export interface App {
   upload?: (file: File) => Promise<string>;
 }
 
-const AppContext = createContext<App>();
+const AppContext = createContext<App | undefined>(undefined);
 
 export const AppProvider = AppContext.Provider;
 

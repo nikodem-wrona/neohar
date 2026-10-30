@@ -6,28 +6,31 @@
 // before the patch comes.
 
 import type { GitTrustAsk } from '@neohar/transport';
-import { For, Show } from 'solid-js';
 import { useApp } from '../app/context';
 import { trustPrompt } from './model';
 
-export function TrustPrompt(props: { ask: GitTrustAsk; class?: string }) {
+export function TrustPrompt(props: { ask: GitTrustAsk; className?: string }) {
   const { run } = useApp();
-  const text = () => trustPrompt(props.ask);
+  const text = trustPrompt(props.ask);
   return (
     <section
-      class={`trust-prompt ${props.class ?? ''}`}
+      className={`trust-prompt ${props.className ?? ''}`}
       aria-label="Trust this repository"
       data-testid="trust-prompt"
     >
-      <h3 class="trust-title">{text().title}</h3>
-      <p class="trust-path" title={props.ask.path}>
+      <h3 className="trust-title">{text.title}</h3>
+      <p className="trust-path" title={props.ask.path}>
         {props.ask.path}
       </p>
-      <For each={text().lines}>{(line) => <p class="trust-text">{line}</p>}</For>
-      <Show when={text().changed}>{(changed) => <p class="trust-changed">{changed()}</p>}</Show>
+      {text.lines.map((line, index) => (
+        <p key={index} className="trust-text">
+          {line}
+        </p>
+      ))}
+      {text.changed ? <p className="trust-changed">{text.changed}</p> : null}
       <button
         type="button"
-        class="trust-button"
+        className="trust-button"
         onClick={() => run('git.trust', { path: props.ask.path })}
       >
         Trust

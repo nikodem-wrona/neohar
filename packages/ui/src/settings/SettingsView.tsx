@@ -4,8 +4,10 @@
 // new value back. The window is never a second source of truth: it keeps no value of its own.
 
 import { RpcError, type SettingEntry, type Transport } from '@neohar/transport';
-import { createSignal, For, type JSX, Match, onCleanup, Show, Switch } from 'solid-js';
-import { createProjectionStore } from '../stores';
+import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useLatest, useValue } from '../lib/hooks';
+import { cn } from '../lib/utils';
+import { useProjectionStore } from '../stores';
 import { fieldText, humanize, parseEdit } from './format';
 import { PhoneSection } from './PhoneSection';
 
@@ -13,6 +15,59 @@ import { PhoneSection } from './PhoneSection';
 function sectionOfHash(): string | null {
   const hash = window.location.hash.slice(1);
   return hash === '' ? null : hash;
+}
+
+/**
+ * A field of a number or of a text. The person edits it freely: it sends the text on the native
+ * `change` (on blur or Enter), one time for each value, not for each key. A new value from the
+ * core goes into the field.
+ */
+function TextField(props: {
+  id: string;
+  type: 'number' | 'text';
+  text: string;
+  onEdit: (text: string) => void;
+}) {
+  const field = useRef<HTMLInputElement>(null);
+  const onEdit = useLatest(props.onEdit);
+  useLayoutEffect(() => {
+    if (field.current) field.current.value = props.text;
+  }, [props.text]);
+  useEffect(() => {
+    const element = field.current;
+    if (!element) return;
+    const change = (): void => onEdit.current(element.value);
+    element.addEventListener('change', change);
+    return () => element.removeEventListener('change', change);
+  }, [onEdit]);
+  return (
+    <input
+      id={props.id}
+      className="setting-input"
+      type={props.type}
+      {...(props.type === 'text' ? { spellCheck: false } : {})}
+      ref={field}
+    />
+  );
+}
+
+/**
+ * A check box. It shows the value of the core: a click changes the box at once, and the box
+ * follows the value that the core brings back.
+ */
+function CheckField(props: { id: string; checked: boolean; onToggle: (value: boolean) => void }) {
+  const box = useRef<HTMLInputElement>(null);
+  useLayoutEffect(() => {
+    if (box.current) box.current.checked = props.checked;
+  }, [props.checked]);
+  return (
+    <input
+      id={props.id}
+      type="checkbox"
+      ref={box}
+      onChange={(event) => props.onToggle(event.currentTarget.checked)}
+    />
+  );
 }
 
 function Row(props: {
@@ -24,54 +79,43 @@ function Row(props: {
   onToggle: (value: boolean) => void;
   onReset: () => void;
 }) {
-  const label = () => humanize(props.name);
+  const label = humanize(props.name);
+  const id = `setting-${props.path}`;
+  const kind = typeof props.entry.value;
   return (
-    <div class="setting" data-setting={props.path}>
-      <label class="setting-label" for={`setting-${props.path}`}>
-        {label()}
+    <div className="setting" data-setting={props.path}>
+      <label className="setting-label" htmlFor={id}>
+        {label}
       </label>
-      <Switch>
-        <Match when={typeof props.entry.value === 'boolean'}>
-          <input
-            id={`setting-${props.path}`}
-            type="checkbox"
-            checked={props.entry.value === true}
-            onChange={(event) => props.onToggle(event.currentTarget.checked)}
-          />
-        </Match>
-        <Match when={typeof props.entry.value === 'number'}>
-          <input
-            id={`setting-${props.path}`}
-            class="setting-input"
-            type="number"
-            value={fieldText(props.entry.value)}
-            onChange={(event) => props.onEdit(event.currentTarget.value)}
-          />
-        </Match>
-        <Match when={true}>
-          <input
-            id={`setting-${props.path}`}
-            class="setting-input"
-            type="text"
-            spellcheck={false}
-            value={fieldText(props.entry.value)}
-            onChange={(event) => props.onEdit(event.currentTarget.value)}
-          />
-        </Match>
-      </Switch>
-      <span class="setting-source" data-source={props.entry.source}>
+      {kind === 'boolean' ? (
+        <CheckField
+          key="boolean"
+          id={id}
+          checked={props.entry.value === true}
+          onToggle={props.onToggle}
+        />
+      ) : (
+        <TextField
+          key={kind === 'number' ? 'number' : 'text'}
+          id={id}
+          type={kind === 'number' ? 'number' : 'text'}
+          text={fieldText(props.entry.value)}
+          onEdit={props.onEdit}
+        />
+      )}
+      <span className="setting-source" data-source={props.entry.source}>
         {props.entry.source}
       </span>
-      <Show when={props.entry.source !== 'default'}>
-        <button type="button" class="setting-reset" onClick={props.onReset}>
+      {props.entry.source !== 'default' ? (
+        <button type="button" className="setting-reset" onClick={props.onReset}>
           Reset
         </button>
-      </Show>
-      <Show when={props.error}>
-        <p class="setting-error" role="alert">
+      ) : null}
+      {props.error ? (
+        <p className="setting-error" role="alert">
           {props.error}
         </p>
-      </Show>
+      ) : null}
     </div>
   );
 }
@@ -83,26 +127,28 @@ export interface SettingsViewProps {
    * the address is the section, as the host of the app opens the window at a section. The desk
    * on a phone has addresses of its own.
    */
-  section?: () => string | null;
+  section?: string | null | undefined;
   onSection?: (name: string) => void;
   /** More content of a section, before its settings: This phone on a phone. */
-  extra?: (section: string) => JSX.Element | undefined;
+  extra?: (section: string) => ReactNode;
 }
 
 export function SettingsView(props: SettingsViewProps) {
-  const store = createProjectionStore(props.transport, 'settings');
-  onCleanup(() => store.close());
+  const store = useProjectionStore(props.transport, 'settings');
+  const state = useValue(store);
   // The host opens the window at a section with a fragment, and changes the fragment of a window
   // that is open.
-  const [fromHash, setFromHash] = createSignal<string | null>(sectionOfHash());
-  if (!props.section) {
+  const [fromHash, setFromHash] = useState<string | null>(sectionOfHash);
+  const controlled = props.section !== undefined;
+  useEffect(() => {
+    if (controlled) return;
     const onHash = (): void => {
       setFromHash(sectionOfHash());
     };
     window.addEventListener('hashchange', onHash);
-    onCleanup(() => window.removeEventListener('hashchange', onHash));
-  }
-  const chosen = () => (props.section ? props.section() : fromHash());
+    return () => window.removeEventListener('hashchange', onHash);
+  }, [controlled]);
+  const chosen = controlled ? (props.section ?? null) : fromHash;
   const setChosen = (name: string): void => {
     if (props.onSection) {
       props.onSection(name);
@@ -112,13 +158,9 @@ export function SettingsView(props: SettingsViewProps) {
     // The fragment follows, so that the host can open this section again.
     history.replaceState(null, '', `#${name}`);
   };
-  const active = () => {
-    const name = chosen();
-    return name !== null && store.state.order.includes(name)
-      ? name
-      : (store.state.order[0] ?? null);
-  };
-  const [errors, setErrors] = createSignal<Record<string, string>>({});
+  const active =
+    chosen !== null && state.order.includes(chosen) ? chosen : (state.order[0] ?? null);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   const setError = (path: string, message: string | undefined): void => {
     setErrors((all) => {
@@ -140,62 +182,51 @@ export function SettingsView(props: SettingsViewProps) {
   };
 
   return (
-    <div class="settings">
-      <nav class="settings-nav" aria-label="Sections">
-        <For each={store.state.order}>
-          {(name) => (
-            <button
-              type="button"
-              class="settings-section-button"
-              classList={{ selected: name === active() }}
-              aria-current={name === active() ? 'page' : undefined}
-              data-section={name}
-              onClick={() => setChosen(name)}
-            >
-              {humanize(name)}
-            </button>
-          )}
-        </For>
+    <div className="settings">
+      <nav className="settings-nav" aria-label="Sections">
+        {state.order.map((name) => (
+          <button
+            key={name}
+            type="button"
+            className={cn('settings-section-button', { selected: name === active })}
+            aria-current={name === active ? 'page' : undefined}
+            data-section={name}
+            onClick={() => setChosen(name)}
+          >
+            {humanize(name)}
+          </button>
+        ))}
       </nav>
-      <main class="settings-main">
-        <Show when={store.state.status === 'loading'}>
-          <p class="settings-note">Waiting for the core.</p>
-        </Show>
-        <Show when={active()} keyed>
-          {(name) => (
-            <section aria-label={humanize(name)}>
-              <h1 class="settings-title">{humanize(name)}</h1>
-              {props.extra?.(name)}
-              <Show when={name === 'phone'}>
-                <PhoneSection transport={props.transport} />
-              </Show>
-              <For each={Object.keys(store.state.byKey[name]?.entries ?? {})}>
-                {(key) => (
-                  <Show when={store.state.byKey[name]?.entries[key]}>
-                    {(entry) => {
-                      const path = `${name}.${key}`;
-                      return (
-                        <Row
-                          path={path}
-                          name={key}
-                          entry={entry()}
-                          error={errors()[path]}
-                          onEdit={(text) => {
-                            const edit = parseEdit(text, entry().value);
-                            if (edit.ok) send(path, edit.value);
-                            else setError(path, edit.error);
-                          }}
-                          onToggle={(value) => send(path, value)}
-                          onReset={() => send(path, null)}
-                        />
-                      );
-                    }}
-                  </Show>
-                )}
-              </For>
-            </section>
-          )}
-        </Show>
+      <main className="settings-main">
+        {state.status === 'loading' ? <p className="settings-note">Waiting for the core.</p> : null}
+        {active ? (
+          <section key={active} aria-label={humanize(active)}>
+            <h1 className="settings-title">{humanize(active)}</h1>
+            {props.extra?.(active)}
+            {active === 'phone' ? <PhoneSection transport={props.transport} /> : null}
+            {Object.keys(state.byKey[active]?.entries ?? {}).map((key) => {
+              const entry = state.byKey[active]?.entries[key];
+              if (!entry) return null;
+              const path = `${active}.${key}`;
+              return (
+                <Row
+                  key={key}
+                  path={path}
+                  name={key}
+                  entry={entry}
+                  error={errors[path]}
+                  onEdit={(text) => {
+                    const edit = parseEdit(text, entry.value);
+                    if (edit.ok) send(path, edit.value);
+                    else setError(path, edit.error);
+                  }}
+                  onToggle={(value) => send(path, value)}
+                  onReset={() => send(path, null)}
+                />
+              );
+            })}
+          </section>
+        ) : null}
       </main>
     </div>
   );

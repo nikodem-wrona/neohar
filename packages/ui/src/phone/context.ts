@@ -2,7 +2,7 @@
 // phone and the machine that the desk shows.
 
 import type { PhoneAccount, PhoneDevice, Transport } from '@neohar/transport';
-import { createContext, useContext } from 'solid-js';
+import { createContext, useContext } from 'react';
 import type { PhoneStores } from '../stores';
 import type { PushBrowser } from './push';
 
@@ -21,7 +21,7 @@ export interface Phone {
   showMachine: (machine: string) => void;
 }
 
-const PhoneContext = createContext<Phone>();
+const PhoneContext = createContext<Phone | undefined>(undefined);
 
 export const PhoneProvider = PhoneContext.Provider;
 

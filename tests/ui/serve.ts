@@ -2,14 +2,14 @@
 //
 // Run it with `bun tests/ui/serve.ts`. The Playwright config starts it. It starts the core
 // (`tests/support/daemon.ts`), builds the page with Vite into `target/ui-web` (the shell is
-// SolidJS, which Vite compiles), and serves the page and `/info` (where the core listens).
+// React, which Vite compiles), and serves the page and `/info` (where the core listens).
 //
 // `NEOHAR_UI_LINK=1` puts the core behind `link.sock`: the page then talks to a client of
 // `link/1`. `mise run test:shell:link` sets it.
 
 import { join } from 'node:path';
+import react from '@vitejs/plugin-react';
 import { build } from 'vite';
-import solid from 'vite-plugin-solid';
 import { root, startDaemon } from '../support/daemon';
 
 const dist = join(root, 'target', 'ui-web');
@@ -17,7 +17,7 @@ const port = Number(process.env.NEOHAR_UI_PORT ?? 4176);
 
 await build({
   root: import.meta.dir,
-  plugins: [solid()],
+  plugins: [react()],
   css: { transformer: 'lightningcss', lightningcss: { targets: { safari: 17 << 16 } } },
   logLevel: 'warn',
   build: {

@@ -4,7 +4,7 @@
 // the list under the cell, at the place that it measures when the list opens.
 
 import type { AgentValue } from '@neohar/transport';
-import { For } from 'solid-js';
+import { useCallback, useEffect, useRef } from 'react';
 import { Strip } from './Strip';
 
 export const BOARD_LIST = 'board-list';
@@ -16,48 +16,55 @@ export function BoardList(props: {
   focused: (run: AgentValue) => boolean;
   onShow: (pane: string) => void;
 }) {
-  let list: HTMLDivElement | undefined;
+  const list = useRef<HTMLDivElement>(null);
+  const { onShow } = props;
 
   // The list opens under the `+N` cell, with its right edge at the right edge of the cell.
-  const place = (event: Event): void => {
-    if ((event as ToggleEvent).newState !== 'open' || !list) return;
-    const cell = document.querySelector(`[popovertarget="${BOARD_LIST}"]`);
-    if (!cell) return;
-    const box = cell.getBoundingClientRect();
-    list.style.setProperty('--list-top', `${box.bottom + 1}px`);
-    list.style.setProperty('--list-right', `${Math.max(0, window.innerWidth - box.right)}px`);
-  };
+  useEffect(() => {
+    const element = list.current;
+    if (!element) return;
+    const place = (event: Event): void => {
+      if ((event as ToggleEvent).newState !== 'open') return;
+      const cell = document.querySelector(`[popovertarget="${BOARD_LIST}"]`);
+      if (!cell) return;
+      const box = cell.getBoundingClientRect();
+      element.style.setProperty('--list-top', `${box.bottom + 1}px`);
+      element.style.setProperty('--list-right', `${Math.max(0, window.innerWidth - box.right)}px`);
+    };
+    element.addEventListener('beforetoggle', place);
+    return () => element.removeEventListener('beforetoggle', place);
+  }, []);
+
+  const showRow = useCallback(
+    (pane: string): void => {
+      list.current?.hidePopover();
+      onShow(pane);
+    },
+    [onShow],
+  );
 
   return (
     <div
       id={BOARD_LIST}
-      class="board-list"
+      className="board-list"
       popover="auto"
       role="dialog"
       aria-label="Every agent"
-      ref={(element) => {
-        list = element;
-        element.addEventListener('beforetoggle', place);
-      }}
+      ref={list}
     >
       <ul aria-label="Every agent">
-        <For each={props.runs}>
-          {(run) => (
-            <li>
-              <Strip
-                run={run}
-                work={props.work(run)}
-                tooltip={props.tooltip(run)}
-                focused={props.focused(run)}
-                form="one"
-                onShow={(pane) => {
-                  list?.hidePopover();
-                  props.onShow(pane);
-                }}
-              />
-            </li>
-          )}
-        </For>
+        {props.runs.map((run) => (
+          <li key={run.id}>
+            <Strip
+              run={run}
+              work={props.work(run)}
+              tooltip={props.tooltip(run)}
+              focused={props.focused(run)}
+              form="one"
+              onShow={showRow}
+            />
+          </li>
+        ))}
       </ul>
     </div>
   );

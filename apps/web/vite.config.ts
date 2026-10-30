@@ -1,5 +1,5 @@
 import { fileURLToPath } from 'node:url';
-import solid from 'vite-plugin-solid';
+import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 
 // The phone app. `bun run build` writes `target/web-dist`, and the build of `nh-web` puts
@@ -10,7 +10,7 @@ const root = fileURLToPath(new URL('.', import.meta.url));
 // Lightning CSS lowers the styles of the chrome for Safari 16 of the phone.
 export default defineConfig({
   root,
-  plugins: [solid()],
+  plugins: [react()],
   css: { transformer: 'lightningcss', lightningcss: { targets: { safari: 16 << 16 } } },
   clearScreen: false,
   build: {

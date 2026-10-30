@@ -3,16 +3,16 @@
 
 export function PaletteKeys(props: { action: string }) {
   return (
-    <div class="palette-keys" aria-hidden="true">
+    <div className="palette-keys" aria-hidden="true">
       <span>
-        <kbd class="cap">↑</kbd>
-        <kbd class="cap">↓</kbd> Move
+        <kbd className="cap">↑</kbd>
+        <kbd className="cap">↓</kbd> Move
       </span>
       <span>
-        <kbd class="cap">↵</kbd> {props.action}
+        <kbd className="cap">↵</kbd> {props.action}
       </span>
       <span>
-        <kbd class="cap">esc</kbd> Close
+        <kbd className="cap">esc</kbd> Close
       </span>
     </div>
   );

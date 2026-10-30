@@ -6,94 +6,88 @@
 // agent waits.
 // The bar shows what the projections say and decides nothing.
 
-import { For, onCleanup, Show } from 'solid-js';
 import { harnessName } from '../agents/badge';
 import { useApp } from '../app/context';
 import type { Keymap } from '../input/chords';
 import { type ActionContext, runCommand } from '../keymap/actions';
+import { useRows, useSelect, useValue } from '../lib/hooks';
+import { cn } from '../lib/utils';
 import { hasUsage, limitText, usageText } from '../timeline/model';
-import { createProjectionStore } from '../stores';
+import { useProjectionStore } from '../stores';
 import { needsYou } from '../workflows/model';
 import { chordText, FUNCTION_KEYS } from './keys';
 
-export function StatusBar(props: { actions: ActionContext; keymap: () => Keymap }) {
+export function StatusBar(props: { actions: ActionContext; keymap: Keymap }) {
   const { stores, view, platform, form, transport } = useApp();
   // The switch of the Workflows view has a mark while an execution is paused or waits for you.
-  const executions = createProjectionStore(transport, 'workflow_executions');
-  onCleanup(() => executions.close());
-  const workflowsWait = () => executions.rows().some(needsYou);
+  const executions = useProjectionStore(transport, 'workflow_executions');
+  const workflowsWait = useRows(executions).some(needsYou);
   // The host serves `link` to each window. Without a host (the dev WebSocket) the window is local.
-  const machine = () => stores.link.state.byKey['_']?.text ?? 'local';
-  const health = () => stores.health.state.byKey['_'];
-  const warnings = () => health()?.warnings ?? [];
-  const renderer = () => health()?.renderer;
-  const waiting = () => stores.attention.state.order.length > 0;
+  const machine = useSelect(stores.link, (state) => state.byKey['_']?.text ?? 'local');
+  const health = useSelect(stores.health, (state) => state.byKey['_']);
+  const warnings = health?.warnings ?? [];
+  const renderer = health?.renderer;
+  const waiting = useSelect(stores.attention, (state) => state.order.length > 0);
+  const limits = useRows(stores.limits);
+  const passNext = useValue(view.passNext);
+  const gitOpen = useValue(view.gitOpen);
+  const workflowsOpen = useValue(view.workflowsOpen);
   return (
-    <footer class="statusbar">
-      <div class="fkeys" role="toolbar" aria-label="Function keys">
-        <For each={FUNCTION_KEYS}>
-          {(key) => (
-            <Show when={chordText(props.keymap(), key.command, platform)}>
-              {(chord) => (
-                <button
-                  type="button"
-                  class="fkey"
-                  classList={{ optional: key.optional === true }}
-                  data-command={key.command}
-                  onClick={() => runCommand(key.command, props.actions)}
-                >
-                  <kbd class="cap" classList={{ 'cap-wait': key.waits === true && waiting() }}>
-                    {chord()}
-                  </kbd>
-                  {key.label}
-                </button>
-              )}
-            </Show>
-          )}
-        </For>
+    <footer className="statusbar">
+      <div className="fkeys" role="toolbar" aria-label="Function keys">
+        {FUNCTION_KEYS.map((key) => {
+          const chord = chordText(props.keymap, key.command, platform);
+          return chord ? (
+            <button
+              key={key.command}
+              type="button"
+              className={cn('fkey', { optional: key.optional === true })}
+              data-command={key.command}
+              onClick={() => runCommand(key.command, props.actions)}
+            >
+              <kbd className={cn('cap', { 'cap-wait': key.waits === true && waiting })}>
+                {chord}
+              </kbd>
+              {key.label}
+            </button>
+          ) : null;
+        })}
       </div>
-      <Show when={view.passNext()}>
-        <span class="status-pass" role="status">
+      {passNext ? (
+        <span className="status-pass" role="status">
           Next key goes to the pane
         </span>
-      </Show>
-      <span class="status-spacer" />
-      <For each={stores.limits.rows()}>
-        {(limit) => (
-          <Show when={limitText(limit, harnessName(limit.harness))}>
-            {(text) => (
-              <span
-                class="status-limit"
-                title={
-                  hasUsage(limit.usage_today) ? `Today: ${usageText(limit.usage_today)}` : undefined
-                }
-              >
-                {text()}
-              </span>
-            )}
-          </Show>
-        )}
-      </For>
-      <Show when={warnings().length > 0}>
-        <span
-          class="status-warnings"
-          title={warnings()
-            .map((w) => w.text)
-            .join('\n')}
-        >
-          {warnings().length} {warnings().length === 1 ? 'warning' : 'warnings'}
+      ) : null}
+      <span className="status-spacer" />
+      {limits.map((limit) => {
+        const text = limitText(limit, harnessName(limit.harness));
+        return text ? (
+          <span
+            key={`${limit.harness}:${limit.account}`}
+            className="status-limit"
+            title={
+              hasUsage(limit.usage_today) ? `Today: ${usageText(limit.usage_today)}` : undefined
+            }
+          >
+            {text}
+          </span>
+        ) : null;
+      })}
+      {warnings.length > 0 ? (
+        <span className="status-warnings" title={warnings.map((w) => w.text).join('\n')}>
+          {warnings.length} {warnings.length === 1 ? 'warning' : 'warnings'}
         </span>
-      </Show>
-      <Show when={renderer() !== 'webgl2'}>
-        <span class="status-renderer">{renderer() ?? 'no renderer'}</span>
-      </Show>
-      <span class="status-machine">{machine()}</span>
-      <Show when={form !== 'phone'}>
-        <div class="status-views" role="group" aria-label="Views">
+      ) : null}
+      {renderer !== 'webgl2' ? (
+        <span className="status-renderer">{renderer ?? 'no renderer'}</span>
+      ) : null}
+      <span className="status-machine">{machine}</span>
+      {form !== 'phone' ? (
+        <div className="status-views" role="group" aria-label="Views">
           <button
             type="button"
-            class="drawer-toggle"
-            aria-pressed={view.gitOpen()}
+            className="drawer-toggle"
+            aria-pressed={gitOpen}
             title="The Git view of the folder of this window"
             onClick={() => props.actions.toggleGit()}
           >
@@ -101,11 +95,10 @@ export function StatusBar(props: { actions: ActionContext; keymap: () => Keymap 
           </button>
           <button
             type="button"
-            class="drawer-toggle"
-            classList={{ 'wf-waiting': workflowsWait() }}
-            aria-pressed={view.workflowsOpen()}
+            className={cn('drawer-toggle', { 'wf-waiting': workflowsWait })}
+            aria-pressed={workflowsOpen}
             title={
-              workflowsWait()
+              workflowsWait
                 ? 'An execution of a workflow is paused or waits for you'
                 : 'The workflows of agents, and their executions in the folder of this window'
             }
@@ -114,7 +107,7 @@ export function StatusBar(props: { actions: ActionContext; keymap: () => Keymap 
             Workflows
           </button>
         </div>
-      </Show>
+      ) : null}
     </footer>
   );
 }

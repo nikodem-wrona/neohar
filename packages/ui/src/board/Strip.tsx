@@ -7,9 +7,10 @@
 // from the badge, the state in four letters and the work.
 
 import type { AgentValue } from '@neohar/transport';
-import { createEffect, on, Show } from 'solid-js';
+import { memo, useLayoutEffect, useRef, useState } from 'react';
 import { AgentBadge } from '../agents/AgentBadge';
 import { badgeOf } from '../agents/badge';
+import { cn } from '../lib/utils';
 import { costText } from '../timeline/model';
 
 export interface StripProps {
@@ -25,59 +26,61 @@ export interface StripProps {
   onShow: (pane: string) => void;
 }
 
-export function Strip(props: StripProps) {
-  const badge = () => badgeOf(props.run);
-  const cost = () => costText(props.run.usage);
-  let element: HTMLButtonElement | undefined;
+export const Strip = memo(function Strip(props: StripProps) {
+  const badge = badgeOf(props.run);
+  const cost = costText(props.run.usage);
+  const element = useRef<HTMLButtonElement>(null);
+  /** The edge flashes now. The class stays when another class of the strip changes. */
+  const [flash, setFlash] = useState(false);
+  const before = useRef(badge.waiting);
 
   // The edge flashes twice when the run starts to wait, with the attention line. A strip that is
   // drawn while the run already waits does not flash: nothing changed in front of the person.
-  createEffect(
-    on(
-      () => badge().waiting,
-      (waiting, before) => {
-        if (!element || !waiting || before !== false) return;
-        element.classList.remove('flash');
-        // A new layout starts the animation again for a run that waits a second time.
-        void element.offsetWidth;
-        element.classList.add('flash');
-      },
-      { defer: true },
-    ),
-  );
+  useLayoutEffect(() => {
+    const waiting = badge.waiting;
+    const was = before.current;
+    before.current = waiting;
+    const button = element.current;
+    if (!button || !waiting || was !== false) return;
+    button.classList.remove('flash');
+    // A new layout starts the animation again for a run that waits a second time.
+    void button.offsetWidth;
+    button.classList.add('flash');
+    setFlash(true);
+  }, [badge.waiting]);
 
   return (
     <button
       type="button"
-      class="strip"
-      classList={{ focused: props.focused, waiting: badge().waiting }}
-      data-code={badge().code}
+      className={cn('strip', { focused: props.focused, waiting: badge.waiting, flash })}
+      data-code={badge.code}
       data-agent={props.run.id}
       data-agent-pane={props.run.pane ?? undefined}
       title={props.tooltip}
       disabled={!props.run.pane}
-      ref={(button) => (element = button)}
-      onAnimationEnd={(event) => event.currentTarget.classList.remove('flash')}
+      ref={element}
+      onAnimationEnd={(event) => {
+        event.currentTarget.classList.remove('flash');
+        setFlash(false);
+      }}
       onClick={() => {
         if (props.run.pane) props.onShow(props.run.pane);
       }}
     >
-      <span class="strip-line">
+      <span className="strip-line">
         <AgentBadge run={props.run} />
-        <span class="agent-code" data-code={badge().code}>
-          {badge().code}
+        <span className="agent-code" data-code={badge.code}>
+          {badge.code}
         </span>
-        <span class="strip-work">{props.work}</span>
-        <Show when={props.form === 'one' && cost()}>
-          {(text) => <span class="strip-cost">{text()}</span>}
-        </Show>
+        <span className="strip-work">{props.work}</span>
+        {props.form === 'one' && cost ? <span className="strip-cost">{cost}</span> : null}
       </span>
-      <Show when={props.form === 'two'}>
-        <span class="strip-line strip-meta">
-          <span class="strip-harness">{badge().harness}</span>
-          <Show when={cost()}>{(text) => <span class="strip-cost">{text()}</span>}</Show>
+      {props.form === 'two' ? (
+        <span className="strip-line strip-meta">
+          <span className="strip-harness">{badge.harness}</span>
+          {cost ? <span className="strip-cost">{cost}</span> : null}
         </span>
-      </Show>
+      ) : null}
     </button>
   );
-}
+});

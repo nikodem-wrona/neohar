@@ -15,7 +15,12 @@
   },
   "dependencies": {
     "@neohar/proto-wasm": "workspace:*",
-    "solid-js": "1.9.17",
-    "@neohar/transport": "workspace:*"
+    "@neohar/transport": "workspace:*",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0"
   }
 }

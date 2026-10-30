@@ -1,5 +1,6 @@
 import eslint from '@eslint/js';
 import neohar, { thinPresentationConfigs } from '@neohar/eslint-plugin';
+import reactHooks from 'eslint-plugin-react-hooks';
 import tseslint from 'typescript-eslint';
 
 /** The webview sources that the rules with type information check. */
@@ -24,6 +25,16 @@ export default [
   ...tseslint.configs.recommended,
   { plugins: { neohar } },
   ...thinPresentationConfigs,
+  // The components of the UI are React. A hook in a condition, or an effect that misses a value
+  // that it reads, shows old state or attaches a pane two times.
+  {
+    files: ['packages/ui/src/**/*.{ts,tsx}'],
+    plugins: { 'react-hooks': reactHooks },
+    rules: {
+      'react-hooks/rules-of-hooks': 'error',
+      'react-hooks/exhaustive-deps': 'error',
+    },
+  },
   // A promise that nobody awaits or catches loses its error, and `void` does not catch it. Each
   // package has its own tsconfig, and the project service finds it for each file.
   {

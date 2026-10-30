@@ -4,89 +4,89 @@
 // `<dialog>`: the rest of the window is inert while it is open, and when it closes the focus goes
 // back to where it was.
 
-import { onCleanup, onMount, Show } from 'solid-js';
+import { useLayoutEffect, useRef } from 'react';
 import { useApp } from '../app/context';
 import { outside } from './modal';
 import { requestClose, type Closing } from './close';
 
 export function CloseConfirm(props: { closing: Closing }) {
   const { transport, view, report } = useApp();
-  let confirm: HTMLButtonElement | undefined;
-  let busy = false;
+  const confirm = useRef<HTMLButtonElement>(null);
+  const busy = useRef(false);
   const cancel = (): void => {
-    view.setClosing(null);
+    view.closing.set(null);
   };
   const close = (): void => {
-    if (busy) return;
-    busy = true;
+    if (busy.current) return;
+    busy.current = true;
     requestClose(transport, props.closing, true)
       .then((next) => {
-        busy = false;
-        view.setClosing(next);
+        busy.current = false;
+        view.closing.set(next);
       })
       .catch(report);
   };
-  let dialog: HTMLDialogElement | undefined;
-  onMount(() => {
-    dialog?.showModal();
-    confirm?.focus();
-  });
-  // `close()` gives the focus back to the element that had it before the question.
-  onCleanup(() => {
-    if (dialog?.open) dialog.close();
-  });
-  const what = () => props.closing.kind;
+  const dialog = useRef<HTMLDialogElement>(null);
+  // A layout effect: its cleanup runs before the dialog leaves the page, so `close()` can give
+  // the focus back.
+  useLayoutEffect(() => {
+    const element = dialog.current;
+    element?.showModal();
+    confirm.current?.focus();
+    // `close()` gives the focus back to the element that had it before the question.
+    return () => {
+      if (element?.open) element.close();
+    };
+  }, []);
+  const what = props.closing.kind;
   return (
     <dialog
-      class="confirm"
+      className="confirm"
       role="alertdialog"
       aria-labelledby="confirm-title"
       aria-describedby="confirm-text"
-      ref={(element) => (dialog = element)}
+      ref={dialog}
       onCancel={(e) => {
         e.preventDefault();
         cancel();
       }}
       onMouseDown={(e) => {
-        if (e.target === e.currentTarget && outside(e, e.currentTarget)) cancel();
+        if (e.target === e.currentTarget && outside(e.nativeEvent, e.currentTarget)) cancel();
       }}
     >
-      <div class="confirm-box">
-        <h2 id="confirm-title" class="confirm-title">
-          Close the {what()} “{props.closing.name}”?
+      <div className="confirm-box">
+        <h2 id="confirm-title" className="confirm-title">
+          Close the {what} “{props.closing.name}”?
         </h2>
-        <Show
-          when={props.closing.failure}
-          fallback={
-            <p id="confirm-text" class="confirm-text">
-              <Show
-                when={props.closing.kind !== 'workspace'}
-                fallback="Its tabs close, and every process that runs in them stops."
-              >
-                Every process that runs in it stops.
-              </Show>
-              <Show when={props.closing.agent}> An agent runs in it, and its run stops too.</Show>
-            </p>
-          }
-        >
-          {(failure) => (
-            <p id="confirm-text" class="confirm-text confirm-failure" role="alert">
-              {failure()}
-            </p>
-          )}
-        </Show>
-        <div class="confirm-buttons">
-          <button type="button" class="confirm-cancel" data-action="close-cancel" onClick={cancel}>
+        {props.closing.failure ? (
+          <p id="confirm-text" className="confirm-text confirm-failure" role="alert">
+            {props.closing.failure}
+          </p>
+        ) : (
+          <p id="confirm-text" className="confirm-text">
+            {props.closing.kind !== 'workspace'
+              ? 'Every process that runs in it stops.'
+              : 'Its tabs close, and every process that runs in them stops.'}
+            {props.closing.agent ? ' An agent runs in it, and its run stops too.' : null}
+          </p>
+        )}
+        <div className="confirm-buttons">
+          <button
+            type="button"
+            className="confirm-cancel"
+            data-action="close-cancel"
+            onClick={cancel}
+          >
             Cancel
           </button>
           <button
             type="button"
-            class="confirm-danger"
+            className="confirm-danger"
             data-action="close-confirm"
-            ref={(element) => (confirm = element)}
+            ref={confirm}
             onClick={close}
           >
-            Close {what()}
+            Close {what}
           </button>
         </div>
       </div>

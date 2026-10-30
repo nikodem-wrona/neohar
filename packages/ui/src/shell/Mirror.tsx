@@ -3,42 +3,39 @@
 // and only for a pane that someone follows, so the page subscribes for the focused pane only. The
 // last row that has text is a live region, so a screen reader speaks new output.
 
-import { createMemo, For, onCleanup, Show } from 'solid-js';
 import { useApp } from '../app/context';
-import { createProjectionStore } from '../stores';
+import { useSelect, useValue } from '../lib/hooks';
+import { useProjectionStore } from '../stores';
 
 function MirrorOf(props: { id: string }) {
   const { transport } = useApp();
-  const store = createProjectionStore(transport, `pane_text:${props.id}`);
-  onCleanup(() => store.close());
+  const store = useProjectionStore(transport, `pane_text:${props.id}`);
+  const state = useValue(store);
   // The key of the last row that has text. The keys are the numbers of the rows.
-  const last = createMemo(() => {
-    const order = store.state.order;
-    for (let at = order.length - 1; at >= 0; at--) {
-      const key = order[at];
-      if (key !== undefined && (store.state.byKey[key] ?? '') !== '') return key;
+  let last: string | undefined;
+  for (let at = state.order.length - 1; at >= 0; at--) {
+    const key = state.order[at];
+    if (key !== undefined && (state.byKey[key] ?? '') !== '') {
+      last = key;
+      break;
     }
-    return undefined;
-  });
+  }
   return (
-    <div class="mirror" role="log" aria-label="Terminal text">
-      <For each={store.state.order}>
-        {(key) => (
-          <div data-row={key} aria-live={key === last() ? 'polite' : 'off'}>
-            {store.state.byKey[key]}
-          </div>
-        )}
-      </For>
+    <div className="mirror" role="log" aria-label="Terminal text">
+      {state.order.map((key) => (
+        <div key={key} data-row={key} aria-live={key === last ? 'polite' : 'off'}>
+          {state.byKey[key]}
+        </div>
+      ))}
     </div>
   );
 }
 
 export function Mirror() {
   const { stores, windowId } = useApp();
-  const focused = () => stores.windows.state.byKey[windowId]?.focused_pane ?? undefined;
-  return (
-    <Show when={focused()} keyed>
-      {(id) => <MirrorOf id={id} />}
-    </Show>
+  const focused = useSelect(
+    stores.windows,
+    (state) => state.byKey[windowId]?.focused_pane ?? undefined,
   );
+  return focused ? <MirrorOf key={focused} id={focused} /> : null;
 }

@@ -13,20 +13,19 @@
 // both columns folded.
 
 import {
-  createEffect,
-  createMemo,
-  createSignal,
-  type JSX,
-  Match,
-  on,
-  onCleanup,
-  onMount,
-  Show,
-  Switch,
-} from 'solid-js';
+  type CSSProperties,
+  type ReactNode,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useApp } from '../app/context';
+import { dragged } from '../app/drag';
 import { loadFaces } from '../app/faces';
 import { fontOf, keymapOf, optionAsAlt, themeVariables } from '../app/preferences';
+import type { TypingField } from '../app/view';
 import { DEFAULT_FONT_FAMILY, DEFAULT_FONT_PX } from '../render/defaults';
 import { startFocusReport } from '../focus/report';
 import { sampleRefresh } from '../focus/refresh';
@@ -45,6 +44,8 @@ import { Mirror } from './Mirror';
 import { type ActionContext } from '../keymap/actions';
 import { installKeymap } from '../keymap/install';
 import { pageFrames } from '../lib/frames';
+import { useLatest, useSelect, useValue } from '../lib/hooks';
+import { cn } from '../lib/utils';
 import { CommandBar } from './CommandBar';
 import { Drawer, DrawerRail } from './Drawer';
 import { Gutter } from './Gutter';
@@ -55,7 +56,6 @@ import { PressMenu } from './PressMenu';
 import { LeftRail, Sidebar } from './Sidebar';
 import { StatusBar } from './StatusBar';
 import { TabBar } from './TabBar';
-import { dragged } from '../lib/solid';
 
 /** Under this width the drawer starts folded. */
 const NARROW_DRAWER = '(max-width: 1279px)';
@@ -64,11 +64,24 @@ const NARROW_LEFT = '(max-width: 999px)';
 /** A phone in portrait shows the columns as sheets. */
 const PORTRAIT = '(orientation: portrait)';
 
+/** A number for each field of a phone, so that a new field is a new key bar. */
+const fieldKeys = new WeakMap<TypingField, number>();
+let fieldCount = 0;
+function fieldKey(field: TypingField): number {
+  let key = fieldKeys.get(field);
+  if (key === undefined) {
+    fieldCount += 1;
+    key = fieldCount;
+    fieldKeys.set(field, key);
+  }
+  return key;
+}
+
 export interface ShellProps {
   /** More content of a section of the settings of a phone: This phone. */
-  extraSettings?: (section: string) => JSX.Element | undefined;
+  extraSettings?: (section: string) => ReactNode | undefined;
   /** More content of the left column of a phone: its machines. */
-  extraLeft?: () => JSX.Element;
+  extraLeft?: () => ReactNode;
 }
 
 export function Shell(props: ShellProps = {}) {
@@ -85,128 +98,172 @@ export function Shell(props: ShellProps = {}) {
     form,
     toasts,
   } = useApp();
-  let frame: HTMLDivElement | undefined;
-  let main: HTMLElement | undefined;
-  const shown = () => stores.windows.state.byKey[windowId];
-  const workspace = () => {
-    const win = shown();
-    return win?.workspace ? stores.tree.state.byKey[win.workspace] : undefined;
-  };
-  const tab = () => workspace()?.tabs.find((candidate) => candidate.id === shown()?.tab);
+  const frame = useRef<HTMLDivElement>(null);
+  const main = useRef<HTMLElement>(null);
+  const shown = useSelect(stores.windows, (state) => state.byKey[windowId]);
+  const windowsLoading = useSelect(stores.windows, (state) => state.status === 'loading');
+  const workspaceId = shown?.workspace;
+  const workspace = useSelect(stores.tree, (state) =>
+    workspaceId ? state.byKey[workspaceId] : undefined,
+  );
+  const tab = workspace?.tabs.find((candidate) => candidate.id === shown?.tab);
+  const leftOpen = useValue(view.leftOpen);
+  const drawerOpen = useValue(view.drawerOpen);
+  const sheet = useValue(view.sheet);
+  const typing = useValue(view.typing);
+  const paletteOpen = useValue(view.paletteOpen);
+  const closing = useValue(view.closing);
+  const columns = useValue(view.columns);
+  const dragging = useValue(dragged) !== null;
+  const linkDown = useSelect(stores.link, (state) => linkIsDown(state.byKey['_']?.state));
   // A phone has no Git view and no Workflows view in this version.
-  const gitShown = () => form !== 'phone' && view.gitOpen();
-  const workflowsShown = () => form !== 'phone' && view.workflowsOpen();
+  const gitShown = useValue(view.gitOpen) && form !== 'phone';
+  const workflowsShown = useValue(view.workflowsOpen) && form !== 'phone';
   // The Workflows view loads when it opens the first time, so the window starts without it.
   type WorkflowsModule = typeof import('../workflows/WorkflowsView');
-  const [workflowsModule, setWorkflowsModule] = createSignal<WorkflowsModule | null>(null);
-  createEffect(() => {
-    if (!workflowsShown() || workflowsModule()) return;
-    import('../workflows/WorkflowsView').then((module) => setWorkflowsModule(() => module), report);
-  });
+  const [workflowsModule, setWorkflowsModule] = useState<WorkflowsModule | null>(null);
+  useEffect(() => {
+    if (!workflowsShown || workflowsModule) return;
+    import('../workflows/WorkflowsView').then((module) => setWorkflowsModule(module), report);
+  }, [workflowsShown, workflowsModule, report]);
 
-  // What a reserved chord reads in this window.
-  const actions: ActionContext = {
-    transport,
-    run,
-    report,
-    windowId,
-    tabs: () => workspace()?.tabs ?? [],
-    currentTab: () => shown()?.tab,
-    focusedPane: () => shown()?.focused_pane,
-    paneBoxes: () =>
-      Array.from(document.querySelectorAll<HTMLElement>('.layout .pane')).map((element) => {
-        const box = element.getBoundingClientRect();
-        return { id: element.dataset.pane ?? '', x: box.x, y: box.y, w: box.width, h: box.height };
-      }),
-    showDrawer: view.showDrawer,
-    togglePalette: () => view.setPaletteOpen((open) => !open),
-    toggleGit: () => {
-      if (form !== 'phone') view.toggleGit();
-    },
-    toggleWorkflows: () => {
-      if (form !== 'phone') view.toggleWorkflows(windowFolder(stores, windowId) ?? null);
-    },
-    focusCard: view.focusCard,
-  };
+  // What a reserved chord reads in this window. The functions read the stores when the chord
+  // runs.
+  const actions = useMemo<ActionContext>(() => {
+    const shownNow = () => stores.windows.get().byKey[windowId];
+    const workspaceNow = () => {
+      const win = shownNow();
+      return win?.workspace ? stores.tree.get().byKey[win.workspace] : undefined;
+    };
+    return {
+      transport,
+      run,
+      report,
+      windowId,
+      tabs: () => workspaceNow()?.tabs ?? [],
+      currentTab: () => shownNow()?.tab,
+      focusedPane: () => shownNow()?.focused_pane,
+      paneBoxes: () =>
+        Array.from(document.querySelectorAll<HTMLElement>('.layout .pane')).map((element) => {
+          const box = element.getBoundingClientRect();
+          return {
+            id: element.dataset.pane ?? '',
+            x: box.x,
+            y: box.y,
+            w: box.width,
+            h: box.height,
+          };
+        }),
+      showDrawer: view.showDrawer,
+      togglePalette: () => view.paletteOpen.set(!view.paletteOpen.get()),
+      toggleGit: () => {
+        if (form !== 'phone') view.toggleGit();
+      },
+      toggleWorkflows: () => {
+        if (form !== 'phone') view.toggleWorkflows(windowFolder(stores, windowId) ?? null);
+      },
+      focusCard: view.focusCard,
+    };
+  }, [stores, windowId, transport, run, report, view, form]);
 
   // The core asks the window to show a card: a notification, the tray or the global hotkey.
-  let seenReveal = 0;
-  createEffect(() => {
-    const next = revealed(seenReveal, shown()?.reveal);
-    seenReveal = next.seen;
+  const seenReveal = useRef(0);
+  const reveal = shown?.reveal;
+  useEffect(() => {
+    const next = revealed(seenReveal.current, reveal);
+    seenReveal.current = next.seen;
     if (next.show === null) return;
     view.showDrawer('inbox');
     view.focusCard(next.show);
-  });
+  }, [reveal, view]);
 
   // The settings change the chrome, the font, the Option key and the chords while the window runs.
-  const sections = () => stores.settings.state.byKey;
-  const keymap = createMemo(() => keymapOf(sections(), platform));
-  createEffect(() => {
-    const variables = themeVariables(sections());
+  const sections = useSelect(stores.settings, (state) => state.byKey);
+  const keymap = useMemo(() => keymapOf(sections, platform), [sections, platform]);
+  const latestKeymap = useLatest(keymap);
+  useLayoutEffect(() => {
+    const variables = themeVariables(sections);
     for (const [name, color] of Object.entries(variables)) {
       document.documentElement.style.setProperty(name, color);
     }
-    onCleanup(() => {
+    return () => {
       for (const name of Object.keys(variables))
         document.documentElement.style.removeProperty(name);
-    });
-  });
+    };
+  }, [sections]);
   // The font: the app serves the faces of the families that the webview cannot match by name,
   // and the surface measures the font once they are loaded. A change that comes
   // while the faces load wins over the one before it. The data of the chrome (codes, costs, paths)
   // is in the family of the terminal too.
-  let fontRun = 0;
-  let loadedFamily: string | undefined;
-  createEffect(() => {
-    const font = fontOf(sections(), form);
-    const family = font.family ?? DEFAULT_FONT_FAMILY;
-    const px = font.px ?? DEFAULT_FONT_PX;
-    const load = ++fontRun;
+  const fontRun = useRef(0);
+  const loadedFamily = useRef<string | undefined>(undefined);
+  const font = fontOf(sections, form);
+  const family = font.family ?? DEFAULT_FONT_FAMILY;
+  const px = font.px ?? DEFAULT_FONT_PX;
+  useEffect(() => {
+    const load = ++fontRun.current;
     loadFaces(transport.fontsUrl(family), family, px)
       .then(() => {
-        if (load !== fontRun) return;
-        const fresh = loadedFamily !== family;
-        loadedFamily = family;
+        if (load !== fontRun.current) return;
+        const fresh = loadedFamily.current !== family;
+        loadedFamily.current = family;
         render?.setFont({ family, px }, fresh);
         document.documentElement.style.setProperty('--font-data', family);
       })
       .catch(report);
-  });
-  createEffect(() => keyboard.setOptions({ platform, optionAsAlt: optionAsAlt(sections()) }));
+  }, [family, px, transport, render, report]);
+  const option = optionAsAlt(sections);
+  useEffect(
+    () => keyboard.setOptions({ platform, optionAsAlt: option }),
+    [keyboard, platform, option],
+  );
 
   // On a phone in portrait, the columns are sheets over the pane: a pane that gets the focus or a
   // tab that shows closes them, so that the person sees what they chose.
-  if (form === 'phone') {
-    const portrait = window.matchMedia(PORTRAIT);
-    createEffect(
-      on(
-        () => [shown()?.focused_pane, shown()?.tab] as const,
-        () => {
-          if (!portrait.matches) return;
-          view.setDrawerOpen(false);
-          view.setLeftOpen(false);
-        },
-        { defer: true },
-      ),
-    );
-  }
+  const focusedPane = shown?.focused_pane;
+  const shownTab = shown?.tab;
+  const firstShow = useRef(true);
+  useEffect(() => {
+    if (firstShow.current) {
+      firstShow.current = false;
+      return;
+    }
+    if (form !== 'phone' || !window.matchMedia(PORTRAIT).matches) return;
+    view.drawerOpen.set(false);
+    view.leftOpen.set(false);
+  }, [focusedPane, shownTab, form, view]);
 
   // A core that lost its client forgets that the windows have focus and are visible,
   // so the window reports again when its link comes back.
-  let reporting: { resend(): void; setPanesHidden(hidden: boolean): void } | undefined;
-  let wasDown = false;
-  createEffect(() => {
-    const down = linkIsDown(stores.link.state.byKey['_']?.state);
-    if (wasDown && !down) reporting?.resend();
-    wasDown = down;
-  });
+  const reporting = useRef<ReturnType<typeof startFocusReport> | undefined>(undefined);
+  const wasDown = useRef(false);
+  useEffect(() => {
+    if (wasDown.current && !linkDown) reporting.current?.resend();
+    wasDown.current = linkDown;
+  }, [linkDown]);
 
-  onMount(() => {
-    if (frame) render?.observe(frame);
+  // The canvas of the window is the first child of the frame.
+  useLayoutEffect(() => {
+    const element = frame.current;
+    if (!element || !render) return;
+    element.prepend(render.canvas);
+    return () => render.canvas.remove();
+  }, [render]);
+
+  useEffect(() => {
+    if (frame.current) render?.observe(frame.current);
     // The canvas paints the main panel under the panes and the gaps between them.
-    if (main && render) onCleanup(render.attachFrame(main));
-    const removeKeymap = installKeymap(document, window, actions, view, keymap);
+    const detachFrame = main.current && render ? render.attachFrame(main.current) : undefined;
+    const removeKeymap = installKeymap(
+      document,
+      window,
+      actions,
+      {
+        passNext: () => view.passNext.get(),
+        setPassNext: (value) => view.passNext.set(value),
+      },
+      () => latestKeymap.current,
+    );
     const reported = startFocusReport({
       window: windowId,
       document,
@@ -214,9 +271,7 @@ export function Shell(props: ShellProps = {}) {
       // A report that fails goes again with the next change, and after the link comes back.
       send: (focus) => void transport.call('window.focus_report', focus).catch(() => undefined),
     });
-    reporting = reported;
-    // While the Git view or the Workflows view covers the panes, the window draws none of them.
-    createEffect(() => reported.setPanesHidden(gitShown() || workflowsShown()));
+    reporting.current = reported;
     sampleRefresh(pageFrames, () => performance.now())
       .then((hz) => {
         if (hz !== undefined) reported.setRefresh(hz);
@@ -224,121 +279,137 @@ export function Shell(props: ShellProps = {}) {
       .catch(report);
     // A narrow window folds the drawer and then the left column, and a wide one opens them again.
     const folds = [
-      { query: window.matchMedia(NARROW_DRAWER), open: view.setDrawerOpen },
-      { query: window.matchMedia(NARROW_LEFT), open: view.setLeftOpen },
+      { query: window.matchMedia(NARROW_DRAWER), open: view.drawerOpen },
+      { query: window.matchMedia(NARROW_LEFT), open: view.leftOpen },
     ].map(({ query, open }) => {
-      if (query.matches) open(false);
+      if (query.matches) open.set(false);
       const onWidth = (event: MediaQueryListEvent): void => {
-        open(!event.matches);
+        open.set(!event.matches);
       };
       query.addEventListener('change', onWidth);
       return () => query.removeEventListener('change', onWidth);
     });
-    onCleanup(() => {
+    return () => {
+      detachFrame?.();
       removeKeymap();
       reported.stop();
+      reporting.current = undefined;
       for (const stop of folds) stop();
-    });
-  });
+    };
+  }, [actions, latestKeymap, render, report, transport, view, windowId]);
+  // While the Git view or the Workflows view covers the panes, the window draws none of them.
+  const panesHidden = gitShown || workflowsShown;
+  useEffect(() => {
+    reporting.current?.setPanesHidden(panesHidden);
+  }, [panesHidden]);
+
+  /** The body of the main panel under the tab bar. */
+  const body = (): ReactNode => {
+    if (windowsLoading)
+      return (
+        <p className="notice" role="status">
+          Connecting to the core.
+        </p>
+      );
+    if (!shown)
+      return (
+        <p className="notice" role="alert">
+          The core does not know this window.
+        </p>
+      );
+    if (tab)
+      return (
+        // The surfaces take no input while the link is down.
+        <div className="main-body" inert={linkDown}>
+          <LayoutView tab={tab} />
+        </div>
+      );
+    return (
+      <p className="notice" role="status">
+        This window shows no tab. Make a workspace or pick a tab.
+      </p>
+    );
+  };
+
   return (
     <div
-      class="shell"
-      data-window={windowId}
-      classList={{
+      className={cn('shell', {
         phone: form === 'phone',
-        'left-closed': !view.leftOpen(),
-        'drawer-closed': !view.drawerOpen(),
-        'sheet-open': view.sheet() !== null,
-        typing: view.typing() !== null,
-        dragging: dragged() !== null,
-      }}
-      style={{
-        '--left-w': `${view.columns().left}ch`,
-        '--drawer-w': `${view.columns().drawer}ch`,
-      }}
-      ref={(element) => (frame = element)}
+        'left-closed': !leftOpen,
+        'drawer-closed': !drawerOpen,
+        'sheet-open': sheet !== null,
+        typing: typing !== null,
+        dragging,
+      })}
+      data-window={windowId}
+      style={
+        {
+          '--left-w': `${columns.left}ch`,
+          '--drawer-w': `${columns.drawer}ch`,
+        } as CSSProperties
+      }
+      ref={frame}
     >
-      {render?.canvas}
       <CommandBar actions={actions} keymap={keymap} />
       <Board />
-      <Show when={view.leftOpen()} fallback={<LeftRail />}>
-        <Sidebar {...(props.extraLeft ? { extra: props.extraLeft } : {})} />
-        <Gutter column="left" direction={1} label="Width of the left column" />
-      </Show>
-      <main class="main" ref={(element) => (main = element)}>
+      {leftOpen ? (
+        <>
+          <Sidebar {...(props.extraLeft ? { extra: props.extraLeft } : {})} />
+          <Gutter column="left" direction={1} label="Width of the left column" />
+        </>
+      ) : (
+        <LeftRail />
+      )}
+      <main className="main" ref={main}>
         <HealthBanner />
         <LinkBanner />
         <FailureBanner />
         {/* The Git view and the Workflows view take the place of the tab bar and the panes. The
             panes keep running. */}
-        <Show when={!workflowsShown()} fallback={<WorkflowsFrame module={workflowsModule()} />}>
-          <Show when={!gitShown()} fallback={<GitView />}>
+        {workflowsShown ? (
+          <WorkflowsFrame module={workflowsModule} />
+        ) : gitShown ? (
+          <GitView />
+        ) : (
+          <>
             <TabBar />
-            <Switch>
-              <Match when={stores.windows.state.status === 'loading'}>
-                <p class="notice" role="status">
-                  Connecting to the core.
-                </p>
-              </Match>
-              <Match when={!shown()}>
-                <p class="notice" role="alert">
-                  The core does not know this window.
-                </p>
-              </Match>
-              <Match when={tab()}>
-                {(current) => (
-                  // The surfaces take no input while the link is down.
-                  <div class="main-body" inert={linkIsDown(stores.link.state.byKey['_']?.state)}>
-                    <LayoutView tab={current()} />
-                  </div>
-                )}
-              </Match>
-              <Match when={true}>
-                <p class="notice" role="status">
-                  This window shows no tab. Make a workspace or pick a tab.
-                </p>
-              </Match>
-            </Switch>
-          </Show>
-        </Show>
+            {body()}
+          </>
+        )}
       </main>
-      <Show when={view.drawerOpen()} fallback={<DrawerRail />}>
-        <Gutter column="drawer" direction={-1} label="Width of the drawer" />
-        <Drawer />
-      </Show>
+      {drawerOpen ? (
+        <>
+          <Gutter column="drawer" direction={-1} label="Width of the drawer" />
+          <Drawer />
+        </>
+      ) : (
+        <DrawerRail />
+      )}
       <Mirror />
-      <Show when={view.paletteOpen()}>
-        <Palette />
-      </Show>
-      <Show when={view.closing()}>{(closing) => <CloseConfirm closing={closing()} />}</Show>
+      {paletteOpen ? <Palette /> : null}
+      {closing ? <CloseConfirm closing={closing} /> : null}
       <StatusBar actions={actions} keymap={keymap} />
       <Toaster toasts={toasts} />
-      <Show when={form === 'phone'}>
-        <Show when={view.typing()} keyed fallback={<PhoneBar />}>
-          {(field) => <KeyBar field={field} />}
-        </Show>
-        <PhoneSheets
-          actions={actions}
-          keymap={keymap}
-          {...(props.extraSettings ? { extraSettings: props.extraSettings } : {})}
-        />
-        <PressMenu />
-      </Show>
+      {form === 'phone' ? (
+        <>
+          {typing ? <KeyBar key={fieldKey(typing)} field={typing} /> : <PhoneBar />}
+          <PhoneSheets
+            actions={actions}
+            keymap={keymap}
+            {...(props.extraSettings ? { extraSettings: props.extraSettings } : {})}
+          />
+          <PressMenu />
+        </>
+      ) : null}
     </div>
   );
 }
 
 /** The Workflows view, once its chunk is there. */
 function WorkflowsFrame(props: { module: typeof import('../workflows/WorkflowsView') | null }) {
-  return (
-    <Show
-      when={props.module}
-      fallback={<p class="git-empty git-center">Opening the Workflows view…</p>}
-    >
-      {(module) => {
-        const View = module().WorkflowsView;
-        return <View />;
-      }}
-    </Show>
+  return props.module ? (
+    <props.module.WorkflowsView />
+  ) : (
+    <p className="git-empty git-center">Opening the Workflows view…</p>
   );
 }

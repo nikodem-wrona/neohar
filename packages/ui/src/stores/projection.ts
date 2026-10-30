@@ -5,7 +5,7 @@
 // data.
 
 import type { ProjectionName, ProjectionValueMap, Transport } from '@neohar/transport';
-import { createStore, reconcile } from 'solid-js/store';
+import { useEffect, useMemo } from 'react';
 import type { Source } from '../lib/value';
 import { afterPatch, emptyState, fromSnapshot, type ProjectionState, values } from './reducer';
 
@@ -19,9 +19,7 @@ type ValueOf<N extends ProjectionName> = N extends `${infer Base}:${string}`
     : never;
 
 export interface ProjectionStore<V> extends Source<ProjectionState<V>> {
-  /** The state as a Solid store, for the Solid components until the port to React. */
-  readonly state: ProjectionState<V>;
-  /** The values in the order of the projection. */
+  /** The values in the order of the projection. The array is the same until the next message. */
   readonly rows: () => V[];
   close(): void;
 }
@@ -31,27 +29,17 @@ export function createProjectionStore<N extends ProjectionName>(
   name: N,
 ): ProjectionStore<ValueOf<N>> {
   type V = ValueOf<N>;
-  const [state, setState] = createStore<ProjectionState<V>>(emptyState<V>());
-  // The reducer works on this plain state. The Solid store gets each new state through `reconcile`.
   let current = emptyState<V>();
+  let rows: { of: ProjectionState<V>; values: V[] } | null = null;
   const listeners = new Set<() => void>();
   const next = (state: ProjectionState<V>): void => {
     current = state;
     for (const listener of [...listeners]) listener();
   };
   const subscription = transport.subscribe(name, {
-    onSnapshot: (data, version) => {
-      next(fromSnapshot<V>(data, version));
-      setState(reconcile(current));
-    },
-    onPatch: (ops, version) => {
-      next(afterPatch<V>(current, ops, version));
-      setState(reconcile(current));
-    },
-    onResync: () => {
-      next({ ...current, status: 'resyncing' });
-      setState('status', 'resyncing');
-    },
+    onSnapshot: (data, version) => next(fromSnapshot<V>(data, version)),
+    onPatch: (ops, version) => next(afterPatch<V>(current, ops, version)),
+    onResync: () => next({ ...current, status: 'resyncing' }),
   });
   return {
     get: () => current,
@@ -61,8 +49,23 @@ export function createProjectionStore<N extends ProjectionName>(
         listeners.delete(listener);
       };
     },
-    state,
-    rows: () => values(state),
+    rows: () => {
+      if (rows?.of !== current) rows = { of: current, values: values(current) };
+      return rows.values;
+    },
     close: () => subscription.close(),
   };
+}
+
+/**
+ * A store that a component owns: it subscribes when the component mounts, or when the name
+ * changes, and it ends with the component.
+ */
+export function useProjectionStore<N extends ProjectionName>(
+  transport: Transport,
+  name: N,
+): ProjectionStore<ValueOf<N>> {
+  const store = useMemo(() => createProjectionStore(transport, name), [transport, name]);
+  useEffect(() => () => store.close(), [store]);
+  return store;
 }

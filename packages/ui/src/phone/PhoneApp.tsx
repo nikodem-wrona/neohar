@@ -14,7 +14,8 @@
 
 import type { Decoder } from '@neohar/proto-wasm';
 import { type PhoneAccount, type PhoneDevice, RpcError, type Transport } from '@neohar/transport';
-import { createSignal, Match, onCleanup, Show, Switch } from 'solid-js';
+import { type ReactNode, useCallback, useEffect, useState } from 'react';
+import { useLatest } from '../lib/hooks';
 import { routeOf } from './model';
 import { Pair } from './Pair';
 import { PhoneDesk } from './PhoneDesk';
@@ -51,10 +52,11 @@ type Account =
   | { state: 'unreachable'; message: string };
 
 export function PhoneApp(props: PhoneAppProps) {
-  const [account, setAccount] = createSignal<Account>({ state: 'asking' });
-  const ask = (): void => {
+  const [account, setAccount] = useState<Account>({ state: 'asking' });
+  const latest = useLatest(props.account);
+  const ask = useCallback((): void => {
     setAccount({ state: 'asking' });
-    props.account.me().then(
+    latest.current.me().then(
       (device) => setAccount(device ? { state: 'paired', device } : { state: 'unpaired' }),
       (failure: unknown) =>
         setAccount({
@@ -62,43 +64,35 @@ export function PhoneApp(props: PhoneAppProps) {
           message: failure instanceof Error ? failure.message : String(failure),
         }),
     );
-  };
-  ask();
-  const paired = () => {
-    const current = account();
-    return current.state === 'paired' ? current.device : undefined;
-  };
-  const unreachable = () => {
-    const current = account();
-    return current.state === 'unreachable' ? current.message : undefined;
-  };
+  }, [latest]);
+  useEffect(ask, [ask]);
 
   // The views of a phone alone have the box `.phone`. The desk has the whole screen.
-  return (
-    <Switch>
-      <Match when={account().state === 'asking'}>
-        <div class="phone-page">
-          <p class="phone-empty" role="status">
+  switch (account.state) {
+    case 'asking':
+      return (
+        <div className="phone-page">
+          <p className="phone-empty" role="status">
             Connecting to the Mac…
           </p>
         </div>
-      </Match>
-      <Match when={unreachable()}>
-        {(message) => (
-          <div class="phone-page">
-            <section class="phone-section" aria-label="No connection">
-              <p class="phone-banner" role="alert">
-                The Mac does not answer: {message()}
-              </p>
-              <button type="button" class="phone-button" onClick={ask}>
-                Try again
-              </button>
-            </section>
-          </div>
-        )}
-      </Match>
-      <Match when={account().state === 'unpaired'}>
-        <div class="phone-page">
+      );
+    case 'unreachable':
+      return (
+        <div className="phone-page">
+          <section className="phone-section" aria-label="No connection">
+            <p className="phone-banner" role="alert">
+              The Mac does not answer: {account.message}
+            </p>
+            <button type="button" className="phone-button" onClick={ask}>
+              Try again
+            </button>
+          </section>
+        </div>
+      );
+    case 'unpaired':
+      return (
+        <div className="phone-page">
           <Pair
             account={props.account}
             search={props.search}
@@ -106,62 +100,66 @@ export function PhoneApp(props: PhoneAppProps) {
             onPaired={(device) => setAccount({ state: 'paired', device })}
           />
         </div>
-      </Match>
-      <Match when={paired()} keyed>
-        {(device) => <Paired {...props} device={device} />}
-      </Match>
-    </Switch>
-  );
+      );
+    case 'paired':
+      return <Paired key={account.device.device} {...props} device={account.device} />;
+  }
+}
+
+/** The machine that `#/machine/<label>` chooses, or none. */
+function machineOf(hash: string): string | null {
+  const route = routeOf(hash);
+  return route.kind === 'machine' ? route.machine : null;
 }
 
 /** The app of a paired phone: the banner of the Mac, and the desk of the machine that it shows. */
 function Paired(props: PhoneAppProps & { device: PhoneDevice }) {
   // `#/machine/<label>` chooses the machine, for example from the push of a machine.
-  const machineOf = (hash: string): string | null => {
-    const route = routeOf(hash);
-    return route.kind === 'machine' ? route.machine : null;
-  };
-  const [machine, setMachine] = createSignal(machineOf(location.hash) ?? 'local');
-  const onHash = (): void => {
-    const chosen = machineOf(location.hash);
-    if (chosen === null) return;
-    setMachine(chosen);
-    history.replaceState(null, '', '#/');
-  };
-  if (machineOf(location.hash) !== null) history.replaceState(null, '', '#/');
-  window.addEventListener('hashchange', onHash);
-  onCleanup(() => window.removeEventListener('hashchange', onHash));
+  const [machine, setMachine] = useState(() => machineOf(location.hash) ?? 'local');
+  useEffect(() => {
+    const onHash = (): void => {
+      const chosen = machineOf(location.hash);
+      if (chosen === null) return;
+      setMachine(chosen);
+      history.replaceState(null, '', '#/');
+    };
+    if (machineOf(location.hash) !== null) history.replaceState(null, '', '#/');
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
 
-  const [lost, setLost] = createSignal(false);
-  const endConnection = props.transport.onConnection((open) => {
-    if (open) {
-      setLost(false);
-      return;
-    }
-    if (lost()) return;
-    setLost(true);
-    // The listener refuses the socket of a phone that the Mac removed.
-    props.account.me().then(
-      (device) => {
-        if (!device) props.restart();
-      },
-      () => undefined,
-    );
-  });
-  onCleanup(endConnection);
+  const [lost, setLost] = useState(false);
+  const live = useLatest({ account: props.account, restart: props.restart });
+  const { transport } = props;
+  useEffect(() => {
+    let down = false;
+    return transport.onConnection((open) => {
+      if (open) {
+        down = false;
+        setLost(false);
+        return;
+      }
+      if (down) return;
+      down = true;
+      setLost(true);
+      // The listener refuses the socket of a phone that the Mac removed.
+      live.current.account.me().then(
+        (device) => {
+          if (!device) live.current.restart();
+        },
+        () => undefined,
+      );
+    });
+  }, [transport, live]);
 
   return (
     <>
-      <Show when={lost()}>
-        <p class="phone-banner phone-banner-top" role="alert">
+      {lost ? (
+        <p className="phone-banner phone-banner-top" role="alert">
           The Mac does not answer. neohar connects again when it can.
         </p>
-      </Show>
-      <Show when={machine()} keyed>
-        {(label) => (
-          <MachineDesk {...props} machine={label} onMachine={(next) => setMachine(next)} />
-        )}
-      </Show>
+      ) : null}
+      <MachineDesk key={machine} {...props} machine={machine} onMachine={setMachine} />
     </>
   );
 }
@@ -178,85 +176,92 @@ function MachineDesk(
   },
 ) {
   const local = props.machine === 'local' || !props.machineTransport;
-  const transport = local
-    ? props.transport
-    : (props.machineTransport?.(props.machine) ?? props.transport);
-  if (!local) onCleanup(() => transport.dispose?.());
+  // The machine of a desk does not change: another machine is another desk.
+  const [transport] = useState(() =>
+    local ? props.transport : (props.machineTransport?.(props.machine) ?? props.transport),
+  );
+  useEffect(() => {
+    if (!local) return () => transport.dispose?.();
+  }, [local, transport]);
   const name = local ? 'the Mac' : props.machine;
 
-  const [windowId, setWindowId] = createSignal<string | null>(null);
-  const [failed, setFailed] = createSignal<string | null>(null);
-  const askWindow = (): void => {
+  const [windowId, setWindowId] = useState<string | null>(null);
+  const [failed, setFailed] = useState<string | null>(null);
+  const asked = useLatest(windowId);
+  const askWindow = useCallback((): void => {
     setFailed(null);
     transport.call('phone.window', {}).then(
       (found) => setWindowId(found.window),
       (failure: unknown) =>
         setFailed(failure instanceof RpcError ? failure.message : String(failure)),
     );
-  };
-  askWindow();
+  }, [transport]);
+  useEffect(askWindow, [askWindow]);
   // The socket of another machine: a banner while it is down, as for the Mac.
-  const [lost, setLost] = createSignal(false);
-  const endConnection = transport.onConnection((open) => {
-    if (open && windowId() === null) askWindow();
-    if (!local) setLost(!open);
-  });
-  onCleanup(endConnection);
-
-  const back = (
-    <Show when={!local}>
-      <button type="button" class="phone-button" onClick={() => props.onMachine('local')}>
-        Back to this Mac
-      </button>
-    </Show>
+  const [lost, setLost] = useState(false);
+  useEffect(
+    () =>
+      transport.onConnection((open) => {
+        if (open && asked.current === null) askWindow();
+        if (!local) setLost(!open);
+      }),
+    [transport, askWindow, local, asked],
   );
+
+  const back: ReactNode = !local ? (
+    <button type="button" className="phone-button" onClick={() => props.onMachine('local')}>
+      Back to this Mac
+    </button>
+  ) : null;
+  const body = (): ReactNode => {
+    if (windowId !== null) {
+      return (
+        <PhoneDesk
+          key={windowId}
+          transport={transport}
+          home={props.transport}
+          account={props.account}
+          device={props.device}
+          windowId={windowId}
+          machine={local ? 'local' : props.machine}
+          onMachine={props.onMachine}
+          restart={props.restart}
+          {...(props.loadDecoder ? { loadDecoder: props.loadDecoder } : {})}
+          {...(props.push ? { push: props.push } : {})}
+        />
+      );
+    }
+    if (failed) {
+      return (
+        <div className="phone-page">
+          <section className="phone-section" aria-label="No window">
+            <p className="phone-banner" role="alert">
+              {local ? 'The Mac' : props.machine} gave this phone no window: {failed}
+            </p>
+            {back}
+          </section>
+        </div>
+      );
+    }
+    return (
+      <div className="phone-page">
+        <section className="phone-section" aria-label="Connecting">
+          <p className="phone-empty" role="status">
+            Connecting to {name}…
+          </p>
+          {back}
+        </section>
+      </div>
+    );
+  };
   return (
     <>
-      <Show when={lost() && windowId() !== null}>
-        <p class="phone-banner phone-banner-top" role="alert">
+      {lost && windowId !== null ? (
+        <p className="phone-banner phone-banner-top" role="alert">
           {name} does not answer. neohar connects again when it can.
         </p>
-      </Show>
-      <Switch>
-        <Match when={windowId()} keyed>
-          {(id) => (
-            <PhoneDesk
-              transport={transport}
-              home={props.transport}
-              account={props.account}
-              device={props.device}
-              windowId={id}
-              machine={local ? 'local' : props.machine}
-              onMachine={props.onMachine}
-              restart={props.restart}
-              {...(props.loadDecoder ? { loadDecoder: props.loadDecoder } : {})}
-              {...(props.push ? { push: props.push } : {})}
-            />
-          )}
-        </Match>
-        <Match when={failed()}>
-          {(message) => (
-            <div class="phone-page">
-              <section class="phone-section" aria-label="No window">
-                <p class="phone-banner" role="alert">
-                  {local ? 'The Mac' : props.machine} gave this phone no window: {message()}
-                </p>
-                {back}
-              </section>
-            </div>
-          )}
-        </Match>
-        <Match when={true}>
-          <div class="phone-page">
-            <section class="phone-section" aria-label="Connecting">
-              <p class="phone-empty" role="status">
-                Connecting to {name}…
-              </p>
-              {back}
-            </section>
-          </div>
-        </Match>
-      </Switch>
+      ) : null}
+      {body()}
     </>
   );
 }

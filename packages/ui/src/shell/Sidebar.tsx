@@ -4,36 +4,42 @@
 // workspace or of a tab, or F2 on a tab, opens a field for a new name. The column folds to
 // a rail, as the drawer does. On a phone, the list of the machines comes after the workspaces.
 
-import { createSignal, For, type JSX, Show } from 'solid-js';
+import { type ReactNode, useState } from 'react';
 import { useApp } from '../app/context';
 import { dropTarget } from '../app/drag';
+import { useRows, useSelect, useValue } from '../lib/hooks';
+import { cn } from '../lib/utils';
 import { requestClose, type CloseTarget } from './close';
 import { Icon } from './icons';
 import { onLongPress } from '../app/press';
 import { RenameField } from './RenameField';
 import { sameTarget, type RenameTarget } from './rename';
 
-export function Sidebar(props: { extra?: () => JSX.Element } = {}) {
+export function Sidebar(props: { extra?: () => ReactNode } = {}) {
   const { stores, transport, run, report, windowId, view, form } = useApp();
-  const shown = () => stores.windows.state.byKey[windowId];
+  const workspaces = useRows(stores.tree);
+  const shownTab = useSelect(stores.windows, (state) => state.byKey[windowId]?.tab);
+  const renaming = useValue(view.renaming);
   const select = (tab: string): void => {
     run('tab.select', { tab, window: windowId });
     // On a phone in portrait the left column is a sheet: the tab that the person picks shows.
     if (form === 'phone' && window.matchMedia('(orientation: portrait)').matches) {
-      view.setLeftOpen(false);
+      view.leftOpen.set(false);
     }
   };
   const create = () => run('workspace.create', {});
   const close = (target: CloseTarget): void => {
-    requestClose(transport, target).then(view.setClosing).catch(report);
+    requestClose(transport, target)
+      .then((closing) => view.closing.set(closing))
+      .catch(report);
   };
-  const [over, setOver] = createSignal<string | null>(null);
+  const [over, setOver] = useState<string | null>(null);
   const edits = (kind: RenameTarget['kind'], id: string): RenameTarget | null => {
     const target: RenameTarget = { kind, id, place: 'left' };
-    return sameTarget(view.renaming(), target) ? target : null;
+    return sameTarget(renaming, target) ? target : null;
   };
   const rename = (kind: RenameTarget['kind'], id: string): void => {
-    view.setRenaming({ kind, id, place: 'left' });
+    view.renaming.set({ kind, id, place: 'left' });
   };
   // A pane that is dropped on a tab of the left column moves into that tab.
   const drop = (pane: string, tab: string): void => {
@@ -41,73 +47,69 @@ export function Sidebar(props: { extra?: () => JSX.Element } = {}) {
     run('pane.move', { pane, tab });
   };
   return (
-    <nav class="sidebar" aria-label="Workspaces">
-      <div class="band">
-        <span class="band-title">Workspaces</span>
-        <span class="band-count">{stores.tree.rows().length}</span>
+    <nav className="sidebar" aria-label="Workspaces">
+      <div className="band">
+        <span className="band-title">Workspaces</span>
+        <span className="band-count">{workspaces.length}</span>
         <button
           type="button"
-          class="column-fold"
+          className="column-fold"
           aria-label="Fold the left column"
           title="Fold the workspaces to a rail"
-          onClick={() => view.setLeftOpen(false)}
+          onClick={() => view.leftOpen.set(false)}
         >
           <svg viewBox="0 0 16 16" width="10" height="10" aria-hidden="true">
-            <path d="M10 3l-5 5 5 5" fill="none" stroke="currentColor" stroke-width="1.5" />
+            <path d="M10 3l-5 5 5 5" fill="none" stroke="currentColor" strokeWidth="1.5" />
           </svg>
         </button>
       </div>
-      <ul class="workspaces">
-        <For each={stores.tree.rows()}>
-          {(workspace) => (
-            <li class="workspace" data-workspace={workspace.id}>
-              <div class="workspace-name">
-                <Show
-                  when={edits('workspace', workspace.id)}
-                  fallback={
-                    <span
-                      class="workspace-title"
-                      onDblClick={() => rename('workspace', workspace.id)}
-                      onPointerDown={(event) =>
-                        // A phone has no double click: a long press opens the menu.
-                        onLongPress(event, (x, y) =>
-                          view.setPressMenu({
-                            x,
-                            y,
-                            title: workspace.name,
-                            items: [
-                              { label: 'Rename', run: () => rename('workspace', workspace.id) },
-                              {
-                                label: 'Close',
-                                danger: true,
-                                run: () =>
-                                  close({
-                                    kind: 'workspace',
-                                    id: workspace.id,
-                                    name: workspace.name,
-                                  }),
-                              },
-                            ],
-                          }),
-                        )
-                      }
-                    >
-                      {workspace.name}
-                    </span>
-                  }
-                >
-                  {(target) => (
-                    <RenameField
-                      target={target()}
-                      name={workspace.name}
-                      label={`Name of workspace ${workspace.handle}`}
-                      class="workspace-title"
-                    />
-                  )}
-                </Show>
+      <ul className="workspaces">
+        {workspaces.map((workspace) => {
+          const editsWorkspace = edits('workspace', workspace.id);
+          return (
+            <li key={workspace.id} className="workspace" data-workspace={workspace.id}>
+              <div className="workspace-name">
+                {editsWorkspace ? (
+                  <RenameField
+                    target={editsWorkspace}
+                    name={workspace.name}
+                    label={`Name of workspace ${workspace.handle}`}
+                    className="workspace-title"
+                  />
+                ) : (
+                  <span
+                    className="workspace-title"
+                    onDoubleClick={() => rename('workspace', workspace.id)}
+                    onPointerDown={(event) =>
+                      // A phone has no double click: a long press opens the menu.
+                      onLongPress(event.nativeEvent, (x, y) =>
+                        view.pressMenu.set({
+                          x,
+                          y,
+                          title: workspace.name,
+                          items: [
+                            { label: 'Rename', run: () => rename('workspace', workspace.id) },
+                            {
+                              label: 'Close',
+                              danger: true,
+                              run: () =>
+                                close({
+                                  kind: 'workspace',
+                                  id: workspace.id,
+                                  name: workspace.name,
+                                }),
+                            },
+                          ],
+                        }),
+                      )
+                    }
+                  >
+                    {workspace.name}
+                  </span>
+                )}
                 <button
                   type="button"
-                  class="row-close"
+                  className="row-close"
                   data-action="workspace-close"
                   aria-label={`Close workspace ${workspace.name}`}
                   title="Close workspace"
@@ -118,73 +120,69 @@ export function Sidebar(props: { extra?: () => JSX.Element } = {}) {
                   <CloseIcon />
                 </button>
               </div>
-              <ul class="workspace-tabs">
-                <For each={workspace.tabs}>
-                  {(tab) => (
-                    <li class="side-tab-row">
-                      <Show
-                        when={edits('tab', tab.id)}
-                        fallback={
-                          <button
-                            type="button"
-                            class="side-tab"
-                            classList={{
-                              selected: tab.id === shown()?.tab,
-                              'drop-target': over() === tab.id,
-                            }}
-                            data-side-tab={tab.id}
-                            aria-keyshortcuts="F2"
-                            onClick={() => select(tab.id)}
-                            onDblClick={() => rename('tab', tab.id)}
-                            onPointerDown={(event) =>
-                              onLongPress(event, (x, y) =>
-                                view.setPressMenu({
-                                  x,
-                                  y,
-                                  title: tab.name,
-                                  items: [
-                                    { label: 'Rename', run: () => rename('tab', tab.id) },
-                                    {
-                                      label: 'Close',
-                                      danger: true,
-                                      run: () => close({ kind: 'tab', id: tab.id, name: tab.name }),
-                                    },
-                                  ],
-                                }),
-                              )
-                            }
-                            onKeyDown={(event) => {
-                              if (event.key !== 'F2') return;
-                              event.preventDefault();
-                              rename('tab', tab.id);
-                            }}
-                            ref={(element) =>
-                              dropTarget(element, {
-                                accepts: (item) => item.kind === 'pane',
-                                enter: () => setOver(tab.id),
-                                leave: () =>
-                                  setOver((current) => (current === tab.id ? null : current)),
-                                drop: (item) => {
-                                  if (item.kind === 'pane') drop(item.id, tab.id);
-                                },
-                              })
-                            }
-                          >
-                            {tab.name}
-                          </button>
-                        }
-                      >
-                        {(target) => (
-                          <RenameField
-                            target={target()}
-                            name={tab.name}
-                            label={`Name of tab ${tab.handle}`}
-                          />
-                        )}
-                      </Show>
+              <ul className="workspace-tabs">
+                {workspace.tabs.map((tab) => {
+                  const editsTab = edits('tab', tab.id);
+                  return (
+                    <li key={tab.id} className="side-tab-row">
+                      {editsTab ? (
+                        <RenameField
+                          target={editsTab}
+                          name={tab.name}
+                          label={`Name of tab ${tab.handle}`}
+                        />
+                      ) : (
+                        <button
+                          type="button"
+                          className={cn('side-tab', {
+                            selected: tab.id === shownTab,
+                            'drop-target': over === tab.id,
+                          })}
+                          data-side-tab={tab.id}
+                          aria-keyshortcuts="F2"
+                          onClick={() => select(tab.id)}
+                          onDoubleClick={() => rename('tab', tab.id)}
+                          onPointerDown={(event) =>
+                            onLongPress(event.nativeEvent, (x, y) =>
+                              view.pressMenu.set({
+                                x,
+                                y,
+                                title: tab.name,
+                                items: [
+                                  { label: 'Rename', run: () => rename('tab', tab.id) },
+                                  {
+                                    label: 'Close',
+                                    danger: true,
+                                    run: () => close({ kind: 'tab', id: tab.id, name: tab.name }),
+                                  },
+                                ],
+                              }),
+                            )
+                          }
+                          onKeyDown={(event) => {
+                            if (event.key !== 'F2') return;
+                            event.preventDefault();
+                            rename('tab', tab.id);
+                          }}
+                          ref={(element) => {
+                            if (!element) return;
+                            dropTarget(element, {
+                              accepts: (item) => item.kind === 'pane',
+                              enter: () => setOver(tab.id),
+                              leave: () =>
+                                setOver((current) => (current === tab.id ? null : current)),
+                              drop: (item) => {
+                                if (item.kind === 'pane') drop(item.id, tab.id);
+                              },
+                            });
+                          }}
+                        >
+                          {tab.name}
+                        </button>
+                      )}
                       <button
                         type="button"
-                        class="row-close"
+                        className="row-close"
                         data-action="tab-close"
                         aria-label={`Close tab ${tab.name}`}
                         title="Close tab"
@@ -193,14 +191,14 @@ export function Sidebar(props: { extra?: () => JSX.Element } = {}) {
                         <CloseIcon />
                       </button>
                     </li>
-                  )}
-                </For>
+                  );
+                })}
               </ul>
             </li>
-          )}
-        </For>
+          );
+        })}
       </ul>
-      <button type="button" class="new-workspace" onClick={create}>
+      <button type="button" className="new-workspace" onClick={create}>
         New workspace
       </button>
       {props.extra?.()}
@@ -212,13 +210,13 @@ export function Sidebar(props: { extra?: () => JSX.Element } = {}) {
 export function LeftRail() {
   const { view } = useApp();
   return (
-    <nav class="left-rail" aria-label="Folded left column">
+    <nav className="left-rail" aria-label="Folded left column">
       <button
         type="button"
-        class="rail-button"
+        className="rail-button"
         aria-label="Show Workspaces"
         title="Workspaces"
-        onClick={() => view.setLeftOpen(true)}
+        onClick={() => view.leftOpen.set(true)}
       >
         <Icon name="workspaces" />
       </button>
@@ -229,7 +227,7 @@ export function LeftRail() {
 function CloseIcon() {
   return (
     <svg viewBox="0 0 16 16" width="10" height="10" aria-hidden="true">
-      <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.5" />
+      <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.5" />
     </svg>
   );
 }

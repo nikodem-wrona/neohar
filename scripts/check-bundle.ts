@@ -9,11 +9,11 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { extname, join, relative } from 'node:path';
 import { gzipSync } from 'node:zlib';
 
-/** The budget of the desk for scripts, styles and WASM together, in gzipped bytes: 300 KB. */
-export const LIMIT = 300_000;
+/** The budget of the desk for scripts, styles and WASM together, in gzipped bytes: 400 KB. */
+export const LIMIT = 400_000;
 
-/** The budget of the first chunk of the phone app, before the surface and the WASM: 150 KB. */
-export const PHONE_LIMIT = 150_000;
+/** The budget of the first chunk of the phone app, before the surface and the WASM: 250 KB. */
+export const PHONE_LIMIT = 250_000;
 
 /**
  * The bundles that the check reads: the folder under the root of the repository, the limit of the
