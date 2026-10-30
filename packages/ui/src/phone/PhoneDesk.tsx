@@ -165,6 +165,29 @@ export function PhoneDesk(props: PhoneDeskProps) {
   const handled = useRef<string | null>(null);
   useEffect(() => {
     const current = hash;
+    /** Stops a wait for the focus of a pane. */
+    let stopOpener: (() => void) | undefined;
+    /** Opens the Inbox once the window has `pane` in focus. Returns the function that stops it. */
+    const openAfterFocus = (pane: string): (() => void) => {
+      const focused = () => stores.windows.get().byKey[windowId]?.focused_pane === pane;
+      if (focused()) {
+        view.showDrawer('inbox');
+        return () => undefined;
+      }
+      let waiting = true;
+      const stop = stores.windows.subscribe(() => {
+        if (!focused()) return;
+        stop();
+        // After every listener of this change, the rule of portrait included.
+        queueMicrotask(() => {
+          if (waiting) view.showDrawer('inbox');
+        });
+      });
+      return () => {
+        waiting = false;
+        stop();
+      };
+    };
     const follow = (): void => {
       const route = routeOf(current);
       if (handled.current === current) return;
@@ -191,10 +214,22 @@ export function PhoneDesk(props: PhoneDeskProps) {
           handled.current = current;
           const run = agents.byKey[route.run];
           // The Inbox shows the card of the run, or the line of its turn with the box Reply.
-          if (run && (run.facets.pending.length > 0 || stores.attention.get().byKey[route.run])) {
-            view.showDrawer('inbox');
+          const inbox =
+            run !== undefined &&
+            (run.facets.pending.length > 0 ||
+              stores.attention.get().byKey[route.run] !== undefined);
+          if (!run?.pane) {
+            if (inbox) view.showDrawer('inbox');
+            return;
           }
-          if (run?.pane) showPane(transport, windowId, run.pane).catch(failures.report);
+          // The pane gets the focus, and in portrait the shell then closes the columns. The
+          // Inbox opens after that focus, so that it stays open.
+          if (inbox) stopOpener = openAfterFocus(run.pane);
+          showPane(transport, windowId, run.pane).catch((failure: unknown) => {
+            stopOpener?.();
+            view.showDrawer('inbox');
+            failures.report(failure);
+          });
           return;
         }
       }
@@ -206,6 +241,7 @@ export function PhoneDesk(props: PhoneDeskProps) {
     return () => {
       endAgents();
       endAttention();
+      stopOpener?.();
     };
   }, [hash, view, transport, windowId, failures, stores]);
   // A sheet that closes takes its address with it, so that a tap on the same push opens it again.

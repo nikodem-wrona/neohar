@@ -219,19 +219,21 @@ export function Shell(props: ShellProps = {}) {
   );
 
   // On a phone in portrait, the columns are sheets over the pane: a pane that gets the focus or a
-  // tab that shows closes them, so that the person sees what they chose.
-  const focusedPane = shown?.focused_pane;
-  const shownTab = shown?.tab;
-  const firstShow = useRef(true);
+  // tab that shows closes them, so that the person sees what they chose. The rule follows the
+  // store, so it closes them in the same change, before a listener that opens one for that change.
   useEffect(() => {
-    if (firstShow.current) {
-      firstShow.current = false;
-      return;
-    }
-    if (form !== 'phone' || !window.matchMedia(PORTRAIT).matches) return;
-    view.drawerOpen.set(false);
-    view.leftOpen.set(false);
-  }, [focusedPane, shownTab, form, view]);
+    if (form !== 'phone') return;
+    const portrait = window.matchMedia(PORTRAIT);
+    let before = stores.windows.get().byKey[windowId];
+    return stores.windows.subscribe(() => {
+      const now = stores.windows.get().byKey[windowId];
+      const moved = now?.focused_pane !== before?.focused_pane || now?.tab !== before?.tab;
+      before = now;
+      if (!moved || !portrait.matches) return;
+      view.drawerOpen.set(false);
+      view.leftOpen.set(false);
+    });
+  }, [form, stores, windowId, view]);
 
   // A core that lost its client forgets that the windows have focus and are visible,
   // so the window reports again when its link comes back.
