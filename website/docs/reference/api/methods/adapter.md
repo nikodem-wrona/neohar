@@ -1,7 +1,7 @@
 ---
 title: "adapter.*"
 description: "The calls of the hook shim. Only a caller with the token of a pane may make them."
-sidebar_position: 30
+sidebar_position: 31
 toc_max_heading_level: 2
 ---
 

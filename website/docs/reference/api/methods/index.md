@@ -1,6 +1,6 @@
 ---
 title: "Methods"
-description: "All 153 JSON-RPC methods of the core, by namespace."
+description: "All 176 JSON-RPC methods of the core, by namespace."
 sidebar_label: "Methods"
 ---
 
@@ -11,15 +11,15 @@ Do not edit it by hand. Change the source and run `bun run gen` in `website/`.
 
 :::
 
-The core has 153 methods in 30 namespaces. A method name is `<namespace>.<verb>`. Each method lists its callers (scopes); a caller that is not on the list gets [`permission_denied`](/docs/reference/api/errors#permission-denied).
+The core has 176 methods in 31 namespaces. A method name is `<namespace>.<verb>`. Each method lists its callers (scopes); a caller that is not on the list gets [`permission_denied`](/docs/reference/api/errors#permission-denied).
 
 | Scope | Who | Methods |
 |---|---|---|
-| `ui` | the UI, over the `rpc` command of the Tauri host or the WebSocket | 134 |
-| `cli` | the CLI and any other client on the API socket | 107 |
+| `ui` | the UI, over the `rpc` command of the Tauri host or the WebSocket | 157 |
+| `cli` | the CLI and any other client on the API socket | 115 |
 | `pane` | a hook shim, with the token of a pane | 4 |
 | `dev` | development and test builds only | 4 |
-| `phone` | a paired phone, over the listener of the phone | 130 |
+| `phone` | a paired phone, over the listener of the phone | 153 |
 
 | Namespace | What it is for | Methods |
 |---|---|---|
@@ -40,6 +40,7 @@ The core has 153 methods in 30 namespaces. A method name is `<namespace>.<verb>`
 | [`changes`](/docs/reference/api/methods/changes) | The Changes tab: the changes of a git worktree from HEAD, and the diff of one file. | [`changes.follow`](/docs/reference/api/methods/changes#changes-follow), [`changes.diff`](/docs/reference/api/methods/changes#changes-diff) |
 | [`git`](/docs/reference/api/methods/git) | The Git view: repositories and their trust, worktrees, branches, changes and history, and switch, fetch and pull. | [`git.follow`](/docs/reference/api/methods/git#git-follow), [`git.repo_add`](/docs/reference/api/methods/git#git-repo-add), [`git.trust`](/docs/reference/api/methods/git#git-trust), [`git.untrust`](/docs/reference/api/methods/git#git-untrust), [`git.repos`](/docs/reference/api/methods/git#git-repos), [`git.status`](/docs/reference/api/methods/git#git-status), [`git.worktrees`](/docs/reference/api/methods/git#git-worktrees), [`git.branches`](/docs/reference/api/methods/git#git-branches), [`git.log`](/docs/reference/api/methods/git#git-log), [`git.show`](/docs/reference/api/methods/git#git-show), [`git.diff`](/docs/reference/api/methods/git#git-diff), [`git.switch`](/docs/reference/api/methods/git#git-switch), [`git.unstash`](/docs/reference/api/methods/git#git-unstash), [`git.fetch`](/docs/reference/api/methods/git#git-fetch), [`git.pull`](/docs/reference/api/methods/git#git-pull) |
 | [`phone`](/docs/reference/api/methods/phone) | The phones that supervise this machine: the offer of a pairing, names and removal, and the mapping of tailscale serve. | [`phone.pair_begin`](/docs/reference/api/methods/phone#phone-pair-begin), [`phone.pair_cancel`](/docs/reference/api/methods/phone#phone-pair-cancel), [`phone.remove`](/docs/reference/api/methods/phone#phone-remove), [`phone.rename`](/docs/reference/api/methods/phone#phone-rename), [`phone.publish`](/docs/reference/api/methods/phone#phone-publish), [`phone.unpublish`](/docs/reference/api/methods/phone#phone-unpublish), [`phone.push_subscribe`](/docs/reference/api/methods/phone#phone-push-subscribe), [`phone.push_unsubscribe`](/docs/reference/api/methods/phone#phone-push-unsubscribe), [`phone.push_test`](/docs/reference/api/methods/phone#phone-push-test), [`phone.visible`](/docs/reference/api/methods/phone#phone-visible), [`phone.window`](/docs/reference/api/methods/phone#phone-window) |
+| [`workflow`](/docs/reference/api/methods/workflow) | The Workflows view: the workflow files and their graphs, and the executions in a folder with the report of each node. | [`workflow.list`](/docs/reference/api/methods/workflow#workflow-list), [`workflow.show`](/docs/reference/api/methods/workflow#workflow-show), [`workflow.create`](/docs/reference/api/methods/workflow#workflow-create), [`workflow.save`](/docs/reference/api/methods/workflow#workflow-save), [`workflow.rename`](/docs/reference/api/methods/workflow#workflow-rename), [`workflow.duplicate`](/docs/reference/api/methods/workflow#workflow-duplicate), [`workflow.delete`](/docs/reference/api/methods/workflow#workflow-delete), [`workflow.undo`](/docs/reference/api/methods/workflow#workflow-undo), [`workflow.redo`](/docs/reference/api/methods/workflow#workflow-redo), [`workflow.layout`](/docs/reference/api/methods/workflow#workflow-layout), [`workflow.presets`](/docs/reference/api/methods/workflow#workflow-presets), [`workflow.facts`](/docs/reference/api/methods/workflow#workflow-facts), [`workflow.execute`](/docs/reference/api/methods/workflow#workflow-execute), [`workflow.notes_from`](/docs/reference/api/methods/workflow#workflow-notes-from), [`workflow.executions`](/docs/reference/api/methods/workflow#workflow-executions), [`workflow.execution`](/docs/reference/api/methods/workflow#workflow-execution), [`workflow.report`](/docs/reference/api/methods/workflow#workflow-report), [`workflow.retry`](/docs/reference/api/methods/workflow#workflow-retry), [`workflow.skip`](/docs/reference/api/methods/workflow#workflow-skip), [`workflow.cancel`](/docs/reference/api/methods/workflow#workflow-cancel), [`workflow.continue`](/docs/reference/api/methods/workflow#workflow-continue), [`workflow.reveal`](/docs/reference/api/methods/workflow#workflow-reveal), [`workflow.copy_to_folder`](/docs/reference/api/methods/workflow#workflow-copy-to-folder) |
 | [`events`](/docs/reference/api/methods/events) | Subscriptions to the event log, from a cursor. | [`events.subscribe`](/docs/reference/api/methods/events#events-subscribe), [`events.unsubscribe`](/docs/reference/api/methods/events#events-unsubscribe) |
 | [`projection`](/docs/reference/api/methods/projection) | Subscriptions to projections: a snapshot, then keyed patches. | [`projection.subscribe`](/docs/reference/api/methods/projection#projection-subscribe), [`projection.unsubscribe`](/docs/reference/api/methods/projection#projection-unsubscribe), [`projection.versions`](/docs/reference/api/methods/projection#projection-versions) |
 | [`config`](/docs/reference/api/methods/config) | The configuration: the merged values with provenance, edits and reload. | [`config.get`](/docs/reference/api/methods/config#config-get), [`config.set`](/docs/reference/api/methods/config#config-set), [`config.reload`](/docs/reference/api/methods/config#config-reload) |

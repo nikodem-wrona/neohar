@@ -2642,3 +2642,77 @@ test('the Changes tab shows the changes of the worktree of the folder, and the d
     await rm(base, { recursive: true, force: true });
   }
 });
+
+test('the Workflows view builds a workflow on the canvas and shows its execution', async ({
+  page,
+  request,
+}) => {
+  const { makeWorkspace } = await openShell(page, request);
+  const project = await realpath(await mkdtemp(join(tmpdir(), 'nh-wf-')));
+  await makeWorkspace('Flows', { root: project });
+  const call = <T>(method: string, params: Record<string, unknown>) =>
+    page.evaluate(([m, p]) => (window as never as NhTest).nhTest.call(m as string, p), [
+      method,
+      params,
+    ] as const) as Promise<T>;
+  // The switch of the status bar opens the view over the tab bar and the panes.
+  await page.locator('.status-views button', { hasText: 'Workflows' }).click();
+  await expect(page.locator('.wf-view')).toBeVisible();
+  await expect(page.locator('.tabbar')).toHaveCount(0);
+  // A new workflow from the preset Review has the trigger, three reviews and the report.
+  await page.locator('.wf-side-actions button', { hasText: '+ New' }).click();
+  await page.locator('.wf-new input[name=name]').fill('Review');
+  await page.locator('.wf-new select[name=preset]').selectOption('review');
+  await page.locator('.wf-new button[type=submit]').click();
+  await expect(page.locator('.wf-node')).toHaveCount(5);
+  await expect(page.locator('.wf-edges .wf-edge')).toHaveCount(6);
+
+  // A drag from the output port of the report to an empty place opens the picker there.
+  const port = page.locator('.wf-node[data-node="report"] .wf-port.out');
+  const box = await port.boundingBox();
+  if (!box) throw new Error('the port has no box');
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 160, box.y + 140, { steps: 8 });
+  await page.mouse.up();
+  await expect(page.locator('.wf-picker')).toBeVisible();
+  await page.locator('.wf-picker-filter').fill('codex agent');
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.wf-node')).toHaveCount(6);
+  const saved = await call<{ graph: { nodes: { id: string; inputs?: string[] }[] } }>(
+    'workflow.show',
+    { workflow: 'review' },
+  );
+  expect(saved.graph.nodes.find((node) => node.id === 'codex')?.inputs).toEqual(['report']);
+
+  // Delete removes the selected node and its connection.
+  await page.locator('.wf-node[data-node="codex"] .wf-node-title').click();
+  await page.keyboard.press('Delete');
+  await expect(page.locator('.wf-node')).toHaveCount(5);
+  await expect(page.locator('.wf-edges .wf-edge')).toHaveCount(6);
+
+  // A double-click opens the details: inputs, settings and output.
+  await page.locator('.wf-node[data-node="logic"] .wf-node-title').dblclick();
+  await expect(page.locator('.wf-details')).toBeVisible();
+  await expect(page.locator('.wf-details .wf-chip')).toHaveCount(5);
+  await page.locator('.wf-details .dialog-cancel').click();
+  await expect(page.locator('.wf-details')).toHaveCount(0);
+
+  // An execution shows its nodes with their states, and a panel with the execution.
+  await page.locator('.wf-execute-button').click();
+  await expect(page.locator('.wf-execute')).toBeVisible();
+  await page.locator('.wf-execute button[type=submit]').click();
+  await expect(page.locator('.wf-panel')).toBeVisible();
+  await expect(page.locator('.wf-execution')).toHaveCount(1);
+  await expect(page.locator('.wf-node[data-node="start"] .wf-node-state')).toContainText('done');
+  await page.locator('.wf-panel-head button', { hasText: 'Cancel' }).click();
+  await expect(page.locator('.wf-panel-title')).toContainText('cancelled');
+
+  // Escape closes the view, and the tab bar is back.
+  await page.locator('.wf-canvas').click({ position: { x: 5, y: 5 } });
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.wf-view')).toHaveCount(0);
+  await expect(page.locator('.tabbar')).toBeVisible();
+  await rm(project, { recursive: true, force: true });
+});

@@ -5,16 +5,22 @@
 // agent waits.
 // The bar shows what the projections say and decides nothing.
 
-import { For, Show } from 'solid-js';
+import { For, onCleanup, Show } from 'solid-js';
 import { harnessName } from '../agents/badge';
 import { useApp } from '../app/context';
 import type { Keymap } from '../input/chords';
 import { type ActionContext, runCommand } from '../keymap/actions';
 import { hasUsage, limitText, usageText } from '../timeline/model';
+import { createProjectionStore } from '../stores';
+import { needsYou } from '../workflows/model';
 import { chordText, FUNCTION_KEYS } from './keys';
 
 export function StatusBar(props: { actions: ActionContext; keymap: () => Keymap }) {
-  const { stores, view, platform, form } = useApp();
+  const { stores, view, platform, form, transport } = useApp();
+  // The switch of the Workflows view has a mark while an execution is paused or waits for you.
+  const executions = createProjectionStore(transport, 'workflow_executions');
+  onCleanup(() => executions.close());
+  const workflowsWait = () => executions.rows().some(needsYou);
   // The host serves `link` to each window. Without a host (the dev WebSocket) the window is local.
   const machine = () => stores.link.state.byKey['_']?.text ?? 'local';
   const health = () => stores.health.state.byKey['_'];
@@ -108,6 +114,20 @@ export function StatusBar(props: { actions: ActionContext; keymap: () => Keymap 
             onClick={() => props.actions.toggleGit()}
           >
             Git
+          </button>
+          <button
+            type="button"
+            class="drawer-toggle"
+            classList={{ 'wf-waiting': workflowsWait() }}
+            aria-pressed={view.workflowsOpen()}
+            title={
+              workflowsWait()
+                ? 'An execution of a workflow is paused or waits for you'
+                : 'The workflows of agents, and their executions in the folder of this window'
+            }
+            onClick={() => props.actions.toggleWorkflows()}
+          >
+            Workflows
           </button>
         </Show>
       </div>

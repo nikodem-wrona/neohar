@@ -16,7 +16,7 @@ mod screen;
 pub(crate) mod turn;
 mod watch;
 
-pub(crate) use control::Control;
+pub(crate) use control::{Control, HiddenStart};
 pub(crate) use host::AdapterHosts;
 pub(crate) use runs::Runs;
 pub(crate) use watch::Agents;

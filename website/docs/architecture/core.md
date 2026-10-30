@@ -32,7 +32,7 @@ The reply carries only ids. A client sees the change through its projection patc
 
 ## The store and the outbox
 
-Each session has one SQLite database, `state.db`, in WAL mode with `synchronous = NORMAL` and `STRICT` tables ([crates/nh-store](https://github.com/nikodem-wrona/neohar/tree/main/crates/nh-store/src)). Its state tables are the source of truth: layout, panes and their holders, snapshots, agent runs, interactions and deliveries, policy rules, windows and their clients.
+Each session has one SQLite database, `state.db`, in WAL mode with `synchronous = NORMAL` and `STRICT` tables ([crates/nh-store](https://github.com/nikodem-wrona/neohar/tree/main/crates/nh-store/src)). Its state tables are the source of truth: layout, panes and their holders, snapshots, agent runs, interactions and deliveries, policy rules, windows and their clients, the executions of workflows and their nodes.
 
 A new database gets the schema of version 15 from one file, [`0015_schema.sql`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-store/migrations/0015_schema.sql). Each later migration runs in its own transaction. The store refuses a database from a newer build. It also refuses a database of a development build from before version 15, and it does not change that file. The error tells you to move `state.db` to a different place.
 

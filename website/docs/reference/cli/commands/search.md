@@ -1,7 +1,7 @@
 ---
 title: "nh search"
 description: "Search the scrollback"
-sidebar_position: 22
+sidebar_position: 23
 ---
 
 :::info[Generated page]

@@ -44,6 +44,9 @@ pub enum Custom {
     /// `git status`: the worktree of `--path`, made absolute, or of the current directory. With
     /// `--window`, the worktree of the Git view of that window.
     Here,
+    /// `workflow execute review`: the folder of `--folder`, made absolute, or the current
+    /// directory. `--wait` waits for the end of the execution.
+    Folder,
 }
 
 pub struct Verb {
@@ -113,6 +116,10 @@ pub const NOUNS: &[(&str, &str)] = &[
     (
         "git",
         "Git repositories, worktrees, branches and history, as the Git view shows them",
+    ),
+    (
+        "workflow",
+        "Workflows of agents and their executions, as the Workflows view shows them",
     ),
     ("config", "The configuration"),
     ("policy", "Rules that decide approvals"),
@@ -541,6 +548,64 @@ pub const VERBS: &[Verb] = &[
         &["path"],
         Custom::List,
     ),
+    // --- workflows
+    verb(
+        "workflow",
+        "list",
+        "workflow.list",
+        "List the workflow files of ~/.config/neohar/workflows",
+        &[],
+    ),
+    special(
+        "workflow",
+        "execute",
+        "workflow.execute",
+        "Execute a workflow in a folder, or in the current directory. --wait waits for the end",
+        &["workflow"],
+        Custom::Folder,
+    ),
+    verb(
+        "workflow",
+        "executions",
+        "workflow.executions",
+        "List the executions of the workflows, the newest first",
+        &[],
+    ),
+    verb(
+        "workflow",
+        "show",
+        "workflow.execution",
+        "Show an execution: the state, the verdict and the report of each node",
+        &["execution"],
+    ),
+    verb(
+        "workflow",
+        "report",
+        "workflow.report",
+        "Show a report of an execution: report.md, or the report of one node with --node",
+        &["execution"],
+    ),
+    verb(
+        "workflow",
+        "retry",
+        "workflow.retry",
+        "Start a node of an execution that failed again",
+        &["execution", "node"],
+    ),
+    verb(
+        "workflow",
+        "skip",
+        "workflow.skip",
+        "Skip a node of an execution that failed or waits; the nodes after it go on",
+        &["execution", "node"],
+    ),
+    verb(
+        "workflow",
+        "cancel",
+        "workflow.cancel",
+        "Cancel an execution and stop its agents",
+        &["execution"],
+    ),
     // --- git
     verb(
         "git",
@@ -930,6 +995,12 @@ fn sugar(custom: Custom) -> Vec<Arg> {
             text("new-tab", "Start in a new tab of this workspace"),
         ],
         Custom::List | Custom::Here => Vec::new(),
+        Custom::Folder => vec![
+            Arg::new("wait")
+                .long("wait")
+                .action(ArgAction::SetTrue)
+                .help("Wait for the end of the execution, then print the path of report.md"),
+        ],
     }
 }
 
@@ -950,7 +1021,7 @@ fn command_of(doc: &Value, verb: &Verb) -> Command {
         Custom::Answer => sugar_keys.extend(["decision", "via"]),
         Custom::AgentStart => sugar_keys.extend(["placement"]),
         Custom::SendKeys => sugar_keys.extend(["bytes", "input_id"]),
-        Custom::List | Custom::Here | Custom::None => {}
+        Custom::List | Custom::Here | Custom::Folder | Custom::None => {}
     }
     let positional = |key: &str| verb.pos.iter().any(|p| p.trim_end_matches("...") == key);
     // Positionals, in the order of the table.
@@ -1201,6 +1272,14 @@ pub fn params(
             let path =
                 given("path").map_or_else(|| cwd.to_path_buf(), |text| absolute_of(&text, cwd));
             map.insert("path".to_owned(), Value::String(path.display().to_string()));
+        }
+        Custom::Folder => {
+            let folder =
+                given("folder").map_or_else(|| cwd.to_path_buf(), |text| absolute_of(&text, cwd));
+            map.insert(
+                "folder".to_owned(),
+                Value::String(folder.display().to_string()),
+            );
         }
         Custom::Here => {
             if !map.contains_key("window") {

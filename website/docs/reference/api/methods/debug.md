@@ -1,7 +1,7 @@
 ---
 title: "debug.*"
 description: "Bug reports and tools for development builds."
-sidebar_position: 24
+sidebar_position: 25
 toc_max_heading_level: 2
 ---
 

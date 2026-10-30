@@ -25,6 +25,7 @@ mod read;
 mod tests;
 mod write;
 
+pub(crate) use self::read::ago;
 pub(crate) use self::write::Askpass;
 
 use std::{

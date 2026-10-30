@@ -1,7 +1,7 @@
 ---
 title: Remote machines
 description: "Run agents on another Mac: the nh daemon there, the [machines] table here, windows of a machine, nh --machine, and what is not built yet."
-sidebar_position: 5
+sidebar_position: 6
 ---
 
 neohar can show windows of a core that runs on another Mac. On that Mac, `nh daemon` runs the core

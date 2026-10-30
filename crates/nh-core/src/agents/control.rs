@@ -20,7 +20,7 @@ use nh_agents::{
     manifest::{
         Manifest,
         choices::valid_effort,
-        command::{Choice, launch_argv, preassigns, quote, resume_argv, shell_line},
+        command::{Choice, add_dir_args, launch_argv, preassigns, quote, resume_argv, shell_line},
         schema::Launch,
     },
     run::authorizes,
@@ -202,6 +202,24 @@ enum Where {
     Pane(PaneId),
     /// A resume without a place: the pane of the old run, if it is an idle shell, else a new tab.
     Reuse(PaneId, WorkspaceId),
+    /// A new tab that the tab bar does not show, with its name: the agent of a workflow node.
+    Hidden(WorkspaceId, String),
+}
+
+/// How the executor of workflows starts the agent of a node: in a hidden tab of a workspace, with
+/// the prompt, and read-only unless the node can edit files.
+pub(crate) struct HiddenStart {
+    pub harness: Harness,
+    pub workspace: WorkspaceId,
+    /// The name of the hidden tab, for the moment that the person opens it.
+    pub tab: String,
+    pub cwd: String,
+    pub prompt: String,
+    pub model: Option<String>,
+    pub effort: Option<String>,
+    pub read_only: bool,
+    /// The folders outside `cwd` that the agent must read.
+    pub read_dirs: Vec<String>,
 }
 
 /// Everything a launch needs, worked out on the actor.
@@ -725,6 +743,44 @@ impl Control {
         self.launch(plan)
     }
 
+    /// Starts the agent of a workflow node in a hidden tab. It returns the job, as `start` does.
+    pub(crate) async fn start_hidden(self: &Arc<Self>, p: HiddenStart) -> Result<JobId, RpcError> {
+        let plan = self
+            .actor()?
+            .update(move |parts| {
+                let id = nh_agents::harness::name(p.harness);
+                let manifests = runs::loaded_manifests(&parts);
+                let mut args = Vec::new();
+                if let Some(launch) = manifests.get(id).and_then(|m| m.launch.as_ref()) {
+                    if p.read_only {
+                        args.extend(launch.read_only_args.iter().cloned());
+                    }
+                    for dir in &p.read_dirs {
+                        args.extend(add_dir_args(launch, dir));
+                    }
+                }
+                let request = AgentStart {
+                    harness: p.harness,
+                    placement: Placement::NewTab {
+                        workspace: Ref::<WorkspaceId>::id(p.workspace),
+                    },
+                    cwd: Some(p.cwd),
+                    name: None,
+                    prompt: Some(p.prompt),
+                    model: p.model,
+                    effort: p.effort,
+                    args,
+                };
+                let mut plan = plan_start(&parts, &request)?;
+                plan.place = Where::Hidden(p.workspace, p.tab);
+                Ok::<Plan, RpcError>(plan)
+            })
+            .await
+            .map_err(gone)??;
+        self.ensure_harness(plan.harness).await?;
+        self.launch(plan)
+    }
+
     /// `agent.resume`: the job that starts the harness again with the handle of the session.
     pub(crate) async fn resume(self: &Arc<Self>, p: AgentResume) -> Result<JobId, RpcError> {
         let plan = self
@@ -904,6 +960,29 @@ impl Control {
                 self.require_idle_shell(pane).await?;
                 Ok(pane)
             }
+            Where::Hidden(workspace, name) => {
+                let params = nh_proto::api::calls::workspace::TabCreate {
+                    workspace: Ref::<WorkspaceId>::id(workspace),
+                    name: Some(name),
+                    command: plan
+                        .cwd
+                        .clone()
+                        .map(|cwd| nh_proto::api::common::ProcessSpec {
+                            argv: Vec::new(),
+                            cwd: Some(cwd),
+                            env: std::collections::BTreeMap::new(),
+                        }),
+                };
+                let value = actor
+                    .update(move |mut parts| {
+                        crate::actor::layout::run_in(&mut parts, |layout, alloc| {
+                            layout.create_hidden_tab(params, alloc)
+                        })
+                    })
+                    .await
+                    .map_err(gone)??;
+                created(&value, "pane")
+            }
             Where::Reuse(pane, workspace) => {
                 if self.require_idle_shell(pane).await.is_ok() {
                     return Ok(pane);
@@ -994,6 +1073,7 @@ impl Control {
             name: plan.name.clone(),
             session: plan.session.clone(),
             model: plan.model.clone(),
+            workflow: matches!(plan.place, Where::Hidden(..)),
         };
         actor
             .update(move |mut parts| runs::expect(&mut parts, pane_id, expected))
@@ -1001,7 +1081,7 @@ impl Control {
             .map_err(gone)?;
         let fresh = matches!(
             plan.place,
-            Where::NewTab(_) | Where::Split(..) | Where::Reuse(..)
+            Where::NewTab(_) | Where::Split(..) | Where::Reuse(..) | Where::Hidden(..)
         );
         if fresh {
             Self::shell_ready(&pane).await;

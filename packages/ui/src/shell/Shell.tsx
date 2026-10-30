@@ -15,6 +15,7 @@
 import {
   createEffect,
   createMemo,
+  createSignal,
   type JSX,
   Match,
   on,
@@ -36,6 +37,7 @@ import { Palette } from '../palette/Palette';
 import { SearchOverlay } from '../search/SearchOverlay';
 import { Board } from '../board/Board';
 import { GitView } from '../git/GitView';
+import { windowFolder } from '../files/folder';
 import { CloseConfirm } from './CloseConfirm';
 import { FailureBanner } from './FailureBanner';
 import { HealthBanner } from './HealthBanner';
@@ -80,8 +82,16 @@ export function Shell(props: ShellProps = {}) {
     return win?.workspace ? stores.tree.state.byKey[win.workspace] : undefined;
   };
   const tab = () => workspace()?.tabs.find((candidate) => candidate.id === shown()?.tab);
-  // A phone has no Git view in this version.
+  // A phone has no Git view and no Workflows view in this version.
   const gitShown = () => form !== 'phone' && view.gitOpen();
+  const workflowsShown = () => form !== 'phone' && view.workflowsOpen();
+  // The Workflows view loads when it opens the first time, so the window starts without it.
+  type WorkflowsModule = typeof import('../workflows/WorkflowsView');
+  const [workflowsModule, setWorkflowsModule] = createSignal<WorkflowsModule | null>(null);
+  createEffect(() => {
+    if (!workflowsShown() || workflowsModule()) return;
+    import('../workflows/WorkflowsView').then((module) => setWorkflowsModule(() => module), report);
+  });
 
   // What a reserved chord reads in this window.
   const actions: ActionContext = {
@@ -102,6 +112,9 @@ export function Shell(props: ShellProps = {}) {
     toggleSearch: () => view.setSearchOpen((open) => !open),
     toggleGit: () => {
       if (form !== 'phone') view.toggleGit();
+    },
+    toggleWorkflows: () => {
+      if (form !== 'phone') view.toggleWorkflows(windowFolder(stores, windowId) ?? null);
     },
     focusCard: view.focusCard,
   };
@@ -192,8 +205,8 @@ export function Shell(props: ShellProps = {}) {
       send: (focus) => void transport.call('window.focus_report', focus).catch(() => undefined),
     });
     reporting = reported;
-    // While the Git view covers the panes, the window draws none of them.
-    createEffect(() => reported.setPanesHidden(gitShown()));
+    // While the Git view or the Workflows view covers the panes, the window draws none of them.
+    createEffect(() => reported.setPanesHidden(gitShown() || workflowsShown()));
     sampleRefresh(pageFrames, () => performance.now())
       .then((hz) => {
         if (hz !== undefined) reported.setRefresh(hz);
@@ -246,34 +259,37 @@ export function Shell(props: ShellProps = {}) {
         <HealthBanner />
         <LinkBanner />
         <FailureBanner />
-        {/* The Git view takes the place of the tab bar and the panes. The panes keep running. */}
-        <Show when={!gitShown()} fallback={<GitView />}>
-          <TabBar />
-          <Switch>
-            <Match when={stores.windows.state.status === 'loading'}>
-              <p class="notice" role="status">
-                Connecting to the core.
-              </p>
-            </Match>
-            <Match when={!shown()}>
-              <p class="notice" role="alert">
-                The core does not know this window.
-              </p>
-            </Match>
-            <Match when={tab()}>
-              {(current) => (
-                // The surfaces take no input while the link is down.
-                <div class="main-body" inert={linkIsDown(stores.link.state.byKey['_']?.state)}>
-                  <LayoutView tab={current()} />
-                </div>
-              )}
-            </Match>
-            <Match when={true}>
-              <p class="notice" role="status">
-                This window shows no tab. Make a workspace or pick a tab.
-              </p>
-            </Match>
-          </Switch>
+        {/* The Git view and the Workflows view take the place of the tab bar and the panes. The
+            panes keep running. */}
+        <Show when={!workflowsShown()} fallback={<WorkflowsFrame module={workflowsModule()} />}>
+          <Show when={!gitShown()} fallback={<GitView />}>
+            <TabBar />
+            <Switch>
+              <Match when={stores.windows.state.status === 'loading'}>
+                <p class="notice" role="status">
+                  Connecting to the core.
+                </p>
+              </Match>
+              <Match when={!shown()}>
+                <p class="notice" role="alert">
+                  The core does not know this window.
+                </p>
+              </Match>
+              <Match when={tab()}>
+                {(current) => (
+                  // The surfaces take no input while the link is down.
+                  <div class="main-body" inert={linkIsDown(stores.link.state.byKey['_']?.state)}>
+                    <LayoutView tab={current()} />
+                  </div>
+                )}
+              </Match>
+              <Match when={true}>
+                <p class="notice" role="status">
+                  This window shows no tab. Make a workspace or pick a tab.
+                </p>
+              </Match>
+            </Switch>
+          </Show>
         </Show>
       </main>
       <Show when={view.drawerOpen()} fallback={<DrawerRail />}>
@@ -301,5 +317,20 @@ export function Shell(props: ShellProps = {}) {
         <PressMenu />
       </Show>
     </div>
+  );
+}
+
+/** The Workflows view, once its chunk is there. */
+function WorkflowsFrame(props: { module: typeof import('../workflows/WorkflowsView') | null }) {
+  return (
+    <Show
+      when={props.module}
+      fallback={<p class="git-empty git-center">Opening the Workflows view…</p>}
+    >
+      {(module) => {
+        const View = module().WorkflowsView;
+        return <View />;
+      }}
+    </Show>
   );
 }

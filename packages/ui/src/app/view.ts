@@ -124,25 +124,46 @@ export function createViewState() {
   const [renaming, setRenaming] = createSignal<RenameTarget | null>(null);
   const [gitOpen, setGitOpen] = createSignal(false);
   const [gitTarget, setGitTarget] = createSignal<GitTarget>({ folder: null, seq: 0 });
-  /** The side columns before the Git view folded them, to open them again when it closes. */
+  const [workflowsOpen, setWorkflowsOpen] = createSignal(false);
+  const [workflowsTarget, setWorkflowsTarget] = createSignal<GitTarget>({ folder: null, seq: 0 });
+  /**
+   * The side columns before the Git view or the Workflows view folded them, to open them again
+   * when the view closes. The two views never show at the same time.
+   */
   let unfolded: { left: boolean; drawer: boolean } | null = null;
+  const fold = (): void => {
+    if (gitOpen() || workflowsOpen()) return;
+    unfolded = { left: leftOpen(), drawer: drawerOpen() };
+    setLeftOpen(false);
+    setDrawerOpen(false);
+  };
+  const unfold = (): void => {
+    if (gitOpen() || workflowsOpen() || !unfolded) return;
+    setLeftOpen(unfolded.left);
+    setDrawerOpen(unfolded.drawer);
+    unfolded = null;
+  };
   const openGit = (folder: string | null = null): void => {
-    if (!gitOpen()) {
-      unfolded = { left: leftOpen(), drawer: drawerOpen() };
-      setLeftOpen(false);
-      setDrawerOpen(false);
-      setGitOpen(true);
-    }
+    fold();
+    setWorkflowsOpen(false);
+    setGitOpen(true);
     setGitTarget((before) => ({ folder, seq: before.seq + 1 }));
   };
   const closeGit = (): void => {
     if (!gitOpen()) return;
     setGitOpen(false);
-    if (unfolded) {
-      setLeftOpen(unfolded.left);
-      setDrawerOpen(unfolded.drawer);
-      unfolded = null;
-    }
+    unfold();
+  };
+  const openWorkflows = (folder: string | null = null): void => {
+    fold();
+    setGitOpen(false);
+    setWorkflowsOpen(true);
+    setWorkflowsTarget((before) => ({ folder, seq: before.seq + 1 }));
+  };
+  const closeWorkflows = (): void => {
+    if (!workflowsOpen()) return;
+    setWorkflowsOpen(false);
+    unfold();
   };
   return {
     /** The widths of the left column and of the drawer. A drag of their rule changes them. */
@@ -192,6 +213,9 @@ export function createViewState() {
       } else if (id === 'git.open') {
         if (gitOpen()) closeGit();
         else openGit();
+      } else if (id === 'workflows.open') {
+        if (workflowsOpen()) closeWorkflows();
+        else openWorkflows();
       } else if (id === 'settings.open') {
         // A phone has no settings window: the core names this command of the page.
         setSheet({ kind: 'settings', section: null });
@@ -243,6 +267,20 @@ export function createViewState() {
     toggleGit(): void {
       if (gitOpen()) closeGit();
       else openGit();
+    },
+    /**
+     * The Workflows view covers the panes as the Git view does: a canvas of the workflows of the
+     * person, and their executions in the folder of the window.
+     */
+    workflowsOpen,
+    /** The last request to show the Workflows view. */
+    workflowsTarget,
+    /** Shows the Workflows view on `folder`, or on the folder of the window. */
+    openWorkflows,
+    closeWorkflows,
+    toggleWorkflows(folder: string | null = null): void {
+      if (workflowsOpen()) closeWorkflows();
+      else openWorkflows(folder);
     },
   };
 }

@@ -214,6 +214,17 @@ pub struct Git {
     pub fetch_minutes: u32,
 }
 
+/// The executions of workflows.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Workflows {
+    /// The agents of one execution that run at the same time.
+    pub max_agents: u32,
+    /// The time limit of an agent node without its own, in minutes.
+    pub time_limit_min: u32,
+    /// The executions that ended to keep, with their reports.
+    pub keep_executions: u32,
+}
+
 /// The listener of the phone.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Phone {
@@ -285,6 +296,7 @@ pub struct Keys {
     pub peek_sibling: String,
     pub search_open: String,
     pub git_open: String,
+    pub workflows_open: String,
     pub window_new: String,
     pub pass_through: String,
 }
@@ -354,6 +366,7 @@ pub struct Config {
     pub scrollback: Scrollback,
     pub daemon: Daemon,
     pub git: Git,
+    pub workflows: Workflows,
     pub phone: Phone,
     pub ui: Ui,
     pub theme: Theme,
@@ -404,6 +417,7 @@ default_from_file! {
     Scrollback => ["scrollback"];
     Daemon => ["daemon"];
     Git => ["git"];
+    Workflows => ["workflows"];
     Phone => ["phone"];
     Ui => ["ui"];
     Theme => ["theme"];

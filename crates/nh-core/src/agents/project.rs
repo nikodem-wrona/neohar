@@ -133,9 +133,14 @@ pub(crate) fn publish_run(
     }
     // Each window reads the run with its own read state.
     for window in windows {
-        if let Ok(value) = serde_json::to_value(agent_value(run, &[*window])) {
+        if !run.on_board() {
+            hub.remove(Projection::AgentsFor(*window), &id.to_string());
+        } else if let Ok(value) = serde_json::to_value(agent_value(run, &[*window])) {
             hub.set(Projection::AgentsFor(*window), &id.to_string(), value);
         }
+    }
+    if run.workflow {
+        publish_board(hub, runs, windows);
     }
     match attention_value(run, interactions).and_then(|value| serde_json::to_value(value).ok()) {
         Some(value) => hub.set(Projection::Attention, &id.to_string(), value),
@@ -162,7 +167,12 @@ pub(crate) fn remove_run(hub: &ProjectionHub, id: RunId, windows: &[WindowId]) {
 
 /// Fills the projection of a window that is new with every run, in the order of the board.
 pub(crate) fn publish_window(hub: &ProjectionHub, runs: &Runs, window: WindowId) {
-    for run in runs.board().iter().filter_map(|id| runs.by_id.get(id)) {
+    for run in runs
+        .board()
+        .iter()
+        .filter_map(|id| runs.by_id.get(id))
+        .filter(|run| run.on_board())
+    {
         if let Ok(value) = serde_json::to_value(agent_value(run, &[window])) {
             hub.set(Projection::AgentsFor(window), &run.id.to_string(), value);
         }
@@ -172,7 +182,12 @@ pub(crate) fn publish_window(hub: &ProjectionHub, runs: &Runs, window: WindowId)
 
 /// Puts the runs of each window in the order of the board.
 pub(crate) fn publish_board(hub: &ProjectionHub, runs: &Runs, windows: &[WindowId]) {
-    let order: Vec<String> = runs.board().iter().map(ToString::to_string).collect();
+    let order: Vec<String> = runs
+        .board()
+        .iter()
+        .filter(|id| runs.by_id.get(id).is_some_and(super::runs::Run::on_board))
+        .map(ToString::to_string)
+        .collect();
     for window in windows {
         hub.set_order(Projection::AgentsFor(*window), &order);
     }

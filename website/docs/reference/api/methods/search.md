@@ -1,7 +1,7 @@
 ---
 title: "search.*"
 description: "Search of the scrollback archive."
-sidebar_position: 25
+sidebar_position: 26
 toc_max_heading_level: 2
 ---
 

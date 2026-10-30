@@ -57,6 +57,8 @@ pub struct TabRow {
     pub floating: Value,
     /// The pane that fills the tab.
     pub zoomed: Option<Ulid>,
+    /// The tab bar does not show the tab: it holds the agent of a workflow node.
+    pub hidden: bool,
 }
 
 /// The place of a pane in the layout, and the facts that the layout knows about it.
@@ -225,12 +227,13 @@ impl Tx<'_> {
         self.writable()?;
         self.sql().execute(
             "INSERT INTO tabs (id, workspace_id, handle, name, sort_key, layout_json,
-                               floating_json, zoomed_pane, created_at, updated_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?9, ?8, ?8)
+                               floating_json, zoomed_pane, created_at, updated_at, hidden)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?9, ?8, ?8, ?10)
              ON CONFLICT (id) DO UPDATE SET workspace_id = excluded.workspace_id,
                  name = excluded.name, sort_key = excluded.sort_key,
                  layout_json = excluded.layout_json, floating_json = excluded.floating_json,
-                 zoomed_pane = excluded.zoomed_pane, updated_at = excluded.updated_at",
+                 zoomed_pane = excluded.zoomed_pane, updated_at = excluded.updated_at,
+                 hidden = excluded.hidden",
             params![
                 tab.id.to_string(),
                 tab.workspace.to_string(),
@@ -240,7 +243,8 @@ impl Tx<'_> {
                 json_text(&tab.layout),
                 json_text(&tab.floating),
                 self.now_ms(),
-                tab.zoomed.map(|p| p.to_string())
+                tab.zoomed.map(|p| p.to_string()),
+                tab.hidden
             ],
         )?;
         Ok(())
@@ -387,7 +391,7 @@ impl Store {
 
         let mut statement = self.conn.prepare(
             "SELECT t.id, t.workspace_id, t.handle, t.name, t.sort_key, t.layout_json,
-                    t.floating_json, t.zoomed_pane
+                    t.floating_json, t.zoomed_pane, t.hidden
              FROM tabs t JOIN workspaces w ON w.id = t.workspace_id
              WHERE w.closed_at IS NULL ORDER BY t.workspace_id, t.sort_key, t.id",
         )?;
@@ -402,6 +406,7 @@ impl Store {
                 layout: json(&row.get::<_, String>(5)?, "tab layout")?,
                 floating: json(&row.get::<_, String>(6)?, "tab floating panes")?,
                 zoomed: optional_ulid(row.get(7)?, "zoomed pane")?,
+                hidden: row.get(8)?,
             });
         }
 

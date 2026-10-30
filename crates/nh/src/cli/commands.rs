@@ -288,3 +288,40 @@ pub fn events_tail(
 
 #[cfg(test)]
 mod tests;
+
+/// How often `nh workflow execute --wait` looks at the execution.
+const WORKFLOW_POLL: std::time::Duration = std::time::Duration::from_secs(1);
+
+/// `nh workflow execute --wait`: waits until the execution does not run, then prints its state and
+/// the path of `report.md`. A paused or cancelled execution is a failure.
+pub fn workflow_wait(
+    client: &mut Client,
+    output: &mut Output<'_>,
+    started: &Value,
+) -> Result<(), CliError> {
+    let execution = started["execution"].clone();
+    loop {
+        let shown = client.call(
+            "workflow.execution",
+            serde_json::json!({ "execution": execution }),
+        )?;
+        let state = shown["execution"]["state"].as_str().unwrap_or("running");
+        if state != "running" {
+            let result = serde_json::json!({
+                "execution": execution,
+                "label": shown["execution"]["label"],
+                "state": state,
+                "report": shown["execution"]["report"],
+            });
+            super::render::result(output, &result)?;
+            return match state {
+                "done" => Ok(()),
+                _ => Err(CliError::Failed(format!(
+                    "the execution is {state}: {}",
+                    shown["execution"]["label"].as_str().unwrap_or_default()
+                ))),
+            };
+        }
+        std::thread::sleep(WORKFLOW_POLL);
+    }
+}

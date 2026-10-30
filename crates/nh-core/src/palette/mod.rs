@@ -195,6 +195,13 @@ pub const COMMANDS: &[Spec] = &[
         Needs::Page,
     ),
     spec(
+        "workflows.open",
+        "Workflows: open the Workflows view",
+        "Go to",
+        Some("⌘⇧E"),
+        Needs::Page,
+    ),
+    spec(
         "settings.open",
         "Open settings",
         "App",
@@ -263,14 +270,18 @@ pub fn commands(layout: &Layout, degraded: Option<&str>) -> Vec<PaletteCommand> 
         ));
     }
     for workspace in &layout.workspaces {
-        for tab in &workspace.tabs {
+        for tab in workspace.tabs.iter().filter(|tab| !tab.hidden) {
             out.push(go(
                 format!("{GO_TAB}{}", tab.id),
                 format!("Go to tab {} / {}", workspace.name, tab.name),
             ));
         }
     }
-    for entry in layout.panes.values() {
+    for entry in layout
+        .panes
+        .values()
+        .filter(|entry| !layout.tab_hidden(entry.tab))
+    {
         let value = layout.pane_value(entry);
         let title = if value.title.is_empty() {
             format!("Go to pane {}", value.handle)

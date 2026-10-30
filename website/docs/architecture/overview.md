@@ -80,8 +80,8 @@ One module, [crates/nh-proto/src/paths.rs](https://github.com/nikodem-wrona/neoh
 
 | Root | macOS | Linux | Holds |
 |---|---|---|---|
-| Config | `~/.config/neohar` | `$XDG_CONFIG_HOME/neohar` | `config.toml`, `harnesses/*.toml` |
-| Data | `~/Library/Application Support/dev.neohar.app/<session>` | `$XDG_DATA_HOME/neohar/<session>` | `state.db`, `scrollback/`, `blobs/`, `logs/`, `shims/` |
+| Config | `~/.config/neohar` | `$XDG_CONFIG_HOME/neohar` | `config.toml`, `harnesses/*.toml`, `workflows/*.toml` |
+| Data | `~/Library/Application Support/dev.neohar.app/<session>` | `$XDG_DATA_HOME/neohar/<session>` | `state.db`, `scrollback/`, `blobs/`, `logs/`, `shims/`, `workflows/executions/` |
 | Runtime | `/tmp/neohar-$UID/<session>` | `$XDG_RUNTIME_DIR/neohar/<session>` | `api.sock`, `link.sock`, `holders/<pane>.sock`, `ssh/` |
 
 - The macOS runtime root is under `/tmp`, because a socket path under `$TMPDIR` is longer than the macOS limit of 103 bytes. The core uses it only if it is a real directory of the user with mode 0700. Another user can make it first, so the clients check it too before they connect (see the security model).

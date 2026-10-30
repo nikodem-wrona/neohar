@@ -29,10 +29,11 @@ Write the keys that you want to change in `~/.config/neohar/config.toml` (or `$N
 | [`[scrollback]`](#scrollback) | `max_bytes_per_pane` |
 | [`[daemon]`](#daemon) | `prevent_sleep` |
 | [`[git]`](#git) | `fetch_minutes` |
+| [`[workflows]`](#workflows) | `max_agents`, `time_limit_min`, `keep_executions` |
 | [`[phone]`](#phone) | `enabled`, `port`, `https_port`, `url`, `contact`, `keep_awake`, `font_size`, `keys` |
 | [`[ui]`](#ui) | `font_family`, `font_size`, `macos_option_as_alt`, `global_hotkey`, `editor`, `show_handles` |
 | [`[theme]`](#theme) | `bg`, `bg_raised`, `bg_hover`, `line`, `text`, `text_dim`, `accent`, `danger` |
-| [`[keys]`](#keys) | `palette_open`, `tab_next`, `tab_previous`, `pane_focus_left`, `pane_focus_right`, `pane_focus_up`, `pane_focus_down`, `pane_split_right`, `pane_split_down`, `inbox_open`, `interaction_answer_next`, `peek_sibling`, `search_open`, `git_open`, `window_new`, `pass_through` |
+| [`[keys]`](#keys) | `palette_open`, `tab_next`, `tab_previous`, `pane_focus_left`, `pane_focus_right`, `pane_focus_up`, `pane_focus_down`, `pane_split_right`, `pane_split_down`, `inbox_open`, `interaction_answer_next`, `peek_sibling`, `search_open`, `git_open`, `workflows_open`, `window_new`, `pass_through` |
 
 ## `[machines]` {#machines}
 
@@ -175,6 +176,21 @@ prevent_sleep = "while_agents_work"
 fetch_minutes = 10
 ```
 
+## `[workflows]` {#workflows}
+
+| Key | Default | Description |
+|---|---|---|
+| `max_agents` | `3` | The agents of one execution of a workflow that run at the same time. The other nodes that are ready wait for a free agent. |
+| `time_limit_min` | `60` | The time limit of an agent node, in minutes, when the node has none. Then the node fails. |
+| `keep_executions` | `100` | The executions that ended to keep, with their reports. The oldest go first. |
+
+```toml
+[workflows]
+max_agents = 3
+time_limit_min = 60
+keep_executions = 100
+```
+
 ## `[phone]` {#phone}
 
 | Key | Default | Description |
@@ -264,6 +280,7 @@ danger = "#ff5251"
 | `peek_sibling` | `"mod+shift+p"` |  |
 | `search_open` | `"mod+shift+f"` |  |
 | `git_open` | `"mod+shift+g"` |  |
+| `workflows_open` | `"mod+shift+e"` |  |
 | `window_new` | `"mod+shift+n"` |  |
 | `pass_through` | `"mod+alt+v"` | The chord that lets the next key reach the pane, also when it is reserved. |
 
@@ -283,6 +300,7 @@ interaction_answer_next = "mod+shift+a"
 peek_sibling = "mod+shift+p"
 search_open = "mod+shift+f"
 git_open = "mod+shift+g"
+workflows_open = "mod+shift+e"
 window_new = "mod+shift+n"
 pass_through = "mod+alt+v"
 ```
@@ -370,6 +388,15 @@ prevent_sleep = "while_agents_work"
 # or a token: it stops, and the view says so.
 fetch_minutes = 10
 
+[workflows]
+# The agents of one execution of a workflow that run at the same time. The other nodes that are
+# ready wait for a free agent.
+max_agents = 3
+# The time limit of an agent node, in minutes, when the node has none. Then the node fails.
+time_limit_min = 60
+# The executions that ended to keep, with their reports. The oldest go first.
+keep_executions = 100
+
 [phone]
 # The listener of the phone: the app or `nh daemon` serves the phone app on a port of
 # 127.0.0.1, and `tailscale serve` puts it on the tailnet with HTTPS.
@@ -447,6 +474,7 @@ interaction_answer_next = "mod+shift+a"
 peek_sibling = "mod+shift+p"
 search_open = "mod+shift+f"
 git_open = "mod+shift+g"
+workflows_open = "mod+shift+e"
 window_new = "mod+shift+n"
 # The chord that lets the next key reach the pane, also when it is reserved.
 pass_through = "mod+alt+v"

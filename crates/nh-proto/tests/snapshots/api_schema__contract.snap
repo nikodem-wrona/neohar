@@ -2623,6 +2623,220 @@ expression: document()
       ],
       "type": "object"
     },
+    "ExecutionId": {
+      "description": "The ULID of a workflow execution, as 26 characters.",
+      "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+      "type": "string"
+    },
+    "ExecutionNodeValue": {
+      "description": "One node of a `workflow_executions` row.",
+      "properties": {
+        "node": {
+          "description": "The id of the node in the graph of the execution.",
+          "type": "string"
+        },
+        "pane": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PaneId"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The pane of that agent run, while the agent runs."
+        },
+        "reason": {
+          "description": "Why the node failed, or what it waits for, as a person reads it.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "report": {
+          "description": "The absolute path of the report of the node.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "resumable": {
+          "default": false,
+          "description": "The agent of the node can start again with `workflow.continue`.",
+          "type": "boolean"
+        },
+        "run": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RunId"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The agent run of the node, while it has one."
+        },
+        "state": {
+          "$ref": "#/$defs/NodeState"
+        },
+        "time_text": {
+          "description": "The time of the node as a person reads it, for example \"6 min\".",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "verdict": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Verdict"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "node",
+        "state"
+      ],
+      "type": "object"
+    },
+    "ExecutionState": {
+      "description": "The state of an execution of a workflow.",
+      "oneOf": [
+        {
+          "const": "running",
+          "description": "A node works, or can start.",
+          "type": "string"
+        },
+        {
+          "const": "paused",
+          "description": "No node can start, and a node failed. Retry or skip the failed node, or cancel.",
+          "type": "string"
+        },
+        {
+          "const": "done",
+          "description": "Each node is done or skipped.",
+          "type": "string"
+        },
+        {
+          "const": "cancelled",
+          "description": "The person cancelled the execution.",
+          "type": "string"
+        }
+      ]
+    },
+    "ExecutionValue": {
+      "description": "`workflow_executions`: one execution of a workflow. The key is the id. The core orders\nthe rows, the newest first.",
+      "properties": {
+        "base": {
+          "description": "The base of the changes, for example `main`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "branch": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "dir": {
+          "description": "The folder of the files of the execution.",
+          "type": "string"
+        },
+        "ended_at": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "folder": {
+          "description": "The folder in which the agents work.",
+          "type": "string"
+        },
+        "head": {
+          "description": "The `HEAD` commit at the start, short.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "id": {
+          "$ref": "#/$defs/ExecutionId"
+        },
+        "label": {
+          "description": "The name of the execution, for example \"Review 3\".",
+          "type": "string"
+        },
+        "nodes": {
+          "description": "The nodes, in the order of the graph.",
+          "items": {
+            "$ref": "#/$defs/ExecutionNodeValue"
+          },
+          "type": "array"
+        },
+        "number": {
+          "description": "The number of the execution of this workflow, from 1.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "only": {
+          "description": "The node of \"Execute this node\", when the execution has only that node.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "report": {
+          "description": "The path of `report.md`, when a Report node wrote it.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "started_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "state": {
+          "$ref": "#/$defs/ExecutionState"
+        },
+        "time_text": {
+          "description": "The time and the length as a person reads it, for example \"14:12 · 14 min\".",
+          "type": "string"
+        },
+        "tree_changed": {
+          "default": false,
+          "description": "The `HEAD` commit or the changes of the worktree are different from the start.",
+          "type": "boolean"
+        },
+        "workflow": {
+          "description": "The name of the workflow file without `.toml`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "workflow",
+        "label",
+        "number",
+        "folder",
+        "state",
+        "nodes",
+        "started_at",
+        "time_text",
+        "dir"
+      ],
+      "type": "object"
+    },
     "Facet": {
       "enum": [
         "liveness",
@@ -6337,6 +6551,51 @@ expression: document()
       ],
       "type": "string"
     },
+    "NodeState": {
+      "description": "The state of one node in an execution.",
+      "oneOf": [
+        {
+          "const": "waiting",
+          "description": "An input is not done.",
+          "type": "string"
+        },
+        {
+          "const": "queued",
+          "description": "The inputs are done, and `workflows.max_agents` agents work.",
+          "type": "string"
+        },
+        {
+          "const": "working",
+          "description": "The agent of the node works.",
+          "type": "string"
+        },
+        {
+          "const": "needs_you",
+          "description": "The agent of the node has an open interaction.",
+          "type": "string"
+        },
+        {
+          "const": "done",
+          "description": "The report of the node exists.",
+          "type": "string"
+        },
+        {
+          "const": "failed",
+          "description": "The node failed. `reason` tells why.",
+          "type": "string"
+        },
+        {
+          "const": "skipped",
+          "description": "The person skipped the node.",
+          "type": "string"
+        },
+        {
+          "const": "cancelled",
+          "description": "The person cancelled the execution.",
+          "type": "string"
+        }
+      ]
+    },
     "NoticePayload": {
       "properties": {
         "resets_at": {
@@ -8333,7 +8592,7 @@ expression: document()
     },
     "Projection": {
       "description": "The name of a projection. timeline:<run>, pane_text:<pane>, agents_for:<window>, changes_for:<window>, changes_head:<window>, git_head:<window>, git_worktrees:<window>, git_branches:<window> and git_changes:<window> take an id.",
-      "pattern": "^(windows|tree|panes|agents|attention|interactions|notifications|machines|harnesses|limits|jobs|palette|settings|phones|phone_pairing|phone_status|git_repos|health|link|timeline:[0-9A-HJKMNP-TV-Z]{26}|pane_text:[0-9A-HJKMNP-TV-Z]{26}|agents_for:[0-9A-HJKMNP-TV-Z]{26}|changes_for:[0-9A-HJKMNP-TV-Z]{26}|changes_head:[0-9A-HJKMNP-TV-Z]{26}|git_head:[0-9A-HJKMNP-TV-Z]{26}|git_worktrees:[0-9A-HJKMNP-TV-Z]{26}|git_branches:[0-9A-HJKMNP-TV-Z]{26}|git_changes:[0-9A-HJKMNP-TV-Z]{26})$",
+      "pattern": "^(windows|tree|panes|agents|attention|interactions|notifications|machines|harnesses|limits|jobs|palette|settings|phones|phone_pairing|phone_status|git_repos|workflows|workflow_executions|health|link|timeline:[0-9A-HJKMNP-TV-Z]{26}|pane_text:[0-9A-HJKMNP-TV-Z]{26}|agents_for:[0-9A-HJKMNP-TV-Z]{26}|changes_for:[0-9A-HJKMNP-TV-Z]{26}|changes_head:[0-9A-HJKMNP-TV-Z]{26}|git_head:[0-9A-HJKMNP-TV-Z]{26}|git_worktrees:[0-9A-HJKMNP-TV-Z]{26}|git_branches:[0-9A-HJKMNP-TV-Z]{26}|git_changes:[0-9A-HJKMNP-TV-Z]{26})$",
       "type": "string"
     },
     "ProjectionData": {
@@ -10040,6 +10299,24 @@ expression: document()
       ],
       "type": "object"
     },
+    "Verdict": {
+      "description": "The last line of a report: `Verdict: pass`, `warn` or `fail`.",
+      "oneOf": [
+        {
+          "enum": [
+            "pass",
+            "warn",
+            "fail"
+          ],
+          "type": "string"
+        },
+        {
+          "const": "unknown",
+          "description": "The report has no verdict line.",
+          "type": "string"
+        }
+      ]
+    },
     "Via": {
       "description": "The surface a client answers from. The delivery record keeps it.",
       "oneOf": [
@@ -10392,6 +10669,758 @@ expression: document()
         "visible_panes",
         "focused",
         "visible"
+      ],
+      "type": "object"
+    },
+    "WorkflowContinue": {
+      "description": "`workflow.continue`: starts the agent of a node again with its resume handle, in a new\ntab that the window shows.",
+      "properties": {
+        "execution": {
+          "$ref": "#/$defs/ExecutionId"
+        },
+        "node": {
+          "type": "string"
+        },
+        "window": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WindowId"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The window that selects the new tab."
+        }
+      },
+      "required": [
+        "execution",
+        "node"
+      ],
+      "type": "object"
+    },
+    "WorkflowCopied": {
+      "description": "The result of `workflow.copy_to_folder`.",
+      "properties": {
+        "path": {
+          "description": "The absolute path of the copy.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "path"
+      ],
+      "type": "object"
+    },
+    "WorkflowCreate": {
+      "description": "`workflow.create`: a new workflow file. The name of the file comes from `name`.",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "preset": {
+          "description": "A preset workflow of `workflow.presets`, for example `review`. Without it, the workflow\nhas only the trigger.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "type": "object"
+    },
+    "WorkflowExecute": {
+      "description": "`workflow.execute`: starts an execution.",
+      "properties": {
+        "base": {
+          "description": "The base of the changes. Without it, the default of `workflow.facts`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "folder": {
+          "description": "The absolute path of the folder in which the agents work.",
+          "type": "string"
+        },
+        "node": {
+          "description": "Execute only this node, with the reports of the last execution in this folder as inputs.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "notes": {
+          "description": "What the person built and why. `{{start.notes}}` gives it to a prompt.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "workflow": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "workflow",
+        "folder"
+      ],
+      "type": "object"
+    },
+    "WorkflowExecuted": {
+      "description": "The result of `workflow.execute`.",
+      "properties": {
+        "execution": {
+          "$ref": "#/$defs/ExecutionId"
+        },
+        "label": {
+          "description": "The name of the execution, for example \"Review 3\".",
+          "type": "string"
+        }
+      },
+      "required": [
+        "execution",
+        "label"
+      ],
+      "type": "object"
+    },
+    "WorkflowExecutionEvent": {
+      "description": "The payload of `workflow.execution_started` and `workflow.execution_ended`.",
+      "properties": {
+        "execution": {
+          "$ref": "#/$defs/ExecutionId"
+        },
+        "state": {
+          "$ref": "#/$defs/ExecutionState"
+        },
+        "workflow": {
+          "description": "The name of the workflow file without `.toml`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "execution",
+        "workflow",
+        "state"
+      ],
+      "type": "object"
+    },
+    "WorkflowExecutionList": {
+      "description": "The result of `workflow.executions`.",
+      "properties": {
+        "executions": {
+          "items": {
+            "$ref": "#/$defs/ExecutionValue"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "executions"
+      ],
+      "type": "object"
+    },
+    "WorkflowExecutionRef": {
+      "description": "`workflow.execution`, `workflow.cancel`, `workflow.copy_to_folder`: one execution.",
+      "properties": {
+        "execution": {
+          "$ref": "#/$defs/ExecutionId"
+        }
+      },
+      "required": [
+        "execution"
+      ],
+      "type": "object"
+    },
+    "WorkflowExecutionShown": {
+      "description": "The result of `workflow.execution`: the execution and the graph that it runs.",
+      "properties": {
+        "execution": {
+          "$ref": "#/$defs/ExecutionValue"
+        },
+        "graph": {
+          "$ref": "#/$defs/WorkflowGraph"
+        }
+      },
+      "required": [
+        "execution",
+        "graph"
+      ],
+      "type": "object"
+    },
+    "WorkflowExecutions": {
+      "description": "`workflow.executions`: the executions, the newest first.",
+      "properties": {
+        "folder": {
+          "description": "Only the executions in this folder.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "type": "object"
+    },
+    "WorkflowFacts": {
+      "description": "The facts of a folder for an execution.",
+      "properties": {
+        "base": {
+          "description": "The default base: the default branch of `origin` (`origin/HEAD`), else `main` or `master`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "branch": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "folder": {
+          "type": "string"
+        },
+        "repo": {
+          "description": "The root of the git worktree that holds the folder.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "folder"
+      ],
+      "type": "object"
+    },
+    "WorkflowFactsGet": {
+      "description": "`workflow.facts`: what the dialog of an execution shows for a folder.",
+      "properties": {
+        "folder": {
+          "description": "An absolute path.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "folder"
+      ],
+      "type": "object"
+    },
+    "WorkflowGraph": {
+      "description": "The graph of a workflow.",
+      "properties": {
+        "name": {
+          "description": "The name, for example \"Review\".",
+          "type": "string"
+        },
+        "nodes": {
+          "items": {
+            "$ref": "#/$defs/WorkflowNode"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "name",
+        "nodes"
+      ],
+      "type": "object"
+    },
+    "WorkflowLayout": {
+      "description": "`workflow.layout`: gives each node a new position, one column for each depth, and saves.",
+      "properties": {
+        "revision": {
+          "type": "string"
+        },
+        "workflow": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "workflow",
+        "revision"
+      ],
+      "type": "object"
+    },
+    "WorkflowList": {
+      "description": "`workflow.list`: the workflows, as the `workflows` projection has them.",
+      "properties": {
+        "workflows": {
+          "items": {
+            "$ref": "#/$defs/WorkflowValue"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "workflows"
+      ],
+      "type": "object"
+    },
+    "WorkflowNode": {
+      "description": "A node of a workflow.",
+      "properties": {
+        "can_edit": {
+          "default": false,
+          "description": "Agent: the agent can edit files. Without it, the agent is read-only.",
+          "type": "boolean"
+        },
+        "effort": {
+          "description": "Agent: the effort level. Without it, the harness uses its own.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "harness": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Harness"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Agent: the harness."
+        },
+        "id": {
+          "description": "The id: `[a-z][a-z0-9_]*`, unique in the workflow. A reference names it, for example\n`{{code.report}}`.",
+          "type": "string"
+        },
+        "inputs": {
+          "default": [],
+          "description": "The ids of the nodes that connect to this node.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "kind": {
+          "$ref": "#/$defs/WorkflowNodeKind"
+        },
+        "model": {
+          "description": "Agent: the model, as the harness names it. Without it, the harness uses its own.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "prompt": {
+          "default": "",
+          "description": "Agent: the prompt, with references such as `{{start.base}}`.",
+          "type": "string"
+        },
+        "summary_by": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Harness"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Report: the harness that writes a summary at the top of `report.md`."
+        },
+        "summary_prompt": {
+          "description": "Report: the first part of the prompt of the summary. Without it, the core uses its own.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "time_limit_min": {
+          "description": "Agent: the time limit in minutes. Without it, `workflows.time_limit_min`.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "title": {
+          "default": "",
+          "description": "The title on the card. Without it, the card shows the id.",
+          "type": "string"
+        },
+        "x": {
+          "description": "The position on the canvas, in canvas units.",
+          "format": "int32",
+          "type": "integer"
+        },
+        "y": {
+          "format": "int32",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "x",
+        "y"
+      ],
+      "type": "object"
+    },
+    "WorkflowNodeEvent": {
+      "description": "The payload of `workflow.node_changed`.",
+      "properties": {
+        "execution": {
+          "$ref": "#/$defs/ExecutionId"
+        },
+        "node": {
+          "type": "string"
+        },
+        "reason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "run": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RunId"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The agent run of the node, while it has one."
+        },
+        "state": {
+          "$ref": "#/$defs/NodeState"
+        }
+      },
+      "required": [
+        "execution",
+        "node",
+        "state"
+      ],
+      "type": "object"
+    },
+    "WorkflowNodeKind": {
+      "description": "The kind of a node.",
+      "oneOf": [
+        {
+          "const": "manual",
+          "description": "The start of the workflow. Each workflow has exactly one.",
+          "type": "string"
+        },
+        {
+          "const": "agent",
+          "description": "Claude Code or Codex does the prompt of the node and gives a report.",
+          "type": "string"
+        },
+        {
+          "const": "report",
+          "description": "Writes `report.md` from the reports of its inputs.",
+          "type": "string"
+        }
+      ]
+    },
+    "WorkflowNodePreset": {
+      "description": "A node of the node picker.",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "label": {
+          "description": "The text of the picker, for example \"Security review\".",
+          "type": "string"
+        },
+        "node": {
+          "$ref": "#/$defs/WorkflowNode",
+          "description": "The node without `id`, `inputs` and position."
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "node"
+      ],
+      "type": "object"
+    },
+    "WorkflowNodeRef": {
+      "description": "`workflow.retry`, `workflow.skip`: one node of an execution.",
+      "properties": {
+        "execution": {
+          "$ref": "#/$defs/ExecutionId"
+        },
+        "node": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "execution",
+        "node"
+      ],
+      "type": "object"
+    },
+    "WorkflowNotes": {
+      "description": "The result of `workflow.notes_from`.",
+      "properties": {
+        "text": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "type": "object"
+    },
+    "WorkflowNotesFrom": {
+      "description": "`workflow.notes_from`: the prompts of an agent run, as one text for the notes.",
+      "properties": {
+        "agent": {
+          "$ref": "#/$defs/RefRunId"
+        }
+      },
+      "required": [
+        "agent"
+      ],
+      "type": "object"
+    },
+    "WorkflowPreset": {
+      "description": "A workflow that `workflow.create` can start from.",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "label"
+      ],
+      "type": "object"
+    },
+    "WorkflowPresets": {
+      "description": "`workflow.presets`: the items of the node picker and the preset workflows.",
+      "properties": {
+        "nodes": {
+          "items": {
+            "$ref": "#/$defs/WorkflowNodePreset"
+          },
+          "type": "array"
+        },
+        "workflows": {
+          "items": {
+            "$ref": "#/$defs/WorkflowPreset"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "nodes",
+        "workflows"
+      ],
+      "type": "object"
+    },
+    "WorkflowProblem": {
+      "description": "An error in a workflow. A workflow with errors can be saved, but not executed.",
+      "properties": {
+        "node": {
+          "description": "The node with the error, if the error is in one node.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "text": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "type": "object"
+    },
+    "WorkflowRef": {
+      "description": "`workflow.show`, `workflow.delete`, `workflow.duplicate`, `workflow.undo`, `workflow.redo`:\none workflow.",
+      "properties": {
+        "workflow": {
+          "description": "The name of the file without `.toml`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "workflow"
+      ],
+      "type": "object"
+    },
+    "WorkflowRename": {
+      "description": "`workflow.rename`: gives a workflow a new name, and its file the name that comes from it.",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "workflow": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "workflow",
+        "name"
+      ],
+      "type": "object"
+    },
+    "WorkflowReport": {
+      "description": "The result of `workflow.report`.",
+      "properties": {
+        "markdown": {
+          "$ref": "#/$defs/Markdown"
+        },
+        "path": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "path",
+        "markdown"
+      ],
+      "type": "object"
+    },
+    "WorkflowReportGet": {
+      "description": "`workflow.report`: a report of an execution.",
+      "properties": {
+        "execution": {
+          "$ref": "#/$defs/ExecutionId"
+        },
+        "node": {
+          "description": "The node. Without it, `report.md`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "execution"
+      ],
+      "type": "object"
+    },
+    "WorkflowReveal": {
+      "description": "`workflow.reveal`: the tab of the agent of a node shows in the tab bar, and the window\nselects it.",
+      "properties": {
+        "execution": {
+          "$ref": "#/$defs/ExecutionId"
+        },
+        "node": {
+          "type": "string"
+        },
+        "window": {
+          "$ref": "#/$defs/WindowId"
+        }
+      },
+      "required": [
+        "execution",
+        "node",
+        "window"
+      ],
+      "type": "object"
+    },
+    "WorkflowSave": {
+      "description": "`workflow.save`: writes the graph of a workflow.",
+      "properties": {
+        "graph": {
+          "$ref": "#/$defs/WorkflowGraph"
+        },
+        "revision": {
+          "description": "The revision that the change starts from. An older one answers `conflict`.",
+          "type": "string"
+        },
+        "workflow": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "workflow",
+        "revision",
+        "graph"
+      ],
+      "type": "object"
+    },
+    "WorkflowShown": {
+      "description": "A workflow and its errors: the result of `workflow.show` and of each change.",
+      "properties": {
+        "can_redo": {
+          "default": false,
+          "description": "`workflow.redo` has a version to go forward to.",
+          "type": "boolean"
+        },
+        "can_undo": {
+          "default": false,
+          "description": "`workflow.undo` has a version to go back to.",
+          "type": "boolean"
+        },
+        "graph": {
+          "$ref": "#/$defs/WorkflowGraph"
+        },
+        "path": {
+          "description": "The absolute path of the file.",
+          "type": "string"
+        },
+        "problems": {
+          "items": {
+            "$ref": "#/$defs/WorkflowProblem"
+          },
+          "type": "array"
+        },
+        "revision": {
+          "description": "The revision of the file. `workflow.save` takes it.",
+          "type": "string"
+        },
+        "workflow": {
+          "description": "The name of the file without `.toml`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "workflow",
+        "revision",
+        "graph",
+        "problems",
+        "path"
+      ],
+      "type": "object"
+    },
+    "WorkflowValue": {
+      "description": "`workflows`: a workflow file in `<config>/workflows/`. The key is the name of the file\nwithout `.toml`. The core orders the rows by name.",
+      "properties": {
+        "name": {
+          "description": "The name in the file, for example \"Review\".",
+          "type": "string"
+        },
+        "nodes": {
+          "description": "The number of nodes.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "problems": {
+          "description": "The number of errors. A workflow with errors cannot be executed.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "revision": {
+          "description": "The revision of the file, as `workflow.show` gives it.",
+          "type": "string"
+        },
+        "workflow": {
+          "description": "The name of the file without `.toml`. Calls name the workflow with it.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "workflow",
+        "name",
+        "nodes",
+        "problems",
+        "revision"
       ],
       "type": "object"
     },
@@ -11309,6 +12338,27 @@ expression: document()
       "kind": "git.pulled",
       "payload": {
         "$ref": "#/$defs/GitWrite"
+      },
+      "v": 1
+    },
+    {
+      "kind": "workflow.execution_started",
+      "payload": {
+        "$ref": "#/$defs/WorkflowExecutionEvent"
+      },
+      "v": 1
+    },
+    {
+      "kind": "workflow.node_changed",
+      "payload": {
+        "$ref": "#/$defs/WorkflowNodeEvent"
+      },
+      "v": 1
+    },
+    {
+      "kind": "workflow.execution_ended",
+      "payload": {
+        "$ref": "#/$defs/WorkflowExecutionEvent"
       },
       "v": 1
     }
@@ -12888,6 +13938,313 @@ expression: document()
       ]
     },
     {
+      "name": "workflow.list",
+      "params": {
+        "$ref": "#/$defs/Empty"
+      },
+      "result": {
+        "$ref": "#/$defs/WorkflowList"
+      },
+      "scopes": [
+        "ui",
+        "cli",
+        "phone"
+      ]
+    },
+    {
+      "name": "workflow.show",
+      "params": {
+        "$ref": "#/$defs/WorkflowRef"
+      },
+      "result": {
+        "$ref": "#/$defs/WorkflowShown"
+      },
+      "scopes": [
+        "ui",
+        "phone"
+      ]
+    },
+    {
+      "name": "workflow.create",
+      "params": {
+        "$ref": "#/$defs/WorkflowCreate"
+      },
+      "result": {
+        "$ref": "#/$defs/WorkflowShown"
+      },
+      "scopes": [
+        "ui",
+        "phone"
+      ]
+    },
+    {
+      "name": "workflow.save",
+      "params": {
+        "$ref": "#/$defs/WorkflowSave"
+      },
+      "result": {
+        "$ref": "#/$defs/WorkflowShown"
+      },
+      "scopes": [
+        "ui",
+        "phone"
+      ]
+    },
+    {
+      "name": "workflow.rename",
+      "params": {
+        "$ref": "#/$defs/WorkflowRename"
+      },
+      "result": {
+        "$ref": "#/$defs/WorkflowShown"
+      },
+      "scopes": [
+        "ui",
+        "phone"
+      ]
+    },
+    {
+      "name": "workflow.duplicate",
+      "params": {
+        "$ref": "#/$defs/WorkflowRef"
+      },
+      "result": {
+        "$ref": "#/$defs/WorkflowShown"
+      },
+      "scopes": [
+        "ui",
+        "phone"
+      ]
+    },
+    {
+      "name": "workflow.delete",
+      "params": {
+        "$ref": "#/$defs/WorkflowRef"
+      },
+      "result": {
+        "$ref": "#/$defs/Empty"
+      },
+      "scopes": [
+        "ui",
+        "phone"
+      ]
+    },
+    {
+      "name": "workflow.undo",
+      "params": {
+        "$ref": "#/$defs/WorkflowRef"
+      },
+      "result": {
+        "$ref": "#/$defs/WorkflowShown"
+      },
+      "scopes": [
+        "ui",
+        "phone"
+      ]
+    },
+    {
+      "name": "workflow.redo",
+      "params": {
+        "$ref": "#/$defs/WorkflowRef"
+      },
+      "result": {
+        "$ref": "#/$defs/WorkflowShown"
+      },
+      "scopes": [
+        "ui",
+        "phone"
+      ]
+    },
+    {
+      "name": "workflow.layout",
+      "params": {
+        "$ref": "#/$defs/WorkflowLayout"
+      },
+      "result": {
+        "$ref": "#/$defs/WorkflowShown"
+      },
+      "scopes": [
+        "ui",
+        "phone"
+      ]
+    },
+    {
+      "name": "workflow.presets",
+      "params": {
+        "$ref": "#/$defs/Empty"
+      },
+      "result": {
+        "$ref": "#/$defs/WorkflowPresets"
+      },
+      "scopes": [
+        "ui",
+        "phone"
+      ]
+    },
+    {
+      "name": "workflow.facts",
+      "params": {
+        "$ref": "#/$defs/WorkflowFactsGet"
+      },
+      "result": {
+        "$ref": "#/$defs/WorkflowFacts"
+      },
+      "scopes": [
+        "ui",
+        "phone"
+      ]
+    },
+    {
+      "name": "workflow.execute",
+      "params": {
+        "$ref": "#/$defs/WorkflowExecute"
+      },
+      "result": {
+        "$ref": "#/$defs/WorkflowExecuted"
+      },
+      "scopes": [
+        "ui",
+        "cli",
+        "phone"
+      ]
+    },
+    {
+      "name": "workflow.notes_from",
+      "params": {
+        "$ref": "#/$defs/WorkflowNotesFrom"
+      },
+      "result": {
+        "$ref": "#/$defs/WorkflowNotes"
+      },
+      "scopes": [
+        "ui",
+        "phone"
+      ]
+    },
+    {
+      "name": "workflow.executions",
+      "params": {
+        "$ref": "#/$defs/WorkflowExecutions"
+      },
+      "result": {
+        "$ref": "#/$defs/WorkflowExecutionList"
+      },
+      "scopes": [
+        "ui",
+        "cli",
+        "phone"
+      ]
+    },
+    {
+      "name": "workflow.execution",
+      "params": {
+        "$ref": "#/$defs/WorkflowExecutionRef"
+      },
+      "result": {
+        "$ref": "#/$defs/WorkflowExecutionShown"
+      },
+      "scopes": [
+        "ui",
+        "cli",
+        "phone"
+      ]
+    },
+    {
+      "name": "workflow.report",
+      "params": {
+        "$ref": "#/$defs/WorkflowReportGet"
+      },
+      "result": {
+        "$ref": "#/$defs/WorkflowReport"
+      },
+      "scopes": [
+        "ui",
+        "cli",
+        "phone"
+      ]
+    },
+    {
+      "name": "workflow.retry",
+      "params": {
+        "$ref": "#/$defs/WorkflowNodeRef"
+      },
+      "result": {
+        "$ref": "#/$defs/Empty"
+      },
+      "scopes": [
+        "ui",
+        "cli",
+        "phone"
+      ]
+    },
+    {
+      "name": "workflow.skip",
+      "params": {
+        "$ref": "#/$defs/WorkflowNodeRef"
+      },
+      "result": {
+        "$ref": "#/$defs/Empty"
+      },
+      "scopes": [
+        "ui",
+        "cli",
+        "phone"
+      ]
+    },
+    {
+      "name": "workflow.cancel",
+      "params": {
+        "$ref": "#/$defs/WorkflowExecutionRef"
+      },
+      "result": {
+        "$ref": "#/$defs/Empty"
+      },
+      "scopes": [
+        "ui",
+        "cli",
+        "phone"
+      ]
+    },
+    {
+      "name": "workflow.continue",
+      "params": {
+        "$ref": "#/$defs/WorkflowContinue"
+      },
+      "result": {
+        "$ref": "#/$defs/JobStarted"
+      },
+      "scopes": [
+        "ui",
+        "phone"
+      ]
+    },
+    {
+      "name": "workflow.reveal",
+      "params": {
+        "$ref": "#/$defs/WorkflowReveal"
+      },
+      "result": {
+        "$ref": "#/$defs/Empty"
+      },
+      "scopes": [
+        "ui",
+        "phone"
+      ]
+    },
+    {
+      "name": "workflow.copy_to_folder",
+      "params": {
+        "$ref": "#/$defs/WorkflowExecutionRef"
+      },
+      "result": {
+        "$ref": "#/$defs/WorkflowCopied"
+      },
+      "scopes": [
+        "ui",
+        "phone"
+      ]
+    },
+    {
       "name": "events.subscribe",
       "params": {
         "$ref": "#/$defs/EventsSubscribe"
@@ -13654,6 +15011,24 @@ expression: document()
       "singleton": false,
       "value": {
         "$ref": "#/$defs/ChangeRow"
+      }
+    },
+    {
+      "key": "file name",
+      "name": "workflows",
+      "parameter": null,
+      "singleton": false,
+      "value": {
+        "$ref": "#/$defs/WorkflowValue"
+      }
+    },
+    {
+      "key": "execution id",
+      "name": "workflow_executions",
+      "parameter": null,
+      "singleton": false,
+      "value": {
+        "$ref": "#/$defs/ExecutionValue"
       }
     }
   ],

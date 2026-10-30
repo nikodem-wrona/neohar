@@ -243,6 +243,23 @@ fn dispatch(
             commands::events_tail(&mut client, output, tail)
         }
         ("config", "edit") => commands::config_edit(&mut client, output, env),
+        ("workflow", "execute") => {
+            let found = verbs::VERBS
+                .iter()
+                .find(|v| v.noun == "workflow" && v.name == "execute")
+                .ok_or_else(|| CliError::Usage("no command workflow execute".to_owned()))?;
+            let verb_matches =
+                sub_matches.ok_or_else(|| CliError::Usage("name a command".to_owned()))?;
+            let cwd = std::env::current_dir().unwrap_or_default();
+            let params = verbs::params(doc, found, verb_matches, &cwd)?;
+            let started = client.call(found.method, params)?;
+            if verb_matches.get_flag("wait") {
+                commands::workflow_wait(&mut client, output, &started)
+            } else {
+                render::result(output, &started)?;
+                Ok(())
+            }
+        }
         (noun, verb) if verbs::is_noun(noun) => {
             let found = verbs::VERBS
                 .iter()

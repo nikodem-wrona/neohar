@@ -47,7 +47,8 @@ fn without_a_file_every_setting_has_its_default_and_no_warning() {
             "policy",
             "scrollback",
             "theme",
-            "ui"
+            "ui",
+            "workflows"
         ]
     );
     assert_eq!(sections["approvals"].entries["mode"].value, json!("auto"));
@@ -398,7 +399,7 @@ fn the_settings_projection_has_a_row_for_each_section() {
     store.publish(&hub);
     hub.flush();
     let published = hub.snapshot(Projection::Settings);
-    assert_eq!(published.order.len(), 11);
+    assert_eq!(published.order.len(), 12);
     let approvals = &published.items["approvals"];
     assert_eq!(
         approvals["entries"]["mode"],

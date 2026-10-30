@@ -8,7 +8,7 @@ neohar has one configuration file, `config.toml`, that holds only what you chang
 
 ## Where the file is
 
-`~/.config/neohar/config.toml` on macOS and Linux, or `$XDG_CONFIG_HOME/neohar/` when that is set, or `$NEOHAR_CONFIG_DIR/` in tests and the dev app. Every session reads the same file. A missing file means the defaults. The same directory holds `harnesses/*.toml`, the manifests of wrapper scripts around `claude` and `codex`.
+`~/.config/neohar/config.toml` on macOS and Linux, or `$XDG_CONFIG_HOME/neohar/` when that is set, or `$NEOHAR_CONFIG_DIR/` in tests and the dev app. Every session reads the same file. A missing file means the defaults. The same directory holds `harnesses/*.toml`, the manifests of wrapper scripts around `claude` and `codex`, and `workflows/*.toml`, the [workflows](/docs/guides/workflows).
 
 ## How the core reads it
 
@@ -69,6 +69,8 @@ editor = "Zed"
 | `[agents]` | `shims` (put the `claude` and `codex` shims first in the `PATH` of each pane) and `resume_on_launch` (`ask`, `always` or `never`) |
 | `[agents.harness.claude]`, `[agents.harness.codex]` | `billing`: `api` (show a cost) or `subscription` (tokens only) |
 | `[daemon]` | `prevent_sleep`: when `nh daemon` keeps the Mac awake |
+| `[git]` | `fetch_minutes` (`10`): how often the Git view fetches in the background. `0` turns it off |
+| `[workflows]` | `max_agents` (`3`) for each execution, `time_limit_min` (`60`) of an agent node, `keep_executions` (`100`). See [Workflows](/docs/guides/workflows) |
 | `[phone]` | The phone listener: `enabled` (default `false`), `port` on `127.0.0.1` (`47310`), `https_port` of `tailscale serve` (`8443`), `url` (the HTTPS origin of the phone), `contact` (the `sub` of a push), `keep_awake`, and the `font_size` and `keys` of the phone app |
 | `[ui]` | `font_family`, `font_size`, `macos_option_as_alt`, `global_hotkey`, `editor` (the app that opens a file of the Files tab), `show_handles` (show `w3:t2` and `w3:p5` in the window) |
 | `[theme]` | Eight CSS colours of the window chrome |

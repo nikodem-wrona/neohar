@@ -39,6 +39,7 @@ fn tab(n: u128, workspace: u128, handle: &str, position: u32, pane: u128) -> Tab
         layout: json!({"type": "pane", "pane": id(pane).to_string()}),
         floating: json!([]),
         zoomed: None,
+        hidden: false,
     }
 }
 
