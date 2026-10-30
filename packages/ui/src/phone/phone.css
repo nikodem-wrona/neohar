@@ -1,5 +1,6 @@
-/* The phone app. These rules come after the styles of the chrome, with no layer, so they
-   win over every layer of it. The colours are the tokens of `styles/tokens.css`, and `/theme.css`
+/* The phone app. These rules come after the styles of the chrome, in the layer `phone`
+   (`phone/layer.css`), so they win over every layer of the chrome and lose to the utilities of
+   Tailwind CSS (`styles/index.css`). The colours are the tokens of `styles/tokens.css`, and `/theme.css`
    of the listener sets them before the socket opens.
 
    Two parts: the views of a phone alone (Pair, This phone, the waits), in a box `.phone` with a
@@ -149,14 +150,6 @@
 /* Every field has a font of 16 px: Safari zooms into a field with a smaller one. */
 .shell.phone :is(input:not([type='checkbox']):not([type='radio']), textarea, select) {
   font-size: 16px;
-}
-
-/* The toasts lie over the pane, above the bottom bar, from edge to edge. */
-.shell.phone .toaster {
-  left: max(var(--gutter), env(safe-area-inset-left));
-  right: max(var(--gutter), env(safe-area-inset-right));
-  bottom: calc(max(var(--gutter), env(safe-area-inset-bottom)) + var(--control) + var(--s2));
-  width: auto;
 }
 
 /* The command line: Workspaces, the search field, and the attention pill. */

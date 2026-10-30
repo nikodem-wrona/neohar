@@ -38,7 +38,7 @@ of the core and sends a command for each action of the person
 | Drawer | `shell/Drawer.tsx` | Four tabs (below). Under 1280 px it starts folded to a rail. It never covers a pane |
 | Status bar | `shell/StatusBar.tsx` | Function keys (the reserved chords as clickable gray key caps; Answer is amber while an agent waits), harness limits, health warnings, `canvas2d` after a fallback, the machine, and after a rule the switches of the Git view and the Workflows view. The left column and the drawer fold and open from their arrows and rails. The Workflows switch has a dot while an execution is paused or waits for the person |
 | Banners | `shell/HealthBanner.tsx`, `shell/LinkBanner.tsx` | Degraded storage and doctor notes; a link to a remote machine that is down (input is off while it is) |
-| Toasts | `app/toasts.ts`, `kit/Toaster.tsx` | Short messages in the bottom right corner, such as an answer that arrived. Each one goes after 5 s, but not while the pointer is on the toasts |
+| Toasts | `app/toasts.ts`, `shell/Toasts.tsx` | Short messages in the bottom right corner, such as an answer that arrived, in the Toaster of shadcn/ui (Sonner). `app/toasts.ts` keeps the text, the time and the limit of 3. Each one goes after 5 s, but not while the pointer is on the toasts |
 | Dialogs | `palette/`, `shell/CloseConfirm.tsx` | The palette (`⌘K`), the close confirmation |
 
 The widths of the left column and the drawer are in characters; a drag of the rule changes them,
@@ -86,7 +86,7 @@ requests. The title strip says what the board does not: the dot of the state, th
 handle, `WAIT` or `ERR`, a badge with the mark and the name of the harness (Claude Code or Codex),
 a dim `?` for an unvalidated version, a `yolo` tag, the title (not when it only names the
 harness), the unconfirmed-input marker, and buttons for the details, float, zoom and close. The
-details button (`i`) opens a popover (`kit/Popover.tsx`, rows from `layout/details.ts`) with the
+details button (`i`) opens a popover (`components/ui/popover.tsx`, rows from `layout/details.ts`) with the
 title, the working directory, the model, the version, the cost, the tokens, the session, and the
 handle and size of the pane. The working directory and the session have a copy button. A click on
 `i` again, a click outside or Escape closes the popover. Strips in the pane answer
@@ -125,7 +125,7 @@ diff and the last lines of the pane, with Allow, "Allow `<rule>` always" (only w
 `always_rule`), Deny, and Deny and stop. The keys 1 to 4 name the four answers, and a key stays
 with its button when "Allow always" is not there. At a high risk Deny is preselected, a number
 only selects its button, and only Enter on a button answers. A question shows each option as a
-choice card, with a field for free text. A choice clears the text and text clears the choices,
+choice with a radio button (a checkbox for a multi-select question), with a field for free text. A choice clears the text and text clears the choices,
 because keys type one of the two into the dialog of the harness. A plan review has the plan and a feedback box, and a
 notice has Open and Dismiss.
 
@@ -168,17 +168,33 @@ focus, visibility, the active pane, the refresh rate), and the host joins it wit
 state. The core counts a pane as focused after 500 ms. That decides the gate: an approval
 for an unfocused pane is held as a card or notification, and focusing the pane releases it to the
 harness's own dialog ([interactions](/docs/agents/interactions)). Looking at a card never focuses
-its pane.
+its pane. While a layer of shadcn/ui (a popover, a menu, a dialog) is open, the pane does not take
+the focus back. Radix closes a layer when the focus leaves it. The layer tells the view
+with `useLayer` (`app/layer.ts`), and `view.layers` counts the open layers.
 
 ## Theme, fonts and accessibility
 
 - **Theme.** The `[theme]` section holds the colours of the chrome; the shell sets them as CSS
   variables (`bg_raised` becomes `--bg-raised`) over the defaults of `styles/tokens.css`. The
   default is black and white, with green for what is live, amber for an agent that waits and red
-  for an error; `styles/contrast.test.ts` checks every pair at 4.5:1. The styles are in
-  `packages/ui/src/styles/`, one file for each area, in cascade layers. The components of `kit/`
-  (badge, button, field, choice card, toasts) copy the shapes of shadcn/ui and use the colours of
-  the tokens (`styles/kit.css`). The terminal palette comes with the frames of each pane.
+  for an error; `styles/contrast.test.ts` checks every pair at 4.5:1. The terminal palette comes
+  with the frames of each pane.
+- **Styles.** The styles are in `packages/ui/src/styles/`, one file for each area. `styles/index.css`
+  puts them in cascade layers in this order: `theme`, `reset`, `tokens`, `base`, `layout`,
+  `components`, `states`, `phone`, `utilities`. A later layer wins, so the Tailwind utilities win
+  over the rules of the chrome. The phone app adds `phone.css` in the layer `phone`
+  (`phone/layer.css`).
+- **Components.** The controls are shadcn/ui components in `packages/ui/src/components/ui/`
+  (button, badge, input, label, radio group, checkbox, popover, sonner). The badge has the tones of
+  neohar as variants: neutral (the default), muted, info, ok, warn and error. `cn()` in
+  `lib/utils.ts` joins classes with `clsx` and `tailwind-merge`. `@/` is `packages/ui/src`.
+- **Tailwind CSS 4.** `@tailwindcss/vite` builds it for the desk, the phone and the shell test.
+  `styles/theme.css` holds the theme, the utilities and `tw-animate-css`. Its `@theme inline` maps
+  the colour names of shadcn/ui to the tokens of `tokens.css`, so a theme of the person changes the
+  components too. The names are not variables on the root element, because `--accent` is the
+  accent of the chrome that the core sets. There is no Tailwind preflight. The parts of a shadcn/ui
+  component (`data-slot`) get a small reset in the layer `reset`. The chrome is dark only, so the
+  variant `dark:` always applies.
 - **Fonts.** `ui.font_family` and `ui.font_size` set the surface font; the default list starts
   with Hack Nerd Font Mono and falls back to Menlo. The page loads the faces that the host serves
   over `nh://font/` before it measures cells. The data of the chrome (state codes, costs,

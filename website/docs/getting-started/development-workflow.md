@@ -67,7 +67,8 @@ has the full rules, and the public interface that a breaking change changes.
   comment on every `unsafe` block. Wire types live only in `nh-proto`, and the `holder` and `frame`
   modules change only by appends.
 - **TypeScript**: strict, with `noUncheckedIndexedAccess`. `packages/ui` imports only
-  `packages/transport`, `packages/proto-wasm`, `react` and `react-dom/client`. ESLint enforces the
+  `packages/transport`, `packages/proto-wasm`, `react`, `react-dom/client` and the packages of
+  shadcn/ui. ESLint enforces the
   thin-presentation rule and the rules of hooks (`rules-of-hooks` and `exhaustive-deps` are
   errors). Pure view mappers in `model.ts` files are permitted ([Desktop app](/docs/desktop/overview)).
 - **Tests**: `cargo nextest`, `proptest`, `insta`. Integration tests that need the `nh` binary are in

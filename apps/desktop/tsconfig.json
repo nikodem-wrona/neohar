@@ -3,7 +3,10 @@
   "compilerOptions": {
     "lib": ["ES2023", "DOM", "DOM.Iterable"],
     "types": ["vite/client"],
-    "jsx": "react-jsx"
+    "jsx": "react-jsx",
+    "paths": {
+      "@/*": ["../../packages/ui/src/*"]
+    }
   },
   "include": ["src", "vite.config.ts"]
 }

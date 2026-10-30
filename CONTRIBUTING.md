@@ -139,11 +139,12 @@ The release script writes the section of `CHANGELOG.md` from the commits since t
 
 ### UI
 
-- The UI uses React 19 and TypeScript, Vite and Bun. Do not add `StrictMode`: it runs each effect two times, and a second attach of a pane loses its screen.
-- `packages/ui` can import only `react`, `react-dom/client`, `@neohar/transport`, `@neohar/proto-wasm` and relative modules. The ESLint rule `neohar/ui-imports` enforces this.
+- The UI uses React 19 and TypeScript, shadcn/ui on Radix and Tailwind CSS 4, Vite and Bun. Do not add `StrictMode`: it runs each effect two times, and a second attach of a pane loses its screen.
+- `packages/ui` can import only `react`, `react-dom/client`, the packages of shadcn/ui (see the last item), `@neohar/transport`, `@neohar/proto-wasm`, `@/…` (`packages/ui/src`, as the shadcn/ui CLI writes it) and relative modules. The ESLint rule `neohar/ui-imports` enforces this.
 - The rules `react-hooks/rules-of-hooks` and `react-hooks/exhaustive-deps` are errors in `packages/ui`.
 - Do not use `onBeforeInput`. React makes it from other events, and it is not the native `beforeinput`. Use `addEventListener('beforeinput', …)`. The ESLint rule `neohar/no-synthetic-beforeinput` enforces this.
-- Make each new component from its equivalent in [shadcn/ui](https://ui.shadcn.com/). `neohar/ui-imports` refuses an import of a shadcn package. Thus, port the component to React in `packages/ui/src/kit/` and use the tokens of `styles/tokens.css`. Its styles go in `styles/kit.css`, with the class prefix `ui-`. Before you add a component, look in `kit/` for one that you can use or extend.
+- Use [shadcn/ui](https://ui.shadcn.com/) for each component that it has. To add one, run `bunx shadcn@latest add <name>` in `packages/ui`. The command writes it to `packages/ui/src/components/ui/`. Before you add a component, look in `components/ui/` for one that you can use or extend. Do not make a button, a field, a dialog, a menu or another control by hand when shadcn/ui has it. When shadcn/ui has no equivalent, make the component from shadcn components and Radix primitives. Use Tailwind classes and the theme variables of `styles/tokens.css`. You can change a file in `components/ui/` for neohar, but keep its props. A component shows the results and the order that the core gives: do not filter or sort in it (for example, set `shouldFilter={false}` on `Command`). `neohar/ui-imports` allows only the packages of shadcn/ui: `radix-ui`, `class-variance-authority`, `clsx`, `tailwind-merge`, `lucide-react`, `cmdk` and `sonner`. A new package needs a change of that list.
+- After `bunx shadcn add`, examine the new file and `packages/ui/package.json`. The CLI can write `import { cn } from "cn"` and add the npm package `cn`: change the import to `@/lib/utils`, and remove the package. The window has a dark theme only, so a component does not use `next-themes`. A shadcn/ui layer (a popover, a menu, a dialog) calls `useLayer(open)` (`app/layer.ts`), so that the pane does not take the focus from it.
 
 ### The thin-presentation rule
 

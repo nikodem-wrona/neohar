@@ -1,10 +1,10 @@
-// The badge of a harness: its mark and its name in a Badge of the kit, so the strip of a pane says
+// The badge of a harness: its mark and its name in a Badge of shadcn/ui, so the strip of a pane says
 // at a glance if Claude Code or Codex runs in it. The mark of Claude Code is a spark, the mark of
 // Codex is a prompt, and another harness has a dot. The marks take the colour of the text: a colour
 // in the chrome tells a state, not a harness. The tooltip is the one of the badge of the run.
 
 import type { AgentValue } from '@neohar/transport';
-import { Badge } from '../kit/Badge';
+import { Badge } from '../components/ui/badge';
 import { badgeOf, harnessName } from './badge';
 
 export function HarnessBadge(props: { run: AgentValue; className?: string | undefined }) {

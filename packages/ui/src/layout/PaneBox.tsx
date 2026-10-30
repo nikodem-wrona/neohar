@@ -18,11 +18,12 @@ import { Fragment, memo, useCallback, useRef, useState } from 'react';
 import { badgeOf, harnessName } from '../agents/badge';
 import { HarnessBadge } from '../agents/HarnessBadge';
 import { useApp } from '../app/context';
+import { useLayer } from '../app/layer';
 import { paneName, showHandles } from '../app/preferences';
 import { dragged, dropTarget, pressToDrag } from '../app/drag';
-import { Badge } from '../kit/Badge';
-import { Button } from '../kit/Button';
-import { Popover } from '../kit/Popover';
+import { Badge } from '../components/ui/badge';
+import { Button } from '../components/ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '../components/ui/popover';
 import { useLatest, useSelect, useValue } from '../lib/hooks';
 import { cn } from '../lib/utils';
 import { Surface } from '../pane/Surface';
@@ -127,8 +128,8 @@ export const PaneBox = memo(function PaneBox(props: {
     [input, report, latest],
   );
   // The details of the pane: a popover under the button i.
-  const detailsId = `pane-details-${props.id}`;
   const [detailsOpen, setDetailsOpen] = useState(false);
+  useLayer(detailsOpen);
   const details = pane ? paneDetails(pane, run) : [];
   const copyDetail = (label: string, value: string): void => {
     writeClipboard(Promise.resolve(value))
@@ -214,245 +215,264 @@ export const PaneBox = memo(function PaneBox(props: {
       onPointerDown={focus}
       ref={target}
     >
-      <header
-        className="pane-title"
-        onPointerDown={(event) => {
-          // A floating pane moves by its strip in the tab, and a button of the strip only clicks.
-          // The strip of the single view takes a swipe, not a drag.
-          if (props.single || floating || zoomed || (event.target as Element).closest('button'))
-            return;
-          pressToDrag(event.nativeEvent, { kind: 'pane', id: props.id });
-        }}
-        onTouchStart={(event) => {
-          if (props.single) swipeX.current = event.touches[0]?.clientX ?? null;
-        }}
-        onTouchEnd={(event) => {
-          const endX = event.changedTouches[0]?.clientX;
-          const startX = swipeX.current;
-          if (startX !== null && endX !== undefined) {
-            if (endX - startX <= -SWIPE) show(1);
-            else if (endX - startX >= SWIPE) show(-1);
-          }
-          swipeX.current = null;
-        }}
-      >
-        {siblings.length > 1 ? (
-          <span
-            className="pane-dots"
-            role="img"
-            aria-label={`Pane ${place + 1} of ${siblings.length}`}
-          >
-            {siblings.map((id) => (
-              <span key={id} className={cn('pane-dot', { current: id === props.id })} />
-            ))}
-          </span>
-        ) : null}
-        {badge ? <span className="pane-edge" data-code={badge.code} aria-hidden="true" /> : null}
-        {handles ? <span className="pane-handle">{pane?.handle}</span> : null}
-        {run && badge ? (
-          <>
-            {['WAIT', 'ERR'].includes(badge.code) ? (
-              <span className="pane-state" data-code={badge.code}>
-                {badge.code}
-              </span>
-            ) : null}
-            <HarnessBadge run={run} className="pane-harness" />
-            {badge.unvalidated ? (
-              <span
-                className="pane-unvalidated"
-                role="img"
-                aria-label="Version not validated"
-                title={`This version of ${harnessName(run.harness)} is not validated: answers from neohar may not reach it.`}
-              >
-                ?
-              </span>
-            ) : null}
-            {run.yolo ? (
-              <Badge tone="muted" className="pane-yolo" title="No approval dialogs">
-                yolo
-              </Badge>
-            ) : null}
-          </>
-        ) : null}
-        {title ? <span className="pane-name">{title}</span> : null}
-        {unconfirmed > 0 ? (
-          <span
-            className="pane-unconfirmed"
-            role="status"
-            title={`Input that may not have arrived: ${pane?.input_unconfirmed?.join(', ')}`}
-          >
-            ? {pane?.input_unconfirmed?.length}
-          </span>
-        ) : null}
-        {dropped ? (
-          <span
-            className="pane-clipboard-dropped"
-            role="status"
-            title={`A program wrote ${dropped.bytes} bytes to the clipboard, and the client that typed last is not connected. The text was dropped.`}
-          >
-            clipboard dropped
-          </span>
-        ) : null}
-        {otherSize ? (
-          <button
-            type="button"
-            className="pane-size"
-            data-action="fit"
-            title="Another window has the size of this terminal. Fit it to this window."
-            onClick={fit}
-          >
-            Fit
-          </button>
-        ) : null}
-        <span className="pane-spacer" />
-        <button
-          type="button"
-          className="pane-button"
-          data-action="details"
-          popoverTarget={detailsId}
-          aria-expanded={detailsOpen}
-          aria-label="Pane details"
-          title="Pane details"
+      <Popover open={detailsOpen} onOpenChange={setDetailsOpen}>
+        <header
+          className="pane-title"
+          onPointerDown={(event) => {
+            // A floating pane moves by its strip in the tab, and a button of the strip only clicks.
+            // The strip of the single view takes a swipe, not a drag.
+            if (props.single || floating || zoomed || (event.target as Element).closest('button'))
+              return;
+            pressToDrag(event.nativeEvent, { kind: 'pane', id: props.id });
+          }}
+          onTouchStart={(event) => {
+            if (props.single) swipeX.current = event.touches[0]?.clientX ?? null;
+          }}
+          onTouchEnd={(event) => {
+            const endX = event.changedTouches[0]?.clientX;
+            const startX = swipeX.current;
+            if (startX !== null && endX !== undefined) {
+              if (endX - startX <= -SWIPE) show(1);
+              else if (endX - startX >= SWIPE) show(-1);
+            }
+            swipeX.current = null;
+          }}
         >
-          <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
-            <circle cx="8" cy="8" r="6.25" fill="none" stroke="currentColor" strokeWidth="1.3" />
-            <path d="M8 7.25V11.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-            <circle cx="8" cy="4.9" r="0.95" fill="currentColor" />
-          </svg>
-        </button>
-        {phone ? (
-          <>
-            <button
-              type="button"
-              className="pane-button"
-              data-action="menu"
-              aria-label="Pane actions"
-              aria-haspopup="menu"
-              onClick={(event) => {
-                const box = event.currentTarget.getBoundingClientRect();
-                openMenu(box.right - 220, box.bottom);
-              }}
+          {siblings.length > 1 ? (
+            <span
+              className="pane-dots"
+              role="img"
+              aria-label={`Pane ${place + 1} of ${siblings.length}`}
             >
-              <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
-                <circle cx="3" cy="8" r="1.4" fill="currentColor" />
-                <circle cx="8" cy="8" r="1.4" fill="currentColor" />
-                <circle cx="13" cy="8" r="1.4" fill="currentColor" />
-              </svg>
-            </button>
-            <input
-              ref={attach}
-              className="pane-attach"
-              type="file"
-              multiple
-              hidden
-              aria-label="Files to attach"
-              onChange={(event) => {
-                const files = event.currentTarget.files;
-                attachFiles(files).catch(report);
-                event.currentTarget.value = '';
-              }}
-            />
-          </>
-        ) : null}
-        <button
-          type="button"
-          className="pane-button"
-          data-action="float"
-          aria-pressed={floating}
-          aria-label={floating ? 'Dock pane' : 'Float pane'}
-          title={floating ? 'Dock pane' : 'Float pane'}
-          onClick={toggleFloat}
-        >
-          <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true">
-            <rect x="2" y="2" width="9" height="9" fill="none" stroke="currentColor" />
-            <rect x="6" y="6" width="8" height="8" fill="var(--bg-raised)" stroke="currentColor" />
-          </svg>
-        </button>
-        <button
-          type="button"
-          className="pane-button"
-          data-action="zoom"
-          aria-pressed={zoomed}
-          aria-label={zoomed ? 'Show all panes' : 'Zoom pane'}
-          title={zoomed ? 'Show all panes' : 'Zoom pane'}
-          onClick={toggleZoom}
-        >
-          <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true">
-            <path
-              d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.4"
-            />
-          </svg>
-        </button>
-        <button
-          type="button"
-          className="pane-button pane-close"
-          data-action="close"
-          aria-label="Close pane"
-          title="Close pane"
-          onClick={close}
-        >
-          <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true">
-            <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.5" />
-          </svg>
-        </button>
-      </header>
-      <Popover
-        id={detailsId}
-        className="pane-details"
-        role="dialog"
-        aria-label={`Details of ${pane?.title || 'the pane'}`}
-        onToggle={setDetailsOpen}
-      >
-        <div className="pane-details-head">
-          {run ? (
+              {siblings.map((id) => (
+                <span key={id} className={cn('pane-dot', { current: id === props.id })} />
+              ))}
+            </span>
+          ) : null}
+          {badge ? <span className="pane-edge" data-code={badge.code} aria-hidden="true" /> : null}
+          {handles ? <span className="pane-handle">{pane?.handle}</span> : null}
+          {run && badge ? (
             <>
-              <HarnessBadge run={run} />
+              {['WAIT', 'ERR'].includes(badge.code) ? (
+                <span className="pane-state" data-code={badge.code}>
+                  {badge.code}
+                </span>
+              ) : null}
+              <HarnessBadge run={run} className="pane-harness" />
+              {badge.unvalidated ? (
+                <span
+                  className="pane-unvalidated"
+                  role="img"
+                  aria-label="Version not validated"
+                  title={`This version of ${harnessName(run.harness)} is not validated: answers from neohar may not reach it.`}
+                >
+                  ?
+                </span>
+              ) : null}
               {run.yolo ? (
-                <Badge tone="muted" title="No approval dialogs">
+                <Badge variant="muted" className="pane-yolo" title="No approval dialogs">
                   yolo
                 </Badge>
               ) : null}
             </>
-          ) : (
-            <span className="pane-details-title">{detailsTitle(run)}</span>
-          )}
-        </div>
-        <dl className="pane-details-list">
-          {details.map((row) => (
-            <div key={row.key} className="pane-detail" data-detail={row.key}>
-              <dt>{row.label}</dt>
-              <dd className={row.data ? 'pane-detail-data' : undefined}>
-                <span className="pane-detail-value">
-                  {/* A path breaks after a slash, where a person reads it. */}
-                  {row.value.split(/(?<=\/)/).map((part, at) => (
-                    <Fragment key={at}>
-                      {part}
-                      <wbr />
-                    </Fragment>
-                  ))}
-                </span>
-                {row.copy ? (
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    className="pane-detail-copy"
-                    aria-label={`Copy the ${row.label.toLowerCase()}`}
-                    title={`Copy the ${row.label.toLowerCase()}`}
-                    onClick={() => copyDetail(row.label, row.value)}
-                  >
-                    <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true">
-                      <rect x="5.5" y="5.5" width="8" height="8" rx="1.5" />
-                      <path d="M10.5 3.5v-.25A1.25 1.25 0 0 0 9.25 2h-6A1.25 1.25 0 0 0 2 3.25v6A1.25 1.25 0 0 0 3.25 10.5h.25" />
-                    </svg>
-                  </Button>
+          ) : null}
+          {title ? <span className="pane-name">{title}</span> : null}
+          {unconfirmed > 0 ? (
+            <span
+              className="pane-unconfirmed"
+              role="status"
+              title={`Input that may not have arrived: ${pane?.input_unconfirmed?.join(', ')}`}
+            >
+              ? {pane?.input_unconfirmed?.length}
+            </span>
+          ) : null}
+          {dropped ? (
+            <span
+              className="pane-clipboard-dropped"
+              role="status"
+              title={`A program wrote ${dropped.bytes} bytes to the clipboard, and the client that typed last is not connected. The text was dropped.`}
+            >
+              clipboard dropped
+            </span>
+          ) : null}
+          {otherSize ? (
+            <button
+              type="button"
+              className="pane-size"
+              data-action="fit"
+              title="Another window has the size of this terminal. Fit it to this window."
+              onClick={fit}
+            >
+              Fit
+            </button>
+          ) : null}
+          <span className="pane-spacer" />
+          <PopoverTrigger asChild>
+            <button
+              type="button"
+              className="pane-button"
+              data-action="details"
+              aria-label="Pane details"
+              title="Pane details"
+            >
+              <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+                <circle
+                  cx="8"
+                  cy="8"
+                  r="6.25"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.3"
+                />
+                <path
+                  d="M8 7.25V11.5"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                />
+                <circle cx="8" cy="4.9" r="0.95" fill="currentColor" />
+              </svg>
+            </button>
+          </PopoverTrigger>
+          {phone ? (
+            <>
+              <button
+                type="button"
+                className="pane-button"
+                data-action="menu"
+                aria-label="Pane actions"
+                aria-haspopup="menu"
+                onClick={(event) => {
+                  const box = event.currentTarget.getBoundingClientRect();
+                  openMenu(box.right - 220, box.bottom);
+                }}
+              >
+                <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+                  <circle cx="3" cy="8" r="1.4" fill="currentColor" />
+                  <circle cx="8" cy="8" r="1.4" fill="currentColor" />
+                  <circle cx="13" cy="8" r="1.4" fill="currentColor" />
+                </svg>
+              </button>
+              <input
+                ref={attach}
+                className="pane-attach"
+                type="file"
+                multiple
+                hidden
+                aria-label="Files to attach"
+                onChange={(event) => {
+                  const files = event.currentTarget.files;
+                  attachFiles(files).catch(report);
+                  event.currentTarget.value = '';
+                }}
+              />
+            </>
+          ) : null}
+          <button
+            type="button"
+            className="pane-button"
+            data-action="float"
+            aria-pressed={floating}
+            aria-label={floating ? 'Dock pane' : 'Float pane'}
+            title={floating ? 'Dock pane' : 'Float pane'}
+            onClick={toggleFloat}
+          >
+            <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true">
+              <rect x="2" y="2" width="9" height="9" fill="none" stroke="currentColor" />
+              <rect
+                x="6"
+                y="6"
+                width="8"
+                height="8"
+                fill="var(--bg-raised)"
+                stroke="currentColor"
+              />
+            </svg>
+          </button>
+          <button
+            type="button"
+            className="pane-button"
+            data-action="zoom"
+            aria-pressed={zoomed}
+            aria-label={zoomed ? 'Show all panes' : 'Zoom pane'}
+            title={zoomed ? 'Show all panes' : 'Zoom pane'}
+            onClick={toggleZoom}
+          >
+            <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true">
+              <path
+                d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.4"
+              />
+            </svg>
+          </button>
+          <button
+            type="button"
+            className="pane-button pane-close"
+            data-action="close"
+            aria-label="Close pane"
+            title="Close pane"
+            onClick={close}
+          >
+            <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true">
+              <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.5" />
+            </svg>
+          </button>
+        </header>
+        <PopoverContent
+          align="end"
+          className="pane-details flex max-h-[calc(100vh-var(--s4))] w-[360px] flex-col gap-3 overflow-y-auto p-3 select-text"
+          aria-label={`Details of ${pane?.title || 'the pane'}`}
+        >
+          <div className="pane-details-head">
+            {run ? (
+              <>
+                <HarnessBadge run={run} />
+                {run.yolo ? (
+                  <Badge variant="muted" title="No approval dialogs">
+                    yolo
+                  </Badge>
                 ) : null}
-              </dd>
-            </div>
-          ))}
-        </dl>
+              </>
+            ) : (
+              <span className="pane-details-title">{detailsTitle(run)}</span>
+            )}
+          </div>
+          <dl className="pane-details-list">
+            {details.map((row) => (
+              <div key={row.key} className="pane-detail" data-detail={row.key}>
+                <dt>{row.label}</dt>
+                <dd className={row.data ? 'pane-detail-data' : undefined}>
+                  <span className="pane-detail-value">
+                    {/* A path breaks after a slash, where a person reads it. */}
+                    {row.value.split(/(?<=\/)/).map((part, at) => (
+                      <Fragment key={at}>
+                        {part}
+                        <wbr />
+                      </Fragment>
+                    ))}
+                  </span>
+                  {row.copy ? (
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      className="pane-detail-copy"
+                      aria-label={`Copy the ${row.label.toLowerCase()}`}
+                      title={`Copy the ${row.label.toLowerCase()}`}
+                      onClick={() => copyDetail(row.label, row.value)}
+                    >
+                      <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true">
+                        <rect x="5.5" y="5.5" width="8" height="8" rx="1.5" />
+                        <path d="M10.5 3.5v-.25A1.25 1.25 0 0 0 9.25 2h-6A1.25 1.25 0 0 0 2 3.25v6A1.25 1.25 0 0 0 3.25 10.5h.25" />
+                      </svg>
+                    </Button>
+                  ) : null}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </PopoverContent>
       </Popover>
       {request ? (
         request.allowed ? (

@@ -1,4 +1,5 @@
 import { fileURLToPath } from 'node:url';
+import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 
@@ -7,16 +8,21 @@ import { defineConfig } from 'vite';
 // that its scope is `/`. No source maps: the files go into `nh`, and the phone has no debugger.
 const root = fileURLToPath(new URL('.', import.meta.url));
 
-// Lightning CSS lowers the styles of the chrome for Safari 16 of the phone.
+// Lightning CSS lowers the styles of the chrome for Safari 16.4 of the phone: Tailwind CSS 4 needs
+// it. `@/` is the source of the UI package, as the shadcn/ui CLI writes it.
 export default defineConfig({
   root,
-  plugins: [react()],
-  css: { transformer: 'lightningcss', lightningcss: { targets: { safari: 16 << 16 } } },
+  plugins: [react(), tailwindcss()],
+  resolve: { alias: { '@': fileURLToPath(new URL('../../packages/ui/src', import.meta.url)) } },
+  css: {
+    transformer: 'lightningcss',
+    lightningcss: { targets: { safari: (16 << 16) | (4 << 8) } },
+  },
   clearScreen: false,
   build: {
     outDir: fileURLToPath(new URL('../../target/web-dist', import.meta.url)),
     emptyOutDir: true,
-    target: 'safari16',
+    target: 'safari16.4',
     cssMinify: 'lightningcss',
     sourcemap: false,
     rollupOptions: {

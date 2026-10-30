@@ -1587,7 +1587,7 @@ test('an agent in a pane has a strip on the board and a mark in the strip of the
     // The strip has no working directory: the details under the button i have all of it. A click
     // on the button again closes them, and so does Escape.
     const info = page.locator(`[data-pane="${made.pane}"] [data-action="details"]`);
-    const details = page.locator(`#pane-details-${made.pane}`);
+    const details = page.getByRole('dialog', { name: /^Details of / });
     await info.click();
     await expect(info).toHaveAttribute('aria-expanded', 'true');
     await expect(details.locator('[data-detail="folder"] dd')).toHaveText(/the-repo$/, {

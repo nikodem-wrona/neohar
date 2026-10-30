@@ -10,7 +10,7 @@ when an agent needs you and no desktop window has the focus.
 
 The core of the app (or of `nh daemon`) serves the phone app on a port of `127.0.0.1`. Tailscale
 puts that port on your tailnet with HTTPS. neohar has no TLS and no network listener of its own.
-The phone app was tested as an iPhone in Safari.
+The phone app was tested as an iPhone in Safari. It needs Safari 16.4 or later (iOS 16.4 or later).
 
 ## Before you start
 

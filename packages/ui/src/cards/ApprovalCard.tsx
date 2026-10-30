@@ -8,7 +8,7 @@
 
 import type { InteractionValue } from '@neohar/transport';
 import { type KeyboardEvent, type Ref, useRef, useState } from 'react';
-import { Input } from '../kit/Input';
+import { Input } from '../components/ui/input';
 import { cn } from '../lib/utils';
 import { Diff } from '../rich/Diff';
 import { RichSpans } from '../rich/Spans';

@@ -60,7 +60,7 @@ The test packages under [`tests/`](https://github.com/nikodem-wrona/neohar/tree/
 | `neohar-desktop` | `nh-core`, `nh-proto`, `nh-remote`, `nh-web` | — |
 | `proto-wasm` | `nh-proto` | tokio |
 
-The same check fails when the `wasm-bindgen` command line in `mise.toml` differs from the crate in `Cargo.lock`. On the TypeScript side, ESLint lets `packages/ui` import only `react`, `react-dom/client`, `@neohar/transport` and `@neohar/proto-wasm`, and [`scripts/tauri-commands.ts`](https://github.com/nikodem-wrona/neohar/blob/main/scripts/tauri-commands.ts) lets only `packages/transport` call Tauri, and only `rpc`, `subscribe` and `stream`.
+The same check fails when the `wasm-bindgen` command line in `mise.toml` differs from the crate in `Cargo.lock`. On the TypeScript side, ESLint lets `packages/ui` import only `react`, `react-dom/client`, the packages of shadcn/ui, `@neohar/transport`, `@neohar/proto-wasm`, `@/…` and relative modules, and [`scripts/tauri-commands.ts`](https://github.com/nikodem-wrona/neohar/blob/main/scripts/tauri-commands.ts) lets only `packages/transport` call Tauri, and only `rpc`, `subscribe` and `stream`.
 
 ## Conventions
 

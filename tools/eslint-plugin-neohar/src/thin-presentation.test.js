@@ -31,6 +31,9 @@ ruleTester.run('no-restricted-imports (packages/ui)', builtin('no-restricted-imp
   valid: [
     { code: "import { useState } from 'react';", options: [importOptions()] },
     { code: "import { createRoot } from 'react-dom/client';", options: [importOptions()] },
+    { code: "import { Popover } from 'radix-ui';", options: [importOptions()] },
+    { code: "import { toast } from 'sonner';", options: [importOptions()] },
+    { code: "import { cn } from '@/lib/utils';", options: [importOptions()] },
     { code: "import { connect } from '@neohar/transport';", options: [importOptions()] },
     { code: "import { decode } from '@neohar/proto-wasm';", options: [importOptions()] },
     { code: "import { a } from './a';", options: [importOptions()] },
@@ -41,6 +44,12 @@ ruleTester.run('no-restricted-imports (packages/ui)', builtin('no-restricted-imp
     { code: "import { marked } from 'marked';", options: [importOptions()], errors: 1 },
     { code: "import { createSignal } from 'solid-js';", options: [importOptions()], errors: 1 },
     { code: "import { flushSync } from 'react-dom';", options: [importOptions()], errors: 1 },
+    {
+      code: "import * as Dialog from '@radix-ui/react-dialog';",
+      options: [importOptions()],
+      errors: 1,
+    },
+    { code: "import { cn } from '@';", options: [importOptions()], errors: 1 },
     { code: "import { sortBy } from 'lodash/sortBy';", options: [importOptions()], errors: 1 },
     { code: "import x from '@neohar/ui';", options: [importOptions()], errors: 1 },
     { code: "import x from '@neohar/transport/internal';", options: [importOptions()], errors: 1 },

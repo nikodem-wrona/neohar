@@ -303,7 +303,7 @@
     overflow-wrap: anywhere;
   }
 
-  .card-prompt .ui-badge {
+  .card-prompt [data-slot='badge'] {
     margin-right: var(--s1);
     vertical-align: 1px;
   }

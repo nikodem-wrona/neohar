@@ -56,7 +56,7 @@ Review every changed file and report only concrete issues introduced by the PR.
 | Gate and focus | treats a peek, a hover or a sibling-pane focus as pane focus; does not release a held hook on focus; draws a card or dialog over a pane |
 | Secrets | logs an environment value; bypasses `nh-redact` in logs, events or debug bundles |
 | Scope | adds a third harness, an extension transport, a plugin system or a compatibility layer; writes "Neohar" with a capital letter |
-| Budgets | allocates per frame in `packages/ui/surface`; grows a UI bundle past 400 KB gzipped, or the first chunk of the phone past 250 KB; adds a UI dependency beyond `react`, `react-dom/client`, `packages/transport` and `packages/proto-wasm` |
+| Budgets | allocates per frame in `packages/ui/surface`; grows a UI bundle past 400 KB gzipped, or the first chunk of the phone past 250 KB; adds a UI dependency beyond `react`, `react-dom/client`, the packages of shadcn/ui (`radix-ui`, `class-variance-authority`, `clsx`, `tailwind-merge`, `lucide-react`, `cmdk`, `sonner`), `packages/transport` and `packages/proto-wasm` |
 
 Validate each finding against surrounding code before reporting it. Do not post style-only comments, speculative concerns without an impact path, or findings unrelated to changed lines. Calibrate severity as:
 

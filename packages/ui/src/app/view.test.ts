@@ -124,3 +124,17 @@ describe('the values of the view', () => {
     expect(seen).toEqual([false, true]);
   });
 });
+
+describe('the layers of shadcn/ui', () => {
+  it('counts the layers that are open, and a layer closes one time', () => {
+    const view = createViewState();
+    const first = view.openLayer();
+    const second = view.openLayer();
+    expect(view.layers.get()).toBe(2);
+    first();
+    first();
+    expect(view.layers.get()).toBe(1);
+    second();
+    expect(view.layers.get()).toBe(0);
+  });
+});

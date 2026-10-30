@@ -6,10 +6,12 @@
 
 import type { InteractionValue, QuestionAnswer } from '@neohar/transport';
 import { type Ref, useState } from 'react';
-import { Badge } from '../kit/Badge';
-import { Button } from '../kit/Button';
-import { Choice } from '../kit/Choice';
-import { Input } from '../kit/Input';
+import { Badge } from '../components/ui/badge';
+import { Button } from '../components/ui/button';
+import { Checkbox } from '../components/ui/checkbox';
+import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
+import { RadioGroup, RadioGroupItem } from '../components/ui/radio-group';
 import { sendAnswer } from './answer';
 import { CardFrame } from './CardFrame';
 import { useCardHost } from './host';
@@ -50,6 +52,51 @@ export function QuestionCard(props: {
     setBusy(false);
   };
 
+  /** Chooses an option of a question: its text goes. */
+  const pick = (at: number, label: string, multi: boolean): void => {
+    setSelected((all) => all.map((list, i) => (i === at ? toggled(list, label, multi) : list)));
+    setTexts((all) => all.map((text, i) => (i === at ? '' : text)));
+  };
+
+  /**
+   * The options of a question as choice cards of shadcn/ui: the title and the description, and
+   * the radio button or the check box at the end. The whole card is the label, so a click
+   * anywhere on it chooses.
+   */
+  const choices = (question: (typeof questions)[number], at: number) =>
+    question.options.map((option, index) => {
+      const id = `${props.interaction.id}-${at}-${index}`;
+      const on = (selected[at] ?? []).includes(option.label);
+      return (
+        <Label
+          key={option.label}
+          htmlFor={id}
+          className="flex cursor-pointer items-start gap-3 rounded-md border border-foreground/16 bg-background/25 px-3 py-2.5 text-[13px] leading-[18px] font-normal transition-colors hover:border-foreground/32 hover:bg-foreground/4 has-[[data-state=checked]]:border-foreground has-[[data-state=checked]]:bg-foreground/8 has-[:disabled]:cursor-default has-[:disabled]:hover:border-foreground/16 has-[:disabled]:hover:bg-background/25"
+        >
+          <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+            <span className="font-semibold [overflow-wrap:anywhere] text-foreground">
+              {option.label}
+            </span>
+            {option.description ? (
+              <span className="[overflow-wrap:anywhere] text-muted-foreground">
+                {option.description}
+              </span>
+            ) : null}
+          </span>
+          {question.multi_select ? (
+            <Checkbox
+              id={id}
+              className="mt-px"
+              checked={on}
+              onCheckedChange={() => pick(at, option.label, true)}
+            />
+          ) : (
+            <RadioGroupItem id={id} className="mt-px" value={option.label} />
+          )}
+        </Label>
+      );
+    });
+
   return (
     <CardFrame
       interaction={props.interaction}
@@ -67,26 +114,18 @@ export function QuestionCard(props: {
             {!single && question.header ? <Badge>{question.header}</Badge> : null}
             {question.question}
           </legend>
-          <div className="card-options">
-            {question.options.map((option) => (
-              <Choice
-                key={option.label}
-                type={question.multi_select ? 'checkbox' : 'radio'}
-                name={`${props.interaction.id}-${at}`}
-                title={option.label}
-                description={option.description}
-                checked={(selected[at] ?? []).includes(option.label)}
-                onChange={() => {
-                  setSelected((all) =>
-                    all.map((list, i) =>
-                      i === at ? toggled(list, option.label, !!question.multi_select) : list,
-                    ),
-                  );
-                  setTexts((all) => all.map((text, i) => (i === at ? '' : text)));
-                }}
-              />
-            ))}
-          </div>
+          {question.multi_select ? (
+            <div className="card-options">{choices(question, at)}</div>
+          ) : (
+            <RadioGroup
+              className="card-options flex flex-col gap-1.5"
+              value={selected[at]?.[0] ?? ''}
+              onValueChange={(label) => pick(at, label, false)}
+              disabled={!canAnswer(props.interaction)}
+            >
+              {choices(question, at)}
+            </RadioGroup>
+          )}
           <Input
             className="card-message"
             placeholder={

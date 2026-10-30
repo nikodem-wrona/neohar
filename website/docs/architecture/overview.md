@@ -102,7 +102,7 @@ Numbers are from measurements on a Mac with an Apple M4 and a 60 Hz display. [Lo
 | Memory per pane (≤ 120 columns) | < 4 MB | 3.75 MB at 120 columns |
 | Cold start to first painted window | < 500 ms | 299–396 ms |
 | Reattach 20 panes | < 1 s | median 16 ms |
-| UI bundle gzipped: desk, phone / first chunk of the phone | < 400 KB each / < 250 KB | 222.6 KB, 230.7 KB / 147.8 KB |
+| UI bundle gzipped: desk, phone / first chunk of the phone | < 400 KB each / < 250 KB | 277.6 KB, 285.5 KB / 202.6 KB |
 | Hook shim through the symlink | p50 ≤ 5 ms | 1.3–1.4 ms |
 | Link cost, key to frame | ≤ 1 ms p99 | 0.39 ms (no ssh) |
 

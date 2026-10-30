@@ -7,7 +7,7 @@
 
 import type { InteractionValue } from '@neohar/transport';
 import type { KeyboardEvent, ReactNode, Ref } from 'react';
-import { Badge } from '../kit/Badge';
+import { Badge } from '../components/ui/badge';
 import { cn } from '../lib/utils';
 import { stateBadge, type Status, statusOf } from './model';
 
@@ -47,13 +47,13 @@ export function CardFrame(props: {
             <Badge
               className="card-risk"
               data-risk={props.interaction.risk}
-              tone={props.interaction.risk === 'high' ? 'error' : 'neutral'}
+              variant={props.interaction.risk === 'high' ? 'error' : 'neutral'}
             >
               {props.interaction.risk} risk
             </Badge>
           ) : null}
           {badge ? (
-            <Badge className="card-state" tone={badge.tone}>
+            <Badge className="card-state" variant={badge.tone}>
               {badge.text}
             </Badge>
           ) : null}

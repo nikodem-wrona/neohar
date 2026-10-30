@@ -126,6 +126,7 @@ export function createViewState() {
   const gitTarget = createValue<GitTarget>({ folder: null, seq: 0 });
   const workflowsOpen = createValue(false);
   const workflowsTarget = createValue<GitTarget>({ folder: null, seq: 0 });
+  const layers = createValue(0);
   /**
    * The side columns before the Git view or the Workflows view folded them, to open them again
    * when the view closes. The two views never show at the same time.
@@ -188,6 +189,21 @@ export function createViewState() {
       focusedCard.set(interaction);
     },
     paletteOpen,
+    /**
+     * How many layers of shadcn/ui (a popover, a menu, a dialog) are open. While one is open, the
+     * pane does not take the focus back: Radix closes a layer when the focus leaves it.
+     */
+    layers: layers as Source<number>,
+    /** A layer opens. Returns the function that says that it closed. */
+    openLayer(): () => void {
+      layers.set(layers.get() + 1);
+      let open = true;
+      return () => {
+        if (!open) return;
+        open = false;
+        layers.set(layers.get() - 1);
+      };
+    },
     /**
      * Does what a command of the page asks for. The core names it in `palette.execute`. A rename
      * edits the tab or the workspace that the window shows, and the field of a workspace opens a

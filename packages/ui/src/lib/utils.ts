@@ -1,18 +1,9 @@
-// Small helpers of the components.
+// Small helpers of the components. `cn` is the one of shadcn/ui: the class names of the parts, and
+// of two Tailwind classes that set the same property, the last one.
 
-/** A part of a class list: a name, nothing, or names that are on when their value is true. */
-export type ClassPart = string | false | null | undefined | Record<string, boolean | undefined>;
+import { type ClassValue, clsx } from 'clsx';
+import { twMerge } from 'tailwind-merge';
 
-/** The class names of the parts, in their order, separated by spaces. */
-export function cn(...parts: ClassPart[]): string {
-  const names: string[] = [];
-  for (const part of parts) {
-    if (!part) continue;
-    if (typeof part === 'string') {
-      names.push(part);
-      continue;
-    }
-    for (const [name, on] of Object.entries(part)) if (on) names.push(name);
-  }
-  return names.join(' ');
+export function cn(...inputs: ClassValue[]): string {
+  return twMerge(clsx(inputs));
 }

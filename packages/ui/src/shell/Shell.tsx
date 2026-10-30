@@ -33,7 +33,7 @@ import { revealed } from '../app/reveal';
 import { LayoutView } from '../layout/LayoutView';
 import { Palette } from '../palette/Palette';
 import { Board } from '../board/Board';
-import { Toaster } from '../kit/Toaster';
+import { Toasts } from './Toasts';
 import { GitView } from '../git/GitView';
 import { windowFolder } from '../files/folder';
 import { CloseConfirm } from './CloseConfirm';
@@ -391,7 +391,7 @@ export function Shell(props: ShellProps = {}) {
       {paletteOpen ? <Palette /> : null}
       {closing ? <CloseConfirm closing={closing} /> : null}
       <StatusBar actions={actions} keymap={keymap} />
-      <Toaster toasts={toasts} />
+      <Toasts toasts={toasts} />
       {form === 'phone' ? (
         <>
           {typing ? <KeyBar key={fieldKey(typing)} field={typing} /> : <PhoneBar />}

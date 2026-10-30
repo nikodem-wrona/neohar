@@ -8,6 +8,7 @@
 // `link/1`. `mise run test:shell:link` sets it.
 
 import { join } from 'node:path';
+import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import { build } from 'vite';
 import { root, startDaemon } from '../support/daemon';
@@ -17,7 +18,8 @@ const port = Number(process.env.NEOHAR_UI_PORT ?? 4176);
 
 await build({
   root: import.meta.dir,
-  plugins: [react()],
+  plugins: [react(), tailwindcss()],
+  resolve: { alias: { '@': join(root, 'packages', 'ui', 'src') } },
   css: { transformer: 'lightningcss', lightningcss: { targets: { safari: 17 << 16 } } },
   logLevel: 'warn',
   build: {

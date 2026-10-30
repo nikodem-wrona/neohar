@@ -35,7 +35,9 @@ something new, add it to the core contract first, in the same pull request.
 | No polling, one `innerHTML` | Everything is push; `setTimeout` lives only in `lib/timing.ts`; `RichHtml.tsx` is the only `innerHTML` or `dangerouslySetInnerHTML` | `neohar/no-polling`, `neohar/no-timers`, `neohar/no-inner-html` |
 | Stays small | Under 400 KB of gzipped script, style and WASM for the desk and for the phone, and under 250 KB for the first chunk of the phone | `mise run check:bundle` (part of `mise run check`) |
 
-`packages/ui` can import only `react`, `react-dom/client`, `@neohar/transport` and `@neohar/proto-wasm`. Lint sees
+`packages/ui` can import only `react`, `react-dom/client`, the packages of shadcn/ui (`radix-ui`,
+`class-variance-authority`, `clsx`, `tailwind-merge`, `lucide-react`, `cmdk`, `sonner`),
+`@neohar/transport`, `@neohar/proto-wasm`, `@/…` and relative modules. Lint sees
 syntax only. The review rejects a reducer of business events, a store that combines two
 projections, a client-side filter or an optimistic update.
 

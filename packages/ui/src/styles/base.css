@@ -121,11 +121,10 @@
     .board-list,
     .files-menu,
     .git-menu,
-    .ui-popover,
     .confirm,
     .dialog,
     .file-modal,
-    .toast,
+    [data-sonner-toast],
     .floating > .pane-title
   ) {
     background: var(--glass);
@@ -142,11 +141,10 @@
       .board-list,
       .files-menu,
       .git-menu,
-      .ui-popover,
       .confirm,
       .dialog,
       .file-modal,
-      .toast,
+      [data-sonner-toast],
       .floating > .pane-title
     ) {
       background: var(--bg-raised);

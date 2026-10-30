@@ -80,12 +80,13 @@ export function Surface(props: { id: PaneId; focused: boolean }) {
   }, [render, stores, renderId, props.id]);
 
   // The core says which pane has the focus, and the page moves the DOM focus to the input.
-  // The palette, the question of a close and the field of a new name have the focus while they
-  // are open, and the pane takes it back when they close.
+  // The palette, the question of a close, the field of a new name and a layer of shadcn/ui have
+  // the focus while they are open, and the pane takes it back when they close.
   const paletteOpen = useValue(view.paletteOpen);
   const closing = useValue(view.closing);
   const renaming = useValue(view.renaming);
-  const overlay = paletteOpen || closing !== null || renaming !== null;
+  const layers = useValue(view.layers);
+  const overlay = paletteOpen || closing !== null || renaming !== null || layers > 0;
   useEffect(() => {
     // A phone opens its keyboard only for a tap: a focus from code would cover half of the screen
     // when the person only looks.
