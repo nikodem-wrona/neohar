@@ -14,6 +14,7 @@ import { harnessName } from '../agents/badge';
 import { useApp } from '../app/context';
 import { useLayer } from '../app/layer';
 import type { PhoneSheet } from '../app/view';
+import { Button } from '../components/ui/button';
 import { Sheet, SheetClose, SheetContent, SheetTitle } from '../components/ui/sheet';
 import type { Keymap } from '../input/chords';
 import { type ActionContext, runCommand } from '../keymap/actions';
@@ -252,12 +253,21 @@ function More(props: { actions: ActionContext; keymap: Keymap }) {
         {stopping ? (
           <div className="phone-more-confirm" role="alert">
             <p>Stop the program of every pane? The agents get 2 s to end.</p>
-            <button type="button" className="card-button danger" onClick={stopEverything}>
+            {/* Dark text on the red: white text on it has too little contrast. */}
+            <Button
+              variant="destructive"
+              className="min-h-(--control) bg-destructive font-semibold text-on-signal hover:bg-(--danger-hover) dark:bg-destructive"
+              onClick={stopEverything}
+            >
               Stop everything
-            </button>
-            <button type="button" className="card-button" onClick={() => setStopping(false)}>
+            </Button>
+            <Button
+              variant="outline"
+              className="min-h-(--control)"
+              onClick={() => setStopping(false)}
+            >
               Cancel
-            </button>
+            </Button>
           </div>
         ) : (
           <button

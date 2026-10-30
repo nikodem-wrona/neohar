@@ -11,6 +11,7 @@
 
 import { type MouseEvent, useMemo, useState } from 'react';
 import { useAppMaybe } from '../app/context';
+import { Button } from '../components/ui/button';
 import { writeClipboard } from '../input/clipboard';
 import { clickedLink, gestureToken, isLoopback } from './links';
 
@@ -41,9 +42,10 @@ export function RichHtml(props: { html: string }) {
       {onMac ? (
         <p className="rich-note" role="status">
           This address is on the Mac: <code>{onMac}</code>
-          <button
-            type="button"
-            className="card-button"
+          <Button
+            variant="outline"
+            size="sm"
+            className="min-h-(--control)"
             onClick={() => {
               void writeClipboard(Promise.resolve(onMac)).catch((failure: unknown) =>
                 app?.report(failure),
@@ -52,7 +54,7 @@ export function RichHtml(props: { html: string }) {
             }}
           >
             Copy
-          </button>
+          </Button>
         </p>
       ) : null}
     </>

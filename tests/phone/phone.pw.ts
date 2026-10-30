@@ -294,9 +294,7 @@ test('a card of a question answers with via phone', async ({ page, request }) =>
     // The Inbox of the bottom bar opens the drawer as a sheet with the card.
     await expect(dock(page, 'inbox')).toHaveClass(/hot/, { timeout: 30_000 });
     await dock(page, 'inbox').click();
-    const card = page
-      .locator('.drawer article.card-question')
-      .filter({ hasText: 'Which color do you want?' });
+    const card = page.getByRole('article').filter({ hasText: 'Which color do you want?' });
     await expect(card).toHaveCount(1, { timeout: 30_000 });
     const id = await card.getAttribute('data-interaction');
     expect(id).toBeTruthy();
@@ -348,9 +346,7 @@ test('a push of a question opens the Inbox with its card', async ({ page, reques
     await page.goto(`${c.origin}/#/run/${run}`);
     await desk(page);
     await expect(
-      page
-        .locator('.drawer article.card-question')
-        .filter({ hasText: 'Which color for the push?' }),
+      page.getByRole('article').filter({ hasText: 'Which color for the push?' }),
     ).toBeVisible({ timeout: 20_000 });
   } finally {
     await stop();
@@ -427,7 +423,7 @@ for line in sys.stdin:
 
     // The turn ended while nobody looked: the Inbox has a line for the run, with the box Reply.
     await dock(page, 'inbox').click();
-    const ended = page.locator('.card-run-state[data-state="turn_ended"]');
+    const ended = page.getByRole('article').filter({ hasText: 'finished its turn' });
     await expect(ended).toHaveCount(1, { timeout: 30_000 });
     await expect(ended).toContainText('finished its turn');
     await noSideScroll(page);
@@ -932,7 +928,7 @@ for line in sys.stdin:
       .toBe('idle');
 
     await tapAt(page, surface, 40, 40);
-    const bar = page.locator('.key-bar');
+    const bar = page.getByRole('toolbar', { name: 'Keys' });
     await bar.getByRole('button', { name: 'Compose' }).click();
     const compose = bar.getByRole('form', { name: 'Compose' });
     await compose.getByRole('textbox').fill('a longer prompt from the phone');

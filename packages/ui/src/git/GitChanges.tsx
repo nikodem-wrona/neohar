@@ -5,6 +5,7 @@
 import { type ChangeRow, RpcError } from '@neohar/transport';
 import { type KeyboardEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { useApp } from '../app/context';
+import { Input } from '../components/ui/input';
 import { statusLetter, statusWord } from '../changes/model';
 import { useLatest } from '../lib/hooks';
 import { cn } from '../lib/utils';
@@ -88,11 +89,11 @@ export function GitChanges(props: {
   return (
     <>
       <div className="git-side-body">
-        <input
-          className="git-filter"
+        <Input
           type="text"
           placeholder="Filter"
           aria-label="Filter the changed files"
+          className="h-auto flex-none rounded-sm px-2 py-0.5 text-[13px]/5 shadow-none md:text-[13px]/5"
           value={filter}
           onChange={(event) => setFilter(event.currentTarget.value)}
         />

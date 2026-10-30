@@ -8,7 +8,9 @@
 
 import type { InteractionValue } from '@neohar/transport';
 import { type KeyboardEvent, type Ref, useRef, useState } from 'react';
+import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
+import { Kbd } from '../components/ui/kbd';
 import { cn } from '../lib/utils';
 import { Diff } from '../rich/Diff';
 import { RichSpans } from '../rich/Spans';
@@ -76,6 +78,69 @@ export function ApprovalCard(props: {
       error={error}
       onKeyDown={onKeyDown}
       ref={props.ref}
+      footer={
+        canAnswer(props.interaction) ? (
+          <>
+            <div className="flex flex-wrap items-center gap-1" role="group" aria-label="Answer">
+              {shownButtons.map((button) => {
+                const selected = choice === button.id;
+                // The answers that let the agent go on are green, and the answer that stops it
+                // is red.
+                const goes = !button.refuses;
+                return (
+                  <Button
+                    key={button.id}
+                    variant="outline"
+                    size="sm"
+                    className={cn(
+                      'min-h-(--control) flex-[1_1_calc(50%-4px)] justify-start text-foreground',
+                      goes && 'text-(--accent)',
+                      button.id === 'deny_stop' && 'text-destructive',
+                      selected && 'border-foreground',
+                      selected && goes && 'border-(--accent)',
+                      selected && button.refuses && 'border-destructive text-destructive',
+                    )}
+                    data-choice={button.id}
+                    aria-pressed={selected}
+                    aria-keyshortcuts={String(button.key)}
+                    ref={(element) => {
+                      if (element) buttons.set(button.id, element);
+                      else buttons.delete(button.id);
+                    }}
+                    disabled={busy}
+                    onClick={() => void answer(button.id).catch(report)}
+                  >
+                    <Kbd
+                      className={cn(
+                        'font-mono font-semibold text-foreground',
+                        selected && 'bg-primary text-primary-foreground',
+                        selected && button.refuses && 'bg-destructive',
+                      )}
+                      aria-hidden="true"
+                    >
+                      {button.key}
+                    </Kbd>
+                    {button.label}
+                  </Button>
+                );
+              })}
+              {/* The message takes a row of its own under the buttons. */}
+              <Input
+                className="basis-full"
+                placeholder="Message for the agent (optional)"
+                aria-label="Message for the agent"
+                value={message}
+                onChange={(event) => setMessage(event.currentTarget.value)}
+              />
+            </div>
+            {!enterAnswers(props.interaction.risk) ? (
+              <p className="card-note">
+                Enter does not answer a high-risk request. Press a number, then Enter on its button.
+              </p>
+            ) : null}
+          </>
+        ) : null
+      }
     >
       {command ? (
         <>
@@ -117,48 +182,6 @@ export function ApprovalCard(props: {
         <pre className="card-peek" role="region" aria-label="The last lines of the pane">
           {props.payload.peek?.join('\n')}
         </pre>
-      ) : null}
-      {canAnswer(props.interaction) ? (
-        <>
-          <div className="card-actions" role="group" aria-label="Answer">
-            {shownButtons.map((button) => (
-              <button
-                key={button.id}
-                type="button"
-                className={cn('card-button', {
-                  refuses: button.refuses,
-                  selected: choice === button.id,
-                })}
-                data-choice={button.id}
-                aria-pressed={choice === button.id}
-                aria-keyshortcuts={String(button.key)}
-                ref={(element) => {
-                  if (element) buttons.set(button.id, element);
-                  else buttons.delete(button.id);
-                }}
-                disabled={busy}
-                onClick={() => void answer(button.id).catch(report)}
-              >
-                <kbd className="card-key" aria-hidden="true">
-                  {button.key}
-                </kbd>
-                {button.label}
-              </button>
-            ))}
-            <Input
-              className="card-message"
-              placeholder="Message for the agent (optional)"
-              aria-label="Message for the agent"
-              value={message}
-              onChange={(event) => setMessage(event.currentTarget.value)}
-            />
-          </div>
-          {!enterAnswers(props.interaction.risk) ? (
-            <p className="card-note">
-              Enter does not answer a high-risk request. Press a number, then Enter on its button.
-            </p>
-          ) : null}
-        </>
       ) : null}
     </CardFrame>
   );

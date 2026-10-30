@@ -92,7 +92,7 @@ export function TabBar() {
           target={{ kind: 'tab', id: edited, place: 'tabbar' }}
           name={tabOf(edited)?.name ?? ''}
           label={`Name of tab ${tabOf(edited)?.handle ?? ''}`}
-          className="tab-rename"
+          className="tab-rename h-(--row)"
           style={place}
         />
       ) : null}

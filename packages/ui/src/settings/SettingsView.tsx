@@ -5,6 +5,10 @@
 
 import { RpcError, type SettingEntry, type Transport } from '@neohar/transport';
 import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { Button } from '../components/ui/button';
+import { Field, FieldError, FieldLabel } from '../components/ui/field';
+import { Input } from '../components/ui/input';
+import { Switch } from '../components/ui/switch';
 import { useLatest, useValue } from '../lib/hooks';
 import { cn } from '../lib/utils';
 import { useProjectionStore } from '../stores';
@@ -26,6 +30,7 @@ function TextField(props: {
   id: string;
   type: 'number' | 'text';
   text: string;
+  invalid: boolean;
   onEdit: (text: string) => void;
 }) {
   const field = useRef<HTMLInputElement>(null);
@@ -41,10 +46,11 @@ function TextField(props: {
     return () => element.removeEventListener('change', change);
   }, [onEdit]);
   return (
-    <input
+    <Input
       id={props.id}
-      className="setting-input"
+      className="h-7 px-2 py-0 font-mono md:text-[length:var(--size-data)]"
       type={props.type}
+      aria-invalid={props.invalid}
       {...(props.type === 'text' ? { spellCheck: false } : {})}
       ref={field}
     />
@@ -52,20 +58,20 @@ function TextField(props: {
 }
 
 /**
- * A check box. It shows the value of the core: a click changes the box at once, and the box
+ * A switch. It shows the value of the core: a click changes the switch at once, and the switch
  * follows the value that the core brings back.
  */
-function CheckField(props: { id: string; checked: boolean; onToggle: (value: boolean) => void }) {
-  const box = useRef<HTMLInputElement>(null);
-  useLayoutEffect(() => {
-    if (box.current) box.current.checked = props.checked;
-  }, [props.checked]);
+function SwitchField(props: { id: string; checked: boolean; onToggle: (value: boolean) => void }) {
+  const [shown, setShown] = useState({ core: props.checked, on: props.checked });
+  if (shown.core !== props.checked) setShown({ core: props.checked, on: props.checked });
   return (
-    <input
+    <Switch
       id={props.id}
-      type="checkbox"
-      ref={box}
-      onChange={(event) => props.onToggle(event.currentTarget.checked)}
+      checked={shown.on}
+      onCheckedChange={(on) => {
+        setShown({ core: props.checked, on });
+        props.onToggle(on);
+      }}
     />
   );
 }
@@ -83,12 +89,17 @@ function Row(props: {
   const id = `setting-${props.path}`;
   const kind = typeof props.entry.value;
   return (
-    <div className="setting" data-setting={props.path}>
-      <label className="setting-label" htmlFor={id}>
+    // The grid of `.setting` places the label, the field, the source and Reset in columns.
+    <Field
+      orientation="horizontal"
+      className="setting grid gap-x-[1ch] gap-y-1"
+      data-setting={props.path}
+    >
+      <FieldLabel htmlFor={id} className="w-auto text-[13px] font-normal text-foreground">
         {label}
-      </label>
+      </FieldLabel>
       {kind === 'boolean' ? (
-        <CheckField
+        <SwitchField
           key="boolean"
           id={id}
           checked={props.entry.value === true}
@@ -100,6 +111,7 @@ function Row(props: {
           id={id}
           type={kind === 'number' ? 'number' : 'text'}
           text={fieldText(props.entry.value)}
+          invalid={props.error !== undefined}
           onEdit={props.onEdit}
         />
       )}
@@ -107,16 +119,14 @@ function Row(props: {
         {props.entry.source}
       </span>
       {props.entry.source !== 'default' ? (
-        <button type="button" className="setting-reset" onClick={props.onReset}>
+        <Button variant="outline" size="xs" onClick={props.onReset}>
           Reset
-        </button>
+        </Button>
       ) : null}
       {props.error ? (
-        <p className="setting-error" role="alert">
-          {props.error}
-        </p>
+        <FieldError className="col-span-full text-[13px]">{props.error}</FieldError>
       ) : null}
-    </div>
+    </Field>
   );
 }
 

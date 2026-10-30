@@ -3,6 +3,7 @@
 
 import type { InteractionValue } from '@neohar/transport';
 import { type Ref, useState } from 'react';
+import { Button } from '../components/ui/button';
 import { sendDismiss } from './answer';
 import { CardFrame } from './CardFrame';
 import { useCardHost } from './host';
@@ -17,7 +18,6 @@ export function NoticeCard(props: {
 }) {
   const { transport, open: openPane, report } = useCardHost();
   const [error, setError] = useState<string | null>(null);
-  const open = props.interaction.state === 'open';
   const pane = props.interaction.pane;
   return (
     <CardFrame
@@ -25,6 +25,28 @@ export function NoticeCard(props: {
       harness={props.harness}
       error={error}
       ref={props.ref}
+      footer={
+        <div className="flex flex-wrap items-center gap-1" role="group" aria-label="Notice">
+          {openPane && pane ? (
+            <Button
+              variant="outline"
+              size="sm"
+              className="min-h-(--control)"
+              onClick={() => openPane(pane)}
+            >
+              Open
+            </Button>
+          ) : null}
+          <Button
+            variant="outline"
+            size="sm"
+            className="min-h-(--control)"
+            onClick={() => void sendDismiss(transport, props.interaction).then(setError, report)}
+          >
+            Dismiss
+          </Button>
+        </div>
+      }
     >
       <p className="card-text">{props.payload.text}</p>
       {props.payload.resets_at ? (
@@ -32,22 +54,6 @@ export function NoticeCard(props: {
           <span className="card-label">Resets</span>{' '}
           <time dateTime={props.payload.resets_at}>{props.payload.resets_at}</time>
         </p>
-      ) : null}
-      {open ? (
-        <div className="card-actions" role="group" aria-label="Notice">
-          {openPane && pane ? (
-            <button type="button" className="card-button" onClick={() => openPane(pane)}>
-              Open
-            </button>
-          ) : null}
-          <button
-            type="button"
-            className="card-button"
-            onClick={() => void sendDismiss(transport, props.interaction).then(setError, report)}
-          >
-            Dismiss
-          </button>
-        </div>
       ) : null}
     </CardFrame>
   );

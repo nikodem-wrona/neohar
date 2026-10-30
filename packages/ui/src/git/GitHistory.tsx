@@ -6,6 +6,8 @@
 import { type GitCommit, type GitLogResult, type GitShown, RpcError } from '@neohar/transport';
 import { type KeyboardEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { useApp } from '../app/context';
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
 import { statusLetter, statusWord } from '../changes/model';
 import { cn } from '../lib/utils';
 import { DiffPane, type Loaded } from './DiffPane';
@@ -125,11 +127,11 @@ export function GitHistory(props: {
   return (
     <>
       <div className="git-side-body">
-        <input
-          className="git-filter"
+        <Input
           type="text"
           placeholder="Filter"
           aria-label="Filter the commits"
+          className="h-auto flex-none rounded-sm px-2 py-0.5 text-[13px]/5 shadow-none md:text-[13px]/5"
           value={filter}
           onChange={(event) => setFilter(event.currentTarget.value)}
         />
@@ -179,14 +181,15 @@ export function GitHistory(props: {
               ))}
             </ul>
             {more ? (
-              <button
-                type="button"
-                className="git-more"
+              <Button
+                variant="ghost"
+                size="xs"
+                className="self-start text-[13px] font-normal text-muted-foreground"
                 disabled={loading}
                 onClick={() => page(commits.length)}
               >
                 {loading ? 'Loading…' : 'Show more commits'}
-              </button>
+              </Button>
             ) : null}
           </>
         ) : (

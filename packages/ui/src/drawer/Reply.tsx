@@ -7,6 +7,8 @@
 import { RpcError } from '@neohar/transport';
 import { useRef, useState } from 'react';
 import { useApp } from '../app/context';
+import { Button } from '../components/ui/button';
+import { Textarea } from '../components/ui/textarea';
 
 export function Reply(props: { run: string; harness: string }) {
   const { transport, input, report } = useApp();
@@ -39,7 +41,7 @@ export function Reply(props: { run: string; harness: string }) {
 
   return (
     <form
-      className="card-reply"
+      className="flex flex-col gap-(--s1)"
       aria-label="Reply"
       onSubmit={(event) => {
         event.preventDefault();
@@ -49,9 +51,10 @@ export function Reply(props: { run: string; harness: string }) {
       <label className="card-label" htmlFor={field}>
         Reply to {props.harness}
       </label>
-      <textarea
+      {/* A font of 16 px, so that Safari does not zoom into the field. */}
+      <Textarea
         id={field}
-        className="card-field"
+        className="min-h-(--control) bg-background font-mono text-base md:text-base"
         rows={3}
         value={text}
         onChange={(event) => {
@@ -59,9 +62,9 @@ export function Reply(props: { run: string; harness: string }) {
           pending.current = null;
         }}
       />
-      <button type="submit" className="card-button" disabled={busy || text.trim() === ''}>
+      <Button type="submit" className="min-h-(--control)" disabled={busy || text.trim() === ''}>
         Send
-      </button>
+      </Button>
       {error ? (
         <p className="card-error" role="alert">
           {error}

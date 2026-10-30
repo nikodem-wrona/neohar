@@ -14,7 +14,7 @@
 // into `.pane-body`.
 
 import type { PaneId, TabValue } from '@neohar/transport';
-import { Fragment, memo, useCallback, useRef, useState } from 'react';
+import { Fragment, memo, useCallback, useId, useRef, useState } from 'react';
 import { badgeOf, harnessName } from '../agents/badge';
 import { HarnessBadge } from '../agents/HarnessBadge';
 import { useApp } from '../app/context';
@@ -23,12 +23,14 @@ import { paneName, showHandles } from '../app/preferences';
 import { dragged, dropTarget, pressToDrag } from '../app/drag';
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
+import { Checkbox } from '../components/ui/checkbox';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '../components/ui/dropdown-menu';
+import { Label } from '../components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '../components/ui/popover';
 import { useLatest, useSelect, useValue } from '../lib/hooks';
 import { cn } from '../lib/utils';
@@ -146,6 +148,7 @@ export const PaneBox = memo(function PaneBox(props: {
 
   // A program asked to write the clipboard with OSC 52, and the core waits for the answer.
   const [remember, setRemember] = useState(false);
+  const rememberId = useId();
   const answerClipboard = (allow: boolean): void => {
     const answer = transport.call('pane.clipboard_allow', {
       pane: props.id,
@@ -297,15 +300,16 @@ export const PaneBox = memo(function PaneBox(props: {
             </span>
           ) : null}
           {otherSize ? (
-            <button
-              type="button"
-              className="pane-size"
+            <Button
+              variant="ghost"
+              size="xs"
+              className="pane-size rounded-(--r-sm) px-1.5 font-[inherit] text-muted-foreground"
               data-action="fit"
               title="Another window has the size of this terminal. Fit it to this window."
               onClick={fit}
             >
               Fit
-            </button>
+            </Button>
           ) : null}
           <span className="pane-spacer" />
           <Tip text="Pane details" hidden={detailsOpen}>
@@ -512,20 +516,24 @@ export const PaneBox = memo(function PaneBox(props: {
               A program copied {request.bytes} bytes:{' '}
               <q className="clipboard-preview">{request.preview}</q>
             </span>
-            <button
-              type="button"
+            <Button
+              variant="outline"
+              size="xs"
+              className="h-5 rounded-(--r-sm) px-2 font-normal"
               data-action="clipboard-allow"
               onClick={() => answerClipboard(true)}
             >
               Copy
-            </button>
-            <button
-              type="button"
+            </Button>
+            <Button
+              variant="outline"
+              size="xs"
+              className="h-5 rounded-(--r-sm) px-2 font-normal"
               data-action="clipboard-deny"
               onClick={() => answerClipboard(false)}
             >
               Dismiss
-            </button>
+            </Button>
           </div>
         ) : (
           <div className="pane-held pane-clipboard" role="alert">
@@ -533,28 +541,34 @@ export const PaneBox = memo(function PaneBox(props: {
               A program wants to write {request.bytes} bytes to the clipboard:{' '}
               <q className="clipboard-preview">{request.preview}</q>
             </span>
-            <label className="clipboard-remember">
-              <input
-                type="checkbox"
+            <span className="flex items-center gap-1.5">
+              <Checkbox
+                id={rememberId}
                 checked={remember}
-                onChange={(e) => setRemember(e.currentTarget.checked)}
-              />{' '}
-              Remember for this pane
-            </label>
-            <button
-              type="button"
+                onCheckedChange={(checked) => setRemember(checked === true)}
+              />
+              <Label htmlFor={rememberId} className="font-normal text-muted-foreground">
+                Remember for this pane
+              </Label>
+            </span>
+            <Button
+              variant="outline"
+              size="xs"
+              className="h-5 rounded-(--r-sm) px-2 font-normal"
               data-action="clipboard-allow"
               onClick={() => answerClipboard(true)}
             >
               Allow
-            </button>
-            <button
-              type="button"
+            </Button>
+            <Button
+              variant="outline"
+              size="xs"
+              className="h-5 rounded-(--r-sm) px-2 font-normal"
               data-action="clipboard-deny"
               onClick={() => answerClipboard(false)}
             >
               Deny
-            </button>
+            </Button>
           </div>
         )
       ) : null}
@@ -568,9 +582,15 @@ export const PaneBox = memo(function PaneBox(props: {
               ? 'The program ended.'
               : `The program ended with code ${exited.code}.`}
           </span>
-          <button type="button" data-action="restart" onClick={restart}>
+          <Button
+            variant="outline"
+            size="xs"
+            className="h-5 rounded-(--r-sm) px-2 font-normal"
+            data-action="restart"
+            onClick={restart}
+          >
             Restart
-          </button>
+          </Button>
         </div>
       ) : null}
     </section>

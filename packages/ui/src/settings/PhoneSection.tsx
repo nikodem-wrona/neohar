@@ -6,7 +6,9 @@
 
 import { type PhonePairingValue, RpcError, type Transport } from '@neohar/transport';
 import { useEffect, useState } from 'react';
+import { Button } from '../components/ui/button';
 import { Dialog, DialogContent, DialogTitle } from '../components/ui/dialog';
+import { Input } from '../components/ui/input';
 import { useRows, useValue } from '../lib/hooks';
 import { useProjectionStore } from '../stores';
 
@@ -36,8 +38,8 @@ function PhoneRow(props: {
   return (
     <li className="phone-row" data-phone={props.device}>
       {editing ? (
-        <input
-          className="setting-input phone-name"
+        <Input
+          className="phone-name h-7 px-2 py-0 font-mono md:text-[length:var(--size-data)]"
           aria-label="The name of the phone"
           defaultValue={props.name}
           ref={selectWhenShown}
@@ -57,21 +59,21 @@ function PhoneRow(props: {
       ) : (
         <span className="phone-name">{props.name}</span>
       )}
-      <button type="button" className="setting-reset" onClick={() => setEditing(true)}>
+      <Button variant="outline" size="xs" onClick={() => setEditing(true)}>
         Rename
-      </button>
-      <button
-        type="button"
-        className="setting-reset"
+      </Button>
+      <Button
+        variant="outline"
+        size="xs"
         onClick={() => done(props.transport.call('phone.remove', { device: props.device }))}
       >
         Remove
-      </button>
+      </Button>
       {props.push ? (
         <>
-          <button
-            type="button"
-            className="setting-reset"
+          <Button
+            variant="outline"
+            size="xs"
             onClick={() => {
               setSent(false);
               done(
@@ -82,7 +84,7 @@ function PhoneRow(props: {
             }}
           >
             Send a test notification
-          </button>
+          </Button>
           {sent ? (
             <span className="settings-note" role="status">
               Sent.
@@ -146,15 +148,15 @@ function PairDialog(props: {
             {state === 'expired' ? 'The offer ended.' : 'Waiting for the core.'}
           </p>
         )}
-        <div className="dialog-buttons">
+        <div className="flex flex-wrap gap-2 border-t border-(--line) pt-2">
           {state === 'expired' ? (
-            <button type="button" className="primary" onClick={() => props.onAgain()}>
+            <Button size="sm" onClick={() => props.onAgain()}>
               New code
-            </button>
+            </Button>
           ) : null}
-          <button type="button" className="dialog-cancel" onClick={() => props.onClose()}>
+          <Button variant="outline" size="sm" className="ml-auto" onClick={() => props.onClose()}>
             Cancel
-          </button>
+          </Button>
         </div>
       </DialogContent>
     </Dialog>
@@ -220,31 +222,31 @@ export function PhoneSection(props: { transport: Transport }) {
       <div className="phone-actions">
         {current?.tailscale ? (
           current.tailscale.published ? (
-            <button
-              type="button"
-              className="setting-reset"
+            <Button
+              variant="outline"
+              size="xs"
               disabled={busy}
               onClick={() => call('phone.unpublish')}
             >
               Unpublish
-            </button>
+            </Button>
           ) : (
-            <button
-              type="button"
-              className="setting-reset"
+            <Button
+              variant="outline"
+              size="xs"
               disabled={busy}
               onClick={() => call('phone.publish')}
             >
               Publish with Tailscale
-            </button>
+            </Button>
           )
         ) : null}
-        <button type="button" className="setting-reset" onClick={pair}>
+        <Button variant="outline" size="xs" onClick={pair}>
           Pair a phone
-        </button>
+        </Button>
       </div>
       {error ? (
-        <p className="setting-error" role="alert">
+        <p className="m-0 text-destructive" role="alert">
           {error}
         </p>
       ) : null}

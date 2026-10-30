@@ -14,19 +14,33 @@ import type {
 } from '@neohar/transport';
 import {
   type ComponentProps,
-  type ReactNode,
   useCallback,
   useEffect,
+  useId,
   useLayoutEffect,
   useRef,
   useState,
 } from 'react';
 import { useApp } from '../app/context';
 import { useLayer } from '../app/layer';
+import { Button } from '../components/ui/button';
+import { Checkbox } from '../components/ui/checkbox';
 import { Dialog, DialogContent, DialogTitle } from '../components/ui/dialog';
+import { Field, FieldLabel } from '../components/ui/field';
+import { Input } from '../components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../components/ui/select';
+import { Textarea } from '../components/ui/textarea';
 import { useLatest } from '../lib/hooks';
 import { debounce } from '../lib/timing';
+import { cn } from '../lib/utils';
 import { RichHtml } from '../rich/RichHtml';
+import { LABEL, NONE } from './fields';
 import {
   harnessName,
   inputsOf,
@@ -39,47 +53,65 @@ import {
 } from './model';
 
 /**
- * A select that shows a value of the node. The choice of the person stays in it until the core
- * gives the next value.
+ * A select that shows a value of the node. The choice of the person shows at once and stays until
+ * the core gives the next value. The value `''` is the option "none".
  */
 function ValueSelect(props: {
+  id: string;
   value: string;
+  options: readonly { value: string; label: string }[];
   onChange: (value: string) => void;
-  children: ReactNode;
 }) {
-  const field = useRef<HTMLSelectElement>(null);
-  useLayoutEffect(() => {
-    if (field.current) field.current.value = props.value;
-  }, [props.value]);
+  const [shown, setShown] = useState({ core: props.value, value: props.value });
+  if (shown.core !== props.value) setShown({ core: props.value, value: props.value });
   return (
-    <select ref={field} onChange={(event) => props.onChange(event.currentTarget.value)}>
-      {props.children}
-    </select>
+    <Select
+      value={shown.value || NONE}
+      onValueChange={(next) => {
+        const value = next === NONE ? '' : next;
+        setShown({ core: props.value, value });
+        props.onChange(value);
+      }}
+    >
+      <SelectTrigger id={props.id} size="sm" className="w-full text-[13px]">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        {props.options.map((option) => (
+          <SelectItem key={option.value} value={option.value || NONE} className="text-[13px]">
+            {option.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }
 
 /** A check box that shows a value of the node, as `ValueSelect` does. */
-function ValueCheck(props: { checked: boolean; onChange: (checked: boolean) => void }) {
-  const box = useRef<HTMLInputElement>(null);
-  useLayoutEffect(() => {
-    if (box.current) box.current.checked = props.checked;
-  }, [props.checked]);
+function ValueCheck(props: { id: string; checked: boolean; onChange: (checked: boolean) => void }) {
+  const [shown, setShown] = useState({ core: props.checked, on: props.checked });
+  if (shown.core !== props.checked) setShown({ core: props.checked, on: props.checked });
   return (
-    <input
-      type="checkbox"
-      ref={box}
-      onChange={(event) => props.onChange(event.currentTarget.checked)}
+    <Checkbox
+      id={props.id}
+      checked={shown.on}
+      onCheckedChange={(state) => {
+        const on = state === true;
+        setShown({ core: props.checked, on });
+        props.onChange(on);
+      }}
     />
   );
 }
 
 /**
- * A field that shows a value of the node, as `ValueSelect` does. It sends the text on the native
- * `change` (on blur or Enter), not for each key.
+ * A field that shows a value of the node. The person edits it freely: it sends the text on the
+ * native `change` (on blur or Enter), not for each key, and a new value of the core goes into it.
  */
 function ValueField({
   value,
   onCommit,
+  className,
   ...rest
 }: { value: string; onCommit: (text: string) => void } & Omit<
   ComponentProps<'input'>,
@@ -97,7 +129,7 @@ function ValueField({
     element.addEventListener('change', change);
     return () => element.removeEventListener('change', change);
   }, [commit]);
-  return <input {...rest} ref={field} />;
+  return <Input {...rest} className={cn('h-8 md:text-[13px]', className)} ref={field} />;
 }
 
 export interface NodeDetailsProps {
@@ -115,6 +147,8 @@ export interface NodeDetailsProps {
 export function NodeDetails(props: NodeDetailsProps) {
   const { transport } = useApp();
   const promptField = useRef<HTMLTextAreaElement>(null);
+  // The ids that tie each label to its field.
+  const id = useId();
   const [prompt, setPrompt] = useState(() =>
     props.node.kind === 'report' ? (props.node.summary_prompt ?? '') : (props.node.prompt ?? ''),
   );
@@ -221,9 +255,9 @@ export function NodeDetails(props: NodeDetailsProps) {
           </DialogTitle>
           <span className="wf-details-id">{props.node.id}</span>
           <span className="wf-spacer" />
-          <button type="button" className="dialog-cancel" onClick={close}>
+          <Button variant="outline" size="sm" onClick={close}>
             Done
-          </button>
+          </Button>
         </header>
         {issues.length > 0 ? (
           <ul className="wf-details-problems" role="alert">
@@ -241,16 +275,17 @@ export function NodeDetails(props: NodeDetailsProps) {
                 <p className="wf-muted">Click a chip to put its reference into the prompt.</p>
                 <div className="wf-chips">
                   {referenceChips(props.graph, props.node).map((chip) => (
-                    <button
+                    <Button
                       key={chip.text}
-                      type="button"
-                      className="wf-chip"
+                      variant="outline"
+                      size="xs"
+                      className="rounded-full font-mono"
                       title={chip.text}
                       disabled={props.node.kind === 'manual'}
                       onClick={() => insert(chip.text)}
                     >
                       {chip.label}
-                    </button>
+                    </Button>
                   ))}
                 </div>
                 <ul className="wf-inputs">
@@ -272,9 +307,13 @@ export function NodeDetails(props: NodeDetailsProps) {
           </section>
           <section className="wf-details-col wf-details-settings" aria-label="Settings">
             <h3>Settings</h3>
-            <label className="wf-field">
-              <span>Title</span>
-              <input
+            <Field className="wf-field gap-0.5">
+              <FieldLabel htmlFor={`${id}-title`} className={LABEL}>
+                Title
+              </FieldLabel>
+              <Input
+                id={`${id}-title`}
+                className="h-8 md:text-[13px]"
                 type="text"
                 autoComplete="off"
                 spellCheck={false}
@@ -285,14 +324,21 @@ export function NodeDetails(props: NodeDetailsProps) {
                 }}
                 onBlur={flush}
               />
-            </label>
+            </Field>
             {props.node.kind === 'agent' ? (
               <>
                 <div className="wf-field-row">
-                  <label className="wf-field">
-                    <span>Harness</span>
+                  <Field className="wf-field gap-0.5">
+                    <FieldLabel htmlFor={`${id}-harness`} className={LABEL}>
+                      Harness
+                    </FieldLabel>
                     <ValueSelect
+                      id={`${id}-harness`}
                       value={props.node.harness ?? ''}
+                      options={[
+                        { value: 'claude', label: harnessName('claude') },
+                        { value: 'codex', label: harnessName('codex') },
+                      ]}
                       onChange={(value) => {
                         props.onChange({
                           harness: value === 'claude' || value === 'codex' ? value : null,
@@ -300,58 +346,64 @@ export function NodeDetails(props: NodeDetailsProps) {
                           effort: null,
                         });
                       }}
-                    >
-                      <option value="claude">{harnessName('claude')}</option>
-                      <option value="codex">{harnessName('codex')}</option>
-                    </ValueSelect>
-                  </label>
-                  <label className="wf-field">
-                    <span>Model</span>
+                    />
+                  </Field>
+                  <Field className="wf-field gap-0.5">
+                    <FieldLabel htmlFor={`${id}-model`} className={LABEL}>
+                      Model
+                    </FieldLabel>
                     <ValueSelect
+                      id={`${id}-model`}
                       value={props.node.model ?? ''}
+                      options={[
+                        { value: '', label: 'Default' },
+                        ...(choice?.models ?? []).map((model) => ({
+                          value: model.id,
+                          label: model.label,
+                        })),
+                        ...(props.node.model &&
+                        !(choice?.models ?? []).some((m) => m.id === props.node.model)
+                          ? [{ value: props.node.model, label: props.node.model }]
+                          : []),
+                      ]}
                       onChange={(value) => props.onChange({ model: value || null, effort: null })}
-                    >
-                      <option value="">Default</option>
-                      {(choice?.models ?? []).map((model) => (
-                        <option key={model.id} value={model.id}>
-                          {model.label}
-                        </option>
-                      ))}
-                      {props.node.model &&
-                      !(choice?.models ?? []).some((m) => m.id === props.node.model) ? (
-                        <option value={props.node.model ?? ''}>{props.node.model}</option>
-                      ) : null}
-                    </ValueSelect>
-                  </label>
-                  <label className="wf-field">
-                    <span>Effort</span>
+                    />
+                  </Field>
+                  <Field className="wf-field gap-0.5">
+                    <FieldLabel htmlFor={`${id}-effort`} className={LABEL}>
+                      Effort
+                    </FieldLabel>
                     <ValueSelect
+                      id={`${id}-effort`}
                       value={props.node.effort ?? ''}
+                      options={[
+                        { value: '', label: 'Default' },
+                        ...efforts.map((effort) => ({ value: effort, label: effort })),
+                        ...(props.node.effort && !efforts.includes(props.node.effort)
+                          ? [{ value: props.node.effort, label: props.node.effort }]
+                          : []),
+                      ]}
                       onChange={(value) => props.onChange({ effort: value || null })}
-                    >
-                      <option value="">Default</option>
-                      {efforts.map((effort) => (
-                        <option key={effort} value={effort}>
-                          {effort}
-                        </option>
-                      ))}
-                      {props.node.effort && !efforts.includes(props.node.effort) ? (
-                        <option value={props.node.effort ?? ''}>{props.node.effort}</option>
-                      ) : null}
-                    </ValueSelect>
-                  </label>
+                    />
+                  </Field>
                 </div>
                 <div className="wf-field-row">
-                  <label className="wf-check">
+                  <Field orientation="horizontal" className="w-auto gap-2 pb-2">
                     <ValueCheck
+                      id={`${id}-edit`}
                       checked={props.node.can_edit === true}
                       onChange={(checked) => props.onChange({ can_edit: checked })}
                     />
-                    <span>Can edit files</span>
-                  </label>
-                  <label className="wf-field wf-field-small">
-                    <span>Time limit, min</span>
+                    <FieldLabel htmlFor={`${id}-edit`} className="text-[13px] font-normal">
+                      Can edit files
+                    </FieldLabel>
+                  </Field>
+                  <Field className="wf-field wf-field-small gap-0.5">
+                    <FieldLabel htmlFor={`${id}-limit`} className={LABEL}>
+                      Time limit, min
+                    </FieldLabel>
                     <ValueField
+                      id={`${id}-limit`}
                       type="number"
                       min="1"
                       max="1440"
@@ -359,36 +411,41 @@ export function NodeDetails(props: NodeDetailsProps) {
                       value={String(props.node.time_limit_min ?? '')}
                       onCommit={onLimit}
                     />
-                  </label>
+                  </Field>
                 </div>
               </>
             ) : null}
             {props.node.kind === 'report' ? (
-              <label className="wf-field">
-                <span>Summary by</span>
+              <Field className="wf-field gap-0.5">
+                <FieldLabel htmlFor={`${id}-summary`} className={LABEL}>
+                  Summary by
+                </FieldLabel>
                 <ValueSelect
+                  id={`${id}-summary`}
                   value={props.node.summary_by ?? ''}
+                  options={[
+                    { value: '', label: 'No summary' },
+                    { value: 'claude', label: harnessName('claude') },
+                    { value: 'codex', label: harnessName('codex') },
+                  ]}
                   onChange={(value) => {
                     props.onChange({
                       summary_by: value === 'claude' || value === 'codex' ? value : null,
                     });
                   }}
-                >
-                  <option value="">No summary</option>
-                  <option value="claude">{harnessName('claude')}</option>
-                  <option value="codex">{harnessName('codex')}</option>
-                </ValueSelect>
-              </label>
+                />
+              </Field>
             ) : null}
             {props.node.kind === 'agent' ||
             (props.node.kind === 'report' && props.node.summary_by) ? (
               <>
-                <label className="wf-field wf-field-grow">
-                  <span>
+                <Field className="wf-field wf-field-grow gap-0.5">
+                  <FieldLabel htmlFor={`${id}-prompt`} className={LABEL}>
                     {props.node.kind === 'report' ? 'Summary prompt (optional)' : 'Prompt'}
-                  </span>
-                  <textarea
-                    className="wf-prompt"
+                  </FieldLabel>
+                  <Textarea
+                    id={`${id}-prompt`}
+                    className="min-h-[10em] flex-1 resize-y font-mono leading-[1.45] [field-sizing:fixed] md:text-[length:var(--size-data)]"
                     spellCheck={false}
                     value={prompt}
                     ref={promptField}
@@ -398,7 +455,7 @@ export function NodeDetails(props: NodeDetailsProps) {
                     }}
                     onBlur={flush}
                   />
-                </label>
+                </Field>
                 <p className="wf-muted wf-footer-note">
                   neohar adds a footer to the prompt: the paths of the input reports, and the rules.
                   The agent asks no questions
@@ -422,9 +479,10 @@ export function NodeDetails(props: NodeDetailsProps) {
           <section className="wf-details-col" aria-label="Output">
             <h3>Output</h3>
             {props.node.kind !== 'manual' ? (
-              <button
-                type="button"
-                className="wf-secondary"
+              <Button
+                variant="outline"
+                size="sm"
+                className="self-start"
                 title="Execute only this node, with the reports of the last execution as its inputs"
                 onClick={() => {
                   flush();
@@ -432,7 +490,7 @@ export function NodeDetails(props: NodeDetailsProps) {
                 }}
               >
                 Execute this node
-              </button>
+              </Button>
             ) : null}
             {output ? (
               <div className="wf-report">

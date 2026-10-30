@@ -144,8 +144,13 @@ diff and the last lines of the pane, with Allow, "Allow `<rule>` always" (only w
 with its button when "Allow always" is not there. At a high risk Deny is preselected, a number
 only selects its button, and only Enter on a button answers. A question shows each option as a
 choice with a radio button (a checkbox for a multi-select question), with a field for free text. A choice clears the text and text clears the choices,
-because keys type one of the two into the dialog of the harness. A plan review has the plan and a feedback box, and a
-notice has Open and Dismiss.
+because keys type one of the two into the dialog of the harness. A plan review has the plan and a
+text area for feedback, and a notice has Open and Dismiss.
+
+A card is a Card of shadcn/ui on its `article` (`cards/CardFrame.tsx`): a header with the title
+and the badge, the content and a footer. Each answer is a Button with its key in a Kbd. The answers
+that let the agent go on have the colour of the accent (green by default), and Deny and stop is red.
+The line of a run in the Inbox is a Card too.
 
 A card never changes itself after a click: it sends `interaction.answer {via: "card"}` and then
 shows the state from the projection. A card that is not open is one row, with a badge such as
@@ -206,8 +211,10 @@ gives the focus back with `useFocusReturn` (`shell/focus.ts`).
   over the rules of the chrome. The phone app adds `phone.css` in the layer `phone`
   (`phone/layer.css`).
 - **Components.** The controls are shadcn/ui components in `packages/ui/src/components/ui/`
-  (alert dialog, badge, button, checkbox, command, context menu, dialog, dropdown menu, input, kbd,
-  label, popover, radio group, sheet, sonner, tooltip). The badge has the tones of
+  (alert dialog, badge, button, card, checkbox, command, context menu, dialog, dropdown menu, field,
+  input, kbd, label, popover, radio group, select, separator, sheet, sonner, switch, textarea,
+  tooltip). The forms of the settings, the cards, the Workflows view, the Git view and the phone
+  use them. The badge has the tones of
   neohar as variants: neutral (the default), muted, info, ok, warn and error. `cn()` in
   `lib/utils.ts` joins classes with `clsx` and `tailwind-merge`. `@/` is `packages/ui/src`.
 - **Tailwind CSS 4.** `@tailwindcss/vite` builds it for the desk, the phone and the shell test.

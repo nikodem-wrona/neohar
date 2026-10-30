@@ -11,6 +11,17 @@ import { useApp } from '../app/context';
 import { paneName, showHandles } from '../app/preferences';
 import { showPane } from '../app/show';
 import { Card } from '../cards/Card';
+import { CARD, PART } from '../cards/CardFrame';
+import { Button } from '../components/ui/button';
+import {
+  Card as CardBox,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '../components/ui/card';
+import { cn } from '../lib/utils';
 import { useRows, useSelect, useValue } from '../lib/hooks';
 import { groupByRun, replyState, type Trouble, troubleTitle } from './group';
 import { Reply } from './Reply';
@@ -123,34 +134,47 @@ function RunState(props: { run: string | null; trouble: Trouble; harness: string
       : null;
   const pane = agent?.pane;
   return (
-    <article
-      className="card card-run-state"
-      data-state={props.trouble}
-      tabIndex={0}
-      aria-label={`${props.harness}: ${title}`}
-    >
-      <header className="card-head">
-        <h3 className="card-title">{title}</h3>
-      </header>
-      <p className="card-text">{text}</p>
-      {since ? (
-        <p className="card-cwd">
-          <span className="card-label">Since</span> <time dateTime={since}>{since}</time>
-        </p>
-      ) : null}
-      {/* A phone answers a turn that ended in the Inbox. */}
-      {replyRun ? <Reply run={replyRun} harness={props.harness} /> : null}
-      {pane ? (
-        <div className="card-actions" role="group" aria-label={title}>
-          <button
-            type="button"
-            className="card-button"
-            onClick={() => void showPane(transport, windowId, pane).catch(report)}
+    <CardBox asChild className={CARD}>
+      <article data-state={props.trouble} tabIndex={0} aria-label={`${props.harness}: ${title}`}>
+        <CardHeader className={PART}>
+          {/* An error is red. A limit only waits: its title is dim. */}
+          <CardTitle
+            role="heading"
+            aria-level={3}
+            className={cn(
+              'card-title leading-5',
+              props.trouble === 'error' && 'text-destructive',
+              props.trouble === 'rate_limited' && 'text-muted-foreground',
+            )}
           >
-            Open
-          </button>
-        </div>
-      ) : null}
-    </article>
+            {title}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className={cn(PART, 'flex flex-col gap-(--s3)')}>
+          <CardDescription className="text-[length:inherit] [overflow-wrap:anywhere]">
+            {text}
+          </CardDescription>
+          {since ? (
+            <p className="card-cwd">
+              <span className="card-label">Since</span> <time dateTime={since}>{since}</time>
+            </p>
+          ) : null}
+          {/* A phone answers a turn that ended in the Inbox. */}
+          {replyRun ? <Reply run={replyRun} harness={props.harness} /> : null}
+        </CardContent>
+        {pane ? (
+          <CardFooter className={PART} role="group" aria-label={title}>
+            <Button
+              variant="outline"
+              size="sm"
+              className="min-h-(--control)"
+              onClick={() => void showPane(transport, windowId, pane).catch(report)}
+            >
+              Open
+            </Button>
+          </CardFooter>
+        ) : null}
+      </article>
+    </CardBox>
   );
 }

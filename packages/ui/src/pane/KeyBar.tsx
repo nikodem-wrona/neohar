@@ -10,6 +10,8 @@ import { type LogicalInput, RpcError } from '@neohar/transport';
 import { type PointerEvent, useState } from 'react';
 import { useApp } from '../app/context';
 import { phoneKeys } from '../app/preferences';
+import { Button } from '../components/ui/button';
+import { Textarea } from '../components/ui/textarea';
 import type { TypingField } from '../app/view';
 import { readClipboard } from '../input/clipboard';
 import { replyState } from '../drawer/group';
@@ -85,36 +87,39 @@ export function KeyBar(props: { field: TypingField }) {
   return (
     <div className="key-bar" role="toolbar" aria-label="Keys">
       {composing ? (
+        // The Textarea and the Buttons of shadcn/ui. The field has 16 px, so that Safari does not
+        // zoom, and Send is the one action of the form.
         <form
-          className="key-compose"
+          className="flex flex-col gap-(--s1)"
           aria-label="Compose"
           onSubmit={(event) => {
             event.preventDefault();
             submit(true).catch(report);
           }}
         >
-          <textarea
-            className="key-compose-field"
+          <Textarea
+            className="min-h-[88px] resize-none rounded-(--r-sm) border-muted-foreground bg-background px-2.5 py-2 font-(family-name:--font-data) text-[16px]/[1.4] field-sizing-fixed md:text-[16px]/[1.4]"
             aria-label="Text for the pane"
             rows={3}
             value={draft}
             onChange={(event) => setDraft(event.currentTarget.value)}
           />
-          <div className="key-compose-buttons">
-            <button type="submit" className="card-button" disabled={draft.trim() === ''}>
+          <div className="flex gap-(--s2)">
+            <Button type="submit" className="h-(--control)" disabled={draft.trim() === ''}>
               Send
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
-              className="card-button"
+              variant="outline"
+              className="h-(--control)"
               disabled={draft.trim() === ''}
               onClick={() => void submit(false).catch(report)}
             >
               Insert
-            </button>
-            <button type="button" className="card-button" onClick={close}>
+            </Button>
+            <Button type="button" variant="outline" className="h-(--control)" onClick={close}>
               Cancel
-            </button>
+            </Button>
           </div>
           {error ? (
             <p className="card-error" role="alert">

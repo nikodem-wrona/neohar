@@ -55,14 +55,6 @@
     font-weight: 600;
   }
 
-  .wf-name-field {
-    width: 28ch;
-    padding: 2px var(--s1);
-    border: 1px solid var(--text-dim);
-    background: var(--bg);
-    color: var(--text);
-  }
-
   .wf-spacer {
     flex: 1;
   }
@@ -193,22 +185,6 @@
     flex-direction: column;
     gap: var(--s1);
     padding: var(--s1) var(--s3);
-  }
-
-  .wf-new input,
-  .wf-new select {
-    padding: 3px var(--s1);
-    border: 1px solid var(--text-dim);
-    background: var(--bg);
-    color: var(--text);
-  }
-
-  .wf-new .primary {
-    margin-left: auto;
-    padding: 2px var(--s2);
-    background: var(--accent);
-    color: var(--on-signal);
-    font-weight: 600;
   }
 
   .wf-dot {
@@ -596,11 +572,6 @@
     margin: 0;
   }
 
-  .wf-details-head .dialog-cancel {
-    padding: 3px 12px;
-    border: 1px solid var(--line);
-  }
-
   .wf-details-id {
     font: var(--t-data);
     color: var(--text-dim);
@@ -651,18 +622,6 @@
     gap: var(--s1);
   }
 
-  .wf-chip {
-    padding: 1px var(--s2);
-    border: 1px solid var(--line);
-    border-radius: 999px;
-    font: var(--t-data);
-    font-size: var(--size-small);
-  }
-
-  .wf-chip:hover {
-    border-color: var(--text);
-  }
-
   .wf-inputs {
     margin: 0;
     padding: 0;
@@ -681,20 +640,6 @@
     flex-direction: column;
     gap: 2px;
     min-width: 0;
-  }
-
-  .wf-field > span {
-    font-size: var(--size-small);
-    color: var(--text-dim);
-  }
-
-  .wf-field input,
-  .wf-field select,
-  .wf-field textarea {
-    padding: 3px var(--s1);
-    border: 1px solid var(--text-dim);
-    background: var(--bg);
-    color: var(--text);
   }
 
   .wf-field-row {
@@ -717,34 +662,8 @@
     min-height: 12em;
   }
 
-  .wf-check {
-    display: flex;
-    align-items: center;
-    gap: var(--s1);
-    padding-bottom: 4px;
-  }
-
-  .wf-prompt,
-  .wf-notes {
-    flex: 1;
-    min-height: 10em;
-    resize: vertical;
-    font: var(--t-data);
-    line-height: 1.45;
-  }
-
   .wf-footer-note {
     font-size: var(--size-small);
-  }
-
-  .wf-secondary {
-    align-self: flex-start;
-    padding: 2px var(--s2);
-    border: 1px solid var(--line);
-  }
-
-  .wf-secondary:hover {
-    border-color: var(--text);
   }
 
   .wf-execute-form {

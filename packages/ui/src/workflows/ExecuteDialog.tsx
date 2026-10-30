@@ -3,12 +3,24 @@
 // why. The core reads the facts of the folder and starts the execution.
 
 import type { AgentValue, WorkflowFacts } from '@neohar/transport';
-import { useRef, useState } from 'react';
+import { useId, useRef, useState } from 'react';
 import { harnessName } from '../agents/badge';
 import { useApp } from '../app/context';
 import { useLayer } from '../app/layer';
+import { Button } from '../components/ui/button';
 import { Dialog, DialogContent, DialogTitle } from '../components/ui/dialog';
+import { Field, FieldLabel } from '../components/ui/field';
+import { Input } from '../components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../components/ui/select';
+import { Textarea } from '../components/ui/textarea';
 import { useSelect } from '../lib/hooks';
+import { LABEL } from './fields';
 
 export function ExecuteDialog(props: {
   workflow: string;
@@ -22,6 +34,8 @@ export function ExecuteDialog(props: {
 }) {
   const { transport, stores, report } = useApp();
   const first = useRef<HTMLInputElement>(null);
+  // The ids that tie each label to its field.
+  const id = useId();
   const [base, setBase] = useState(props.facts?.base ?? '');
   const [notes, setNotes] = useState('');
   const panes = useSelect(stores.panes, (state) => state.byKey);
@@ -90,9 +104,13 @@ export function ExecuteDialog(props: {
               neohar reads no git facts here: the folder is not in a git repository that you trust.
             </p>
           ) : null}
-          <label className="wf-field">
-            <span>Base of the changes</span>
-            <input
+          <Field className="wf-field gap-0.5">
+            <FieldLabel htmlFor={`${id}-base`} className={LABEL}>
+              Base of the changes
+            </FieldLabel>
+            <Input
+              id={`${id}-base`}
+              className="h-8 md:text-[13px]"
               type="text"
               autoComplete="off"
               spellCheck={false}
@@ -101,35 +119,50 @@ export function ExecuteDialog(props: {
               ref={first}
               onChange={(event) => setBase(event.currentTarget.value)}
             />
-          </label>
-          <label className="wf-field wf-field-grow">
-            <span>Notes: what you built and why</span>
-            <textarea
-              className="wf-notes"
+          </Field>
+          <Field className="wf-field wf-field-grow gap-0.5">
+            <FieldLabel htmlFor={`${id}-notes`} className={LABEL}>
+              Notes: what you built and why
+            </FieldLabel>
+            <Textarea
+              id={`${id}-notes`}
+              className="min-h-[10em] flex-1 resize-y font-mono leading-[1.45] [field-sizing:fixed] md:text-[length:var(--size-data)]"
               value={notes}
               onChange={(event) => setNotes(event.currentTarget.value)}
             />
-          </label>
+          </Field>
           {props.agents.length > 0 ? (
-            <label className="wf-field">
-              <span>Take the notes from the prompts of an agent</span>
-              <select defaultValue="" onChange={(event) => take(event.currentTarget.value)}>
-                <option value="">Pick an agent</option>
-                {props.agents.map((agent) => (
-                  <option key={agent.id} value={agent.id}>
-                    {agentName(agent)}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <Field className="wf-field gap-0.5">
+              <FieldLabel htmlFor={`${id}-agent`} className={LABEL}>
+                Take the notes from the prompts of an agent
+              </FieldLabel>
+              {/* The select has no value of its own: it shows the agent of the last pick. */}
+              <Select onValueChange={take}>
+                <SelectTrigger id={`${id}-agent`} size="sm" className="w-full text-[13px]">
+                  <SelectValue placeholder="Pick an agent" />
+                </SelectTrigger>
+                <SelectContent>
+                  {props.agents.map((agent) => (
+                    <SelectItem key={agent.id} value={agent.id} className="text-[13px]">
+                      {agentName(agent)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
           ) : null}
-          <div className="dialog-buttons">
-            <button type="button" className="dialog-cancel" onClick={() => props.onCancel()}>
+          <div className="flex flex-wrap gap-2 border-t border-(--line) pt-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="ml-auto"
+              onClick={() => props.onCancel()}
+            >
               Cancel
-            </button>
-            <button type="submit" className="primary">
+            </Button>
+            <Button type="submit" size="sm">
               Execute
-            </button>
+            </Button>
           </div>
         </form>
       </DialogContent>

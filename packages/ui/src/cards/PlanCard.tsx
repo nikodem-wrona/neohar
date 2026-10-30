@@ -3,6 +3,8 @@
 
 import type { InteractionValue } from '@neohar/transport';
 import { type Ref, useState } from 'react';
+import { Button } from '../components/ui/button';
+import { Textarea } from '../components/ui/textarea';
 import { RichHtml } from '../rich/RichHtml';
 import { sendAnswer } from './answer';
 import { CardFrame } from './CardFrame';
@@ -34,6 +36,40 @@ export function PlanCard(props: {
       harness={props.harness}
       error={error}
       ref={props.ref}
+      footer={
+        canAnswer(props.interaction) ? (
+          <>
+            <Textarea
+              placeholder="What should change? (for Request changes)"
+              aria-label="Feedback for the agent"
+              value={feedback}
+              onChange={(event) => setFeedback(event.currentTarget.value)}
+            />
+            {/* Approve lets the agent go on: it is green. */}
+            <div className="flex flex-wrap items-center gap-1" role="group" aria-label="Answer">
+              <Button
+                variant="outline"
+                size="sm"
+                className="min-h-(--control) border-(--accent) text-(--accent)"
+                data-choice="approve"
+                disabled={busy}
+                onClick={() => void answer(true).catch(report)}
+              >
+                Approve
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="min-h-(--control)"
+                disabled={busy}
+                onClick={() => void answer(false).catch(report)}
+              >
+                Request changes
+              </Button>
+            </div>
+          </>
+        ) : null
+      }
     >
       <RichHtml html={props.payload.plan.html} />
       {props.payload.plan.truncated ? (
@@ -43,36 +79,6 @@ export function PlanCard(props: {
         <p className="card-cwd">
           <span className="card-label">File</span> {props.payload.plan_path}
         </p>
-      ) : null}
-      {canAnswer(props.interaction) ? (
-        <>
-          <textarea
-            className="card-feedback"
-            placeholder="What should change? (for Request changes)"
-            aria-label="Feedback for the agent"
-            value={feedback}
-            onChange={(event) => setFeedback(event.currentTarget.value)}
-          />
-          <div className="card-actions" role="group" aria-label="Answer">
-            <button
-              type="button"
-              className="card-button selected"
-              data-choice="approve"
-              disabled={busy}
-              onClick={() => void answer(true).catch(report)}
-            >
-              Approve
-            </button>
-            <button
-              type="button"
-              className="card-button"
-              disabled={busy}
-              onClick={() => void answer(false).catch(report)}
-            >
-              Request changes
-            </button>
-          </div>
-        </>
       ) : null}
     </CardFrame>
   );

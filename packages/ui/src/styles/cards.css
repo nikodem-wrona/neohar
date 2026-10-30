@@ -27,107 +27,11 @@
     font-weight: 400;
   }
 
-  .card {
-    display: flex;
-    flex-direction: column;
-    gap: var(--s3);
-    min-width: 0;
-    padding: var(--s3) var(--s4) var(--s4);
-    border: 1px solid var(--hairline);
-    border-radius: var(--r-md);
-    background: var(--bg-card);
-  }
+  /* A card is the Card of shadcn/ui (`cards/CardFrame.tsx`): its shape, its state and its
+     head are classes of Tailwind CSS. The rules here are for the parts of its body. */
 
-  /* The focus of the card itself (⌘⇧A) is a ring around it, so the border keeps the colour of its
-     state. A control in the card shows its own focus, so the card has no ring then. */
-  .card:focus-visible {
-    outline: 1px solid var(--text);
-    outline-offset: 2px;
-  }
-
-  /* A card that waits for a person has an amber border and tint, and a red one at a high risk.
-    A card whose answer may not have arrived stays amber. */
-  .card[data-state='open'],
-  .card[data-state='delivery_unknown'] {
-    border-color: var(--caution);
-    background: var(--tint-caution);
-  }
-
-  .card.risk-high[data-state='open'] {
-    border-color: var(--danger);
-    background: var(--tint-danger);
-  }
-
-  .card-button:focus-visible,
-  .card input:focus-visible,
-  .card textarea:focus-visible {
-    outline: 1px solid var(--text);
-    outline-offset: 0;
-  }
-
-  /* The line of a run that counts in the inbox without a card. */
-  .card-run-state[data-state='error'] .card-title {
-    color: var(--danger);
-  }
-
-  .card-run-state[data-state='rate_limited'] .card-title {
-    color: var(--text-dim);
-  }
-
-  /* A card that ended is one row: its title on one line, and the badge of its end. It keeps the
-     contrast of its text: a dashed border and a dim title, not a lower opacity (WCAG 1.4.3). */
-  .card-ended {
-    gap: var(--s2);
-    padding: var(--s2) var(--s4);
-    border-style: dashed;
-  }
-
-  .card-ended .card-head {
-    align-items: center;
-  }
-
-  .card-ended .card-title {
-    font: var(--t-body);
-    color: var(--text-dim);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  /* The head of a card, as in shadcn/ui: the title on the left, and at the right the risk, the
-     badge of the state and the handle. */
-  .card-head {
-    display: flex;
-    gap: var(--s3);
-    align-items: flex-start;
-  }
-
-  .card-title {
-    flex: 1;
-    min-width: 0;
-    margin: 0;
-    overflow-wrap: anywhere;
-  }
-
-  .card-meta {
-    display: flex;
-    flex: none;
-    gap: var(--s2);
-    align-items: center;
-    min-height: 20px;
-  }
-
-  .card-handle,
   .card-label {
     color: var(--text-dim);
-  }
-
-  .card-risk {
-    text-transform: uppercase;
-  }
-
-  .card-risk[data-risk='medium'] {
-    color: var(--caution);
   }
 
   .card-command,
@@ -179,105 +83,6 @@
     cursor: pointer;
   }
 
-  .card-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-    align-items: center;
-  }
-
-  .card-approval .card-button {
-    flex: 1 1 calc(50% - 4px);
-  }
-
-  .card-button {
-    display: flex;
-    align-items: center;
-    gap: 1ch;
-    padding: 4px var(--s2);
-    border: 1px solid var(--line);
-    color: var(--text);
-    text-align: left;
-  }
-
-  .card-button:hover:not(:disabled) {
-    border-color: var(--text);
-  }
-
-  .card-button.selected {
-    border-color: var(--text);
-    color: var(--text);
-  }
-
-  .card-button.refuses.selected {
-    border-color: var(--danger);
-    color: var(--danger);
-  }
-
-  /* The answers that let the agent go on are green, and the answer that stops it is red. */
-  .card-button:is([data-choice='allow'], [data-choice='allow_always'], [data-choice='approve']) {
-    color: var(--accent);
-  }
-
-  .card-button.selected:is(
-      [data-choice='allow'],
-      [data-choice='allow_always'],
-      [data-choice='approve']
-    ) {
-    border-color: var(--accent);
-  }
-
-  .card-button[data-choice='deny_stop'] {
-    color: var(--danger);
-  }
-
-  .card-button:disabled {
-    opacity: 0.5;
-  }
-
-  .card-key {
-    padding: 0 5px;
-    border-radius: 4px;
-    background: var(--cap);
-    color: var(--text);
-    font-weight: 600;
-  }
-
-  .card-button.selected .card-key {
-    background: var(--here);
-    color: var(--on-here);
-  }
-
-  .card-button.refuses.selected .card-key {
-    background: var(--danger);
-  }
-
-  /* The message of an approval takes a row of its own under the buttons. */
-  .card-actions > .card-message {
-    flex: 1 1 100%;
-  }
-
-  /* The box for feedback has the look of the field of `kit/Input.tsx`, on more lines. */
-  .card-feedback {
-    box-sizing: border-box;
-    min-height: 64px;
-    padding: 6px var(--s3);
-    border: 1px solid var(--text-dim);
-    background: color-mix(in oklch, var(--bg) 45%, transparent);
-    color: var(--text);
-    resize: vertical;
-  }
-
-  .card-feedback::placeholder {
-    color: var(--text-dim);
-  }
-
-  .card-feedback:focus-visible {
-    outline: none;
-    border-color: var(--text);
-    box-shadow: 0 0 0 3px color-mix(in oklch, var(--text) 18%, transparent);
-  }
-
   /* A question: its prompt, the choice cards, and the field. The fieldset has a class of its
      own: `card-question` is the class of the whole card. */
   .card-ask {
@@ -312,15 +117,6 @@
     display: flex;
     flex-direction: column;
     gap: 6px;
-  }
-
-  /* The footer of a card, as in shadcn/ui: a rule, and the action at the right. */
-  .card-foot {
-    display: flex;
-    justify-content: flex-end;
-    gap: var(--s2);
-    padding-top: var(--s3);
-    border-top: 1px solid var(--hairline);
   }
 
   /* What the person must know: a line in the colour of its tone, on a tint of it. */

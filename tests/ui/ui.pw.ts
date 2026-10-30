@@ -1212,7 +1212,8 @@ test('the settings window shows the settings and the other window follows an edi
     }
     await settings.getByRole('button', { name: 'Ui', exact: true }).click();
     const size = settings.locator('[data-setting="ui.font_size"]');
-    await expect(size.locator('input')).toHaveValue('13');
+    const sizeField = size.getByLabel('Font size');
+    await expect(sizeField).toHaveValue('13');
     await expect(size.locator('.setting-source')).toHaveText('default');
     await expect(size.getByRole('button', { name: 'Reset' })).toHaveCount(0);
 
@@ -1221,8 +1222,8 @@ test('the settings window shows the settings and the other window follows an edi
     const before = (await calls('window.report_metrics')).at(-1)?.params as {
       cell_width_px: number;
     };
-    await size.locator('input').fill('20');
-    await size.locator('input').press('Enter');
+    await sizeField.fill('20');
+    await sizeField.press('Enter');
     await expect(size.locator('.setting-source')).toHaveText('ui');
     await expect
       .poll(
@@ -1233,20 +1234,20 @@ test('the settings window shows the settings and the other window follows an edi
       .toBeGreaterThan(before.cell_width_px + 2);
 
     // The core refuses a wrong value, and the window shows why. The size has the type of a byte.
-    await size.locator('input').fill('300');
-    await size.locator('input').press('Enter');
+    await sizeField.fill('300');
+    await sizeField.press('Enter');
     await expect(size.getByRole('alert')).toBeVisible();
     const option = settings.locator('[data-setting="ui.macos_option_as_alt"]');
-    await option.locator('input').fill('weird');
-    await option.locator('input').press('Enter');
+    await option.getByLabel('Macos option as alt').fill('weird');
+    await option.getByLabel('Macos option as alt').press('Enter');
     await expect(option.getByRole('alert')).toBeVisible();
 
     // The switch of the handles shows them in the tab bar and in the strip of the pane, and a
     // reset hides them again.
     const handles = settings.locator('[data-setting="ui.show_handles"]');
-    await expect(handles.locator('input')).not.toBeChecked();
+    await expect(handles.getByLabel('Show handles')).not.toBeChecked();
     await expect(page.locator('.pane-handle')).toHaveCount(0);
-    await handles.locator('input').check();
+    await handles.getByLabel('Show handles').check();
     await expect(page.locator('.pane-handle')).toHaveText(/^w\d+:p\d+$/);
     await expect(page.locator('.tab.selected')).toHaveAttribute('data-handle', /^w\d+:t\d+$/);
     await handles.getByRole('button', { name: 'Reset' }).click();
@@ -1254,11 +1255,11 @@ test('the settings window shows the settings and the other window follows an edi
     await expect(page.locator('.tab[data-handle]')).toHaveCount(0);
 
     // A reset gives the default back.
-    await size.locator('input').fill('20');
-    await size.locator('input').press('Enter');
+    await sizeField.fill('20');
+    await sizeField.press('Enter');
     await size.getByRole('button', { name: 'Reset' }).click();
     await expect(size.locator('.setting-source')).toHaveText('default');
-    await expect(size.locator('input')).toHaveValue('13');
+    await expect(sizeField).toHaveValue('13');
     await expect
       .poll(
         async () =>
@@ -1294,7 +1295,7 @@ test('a text field of the settings writes the config one time, when the value is
     );
   try {
     await settings.getByRole('button', { name: 'Ui', exact: true }).click();
-    const field = settings.locator('[data-setting="ui.font_size"] input');
+    const field = settings.locator('[data-setting="ui.font_size"]').getByLabel('Font size');
     await expect(field).toHaveValue('13');
 
     // Each key changes the field only. The value goes to the core when the field loses the focus.
@@ -1325,8 +1326,8 @@ test('the theme and the keys of the settings change the window that is open', as
     // A colour of the theme is a custom property of the window.
     await settings.getByRole('button', { name: 'Theme', exact: true }).click();
     const accent = settings.locator('[data-setting="theme.accent"]');
-    await accent.locator('input').fill('#ff0000');
-    await accent.locator('input').press('Enter');
+    await accent.getByLabel('Accent').fill('#ff0000');
+    await accent.getByLabel('Accent').press('Enter');
     await expect
       .poll(async () =>
         page.evaluate(() => document.documentElement.style.getPropertyValue('--accent')),
@@ -1342,8 +1343,8 @@ test('the theme and the keys of the settings change the window that is open', as
     // A chord of the keys: the new chord opens the palette, and the old one is free.
     await settings.getByRole('button', { name: 'Keys', exact: true }).click();
     const chord = settings.locator('[data-setting="keys.palette_open"]');
-    await chord.locator('input').fill('mod+j');
-    await chord.locator('input').press('Enter');
+    await chord.getByLabel('Palette open').fill('mod+j');
+    await chord.getByLabel('Palette open').press('Enter');
     await expect(chord.locator('.setting-source')).toHaveText('ui');
     await page.locator('.pane-surface').first().click();
     await expect
@@ -2090,7 +2091,7 @@ test('a workspace and a tab get a new name in place', async ({ page, request }) 
   // A double click on the name of the workspace opens a field with the name selected, and Enter
   // sends the new name.
   await row.locator('.workspace-title').dblclick();
-  const field = row.locator('.rename-field');
+  const field = row.getByRole('textbox', { name: /^Name of workspace/ });
   await expect(field).toBeFocused();
   await expect(field).toHaveValue('Before');
   await page.keyboard.type('After');
@@ -2111,7 +2112,9 @@ test('a workspace and a tab get a new name in place', async ({ page, request }) 
   // F2 on the tab of the left column opens its field, and Escape keeps the name.
   await sideTab.focus();
   await page.keyboard.press('F2');
-  const sideField = page.locator('.side-tab-row .rename-field');
+  const sideField = page
+    .getByRole('navigation', { name: 'Workspaces' })
+    .getByRole('textbox', { name: /^Name of tab/ });
   await expect(sideField).toBeFocused();
   await sideField.fill('Never');
   await sideField.press('Escape');
@@ -2206,7 +2209,7 @@ test('an approval card shows what the agent sent as text, and the Inbox has no a
     );
     await makeWorkspace('Xss', { command: { argv: [script] } });
     await page.getByRole('tab', { name: 'Inbox' }).click();
-    const card = page.locator('.card-approval').filter({ hasText: 'window.__xss=1' });
+    const card = page.getByRole('article').filter({ hasText: 'window.__xss=1' });
     await expect(card).toHaveCount(1, { timeout: 20_000 });
 
     // The markup is text. It makes no element and no script ran.
@@ -2275,14 +2278,14 @@ test('the keys 1 to 4 answer an approval at a low risk and select a button at a 
     await makeWorkspace('Keys low', { command: { argv: [await asker(0, 'ls -la')] } });
     await makeWorkspace('Keys high', { command: { argv: [await asker(1, 'rm -rf build')] } });
     await page.getByRole('tab', { name: 'Inbox' }).click();
-    const low = page.locator('.card-approval[data-state="open"]').filter({ hasText: 'ls -la' });
-    const high = page
-      .locator('.card-approval[data-state="open"]')
-      .filter({ hasText: 'rm -rf build' });
+    const waiting = page.getByRole('article').and(page.locator('[data-state="open"]'));
+    const low = waiting.filter({ hasText: 'ls -la' });
+    const high = waiting.filter({ hasText: 'rm -rf build' });
     await expect(low).toHaveCount(1, { timeout: 20_000 });
     await expect(high).toHaveCount(1, { timeout: 20_000 });
-    await expect(high.locator('.card-risk')).toHaveText('high risk');
-    await expect(low.locator('.card-risk')).not.toHaveText('high risk');
+    const risk = /^(low|medium|high) risk$/;
+    await expect(high.getByText(risk)).toHaveText('high risk');
+    await expect(low.getByText(risk)).not.toHaveText('high risk');
     const answers = async () => (await calls('interaction.answer')).length;
     const before = await answers();
 
@@ -2697,9 +2700,10 @@ test('the Workflows view builds a workflow on the canvas and shows its execution
   await expect(page.locator('.tabbar')).toHaveCount(0);
   // A new workflow from the preset Review has the trigger, three reviews and the report.
   await page.locator('.wf-side-actions button', { hasText: '+ New' }).click();
-  await page.locator('.wf-new input[name=name]').fill('Review');
-  await page.locator('.wf-new select[name=preset]').selectOption('review');
-  await page.locator('.wf-new button[type=submit]').click();
+  await page.getByPlaceholder('Name').fill('Review');
+  await page.getByRole('combobox', { name: 'Preset' }).click();
+  await page.getByRole('option', { name: /^Review/ }).click();
+  await page.getByRole('button', { name: 'Create' }).click();
   await expect(page.locator('.wf-node')).toHaveCount(5);
   await expect(page.locator('.wf-edges .wf-edge')).toHaveCount(6);
 
@@ -2766,9 +2770,10 @@ test('Escape closes the picker and the dialogs of the Workflows view, and the fo
   await page.locator('.status-views button', { hasText: 'Workflows' }).click();
   await expect(page.locator('.wf-view')).toBeVisible();
   await page.locator('.wf-side-actions button', { hasText: '+ New' }).click();
-  await page.locator('.wf-new input[name=name]').fill('Layers');
-  await page.locator('.wf-new select[name=preset]').selectOption('review');
-  await page.locator('.wf-new button[type=submit]').click();
+  await page.getByPlaceholder('Name').fill('Layers');
+  await page.getByRole('combobox', { name: 'Preset' }).click();
+  await page.getByRole('option', { name: /^Review/ }).click();
+  await page.getByRole('button', { name: 'Create' }).click();
   await expect(page.locator('.wf-node')).toHaveCount(5);
   const canvas = page.getByRole('application', { name: 'Workflow canvas' });
 
@@ -2785,6 +2790,17 @@ test('Escape closes the picker and the dialogs of the Workflows view, and the fo
   // The details of a node open from the canvas, and the focus goes back to it.
   await page.locator('.wf-node[data-node="logic"] .wf-node-title').dblclick();
   const details = page.getByRole('dialog', { name: /^Agent · / });
+  await expect(details).toBeVisible();
+  // A choice of the harness goes to the core, and the card shows it.
+  await details.getByLabel('Harness').click();
+  await page.getByRole('option', { name: 'Codex' }).click();
+  await expect(details.getByLabel('Harness')).toHaveText('Codex');
+  await expect(page.locator('.wf-node[data-node="logic"] .wf-node-line')).toContainText('Codex');
+  // Escape closes the list of a select first, and then the details.
+  await details.getByLabel('Harness').click();
+  await expect(page.getByRole('listbox')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('listbox')).toHaveCount(0);
   await expect(details).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(details).toHaveCount(0);

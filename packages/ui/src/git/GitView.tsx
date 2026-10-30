@@ -27,6 +27,7 @@ import {
 import { type KeyboardEvent, useEffect, useRef, useState } from 'react';
 import { useApp } from '../app/context';
 import { showPane } from '../app/show';
+import { Button } from '../components/ui/button';
 import { windowFolder } from '../files/folder';
 import { useRows, useSelect, useValue } from '../lib/hooks';
 import { cn } from '../lib/utils';
@@ -304,36 +305,51 @@ export function GitView() {
           empty="No branch matches."
         />
         {agents ? (
-          <button
-            type="button"
-            className="git-agents"
+          <Button
+            variant="ghost"
+            size="xs"
+            className="text-[13px] font-normal text-live"
             title="Show the pane of the first agent"
             onClick={showFirstAgent}
           >
             {agents}
-          </button>
+          </Button>
         ) : null}
         <span className="git-spacer" />
         {remote ? (
-          <button
-            type="button"
-            className={cn('git-remote', { pull: remote.kind === 'pull' })}
+          // Fetch or pull, with the time of the last fetch under it. A pull is the action that goes.
+          <Button
+            variant="ghost"
+            className="h-auto flex-col items-end gap-0 px-2 py-0.5 text-[13px]/4 font-normal disabled:opacity-100"
             disabled={remote.kind === 'busy'}
             title={shown?.fetch_note ?? shown?.fetched_text ?? undefined}
             onClick={onRemote}
           >
-            <span className="git-remote-label">{remote.label}</span>
-            {shown?.fetched_text ? <span className="git-fetched">{shown.fetched_text}</span> : null}
-          </button>
+            <span
+              className={cn(
+                'font-semibold',
+                remote.kind === 'pull' && 'text-live',
+                remote.kind === 'busy' && 'text-muted-foreground',
+              )}
+            >
+              {remote.label}
+            </span>
+            {shown?.fetched_text ? (
+              <span className="text-(length:--size-small) text-muted-foreground">
+                {shown.fetched_text}
+              </span>
+            ) : null}
+          </Button>
         ) : null}
-        <button
-          type="button"
-          className="git-close"
+        <Button
+          variant="ghost"
+          size="xs"
+          className="text-[13px] font-normal text-muted-foreground"
           title="Close the Git view (Esc)"
           onClick={() => view.closeGit()}
         >
           Close
-        </button>
+        </Button>
       </header>
       {shown?.error ? (
         <p className="git-error git-banner" role="alert">
@@ -348,16 +364,17 @@ export function GitView() {
       {shown?.stash ? (
         <p className="git-banner git-stash" role="status">
           Your changes of {shown.stash.branch} from {shown.stash.time_text} are in a stash.
-          <button
-            type="button"
-            className="git-stash-restore"
+          <Button
+            variant="outline"
+            size="xs"
+            className="text-[13px] font-normal text-foreground"
             onClick={() => {
               const stash = shown.stash;
               if (stash) write('git.unstash', { window: windowId, stash: stash.commit });
             }}
           >
             Restore them
-          </button>
+          </Button>
         </p>
       ) : null}
       {asked ? (

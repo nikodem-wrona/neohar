@@ -62,7 +62,6 @@
     .card-peek,
     .card-handle,
     .card-cwd,
-    .card-key,
     .diff,
     .file-body,
     .files-root-path,
@@ -71,7 +70,6 @@
     .changes-root,
     .timeline-usage,
     .timeline-limit,
-    .setting-input,
     .phone-code
   ) {
     font-family: var(--font-data);

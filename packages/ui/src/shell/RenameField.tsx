@@ -6,6 +6,8 @@
 
 import { type CSSProperties, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useApp } from '../app/context';
+import { Input } from '../components/ui/input';
+import { cn } from '../lib/utils';
 import { NAME_MAX, requestRename, sameTarget, type RenameTarget } from './rename';
 
 export function RenameField(props: {
@@ -17,7 +19,7 @@ export function RenameField(props: {
   className?: string;
   style?: CSSProperties;
 }) {
-  const { transport, view, report } = useApp();
+  const { transport, view, report, form } = useApp();
   // A field edits one name: a later target is a new field.
   const [target] = useState(props.target);
   const [failure, setFailure] = useState<string | null>(null);
@@ -61,9 +63,15 @@ export function RenameField(props: {
     [view, target],
   );
   return (
-    <input
+    // The Input of shadcn/ui, with the height of a row. A name that the core refused gives it a
+    // red border, and the message is its title. A phone keeps 16 px, so that Safari does not zoom.
+    <Input
       ref={input}
-      className={`rename-field ${props.className ?? ''}`}
+      className={cn(
+        'rename-field h-[calc(var(--row)-4px)] rounded-(--r-sm) border-foreground bg-background px-(--s1) py-0 caret-foreground shadow-none',
+        form === 'phone' && 'text-[16px] md:text-[16px]',
+        props.className,
+      )}
       style={props.style}
       type="text"
       maxLength={NAME_MAX}

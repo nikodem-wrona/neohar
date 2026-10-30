@@ -64,20 +64,6 @@
     border-bottom: 1px solid var(--hairline);
   }
 
-  .setting-input {
-    min-width: 0;
-    padding: 1px 6px;
-    border: 1px solid var(--text-dim);
-    background: var(--bg);
-    color: var(--text);
-    font: inherit;
-  }
-
-  .setting-input:focus {
-    border-color: var(--text);
-    outline: none;
-  }
-
   .setting-source {
     padding: 0 4px;
     color: var(--text-dim);
@@ -86,17 +72,6 @@
   .setting-source[data-source='file'],
   .setting-source[data-source='ui'] {
     color: var(--text);
-  }
-
-  .setting-reset {
-    padding: 0 8px;
-    border: 1px solid var(--line);
-  }
-
-  .setting-error {
-    grid-column: 1 / -1;
-    margin: 0;
-    color: var(--danger);
   }
 
   /* The section Phone: the state of the listener, its buttons, the phones. */
@@ -120,10 +95,6 @@
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
-  }
-
-  .phone-actions button:disabled {
-    opacity: 0.5;
   }
 
   .phone-title {

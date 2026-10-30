@@ -4,6 +4,7 @@
 
 import { type MachineState, RpcError } from '@neohar/transport';
 import { useState } from 'react';
+import { Button } from '../components/ui/button';
 import { useRows } from '../lib/hooks';
 import { usePhone } from './context';
 
@@ -43,31 +44,34 @@ export function MachineList() {
             <span className="machine-name">{row.label === 'local' ? 'This Mac' : row.label}</span>
             <span className="machine-state">{STATE_TEXT[row.state]}</span>
             {row.label !== phone.machine && (row.state === 'local' || row.state === 'connected') ? (
-              <button
-                type="button"
-                className="card-button"
+              <Button
+                variant="outline"
+                size="sm"
+                className="min-h-(--control)"
                 onClick={() => phone.showMachine(row.label)}
               >
                 Show
-              </button>
+              </Button>
             ) : null}
             {row.state === 'disconnected' ? (
-              <button
-                type="button"
-                className="card-button"
+              <Button
+                variant="outline"
+                size="sm"
+                className="min-h-(--control)"
                 onClick={() => act('machine.connect', row.label)}
               >
                 Connect
-              </button>
+              </Button>
             ) : null}
             {row.state === 'connected' || row.state === 'connecting' ? (
-              <button
-                type="button"
-                className="card-button"
+              <Button
+                variant="outline"
+                size="sm"
+                className="min-h-(--control)"
                 onClick={() => act('machine.disconnect', row.label)}
               >
                 Disconnect
-              </button>
+              </Button>
             ) : null}
           </li>
         ))}

@@ -26,39 +26,6 @@
     color: var(--text-dim);
   }
 
-  .dialog-buttons {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    padding-top: 8px;
-    border-top: 1px solid var(--line);
-  }
-
-  .dialog-buttons button {
-    padding: 3px 12px;
-    border: 1px solid var(--line);
-    color: var(--text);
-  }
-
-  .dialog-buttons button:hover:not(:disabled) {
-    border-color: var(--text);
-  }
-
-  .dialog-buttons .dialog-cancel {
-    margin-left: auto;
-  }
-
-  .dialog-buttons .primary {
-    border-color: var(--accent);
-    background: var(--accent);
-    color: var(--on-signal);
-    font-weight: 600;
-  }
-
-  .dialog-buttons button:disabled {
-    opacity: 0.5;
-  }
-
   /* The large view of a file of the Files tab (`FileModal.tsx` gives its box). The text lies on
      the ground of a pane, so that the glass does not lower the contrast of the code. */
   .file-modal-head {

@@ -167,7 +167,7 @@ the host draws it and reports a click as an API call. An answer from any surface
 | Global hotkey | `ui.global_hotkey` (default `ctrl+alt+cmd+n`): show the app and the card that waits longest. Changes without a restart |
 | Deep links | `neohar://pane/` and `neohar://interaction/`, with an optional machine before the name (`neohar://pane/studio/w3:p5`). Any web page can open a link, so a link shows and never answers. A link to an interaction shows its card. A link to a pane brings a window of its machine to the front, and the pane does not get the focus, because the focus would release a held approval |
 | Machines menu | For each machine: New window, Connect, Disconnect ([remote machines](/docs/guides/remote-machines)) |
-| Settings window | `⌘,`: edits `config.toml` through `config.set` and shows where each value comes from; one window for each machine. The section Phone shows the phone listener, "Publish with Tailscale", the paired phones with "Send a test notification" when a phone has push, and "Pair a phone"; the palette command "Pair a phone" opens it |
+| Settings window | `⌘,`: edits `config.toml` through `config.set` and shows where each value comes from; one window for each machine. Each setting is a row with its field (a switch for a boolean), its source and Reset. A text or number field sends its value one time, on blur or Enter. The section Phone shows the phone listener, "Publish with Tailscale", the paired phones with "Send a test notification" when a phone has push, and "Pair a phone"; the palette command "Pair a phone" opens it |
 
 `interaction.reveal` shows a card without focusing its pane, because focusing the pane would
 release a held hook.

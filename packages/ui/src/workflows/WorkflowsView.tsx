@@ -22,6 +22,16 @@ import {
 } from '@neohar/transport';
 import { type KeyboardEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { useApp } from '../app/context';
+import { useLayer } from '../app/layer';
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../components/ui/select';
 import { windowFolder } from '../files/folder';
 import { GitMenu, type MenuGroup } from '../git/Menu';
 import { isAbsolutePath } from '../git/model';
@@ -32,6 +42,7 @@ import { useProjectionStore } from '../stores';
 import { Canvas } from './Canvas';
 import { ExecuteDialog } from './ExecuteDialog';
 import { ExecutionPanel } from './ExecutionPanel';
+import { NONE } from './fields';
 import {
   addNode,
   connect,
@@ -95,6 +106,10 @@ export function WorkflowsView() {
   const [presets, setPresets] = useState<WorkflowPresets | null>(null);
   const [choices, setChoices] = useState<HarnessChoices[]>([]);
   const [creating, setCreating] = useState(false);
+  // The preset of a new workflow, and whether its list is open. `''` is no preset.
+  const [newPreset, setNewPreset] = useState('');
+  const [presetOpen, setPresetOpen] = useState(false);
+  useLayer(presetOpen);
   const [renaming, setRenaming] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -371,8 +386,9 @@ export function WorkflowsView() {
         />
         {shown ? (
           renaming ? (
-            <input
-              className="wf-name-field"
+            <Input
+              className="h-7 w-[28ch] px-2 py-0 md:text-[13px]"
+              aria-label="The name of the workflow"
               type="text"
               autoComplete="off"
               spellCheck={false}
@@ -487,7 +503,7 @@ export function WorkflowsView() {
                 event.preventDefault();
                 const form = event.currentTarget;
                 const name = (form.elements.namedItem('name') as HTMLInputElement).value.trim();
-                const preset = (form.elements.namedItem('preset') as HTMLSelectElement).value;
+                const preset = newPreset;
                 setCreating(false);
                 if (!name) return;
                 transport
@@ -496,37 +512,57 @@ export function WorkflowsView() {
                   .catch(report);
               }}
             >
-              <input
+              <Input
                 name="name"
                 type="text"
                 placeholder="Name"
                 autoComplete="off"
+                className="h-7 md:text-[13px]"
                 ref={focusWhenShown}
                 onKeyDown={(event) => {
                   event.stopPropagation();
                   if (event.key === 'Escape') setCreating(false);
                 }}
               />
-              <select name="preset">
-                <option value="">Only the trigger</option>
-                {(presets?.workflows ?? []).map((preset) => (
-                  <option key={preset.id} value={preset.id}>
-                    {preset.label}
-                  </option>
-                ))}
-              </select>
+              <Select
+                open={presetOpen}
+                onOpenChange={setPresetOpen}
+                value={newPreset || NONE}
+                onValueChange={(value) => setNewPreset(value === NONE ? '' : value)}
+              >
+                <SelectTrigger aria-label="Preset" size="sm" className="w-full text-[13px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NONE} className="text-[13px]">
+                    Only the trigger
+                  </SelectItem>
+                  {(presets?.workflows ?? []).map((preset) => (
+                    <SelectItem key={preset.id} value={preset.id} className="text-[13px]">
+                      {preset.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <div className="wf-new-buttons">
-                <button type="button" className="wf-link" onClick={() => setCreating(false)}>
+                <Button variant="ghost" size="xs" onClick={() => setCreating(false)}>
                   Cancel
-                </button>
-                <button type="submit" className="primary">
+                </Button>
+                <Button type="submit" size="xs" className="ml-auto">
                   Create
-                </button>
+                </Button>
               </div>
             </form>
           ) : (
             <div className="wf-side-actions">
-              <button type="button" className="wf-link" onClick={() => setCreating(true)}>
+              <button
+                type="button"
+                className="wf-link"
+                onClick={() => {
+                  setNewPreset('');
+                  setCreating(true);
+                }}
+              >
                 + New
               </button>
               {shown ? (

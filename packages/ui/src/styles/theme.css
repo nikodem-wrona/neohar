@@ -47,6 +47,7 @@
     [data-slot='context-menu-sub-content'],
     [data-slot='sheet-content'],
     [data-slot='tooltip-content'],
+    [data-slot='select-content'],
     [data-slot='command']
   ) {
     font: var(--t-body);

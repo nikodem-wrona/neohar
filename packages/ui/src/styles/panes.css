@@ -344,21 +344,6 @@
     color: var(--caution);
   }
 
-  /* Another window has the size of the PTY. */
-  .pane-size {
-    flex: none;
-    padding: 0 6px;
-    border-radius: var(--r-sm);
-    color: var(--text-dim);
-    font: inherit;
-  }
-
-  .pane-size:hover,
-  .pane-size:focus-visible {
-    background: var(--bg-hover);
-    color: var(--text);
-  }
-
   .pane-spacer {
     flex: 1;
   }
@@ -474,18 +459,6 @@
     box-shadow: inset 2px 0 0 var(--caution);
   }
 
-  .pane-exited button,
-  .pane-held button {
-    padding: 0 8px;
-    border: 1px solid var(--line);
-    color: var(--text);
-  }
-
-  .pane-exited button:hover,
-  .pane-held button:hover {
-    border-color: var(--text);
-  }
-
   /* A pane that waits for the screen of its holder shimmers until the first frame comes. */
   .pane.restoring .pane-body {
     animation: shimmer 1.2s ease-in-out infinite;
@@ -524,10 +497,6 @@
     text-overflow: ellipsis;
     white-space: nowrap;
     vertical-align: bottom;
-    color: var(--text-dim);
-  }
-
-  .clipboard-remember {
     color: var(--text-dim);
   }
 

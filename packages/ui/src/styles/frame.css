@@ -332,28 +332,6 @@
     color: var(--danger);
   }
 
-  /* The field of a new name: in place of the name in the left column, and over the tab in the
-     bar. A name that the core refused gives the field a red border, and the message is its title. */
-  .rename-field {
-    min-width: 0;
-    height: calc(var(--row) - 4px);
-    padding: 0 var(--s1);
-    border: 1px solid var(--text);
-    border-radius: var(--r-sm);
-    outline: none;
-    background: var(--bg);
-    color: var(--text);
-    caret-color: var(--text);
-  }
-
-  .side-tab-row > .rename-field {
-    width: 100%;
-  }
-
-  .rename-field[aria-invalid='true'] {
-    border-color: var(--danger);
-  }
-
   .new-workspace {
     margin-top: var(--s2);
     padding: 0 var(--s2);

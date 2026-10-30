@@ -104,6 +104,24 @@ export function QuestionCard(props: {
       error={error}
       title={questionTitle(questions)}
       ref={props.ref}
+      footer={
+        canAnswer(props.interaction) ? (
+          // The footer, as in shadcn/ui: a rule, and the action at the right.
+          <div
+            className="flex justify-end gap-(--s2) border-t border-border pt-(--s3)"
+            role="group"
+            aria-label="Answer"
+          >
+            <Button
+              className="min-h-(--control)"
+              disabled={busy || !ready}
+              onClick={() => void send().catch(report)}
+            >
+              Answer
+            </Button>
+          </div>
+        ) : null
+      }
     >
       {props.payload.context ? <p className="card-context">{props.payload.context}</p> : null}
       {/* The questions of a card do not move: their place is their key. */}
@@ -127,7 +145,6 @@ export function QuestionCard(props: {
             </RadioGroup>
           )}
           <Input
-            className="card-message"
             placeholder={
               question.options.length > 0 ? 'Or type your own answer' : 'Type your answer'
             }
@@ -148,13 +165,6 @@ export function QuestionCard(props: {
           />
         </fieldset>
       ))}
-      {canAnswer(props.interaction) ? (
-        <div className="card-foot" role="group" aria-label="Answer">
-          <Button disabled={busy || !ready} onClick={() => void send().catch(report)}>
-            Answer
-          </Button>
-        </div>
-      ) : null}
     </CardFrame>
   );
 }
