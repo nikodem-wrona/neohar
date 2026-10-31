@@ -236,4 +236,6 @@ neohar uses the work of many projects, for example [Tauri](https://tauri.app), [
 
 neohar is licensed under the [Apache License 2.0](LICENSE).
 
+neohar comes with no warranty, and the authors accept no liability for its use or for the actions of your agents. Read the [terms of use](TERMS.md) before you use it.
+
 neohar is not affiliated with Anthropic or OpenAI. Claude Code and Codex are trademarks of their owners.
