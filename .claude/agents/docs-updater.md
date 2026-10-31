@@ -29,6 +29,7 @@ Edit these by hand.
 | `CLAUDE.md` | It imports `AGENTS.md`. It lists the skills and the agents of Claude Code in `.claude/` | `.claude/skills/*/SKILL.md`, `.claude/agents/*.md` |
 | `CONTRIBUTING.md` | The setup, the pull requests, the commits, the versions, the public interface, the releases, the conventions, the API steps, the documentation rules, the test rules, the local suites, the bug reports | `mise.toml`, `scripts/commits.ts`, `scripts/release.ts`, `.githooks/`, `.github/workflows/`, the test gates in the code |
 | `SECURITY.md` | The supported versions, how to report a vulnerability, the scope | `[workspace.package] version` in `Cargo.toml`, the last tag `v*`, the crates and roles that it names |
+| `TERMS.md` | The terms of use: the parts of neohar, the third-party services, what leaves your Mac | The `README.md` sections that it links, `crates/nh-web/src/push/allow.rs`, the harnesses and services that neohar starts or connects to |
 | `.github/pull_request_template.md`, `.github/ISSUE_TEMPLATE/*.md` | The checklist of a pull request, the fields of a bug report | `CONTRIBUTING.md`, the `nh` commands that they name |
 | `website/README.md` | The commands of the site, the table of generators, the rules for a page | `website/package.json`, `website/scripts/` |
 | `website/docs/**` without a "Generated page" note | The guide (see the next table), `reference/api/concepts.md`, `reference/cli/index.md`, `reference/configuration/index.md` | The code of each subject |
