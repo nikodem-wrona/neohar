@@ -1,0 +1,119 @@
+/* Tailwind CSS and the theme of the shadcn/ui components. The colours, the fonts and the radii of
+   the components are the tokens of the chrome (`tokens.css`): a class such as `bg-popover` or
+   `text-muted-foreground` gives a token, so a theme of the person changes the components too.
+   The names are mapped here and not as variables on the root element: the variable `--accent`
+   is the accent of the chrome, which the core sets, and shadcn/ui uses `accent` for a hover.
+
+   The utilities are in the last layer, so that a class of a component wins over the rules of the
+   chrome. `index.css` gives the order of the layers. The preflight of Tailwind is not here: it
+   resets every element, and the custom parts of the chrome (the panes, the board, the canvas of
+   the workflows) keep their look on the reset of `base.css`. The parts of a shadcn/ui component
+   have the attribute `data-slot`, and the reset under this comment gives them what the preflight
+   gives. */
+@import 'tailwindcss/theme.css' layer(theme);
+@import 'tailwindcss/utilities.css' layer(utilities) source(none);
+@import 'tw-animate-css';
+
+@layer reset {
+  :where([data-slot]),
+  :where([data-slot])::before,
+  :where([data-slot])::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    border: 0 solid var(--hairline);
+  }
+
+  :where([data-slot]):where(h1, h2, h3, h4, h5, h6) {
+    font-size: inherit;
+    font-weight: inherit;
+  }
+
+  :where([data-slot]):where(ol, ul) {
+    list-style: none;
+  }
+}
+
+/* A layer of shadcn/ui is in a portal under the body, outside the shell: it gets the type that the
+   shell gives each of its areas (`frame.css`), and not the 28 px lines of the root. */
+@layer base {
+  :where(
+    [data-slot='popover-content'],
+    [data-slot='dialog-content'],
+    [data-slot='alert-dialog-content'],
+    [data-slot='dropdown-menu-content'],
+    [data-slot='dropdown-menu-sub-content'],
+    [data-slot='context-menu-content'],
+    [data-slot='context-menu-sub-content'],
+    [data-slot='sheet-content'],
+    [data-slot='tooltip-content'],
+    [data-slot='select-content'],
+    [data-slot='command']
+  ) {
+    font: var(--t-body);
+  }
+}
+
+/* The classes come from the sources of the UI package only. */
+@source '../';
+
+/* The chrome is dark only, so the variant `dark:` of a component always applies. */
+@custom-variant dark (&);
+
+@theme inline {
+  --color-background: var(--bg);
+  --color-foreground: var(--text);
+  --color-card: var(--bg-card);
+  --color-card-foreground: var(--text);
+  --color-popover: var(--glass);
+  --color-popover-foreground: var(--text);
+  /* The one action of a card or a dialog is reverse white: "you are here". */
+  --color-primary: var(--here);
+  --color-primary-foreground: var(--on-here);
+  --color-secondary: var(--bg-hover);
+  --color-secondary-foreground: var(--text);
+  --color-muted: var(--bg-hover);
+  --color-muted-foreground: var(--text-dim);
+  --color-accent: var(--bg-hover);
+  --color-accent-foreground: var(--text);
+  --color-destructive: var(--danger);
+  /* A rule is the hairline. The border of a field stays `--text-dim`, for its contrast. */
+  --color-border: var(--hairline);
+  --color-input: var(--text-dim);
+  --color-ring: var(--text-dim);
+  --color-sidebar: var(--bg-raised);
+  --color-sidebar-foreground: var(--text);
+  --color-sidebar-primary: var(--here);
+  --color-sidebar-primary-foreground: var(--on-here);
+  --color-sidebar-accent: var(--bg-hover);
+  --color-sidebar-accent-foreground: var(--text);
+  --color-sidebar-border: var(--hairline);
+  --color-sidebar-ring: var(--text-dim);
+  /* The signals keep their meaning in a component: green is live, amber waits, red fails. */
+  --color-live: var(--live);
+  --color-caution: var(--caution);
+  --color-on-signal: var(--on-signal);
+
+  --font-sans: var(--font-ui);
+  --font-mono: var(--font-data);
+
+  /* The root has a font of 13 px (`base.css`), so a unit of rem is 13 px. The steps of space and
+     the sizes of the type are in pixels: a step is 4 px, as the grid of the chrome is, and a
+     component of shadcn/ui has the size that it has on the web. `text-sm` is the body of the chrome
+     and `text-xs` its small text; `text-base` is 16 px, so that Safari does not zoom into a field. */
+  --spacing: 4px;
+  --text-xs: 11px;
+  --text-xs--line-height: 14px;
+  --text-sm: 13px;
+  --text-sm--line-height: 18px;
+  --text-base: 16px;
+  --text-base--line-height: 24px;
+  --text-lg: 18px;
+  --text-lg--line-height: 28px;
+
+  /* The three radii of the chrome: a control, a pane or a card, a dialog. */
+  --radius-sm: var(--r-sm);
+  --radius-md: var(--r-sm);
+  --radius-lg: var(--r-md);
+  --radius-xl: var(--r-lg);
+}

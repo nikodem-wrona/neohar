@@ -83,6 +83,41 @@ pub(super) fn run<T: Serialize>(
     })
 }
 
+/// Runs a layout command from an update job as a command runs: one transaction, then the change
+/// of the state, then the events.
+pub(crate) fn run_in<T: Serialize>(
+    parts: &mut Parts<'_>,
+    command: impl FnOnce(&mut Layout, &mut dyn Alloc) -> Result<Done<T>, LayoutError>,
+) -> Result<Value, RpcError> {
+    let now = super::now_ms();
+    let origin = super::Origin::ui();
+    let mut rejected: Option<RpcError> = None;
+    let ctx = Ctx {
+        state: &*parts.state,
+        origin: &origin,
+        now_ms: now,
+    };
+    let committed = parts.store.tx(now, |tx| match run(&ctx, tx, command) {
+        Ok(handled) => Ok(handled),
+        Err(error) => {
+            rejected = Some(error);
+            Err(nh_store::StoreError::BadValue("rejected".to_owned()))
+        }
+    });
+    match committed {
+        Ok((handled, events)) => {
+            if let Some(mutation) = handled.mutation {
+                mutation(parts.state, parts.projections);
+            }
+            for event in events {
+                let _ = parts.events.send(event);
+            }
+            Ok(handled.result)
+        }
+        Err(error) => Err(rejected.unwrap_or_else(|| RpcError::internal(error.to_string()))),
+    }
+}
+
 /// Takes what a pane task reports: the state of the child, the size and the facts. The state is in
 /// memory and in the `panes` projection. The task stores the exit itself, before it lets the holder
 /// go; here the `pane.exited` event is appended, in a transaction of its own.

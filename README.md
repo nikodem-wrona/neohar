@@ -53,8 +53,9 @@ neohar is not a new agent and not a new terminal. You use the real `claude` and 
 
 **Work**
 
-- **Workspaces, tabs and panes.** Split, float or pop out panes. The Rust core parses the terminal output and the window draws it with WebGL2. The search finds text in the scrollback of all panes.
+- **Workspaces, tabs and panes.** Split, float or pop out panes. The Rust core parses the terminal output and the window draws it with WebGL2.
 - **Files, Changes and Git.** The Files tab shows the folder of the focused pane. The Changes tab shows its git changes and diffs. The Git view shows the worktrees, branches, changes and history of its repository, with the agents in each worktree. It can switch the branch, fetch and pull.
+- **Workflows.** Connect Claude Code and Codex agents on a canvas, for example a code review, a business-logic review and a security review. Execute the workflow in a folder. The last message of each agent is its report, and a Report node writes one report with links to them.
 
 **Reach**
 
@@ -68,7 +69,7 @@ neohar is not a new agent and not a new terminal. You use the real `claude` and 
 flowchart LR
   subgraph app["neohar.app (Tauri)"]
     core["nh-core (Rust library)"]
-    webview["Webview: SolidJS UI + WebGL2"]
+    webview["Webview: React UI + WebGL2"]
     core -- "projections, frames" --> webview
     webview -- "commands (JSON-RPC)" --> core
   end
@@ -189,7 +190,7 @@ The documentation site is in [`website/`](website/).
 | To do this | Read |
 |---|---|
 | Use neohar | [Install the app](website/docs/guides/install.md), [Workspaces and panes](website/docs/guides/workspaces-and-panes.md), [Agents and approvals](website/docs/guides/agents-and-approvals.md) |
-| Use more | [Files, changes and Git](website/docs/guides/files-and-changes.md), [Remote machines](website/docs/guides/remote-machines.md), [The phone](website/docs/guides/phone.md), [Troubleshooting](website/docs/guides/troubleshooting.md) |
+| Use more | [Files, changes and Git](website/docs/guides/files-and-changes.md), [Workflows](website/docs/guides/workflows.md), [Remote machines](website/docs/guides/remote-machines.md), [The phone](website/docs/guides/phone.md), [Troubleshooting](website/docs/guides/troubleshooting.md) |
 | Learn the words | [Introduction](website/docs/intro.md) and [Concepts](website/docs/concepts.md) |
 | Understand the design | [Architecture](website/docs/architecture/overview.md), [Agents](website/docs/agents/overview.md), [Desktop app](website/docs/desktop/overview.md) |
 | Write scripts | [Command line](website/docs/reference/cli/index.md), [API](website/docs/reference/api/index.md), [Configuration](website/docs/reference/configuration/index.md) |
@@ -207,7 +208,7 @@ mise run app:dev    # the app from the working tree, with its config and data in
 |---|---|
 | [`crates/`](crates/) | The Rust workspace: the core (`nh-core`), the `nh` sidecar, the holder, the wire types, the terminal engine, the adapters, the phone server |
 | [`apps/`](apps/) | The Tauri desktop app and the phone app |
-| [`packages/`](packages/) | The SolidJS UI, the transport and the WASM decoder of the frames |
+| [`packages/`](packages/) | The React UI, the transport and the WASM decoder of the frames |
 | [`tools/`](tools/) | The recorder of the harnesses, the mock model server, the test and bench tools |
 | [`website/`](website/) | The documentation site (Docusaurus) |
 
@@ -217,7 +218,7 @@ mise run app:dev    # the app from the working tree, with its config and data in
 
 neohar does a small number of things, and these are decided:
 
-- **Two harnesses.** Claude Code and Codex, and no other. neohar has no plugin system and no generic agent protocol.
+- **An adapter in the core for each harness.** neohar has no plugin system, and an adapter outside the core cannot connect.
 - **Not a terminal emulator product.** Plain shells must work well, but the product is the supervision of agents.
 - **No Windows.** The core uses Unix sockets and PTYs.
 - **No cloud.** No cloud sandboxes, no merge queue, no planner, and no coding agent of its own.
@@ -230,7 +231,7 @@ Do not report a vulnerability in a public issue. [SECURITY.md](SECURITY.md) tell
 
 ## Acknowledgments
 
-neohar uses the work of many projects, for example [Tauri](https://tauri.app), [alacritty_terminal](https://github.com/alacritty/alacritty), [SolidJS](https://www.solidjs.com), [SQLite](https://sqlite.org) through [rusqlite](https://github.com/rusqlite/rusqlite), [Tokio](https://tokio.rs) and [postcard](https://github.com/jamesmunns/postcard). [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md) gives the licenses of all the code and data of other authors in `neohar.app`.
+neohar uses the work of many projects, for example [Tauri](https://tauri.app), [alacritty_terminal](https://github.com/alacritty/alacritty), [React](https://react.dev), [SQLite](https://sqlite.org) through [rusqlite](https://github.com/rusqlite/rusqlite), [Tokio](https://tokio.rs) and [postcard](https://github.com/jamesmunns/postcard). [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md) gives the licenses of all the code and data of other authors in `neohar.app`.
 
 ## License
 

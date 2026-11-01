@@ -29,8 +29,11 @@ const builtin = (name) => {
 
 ruleTester.run('no-restricted-imports (packages/ui)', builtin('no-restricted-imports'), {
   valid: [
-    { code: "import { createSignal } from 'solid-js';", options: [importOptions()] },
-    { code: "import { render } from 'solid-js/web';", options: [importOptions()] },
+    { code: "import { useState } from 'react';", options: [importOptions()] },
+    { code: "import { createRoot } from 'react-dom/client';", options: [importOptions()] },
+    { code: "import { Popover } from 'radix-ui';", options: [importOptions()] },
+    { code: "import { toast } from 'sonner';", options: [importOptions()] },
+    { code: "import { cn } from '@/lib/utils';", options: [importOptions()] },
     { code: "import { connect } from '@neohar/transport';", options: [importOptions()] },
     { code: "import { decode } from '@neohar/proto-wasm';", options: [importOptions()] },
     { code: "import { a } from './a';", options: [importOptions()] },
@@ -39,6 +42,14 @@ ruleTester.run('no-restricted-imports (packages/ui)', builtin('no-restricted-imp
   ],
   invalid: [
     { code: "import { marked } from 'marked';", options: [importOptions()], errors: 1 },
+    { code: "import { createSignal } from 'solid-js';", options: [importOptions()], errors: 1 },
+    { code: "import { flushSync } from 'react-dom';", options: [importOptions()], errors: 1 },
+    {
+      code: "import * as Dialog from '@radix-ui/react-dialog';",
+      options: [importOptions()],
+      errors: 1,
+    },
+    { code: "import { cn } from '@';", options: [importOptions()], errors: 1 },
     { code: "import { sortBy } from 'lodash/sortBy';", options: [importOptions()], errors: 1 },
     { code: "import x from '@neohar/ui';", options: [importOptions()], errors: 1 },
     { code: "import x from '@neohar/transport/internal';", options: [importOptions()], errors: 1 },
@@ -138,8 +149,29 @@ describe('eslint.config.js scoping', () => {
     expect(await lint('packages/ui/src/a.ts', code)).toEqual(['no-restricted-imports']);
     expect(await lint('packages/transport/src/a.ts', code)).toEqual([]);
     expect(
-      await lint('packages/ui/src/a.ts', "import { x } from 'solid-js';\nexport { x };"),
+      await lint('packages/ui/src/a.ts', "import { useState } from 'react';\nexport { useState };"),
     ).toEqual([]);
+  });
+
+  it('forbids the synthetic beforeinput of React in the UI', async () => {
+    const code = 'export const A = (f: () => void) => <textarea onBeforeInput={f} />;';
+    expect(await lint('packages/ui/src/pane/A.tsx', code)).toEqual([
+      'neohar/no-synthetic-beforeinput',
+    ]);
+  });
+
+  it('checks the rules of hooks in the UI', async () => {
+    const code =
+      "import { useEffect, useState } from 'react';\n" +
+      'export function A(p: { on: boolean; x: number }) {\n' +
+      '  if (p.on) useState(0);\n' +
+      '  useEffect(() => console.log(p.x), []);\n' +
+      '  return null;\n' +
+      '}';
+    expect(await lint('packages/ui/src/pane/A.tsx', code)).toEqual([
+      'react-hooks/rules-of-hooks',
+      'react-hooks/exhaustive-deps',
+    ]);
   });
 
   it('lets UI tests import bun:test', async () => {

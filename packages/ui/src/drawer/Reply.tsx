@@ -5,26 +5,32 @@
 // gets a new id.
 
 import { RpcError } from '@neohar/transport';
-import { createSignal, Show } from 'solid-js';
+import { useRef, useState } from 'react';
 import { useApp } from '../app/context';
+import { Button } from '../components/ui/button';
+import { Textarea } from '../components/ui/textarea';
 
 export function Reply(props: { run: string; harness: string }) {
   const { transport, input, report } = useApp();
-  const [text, setText] = createSignal('');
-  const [busy, setBusy] = createSignal(false);
-  const [error, setError] = createSignal<string | null>(null);
-  let pending: number | null = null;
+  const [text, setText] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const pending = useRef<number | null>(null);
   const field = `reply-${props.run}`;
 
   const send = async (): Promise<void> => {
-    const value = text();
-    if (busy() || value.trim() === '') return;
+    const value = text;
+    if (busy || value.trim() === '') return;
     setBusy(true);
     setError(null);
-    pending ??= input.nextId();
+    pending.current ??= input.nextId();
     try {
-      await transport.call('agent.reply', { run: props.run, input_id: pending, text: value });
-      pending = null;
+      await transport.call('agent.reply', {
+        run: props.run,
+        input_id: pending.current,
+        text: value,
+      });
+      pending.current = null;
       setText('');
     } catch (failure) {
       setError(failure instanceof RpcError ? failure.message : String(failure));
@@ -35,34 +41,35 @@ export function Reply(props: { run: string; harness: string }) {
 
   return (
     <form
-      class="card-reply"
+      className="flex flex-col gap-(--s1)"
       aria-label="Reply"
       onSubmit={(event) => {
         event.preventDefault();
         send().catch(report);
       }}
     >
-      <label class="card-label" for={field}>
+      <label className="card-label" htmlFor={field}>
         Reply to {props.harness}
       </label>
-      <textarea
+      {/* A font of 16 px, so that Safari does not zoom into the field. */}
+      <Textarea
         id={field}
-        class="card-field"
-        rows="3"
-        value={text()}
-        onInput={(event) => {
+        className="min-h-(--control) bg-background font-mono text-base md:text-base"
+        rows={3}
+        value={text}
+        onChange={(event) => {
           setText(event.currentTarget.value);
-          pending = null;
+          pending.current = null;
         }}
       />
-      <button type="submit" class="card-button" disabled={busy() || text().trim() === ''}>
+      <Button type="submit" className="min-h-(--control)" disabled={busy || text.trim() === ''}>
         Send
-      </button>
-      <Show when={error()}>
-        <p class="card-error" role="alert">
-          {error()}
+      </Button>
+      {error ? (
+        <p className="card-error" role="alert">
+          {error}
         </p>
-      </Show>
+      ) : null}
     </form>
   );
 }

@@ -1,9 +1,12 @@
 /* The styles of the chrome, one file for each area. The order of the layers decides
    which rule wins, so no selector needs more specificity to win: a rule of `states` (a press) wins
    over a rule of `components`, which wins over `base`. Inside a layer, the order of the files is
-   the order of the cascade. The phone shell adds `phone.css` after this file, with no layer. */
-@layer reset, tokens, base, layout, components, states;
+   the order of the cascade. The phone shell adds `phone.css` after this file, in the layer
+   `phone`. The theme of Tailwind CSS comes first and its utilities last (`theme.css`), so that a
+   class of a shadcn/ui component wins over every rule of the chrome. */
+@layer theme, reset, tokens, base, layout, components, states, phone, utilities;
 
+@import './theme.css';
 @import './tokens.css';
 @import './base.css';
 @import './frame.css';
@@ -13,4 +16,6 @@
 @import './cards.css';
 @import './dialogs.css';
 @import './git.css';
+@import './workflows.css';
+@import './hermes.css';
 @import './settings.css';

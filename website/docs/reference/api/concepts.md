@@ -70,7 +70,7 @@ A method that is not for the caller is `permission_denied`. The CLI never sends 
 
 ## Commands and jobs
 
-A method that changes state returns after its transaction committed. The result carries only ids; the client sees the change in a projection patch. The UI makes no optimistic update. A long command returns `{job}` at once (`agent.start`, `agent.resume`, `search.query`, `git.fetch`, `git.pull`, `integration.doctor`), and its progress is in the `jobs` projection. A command that needs the database gets `degraded_storage` while the store is degraded; reads, input and rendering go on.
+A method that changes state returns after its transaction committed. The result carries only ids; the client sees the change in a projection patch. The UI makes no optimistic update. A long command returns `{job}` at once (`agent.start`, `agent.resume`, `git.fetch`, `git.pull`, `integration.doctor`), and its progress is in the `jobs` projection. A command that needs the database gets `degraded_storage` while the store is degraded; reads, input and rendering go on.
 
 ## Projections
 

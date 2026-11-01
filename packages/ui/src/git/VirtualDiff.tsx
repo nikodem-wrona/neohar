@@ -4,79 +4,77 @@
 // side, so that every row has its height.
 
 import type { FileDiff } from '@neohar/transport';
-import { createMemo, createSignal, For, Match, onCleanup, onMount, Switch } from 'solid-js';
+import { Fragment, memo, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { lineSegments, marker } from '../rich/lines';
-import { diffRows, visibleRows } from './model';
+import { type DiffRow, diffRows, visibleRows } from './model';
 
 /** The height of a row in CSS pixels, as `.git-vrow` sets it. */
 const ROW = 18;
 /** The rows that the box paints above and below the screen. */
 const EXTRA = 40;
 
-export function VirtualDiff(props: { file: FileDiff; label: string }) {
-  let box: HTMLDivElement | undefined;
-  const rows = createMemo(() => diffRows(props.file));
-  const [top, setTop] = createSignal(0);
-  const [height, setHeight] = createSignal(0);
-  const range = createMemo(() => visibleRows(rows().length, top(), height(), ROW, EXTRA));
+/** One row of the diff. A row that stays on screen while the box scrolls does not draw again. */
+const VirtualRow = memo(function VirtualRow(props: { row: DiffRow }) {
+  const row = props.row;
+  if (row.kind === 'hunk') return <div className="diff-hunk-header git-vrow">{row.header}</div>;
+  const line = row.line;
+  return (
+    <div className={`diff-line git-vrow diff-${line.kind}`}>
+      <span className="diff-num" aria-hidden="true">
+        {line.old ?? ''}
+      </span>
+      <span className="diff-num" aria-hidden="true">
+        {line.new ?? ''}
+      </span>
+      <span className="diff-marker" aria-hidden="true">
+        {marker(line.kind)}
+      </span>
+      <span className="diff-text">
+        {lineSegments(line).map((run, at) =>
+          run.className ? (
+            <span key={at} className={run.className}>
+              {run.text}
+            </span>
+          ) : (
+            <Fragment key={at}>{run.text}</Fragment>
+          ),
+        )}
+      </span>
+    </div>
+  );
+});
 
-  onMount(() => {
-    if (!box) return;
-    const observer = new ResizeObserver(() => setHeight(box?.clientHeight ?? 0));
-    observer.observe(box);
-    setHeight(box.clientHeight);
-    onCleanup(() => observer.disconnect());
-  });
+export function VirtualDiff(props: { file: FileDiff; label: string }) {
+  const box = useRef<HTMLDivElement>(null);
+  const rows = useMemo(() => diffRows(props.file), [props.file]);
+  const [top, setTop] = useState(0);
+  const [height, setHeight] = useState(0);
+  const range = visibleRows(rows.length, top, height, ROW, EXTRA);
+
+  useLayoutEffect(() => {
+    const element = box.current;
+    if (!element) return;
+    const observer = new ResizeObserver(() => setHeight(element.clientHeight));
+    observer.observe(element);
+    setHeight(element.clientHeight);
+    return () => observer.disconnect();
+  }, []);
 
   return (
     <div
-      class="git-diff-body diff"
+      className="git-diff-body diff"
       role="group"
       aria-label={props.label}
       tabIndex={0}
-      ref={(element) => (box = element)}
+      ref={box}
       onScroll={(event) => setTop(event.currentTarget.scrollTop)}
     >
-      <div class="git-vspace" style={{ height: `${rows().length * ROW}px` }}>
-        <div class="git-vrows" style={{ transform: `translateY(${range().start * ROW}px)` }}>
-          <For each={rows().slice(range().start, range().end)}>
-            {(row) => (
-              <Switch>
-                <Match when={row.kind === 'hunk' && row}>
-                  {(hunk) => <div class="diff-hunk-header git-vrow">{hunk().header}</div>}
-                </Match>
-                <Match when={row.kind === 'line' && row}>
-                  {(shown) => {
-                    const line = shown().line;
-                    return (
-                      <div class="diff-line git-vrow" classList={{ [`diff-${line.kind}`]: true }}>
-                        <span class="diff-num" aria-hidden="true">
-                          {line.old ?? ''}
-                        </span>
-                        <span class="diff-num" aria-hidden="true">
-                          {line.new ?? ''}
-                        </span>
-                        <span class="diff-marker" aria-hidden="true">
-                          {marker(line.kind)}
-                        </span>
-                        <span class="diff-text">
-                          <For each={lineSegments(line)}>
-                            {(run) =>
-                              run.className ? (
-                                <span class={run.className}>{run.text}</span>
-                              ) : (
-                                run.text
-                              )
-                            }
-                          </For>
-                        </span>
-                      </div>
-                    );
-                  }}
-                </Match>
-              </Switch>
-            )}
-          </For>
+      <div className="git-vspace" style={{ height: `${rows.length * ROW}px` }}>
+        <div className="git-vrows" style={{ transform: `translateY(${range.start * ROW}px)` }}>
+          {rows.slice(range.start, range.end).map((row, at) => (
+            // The place of the row in the file: a row keeps its element while the box scrolls.
+            <VirtualRow key={range.start + at} row={row} />
+          ))}
         </div>
       </div>
     </div>

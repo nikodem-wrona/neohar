@@ -5,11 +5,20 @@
 // image. The section computes nothing: it shows the three projections and sends the methods.
 
 import { type PhonePairingValue, RpcError, type Transport } from '@neohar/transport';
-import { createEffect, createSignal, For, onCleanup, Show } from 'solid-js';
-import { createProjectionStore } from '../stores';
+import { useEffect, useState } from 'react';
+import { Button } from '../components/ui/button';
+import { Dialog, DialogContent, DialogTitle } from '../components/ui/dialog';
+import { Input } from '../components/ui/input';
+import { useRows, useValue } from '../lib/hooks';
+import { useProjectionStore } from '../stores';
 
 function failureText(failure: unknown): string {
   return failure instanceof RpcError ? failure.message : 'The core did not answer.';
+}
+
+/** Selects the text of the field when it shows. */
+function selectWhenShown(input: HTMLInputElement | null): void {
+  if (input) queueMicrotask(() => input.select());
 }
 
 function PhoneRow(props: {
@@ -19,21 +28,21 @@ function PhoneRow(props: {
   push: boolean;
   onError: (text: string | null) => void;
 }) {
-  const [editing, setEditing] = createSignal(false);
-  const [sent, setSent] = createSignal(false);
+  const [editing, setEditing] = useState(false);
+  const [sent, setSent] = useState(false);
   const done = (sent: Promise<unknown>): void => {
     sent
       .then(() => props.onError(null))
       .catch((failure: unknown) => props.onError(failureText(failure)));
   };
   return (
-    <li class="phone-row" data-phone={props.device}>
-      <Show when={editing()} fallback={<span class="phone-name">{props.name}</span>}>
-        <input
-          class="setting-input phone-name"
+    <li className="phone-row" data-phone={props.device}>
+      {editing ? (
+        <Input
+          className="phone-name h-7 px-2 py-0 font-mono md:text-[length:var(--size-data)]"
           aria-label="The name of the phone"
-          value={props.name}
-          ref={(input) => queueMicrotask(() => input.select())}
+          defaultValue={props.name}
+          ref={selectWhenShown}
           onKeyDown={(event) => {
             if (event.key === 'Enter') {
               const name = event.currentTarget.value.trim();
@@ -47,38 +56,42 @@ function PhoneRow(props: {
           }}
           onBlur={() => setEditing(false)}
         />
-      </Show>
-      <button type="button" class="setting-reset" onClick={() => setEditing(true)}>
+      ) : (
+        <span className="phone-name">{props.name}</span>
+      )}
+      <Button variant="outline" size="xs" onClick={() => setEditing(true)}>
         Rename
-      </button>
-      <button
-        type="button"
-        class="setting-reset"
+      </Button>
+      <Button
+        variant="outline"
+        size="xs"
         onClick={() => done(props.transport.call('phone.remove', { device: props.device }))}
       >
         Remove
-      </button>
-      <Show when={props.push}>
-        <button
-          type="button"
-          class="setting-reset"
-          onClick={() => {
-            setSent(false);
-            done(
-              props.transport
-                .call('phone.push_test', { device: props.device })
-                .then(() => setSent(true)),
-            );
-          }}
-        >
-          Send a test notification
-        </button>
-        <Show when={sent()}>
-          <span class="settings-note" role="status">
-            Sent.
-          </span>
-        </Show>
-      </Show>
+      </Button>
+      {props.push ? (
+        <>
+          <Button
+            variant="outline"
+            size="xs"
+            onClick={() => {
+              setSent(false);
+              done(
+                props.transport
+                  .call('phone.push_test', { device: props.device })
+                  .then(() => setSent(true)),
+              );
+            }}
+          >
+            Send a test notification
+          </Button>
+          {sent ? (
+            <span className="settings-note" role="status">
+              Sent.
+            </span>
+          ) : null}
+        </>
+      ) : null}
     </li>
   );
 }
@@ -89,101 +102,90 @@ function PairDialog(props: {
   onAgain: () => void;
   onClose: () => void;
 }) {
-  const state = () => props.pairing?.state ?? 'none';
+  const state = props.pairing?.state ?? 'none';
+  const pairing = state === 'waiting' ? props.pairing : undefined;
+  // The dialog opens when the core answers, with no trigger: it gives the focus back to the
+  // element that had it. The settings window has no panes, so the dialog needs no layer.
+  const [before] = useState(() => document.activeElement);
   return (
-    <div
-      class="dialog-backdrop"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) props.onClose();
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open) props.onClose();
       }}
     >
-      <div
-        class="dialog phone-dialog"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="phone-dialog-title"
-        tabIndex={-1}
-        ref={(box) => queueMicrotask(() => box.focus())}
-        onKeyDown={(event) => {
-          if (event.key === 'Escape') {
-            event.preventDefault();
-            props.onClose();
-          }
+      <DialogContent
+        className="max-h-[calc(92vh-16px)] w-[min(48ch,calc(100vw-32px))] max-w-none gap-2 overflow-auto px-3 pt-0 pb-3 sm:max-w-none"
+        showCloseButton={false}
+        aria-describedby={undefined}
+        onCloseAutoFocus={(event) => {
+          event.preventDefault();
+          if (before instanceof HTMLElement) before.focus();
         }}
       >
-        <h2 id="phone-dialog-title" class="dialog-title">
-          Pair a phone
-        </h2>
-        <Show
-          when={state() === 'waiting' && props.pairing}
-          fallback={
-            <p class="dialog-text" role="status">
-              {state() === 'expired' ? 'The offer ended.' : 'Waiting for the core.'}
+        <DialogTitle className="dialog-title text-sm">Pair a phone</DialogTitle>
+        {pairing ? (
+          <>
+            <p className="dialog-text">
+              Scan the code with the camera of the phone. On the phone, add the page to the home
+              screen and open it from there.
             </p>
-          }
-        >
-          {(pairing) => (
-            <>
-              <p class="dialog-text">
-                Scan the code with the camera of the phone. On the phone, add the page to the home
-                screen and open it from there.
-              </p>
-              <Show when={pairing().qr}>
-                {(qr) => <img class="phone-qr" src={qr()} alt="The QR code of the pairing" />}
-              </Show>
-              <p class="phone-code-line">
-                Or type this code in the app: <strong class="phone-code">{pairing().code}</strong>
-              </p>
-              <Show when={pairing().note}>{(note) => <p class="dialog-text">{note()}</p>}</Show>
-              <p class="dialog-text" role="status">
-                Waiting for the phone.
-              </p>
-            </>
-          )}
-        </Show>
-        <div class="dialog-buttons">
-          <Show when={state() === 'expired'}>
-            <button type="button" class="primary" onClick={() => props.onAgain()}>
+            {pairing.qr ? (
+              <img className="phone-qr" src={pairing.qr} alt="The QR code of the pairing" />
+            ) : null}
+            <p className="phone-code-line">
+              Or type this code in the app: <strong className="phone-code">{pairing.code}</strong>
+            </p>
+            {pairing.note ? <p className="dialog-text">{pairing.note}</p> : null}
+            <p className="dialog-text" role="status">
+              Waiting for the phone.
+            </p>
+          </>
+        ) : (
+          <p className="dialog-text" role="status">
+            {state === 'expired' ? 'The offer ended.' : 'Waiting for the core.'}
+          </p>
+        )}
+        <div className="flex flex-wrap gap-2 border-t border-(--line) pt-2">
+          {state === 'expired' ? (
+            <Button size="sm" onClick={() => props.onAgain()}>
               New code
-            </button>
-          </Show>
-          <button type="button" class="dialog-cancel" onClick={() => props.onClose()}>
+            </Button>
+          ) : null}
+          <Button variant="outline" size="sm" className="ml-auto" onClick={() => props.onClose()}>
             Cancel
-          </button>
+          </Button>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
 export function PhoneSection(props: { transport: Transport }) {
-  const status = createProjectionStore(props.transport, 'phone_status');
-  const phones = createProjectionStore(props.transport, 'phones');
-  const pairing = createProjectionStore(props.transport, 'phone_pairing');
-  onCleanup(() => {
-    status.close();
-    phones.close();
-    pairing.close();
-  });
-  const current = () => status.state.byKey['_'];
-  const offer = () => pairing.state.byKey['_'];
-  const [error, setError] = createSignal<string | null>(null);
-  const [busy, setBusy] = createSignal(false);
+  const { transport } = props;
+  const status = useProjectionStore(transport, 'phone_status');
+  const phones = useProjectionStore(transport, 'phones');
+  const pairing = useProjectionStore(transport, 'phone_pairing');
+  const current = useValue(status).byKey['_'];
+  const offer = useValue(pairing).byKey['_'];
+  const phoneRows = useRows(phones);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
   // The dialog opens after `phone.pair_begin`. It closes when the projection, after it showed
   // the new offer, says that a phone paired.
-  const [dialog, setDialog] = createSignal(false);
-  const [seenOffer, setSeenOffer] = createSignal(false);
+  const [dialog, setDialog] = useState(false);
+  const [seenOffer, setSeenOffer] = useState(false);
 
-  createEffect(() => {
-    if (!dialog()) return;
-    const state = offer()?.state;
-    if (state === 'waiting') setSeenOffer(true);
-    else if (state === 'paired' && seenOffer()) setDialog(false);
-  });
+  const offerState = offer?.state;
+  useEffect(() => {
+    if (!dialog) return;
+    if (offerState === 'waiting') setSeenOffer(true);
+    else if (offerState === 'paired' && seenOffer) setDialog(false);
+  }, [dialog, offerState, seenOffer]);
 
   const call = (method: 'phone.publish' | 'phone.unpublish'): void => {
     setBusy(true);
-    props.transport
+    transport
       .call(method, {})
       .then(() => setError(null))
       .catch((failure: unknown) => setError(failureText(failure)))
@@ -192,7 +194,7 @@ export function PhoneSection(props: { transport: Transport }) {
 
   const pair = (): void => {
     setSeenOffer(false);
-    props.transport
+    transport
       .call('phone.pair_begin', {})
       .then(() => {
         setError(null);
@@ -203,79 +205,68 @@ export function PhoneSection(props: { transport: Transport }) {
 
   const close = (): void => {
     setDialog(false);
-    if (offer()?.state === 'waiting') {
+    if (offer?.state === 'waiting') {
       // The offer can end at the same time, and then there is nothing to cancel.
-      props.transport.call('phone.pair_cancel', {}).catch(() => undefined);
+      transport.call('phone.pair_cancel', {}).catch(() => undefined);
     }
   };
 
   return (
-    <div class="phone-section" data-phone-section>
-      <p class="phone-summary" role="status">
-        {current()?.summary ?? 'Waiting for the core.'}
+    <div className="phone-section" data-phone-section>
+      <p className="phone-summary" role="status">
+        {current?.summary ?? 'Waiting for the core.'}
       </p>
-      <Show when={current()?.hint}>{(hint) => <p class="settings-note">{hint()}</p>}</Show>
-      <div class="phone-actions">
-        <Show when={current()?.tailscale}>
-          {(tailscale) => (
-            <Show
-              when={tailscale().published}
-              fallback={
-                <button
-                  type="button"
-                  class="setting-reset"
-                  disabled={busy()}
-                  onClick={() => call('phone.publish')}
-                >
-                  Publish with Tailscale
-                </button>
-              }
+      {current?.hint ? <p className="settings-note">{current.hint}</p> : null}
+      <div className="phone-actions">
+        {current?.tailscale ? (
+          current.tailscale.published ? (
+            <Button
+              variant="outline"
+              size="xs"
+              disabled={busy}
+              onClick={() => call('phone.unpublish')}
             >
-              <button
-                type="button"
-                class="setting-reset"
-                disabled={busy()}
-                onClick={() => call('phone.unpublish')}
-              >
-                Unpublish
-              </button>
-            </Show>
-          )}
-        </Show>
-        <button type="button" class="setting-reset" onClick={pair}>
+              Unpublish
+            </Button>
+          ) : (
+            <Button
+              variant="outline"
+              size="xs"
+              disabled={busy}
+              onClick={() => call('phone.publish')}
+            >
+              Publish with Tailscale
+            </Button>
+          )
+        ) : null}
+        <Button variant="outline" size="xs" onClick={pair}>
           Pair a phone
-        </button>
+        </Button>
       </div>
-      <Show when={error()}>
-        {(text) => (
-          <p class="setting-error" role="alert">
-            {text()}
-          </p>
-        )}
-      </Show>
-      <h2 class="settings-title phone-title">Paired phones</h2>
-      <Show
-        when={phones.rows().length > 0}
-        fallback={<p class="settings-note">No phone is paired.</p>}
-      >
-        <ul class="phone-list" aria-label="Paired phones">
-          <For each={phones.rows()}>
-            {(phone) => (
-              <PhoneRow
-                transport={props.transport}
-                device={phone.device}
-                name={phone.name}
-                push={phone.push === true}
-                onError={setError}
-              />
-            )}
-          </For>
+      {error ? (
+        <p className="m-0 text-destructive" role="alert">
+          {error}
+        </p>
+      ) : null}
+      <h2 className="settings-title phone-title">Paired phones</h2>
+      {phoneRows.length > 0 ? (
+        <ul className="phone-list" aria-label="Paired phones">
+          {phoneRows.map((phone) => (
+            <PhoneRow
+              key={phone.device}
+              transport={transport}
+              device={phone.device}
+              name={phone.name}
+              push={phone.push === true}
+              onError={setError}
+            />
+          ))}
         </ul>
-      </Show>
-      <h2 class="settings-title phone-title">Settings</h2>
-      <Show when={dialog()}>
-        <PairDialog pairing={offer()} onAgain={pair} onClose={close} />
-      </Show>
+      ) : (
+        <p className="settings-note">No phone is paired.</p>
+      )}
+      <h2 className="settings-title phone-title">Settings</h2>
+      {dialog ? <PairDialog pairing={offer} onAgain={pair} onClose={close} /> : null}
     </div>
   );
 }

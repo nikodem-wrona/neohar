@@ -4,7 +4,8 @@
 // knows whether the phone has a push subscription.
 
 import { RpcError } from '@neohar/transport';
-import { createSignal, Show } from 'solid-js';
+import { useEffect, useRef, useState } from 'react';
+import { useSelect } from '../lib/hooks';
 import { usePhone } from './context';
 import { turnOff, turnOn } from './push';
 
@@ -13,25 +14,32 @@ const message = (failure: unknown) =>
 
 export function ThisPhone(props: { restart: () => void }) {
   const { stores, transport, account, device, push } = usePhone();
-  const name = () => stores.phones.state.byKey[device.device]?.name ?? device.name;
-  const pushOn = () => stores.phones.state.byKey[device.device]?.push === true;
-  const [draft, setDraft] = createSignal<string | null>(null);
-  const [error, setError] = createSignal<string | null>(null);
-  const [note, setNote] = createSignal<string | null>(null);
-  const [busy, setBusy] = createSignal(false);
-  const [pushBusy, setPushBusy] = createSignal(false);
+  const row = useSelect(stores.phones, (state) => state.byKey[device.device]);
+  const name = row?.name ?? device.name;
+  const pushOn = row?.push === true;
+  const [draft, setDraft] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [note, setNote] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [pushBusy, setPushBusy] = useState(false);
+  // The switch is the native state of the box: a tap changes it at once, and the row of the core
+  // sets it when it changes.
+  const box = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (box.current) box.current.checked = pushOn;
+  }, [pushOn]);
 
   // The switch shows the row of the core. A change that fails puts the switch back.
   const toggle = (input: HTMLInputElement): void => {
     setPushBusy(true);
     setError(null);
     setNote(null);
-    const vapidKey = stores.status.state.byKey['_']?.vapid_key;
+    const vapidKey = stores.status.get().byKey['_']?.vapid_key;
     const sent = input.checked ? turnOn(push, transport, vapidKey) : turnOff(push, transport);
     sent
       .catch((failure: unknown) => {
         setError(message(failure));
-        input.checked = pushOn();
+        input.checked = stores.phones.get().byKey[device.device]?.push === true;
       })
       .finally(() => setPushBusy(false));
   };
@@ -47,8 +55,8 @@ export function ThisPhone(props: { restart: () => void }) {
   };
 
   const rename = (): void => {
-    const value = draft();
-    if (value === null || value.trim() === '' || value === name()) return;
+    const value = draft;
+    if (value === null || value.trim() === '' || value === name) return;
     setError(null);
     transport.call('phone.rename', { device: device.device, name: value }).then(
       () => setDraft(null),
@@ -65,73 +73,74 @@ export function ThisPhone(props: { restart: () => void }) {
   };
 
   return (
-    <section class="phone-section" aria-labelledby="phone-this">
-      <h1 class="phone-title" id="phone-this">
+    <section className="phone-section" aria-labelledby="phone-this">
+      <h1 className="phone-title" id="phone-this">
         This phone
       </h1>
       <form
-        class="phone-form"
+        className="phone-form"
         aria-label="Name of this phone"
         onSubmit={(event) => {
           event.preventDefault();
           rename();
         }}
       >
-        <label class="phone-label" for="phone-name">
+        <label className="phone-label" htmlFor="phone-name">
           Name
         </label>
         <input
           id="phone-name"
-          class="phone-field"
+          className="phone-field"
           type="text"
-          maxlength="64"
-          value={draft() ?? name()}
-          onInput={(event) => setDraft(event.currentTarget.value)}
+          maxLength={64}
+          value={draft ?? name}
+          onChange={(event) => setDraft(event.currentTarget.value)}
         />
         <button
           type="submit"
-          class="phone-button"
-          disabled={draft() === null || draft()?.trim() === '' || draft() === name()}
+          className="phone-button"
+          disabled={draft === null || draft.trim() === '' || draft === name}
         >
           Rename
         </button>
       </form>
-      <label class="phone-switch">
+      <label className="phone-switch">
         <input
           type="checkbox"
           role="switch"
-          checked={pushOn()}
-          disabled={pushBusy()}
+          ref={box}
+          defaultChecked={pushOn}
+          disabled={pushBusy}
           onChange={(event) => toggle(event.currentTarget)}
         />
         <span>Notifications</span>
       </label>
-      <p class="phone-note">
+      <p className="phone-note">
         The Mac sends a notification when an agent needs you and no window of neohar has the focus.
         A notification names the agent and the reason, never the text of the agent.
       </p>
-      <Show when={pushOn()}>
-        <button type="button" class="phone-button" disabled={pushBusy()} onClick={test}>
+      {pushOn ? (
+        <button type="button" className="phone-button" disabled={pushBusy} onClick={test}>
           Send a test notification
         </button>
-      </Show>
-      <Show when={note()}>
-        <p class="phone-note" role="status">
-          {note()}
+      ) : null}
+      {note ? (
+        <p className="phone-note" role="status">
+          {note}
         </p>
-      </Show>
-      <p class="phone-note">
+      ) : null}
+      <p className="phone-note">
         A phone that the Mac knows can answer the agents and send them prompts. Unpair a phone that
         you do not use.
       </p>
-      <button type="button" class="phone-button danger" disabled={busy()} onClick={unpair}>
+      <button type="button" className="phone-button danger" disabled={busy} onClick={unpair}>
         Unpair this phone
       </button>
-      <Show when={error()}>
-        <p class="card-error" role="alert">
-          {error()}
+      {error ? (
+        <p className="card-error" role="alert">
+          {error}
         </p>
-      </Show>
+      ) : null}
     </section>
   );
 }

@@ -118,7 +118,7 @@ The local suites run only when a gate is set, and their `mise` task sets it: `NE
 | `crates/` | The Rust crates: `nh-proto` (wire types), `nh-hold` (holder), `nh-term` (VT engine), `nh-store` (SQLite), `nh-rich`, `nh-redact`, `nh-agents`, `nh-remote`, `nh-web`, `nh-core` and the binary `nh`. See [Code](/docs/code) |
 | `apps/desktop/` | The Tauri app: `src-tauri/` is the host, `src/` mounts the UI |
 | `apps/web/` | The entry of the phone app, which `nh-web` serves |
-| `packages/` | `ui` (SolidJS), `transport` (Tauri and WebSocket transports, generated types), `proto-wasm` (the frame decoder) |
+| `packages/` | `ui` (React), `transport` (Tauri and WebSocket transports, generated types), `proto-wasm` (the frame decoder) |
 | `tools/` | Test, benchmark and build tools. See [Tools](/docs/code/tools) |
 | `tests/` | Playwright suites, the VT corpus and the harness recordings |
 | `scripts/` | The shell and Bun scripts behind the `mise` tasks |

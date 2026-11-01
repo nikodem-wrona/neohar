@@ -1,6 +1,6 @@
 ---
 title: "Events"
-description: "The 56 kinds of events in the event outbox."
+description: "The 61 kinds of events in the event outbox."
 sidebar_position: 4
 ---
 
@@ -71,6 +71,11 @@ The core appends an event in the same SQLite transaction as the state change tha
 | [`git.unstashed`](#git-unstashed) | 1 | [`GitWrite`](/docs/reference/api/types#gitwrite) |
 | [`git.fetched`](#git-fetched) | 1 | [`GitWrite`](/docs/reference/api/types#gitwrite) |
 | [`git.pulled`](#git-pulled) | 1 | [`GitWrite`](/docs/reference/api/types#gitwrite) |
+| [`workflow.execution_started`](#workflow-execution-started) | 1 | [`WorkflowExecutionEvent`](/docs/reference/api/types#workflowexecutionevent) |
+| [`workflow.node_changed`](#workflow-node-changed) | 1 | [`WorkflowNodeEvent`](/docs/reference/api/types#workflownodeevent) |
+| [`workflow.execution_ended`](#workflow-execution-ended) | 1 | [`WorkflowExecutionEvent`](/docs/reference/api/types#workflowexecutionevent) |
+| [`hermes.chat_started`](#hermes-chat-started) | 1 | [`HermesChatEvent`](/docs/reference/api/types#hermeschatevent) |
+| [`hermes.chat_closed`](#hermes-chat-closed) | 1 | [`HermesChatEvent`](/docs/reference/api/types#hermeschatevent) |
 
 ## agent events {#group-agent}
 
@@ -775,6 +780,70 @@ The core appends an event in the same SQLite transaction as the state change tha
 | `path` | string | yes | The worktree, or the common git directory for a fetch. |
 | `stash` | string \| `null` |  | The stash that a switch made or that `git.unstash` put back. |
 | `to` | string \| `null` |  | The branch after a switch or a pull. |
+
+## workflow events {#group-workflow}
+
+### `workflow.execution_started` {#workflow-execution-started}
+
+**Version:** 1
+
+[`WorkflowExecutionEvent`](/docs/reference/api/types#workflowexecutionevent)
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `execution` | [`ExecutionId`](/docs/reference/api/types#executionid) | yes |  |
+| `state` | [`ExecutionState`](/docs/reference/api/types#executionstate) | yes |  |
+| `workflow` | string | yes | The name of the workflow file without `.toml`. |
+
+### `workflow.node_changed` {#workflow-node-changed}
+
+**Version:** 1
+
+[`WorkflowNodeEvent`](/docs/reference/api/types#workflownodeevent)
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `execution` | [`ExecutionId`](/docs/reference/api/types#executionid) | yes |  |
+| `node` | string | yes |  |
+| `reason` | string \| `null` |  |  |
+| `run` | [`RunId`](/docs/reference/api/types#runid) \| `null` |  | The agent run of the node, while it has one. |
+| `state` | [`NodeState`](/docs/reference/api/types#nodestate) | yes |  |
+
+### `workflow.execution_ended` {#workflow-execution-ended}
+
+**Version:** 1
+
+[`WorkflowExecutionEvent`](/docs/reference/api/types#workflowexecutionevent)
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `execution` | [`ExecutionId`](/docs/reference/api/types#executionid) | yes |  |
+| `state` | [`ExecutionState`](/docs/reference/api/types#executionstate) | yes |  |
+| `workflow` | string | yes | The name of the workflow file without `.toml`. |
+
+## hermes events {#group-hermes}
+
+### `hermes.chat_started` {#hermes-chat-started}
+
+**Version:** 1
+
+[`HermesChatEvent`](/docs/reference/api/types#hermeschatevent)
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `chat` | [`ChatId`](/docs/reference/api/types#chatid) | yes |  |
+| `cwd` | string | yes |  |
+
+### `hermes.chat_closed` {#hermes-chat-closed}
+
+**Version:** 1
+
+[`HermesChatEvent`](/docs/reference/api/types#hermeschatevent)
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `chat` | [`ChatId`](/docs/reference/api/types#chatid) | yes |  |
+| `cwd` | string | yes |  |
 
 ## Notification `events.event` {#notification-events-event}
 

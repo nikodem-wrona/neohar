@@ -9,7 +9,10 @@ use schemars::{Schema, SchemaGenerator};
 use serde_json::Value;
 
 use super::{
-    calls::{agent::*, git::*, internal::*, pane::*, phone::*, system::*, workspace::*},
+    calls::{
+        agent::*, git::*, hermes::*, internal::*, pane::*, phone::*, system::*, workflow::*,
+        workspace::*,
+    },
     common::{Empty, JobStarted},
     envelope::{ErrorCode, RpcError},
     model::PhoneStatusValue,
@@ -251,6 +254,29 @@ impl Method {
                 | Self::PhoneUnpublish
                 | Self::PhonePushTest
                 | Self::PhoneVisible
+                | Self::WorkflowListGet
+                | Self::WorkflowShow
+                | Self::WorkflowCreate
+                | Self::WorkflowSave
+                | Self::WorkflowRename
+                | Self::WorkflowDuplicate
+                | Self::WorkflowDelete
+                | Self::WorkflowUndo
+                | Self::WorkflowRedo
+                | Self::WorkflowLayout
+                | Self::WorkflowPresetsGet
+                | Self::WorkflowFactsGet
+                | Self::WorkflowNotesFrom
+                | Self::WorkflowExecutions
+                | Self::WorkflowExecution
+                | Self::WorkflowReportGet
+                | Self::WorkflowCopyToFolder
+                | Self::HermesCheck
+                | Self::HermesPrompt
+                | Self::HermesCancel
+                | Self::HermesAnswer
+                | Self::HermesSet
+                | Self::HermesRetry
                 | Self::EventsSubscribe
                 | Self::EventsUnsubscribe
                 | Self::ProjectionSubscribe
@@ -266,7 +292,6 @@ impl Method {
                 | Self::IntegrationCapabilities
                 | Self::DoctorRun
                 | Self::DebugBundle
-                | Self::SearchQuery
                 | Self::PaletteQuery
                 | Self::RichDiff
                 | Self::RichMarkdown
@@ -485,6 +510,41 @@ methods! {
     PhoneVisible "phone.visible" PHONE (PhoneVisible) -> Empty;
     PhoneWindow "phone.window" PHONE (Empty) -> PhoneWindowResult;
 
+    // workflows
+    WorkflowListGet "workflow.list" BOTH (Empty) -> WorkflowList;
+    WorkflowShow "workflow.show" UI (WorkflowRef) -> WorkflowShown;
+    WorkflowCreate "workflow.create" UI (WorkflowCreate) -> WorkflowShown;
+    WorkflowSave "workflow.save" UI (WorkflowSave) -> WorkflowShown;
+    WorkflowRename "workflow.rename" UI (WorkflowRename) -> WorkflowShown;
+    WorkflowDuplicate "workflow.duplicate" UI (WorkflowRef) -> WorkflowShown;
+    WorkflowDelete "workflow.delete" UI (WorkflowRef) -> Empty;
+    WorkflowUndo "workflow.undo" UI (WorkflowRef) -> WorkflowShown;
+    WorkflowRedo "workflow.redo" UI (WorkflowRef) -> WorkflowShown;
+    WorkflowLayout "workflow.layout" UI (WorkflowLayout) -> WorkflowShown;
+    WorkflowPresetsGet "workflow.presets" UI (Empty) -> WorkflowPresets;
+    WorkflowFactsGet "workflow.facts" UI (WorkflowFactsGet) -> WorkflowFacts;
+    WorkflowExecute "workflow.execute" BOTH (WorkflowExecute) -> WorkflowExecuted;
+    WorkflowNotesFrom "workflow.notes_from" UI (WorkflowNotesFrom) -> WorkflowNotes;
+    WorkflowExecutions "workflow.executions" BOTH (WorkflowExecutions) -> WorkflowExecutionList;
+    WorkflowExecution "workflow.execution" BOTH (WorkflowExecutionRef) -> WorkflowExecutionShown;
+    WorkflowReportGet "workflow.report" BOTH (WorkflowReportGet) -> WorkflowReport;
+    WorkflowRetry "workflow.retry" BOTH (WorkflowNodeRef) -> Empty;
+    WorkflowSkip "workflow.skip" BOTH (WorkflowNodeRef) -> Empty;
+    WorkflowCancel "workflow.cancel" BOTH (WorkflowExecutionRef) -> Empty;
+    WorkflowContinue "workflow.continue" UI (WorkflowContinue) -> JobStarted;
+    WorkflowReveal "workflow.reveal" UI (WorkflowReveal) -> Empty;
+    WorkflowCopyToFolder "workflow.copy_to_folder" UI (WorkflowExecutionRef) -> WorkflowCopied;
+
+    // hermes
+    HermesCheck "hermes.check" BOTH (Empty) -> HermesStatus;
+    HermesStart "hermes.start" BOTH (HermesStart) -> HermesStarted;
+    HermesPrompt "hermes.prompt" BOTH (HermesPrompt) -> Empty;
+    HermesCancel "hermes.cancel" BOTH (HermesChatRef) -> Empty;
+    HermesAnswer "hermes.answer" BOTH (HermesAnswer) -> Empty;
+    HermesSet "hermes.set" BOTH (HermesSet) -> Empty;
+    HermesRetry "hermes.retry" BOTH (HermesChatRef) -> Empty;
+    HermesClose "hermes.close" BOTH (HermesChatRef) -> Empty;
+
     // events and projections
     EventsSubscribe "events.subscribe" CLI (EventsSubscribe) -> EventsSubscribed;
     EventsUnsubscribe "events.unsubscribe" CLI (EventsUnsubscribe) -> Empty;
@@ -509,8 +569,7 @@ methods! {
     DoctorRun "doctor.run" BOTH (DoctorRun) -> DoctorReport;
     DebugBundle "debug.bundle" CLI (DebugBundle) -> DebugBundled;
 
-    // search, palette, rich content, timeline and jobs
-    SearchQuery "search.query" BOTH (SearchQuery) -> SearchResults;
+    // palette, rich content, timeline and jobs
     PaletteQuery "palette.query" UI (PaletteQuery) -> PaletteResults;
     PaletteExecute "palette.execute" UI (PaletteExecute) -> PaletteExecuted;
     RichDiff "rich.diff" UI (RichDiff) -> crate::api::rich::Diff;
@@ -705,6 +764,40 @@ mod tests {
                     "window",
                 ],
             ),
+            (
+                "workflow",
+                &[
+                    "list",
+                    "show",
+                    "create",
+                    "save",
+                    "rename",
+                    "duplicate",
+                    "delete",
+                    "undo",
+                    "redo",
+                    "layout",
+                    "presets",
+                    "facts",
+                    "execute",
+                    "notes_from",
+                    "executions",
+                    "execution",
+                    "report",
+                    "retry",
+                    "skip",
+                    "cancel",
+                    "continue",
+                    "reveal",
+                    "copy_to_folder",
+                ],
+            ),
+            (
+                "hermes",
+                &[
+                    "check", "start", "prompt", "cancel", "answer", "set", "retry", "close",
+                ],
+            ),
             ("events", &["subscribe", "unsubscribe"]),
             ("projection", &["subscribe", "unsubscribe", "versions"]),
             ("config", &["get", "set", "reload"]),
@@ -720,7 +813,6 @@ mod tests {
                     "capabilities",
                 ],
             ),
-            ("search", &["query"]),
             ("palette", &["query", "execute"]),
             ("rich", &["diff", "markdown", "highlight"]),
             ("timeline", &["page", "item"]),
@@ -770,7 +862,6 @@ mod tests {
             "pane.list",
             "agent.show",
             "projection.subscribe",
-            "search.query",
             "config.set",
             "window.focus_report",
             "adapter.signal",

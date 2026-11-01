@@ -4,7 +4,7 @@
 import type { Transport } from '@neohar/transport';
 import { createProjectionStore } from './projection';
 
-export { createProjectionStore } from './projection';
+export { createProjectionStore, useProjectionStore } from './projection';
 export type { ProjectionStore } from './projection';
 export { afterPatch, emptyState, fromSnapshot, values } from './reducer';
 export type { ProjectionState, Status } from './reducer';

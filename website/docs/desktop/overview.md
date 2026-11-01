@@ -6,7 +6,7 @@ sidebar_position: 1
 
 `neohar.app` is one process with two halves. The **Tauri host** (Rust) finds or starts a core,
 opens a native window for each row of the `windows` projection, and draws the native surfaces that
-the core asks for. The **webview** (SolidJS) paints what the core sends and sends back what the
+the core asks for. The **webview** (React) paints what the core sends and sends back what the
 person did. The webview holds no business state. The [window](/docs/desktop/ui) page describes what
 a window shows.
 
@@ -32,10 +32,12 @@ something new, add it to the core contract first, in the same pull request.
 | Decides no facts | Counts, sort orders, risk, search results, dates and highlighting come from Rust. A pure view mapper in a `model.ts` file can turn them into rows, labels, buttons and call parameters (see below) | ESLint `neohar/no-formatting` (no sort, no `Intl`), `neohar/ui-imports` (no markdown, diff, date libraries) |
 | Parses no bytes | The WASM decoder turns frames into typed arrays | The `render` stream carries frames, not PTY bytes |
 | Speaks one API | The page calls the same JSON-RPC methods as the CLI | `scripts/tauri-commands.ts`, `mise run test:host`, `mise run check:gen` |
-| No polling, one `innerHTML` | Everything is push; `setTimeout` lives only in `lib/timing.ts`; `RichHtml.tsx` is the only `innerHTML` | `neohar/no-polling`, `neohar/no-timers`, `neohar/no-inner-html` |
-| Stays small | Under 300 KB of gzipped script, style and WASM | `mise run check:bundle` (part of `mise run check`) |
+| No polling, one `innerHTML` | Everything is push; `setTimeout` lives only in `lib/timing.ts`; `RichHtml.tsx` is the only `innerHTML` or `dangerouslySetInnerHTML` | `neohar/no-polling`, `neohar/no-timers`, `neohar/no-inner-html` |
+| Stays small | Under 400 KB of gzipped script, style and WASM for the desk and for the phone, and under 250 KB for the first chunk of the phone | `mise run check:bundle` (part of `mise run check`) |
 
-`packages/ui` can import only `solid-js`, `@neohar/transport` and `@neohar/proto-wasm`. Lint sees
+`packages/ui` can import only `react`, `react-dom/client`, the packages of shadcn/ui (`radix-ui`,
+`class-variance-authority`, `clsx`, `tailwind-merge`, `lucide-react`, `cmdk`, `sonner`),
+`@neohar/transport`, `@neohar/proto-wasm`, `@/…` and relative modules. Lint sees
 syntax only. The review rejects a reducer of business events, a store that combines two
 projections, a client-side filter or an optimistic update.
 
@@ -165,7 +167,7 @@ the host draws it and reports a click as an API call. An answer from any surface
 | Global hotkey | `ui.global_hotkey` (default `ctrl+alt+cmd+n`): show the app and the card that waits longest. Changes without a restart |
 | Deep links | `neohar://pane/` and `neohar://interaction/`, with an optional machine before the name (`neohar://pane/studio/w3:p5`). Any web page can open a link, so a link shows and never answers. A link to an interaction shows its card. A link to a pane brings a window of its machine to the front, and the pane does not get the focus, because the focus would release a held approval |
 | Machines menu | For each machine: New window, Connect, Disconnect ([remote machines](/docs/guides/remote-machines)) |
-| Settings window | `⌘,`: edits `config.toml` through `config.set` and shows where each value comes from; one window for each machine. The section Phone shows the phone listener, "Publish with Tailscale", the paired phones with "Send a test notification" when a phone has push, and "Pair a phone"; the palette command "Pair a phone" opens it |
+| Settings window | `⌘,`: edits `config.toml` through `config.set` and shows where each value comes from; one window for each machine. Each setting is a row with its field (a switch for a boolean), its source and Reset. A text or number field sends its value one time, on blur or Enter. The section Phone shows the phone listener, "Publish with Tailscale", the paired phones with "Send a test notification" when a phone has push, and "Pair a phone"; the palette command "Pair a phone" opens it |
 
 `interaction.reveal` shows a card without focusing its pane, because focusing the pane would
 release a held hook.

@@ -418,7 +418,7 @@ async fn the_palette_disables_the_commands_that_write_while_the_store_is_degrade
     );
     // A command of the page and the settings do not write, so they stay.
     let page = f
-        .call("palette.query", query("search scrollback"))
+        .call("palette.query", query("open the inbox"))
         .await
         .expect("a result");
     assert_eq!(page["items"][0]["command"]["enabled"], true);
@@ -433,7 +433,7 @@ async fn the_palette_disables_the_commands_that_write_while_the_store_is_degrade
     let commands = shown.items["_"]["commands"].as_array().expect("commands");
     let command = |id: &str| commands.iter().find(|c| c["id"] == id).expect("a command");
     assert_eq!(command("pane.split_right")["enabled"], false);
-    assert_eq!(command("search.open")["enabled"], true);
+    assert_eq!(command("inbox.open")["enabled"], true);
     // The page renames with a method that writes, so a rename is disabled too.
     assert_eq!(command("tab.rename")["enabled"], false);
     assert_eq!(command("workspace.rename")["enabled"], false);
@@ -702,7 +702,7 @@ async fn the_health_follows_the_store_when_it_degrades_and_when_it_recovers() {
 #[tokio::test]
 async fn jobs_cancel_works_through_the_actor_also_when_the_store_is_degraded() {
     let f = Fixture::new(default_handlers());
-    let job = f.jobs.start("Search").expect("a job");
+    let job = f.jobs.start("Fetch").expect("a job");
     let token = job.token();
     f.thread
         .handle()

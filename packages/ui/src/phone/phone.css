@@ -1,5 +1,6 @@
-/* The phone app. These rules come after the styles of the chrome, with no layer, so they
-   win over every layer of it. The colours are the tokens of `styles/tokens.css`, and `/theme.css`
+/* The phone app. These rules come after the styles of the chrome, in the layer `phone`
+   (`phone/layer.css`), so they win over every layer of the chrome and lose to the utilities of
+   Tailwind CSS (`styles/index.css`). The colours are the tokens of `styles/tokens.css`, and `/theme.css`
    of the listener sets them before the socket opens.
 
    Two parts: the views of a phone alone (Pair, This phone, the waits), in a box `.phone` with a
@@ -64,7 +65,6 @@
   overflow-wrap: anywhere;
 }
 
-.phone-page .card-button,
 .phone-button {
   justify-content: center;
   min-height: var(--control);
@@ -158,40 +158,15 @@
   padding: 0 var(--s2);
 }
 
-.phone-workspaces {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: var(--control);
-  height: var(--control);
-  color: var(--text);
-}
-
-.phone-workspaces[aria-pressed='true'] {
-  background: var(--bg-hover);
-  border-radius: var(--r-sm);
-}
-
-.shell.phone .ticker :is(.ticker-title, .handle, kbd) {
+/* The Button of the left column, the field of the command line and the cap of the attention line
+   have their phone sizes in their classes (`shell/CommandBar.tsx`). */
+.shell.phone .ticker :is(.ticker-title, .handle) {
   display: none;
-}
-
-.shell.phone .ticker-next,
-.shell.phone .cmdline {
-  min-height: 36px;
 }
 
 /* Each control of the chrome has the height of a finger. */
 .shell.phone
-  :is(
-    .tab,
-    .drawer-tab,
-    .card-button,
-    .phone-dock-button,
-    .phone-sheet-close,
-    .phone-more-row,
-    .settings-section-button
-  ) {
+  :is(.tab, .phone-dock-button, .phone-sheet-close, .phone-more-row, .settings-section-button) {
   min-height: var(--control);
 }
 
@@ -235,49 +210,8 @@
   overflow-wrap: anywhere;
 }
 
-/* The menu of a long press, over a scrim that takes the tap beside it. */
-.press-scrim {
-  position: fixed;
-  inset: 0;
-  z-index: 60;
-}
-
-.press-menu {
-  position: fixed;
-  z-index: 61;
-  display: flex;
-  flex-direction: column;
-  padding: var(--s1);
-  border-radius: var(--r-md);
-  background: var(--glass);
-  -webkit-backdrop-filter: var(--glass-filter);
-  backdrop-filter: var(--glass-filter);
-  box-shadow: var(--glass-edge), var(--glass-shadow);
-}
-
-.press-item {
-  min-height: var(--control);
-  padding: 0 var(--s3);
-  border-radius: var(--r-sm);
-  color: var(--text);
-  text-align: left;
-}
-
-.press-item:active {
-  background: var(--bg-hover);
-}
-
-.press-item.danger {
-  color: var(--danger);
-}
-
 /* With no hover, the parts that a hover shows are always on. */
 @media (hover: none) {
-  .shell.phone .row-close {
-    opacity: 1;
-    pointer-events: auto;
-  }
-
   .shell.phone .scrollbar.active {
     opacity: 1;
   }
@@ -377,21 +311,8 @@
   text-align: center;
 }
 
-/* The sheets of More and of the settings take the screen under the command line. */
-.phone-sheet {
-  grid-area: 2 / 1 / -1 / -1;
-  z-index: 30;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  overflow: hidden;
-  background: var(--bg-raised);
-  border-radius: var(--r-panel);
-  box-shadow:
-    inset 0 0 0 1px var(--hairline),
-    var(--glass-shadow);
-}
-
+/* The sheets of More and of the settings take the screen under the command line. The Sheet of
+   shadcn/ui has its place and its fill in its classes (`shell/PhoneSheets.tsx`). */
 .phone-sheet-head {
   display: flex;
   flex: none;
@@ -536,27 +457,6 @@
   color: var(--text-dim);
 }
 
-/* The box Reply of a run whose turn ended, in the Inbox. */
-.card-reply {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s1);
-  margin-top: var(--s2);
-}
-
-.card-field {
-  box-sizing: border-box;
-  width: 100%;
-  min-height: var(--control);
-  padding: 8px 10px;
-  color: var(--text);
-  background: var(--bg);
-  border: 1px solid var(--text-dim);
-  border-radius: var(--r-sm);
-  font: 16px / 1.4 var(--font-data);
-  resize: vertical;
-}
-
 /* A finger on a pane is the input of the page: no scroll and no zoom of the browser. */
 .shell.phone .pane-surface {
   touch-action: none;
@@ -584,49 +484,7 @@
   scrollbar-width: none;
 }
 
-.key {
-  flex: none;
-  min-width: var(--control);
-  min-height: var(--control);
-  padding: 0 var(--s2);
-  border-radius: var(--r-sm);
-  background: var(--bg-hover);
-  color: var(--text);
-  font: 500 15px / 1 var(--font-data);
-}
-
-.key[aria-pressed='true'] {
-  background: var(--text);
-  color: var(--bg);
-}
-
-.key[data-locked='true'] {
-  box-shadow: inset 0 -3px 0 var(--accent);
-}
-
-.key-compose {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s1);
-}
-
-.key-compose-field {
-  box-sizing: border-box;
-  width: 100%;
-  min-height: 88px;
-  padding: 8px 10px;
-  color: var(--text);
-  background: var(--bg);
-  border: 1px solid var(--text-dim);
-  border-radius: var(--r-sm);
-  font: 16px / 1.4 var(--font-data);
-  resize: none;
-}
-
-.key-compose-buttons {
-  display: flex;
-  gap: var(--s2);
-}
+/* The keys are the Button and the Toggle of shadcn/ui (`pane/KeyBar.tsx`). */
 
 /* The bar of a selection that a long press made: Copy and Paste. */
 .selection-bar {
@@ -664,7 +522,8 @@
       'dock';
   }
 
-  .shell.phone > :is(.statusbar, .left-rail, .drawer-rail, .gutter) {
+  /* The side columns have no rails and no rules here: they are sheets. */
+  .shell.phone > .statusbar {
     display: none;
   }
 
@@ -683,46 +542,16 @@
     box-shadow: inset 0 0 0 1px var(--hairline);
   }
 
-  /* The drawer is a sheet over the pane area, up to the board: a phone has no room beside it. */
-  .shell.phone > .drawer {
-    grid-area: main;
-    z-index: 20;
+  /* The drawer is a sheet over the pane area, up to the board: a phone has no room beside it. The
+     left column is a sheet from the left, over the board and the panes. The Sheet of shadcn/ui
+     has the place in the grid (`ColumnSheet` in `shell/PhoneSheets.tsx`), and the column fills
+     it. */
+  .shell.phone > .phone-column > :is(.drawer, .sidebar) {
+    flex: 1;
     min-height: 0;
     box-shadow:
       inset 0 0 0 1px var(--hairline),
       var(--glass-shadow);
-  }
-
-  /* The left column is a sheet from the left, over the board and the panes. */
-  .shell.phone > .sidebar {
-    grid-row: 2 / 4;
-    grid-column: 1;
-    justify-self: start;
-    z-index: 20;
-    width: min(85%, 340px);
-    min-height: 0;
-    box-shadow:
-      inset 0 0 0 1px var(--hairline),
-      var(--glass-shadow);
-  }
-
-  /* The palette and the search take the width of the screen. */
-  .shell.phone .palette {
-    left: var(--s1);
-    right: var(--s1);
-    translate: none;
-    width: auto;
-  }
-
-  /* A dialog of the settings and the large view of a file take the screen. */
-  .shell.phone :is(.dialog, .file-modal) {
-    box-sizing: border-box;
-    width: 100vw;
-    height: 100dvh;
-    max-height: none;
-    margin: 0;
-    padding-top: env(safe-area-inset-top);
-    border-radius: 0;
   }
 }
 

@@ -27,102 +27,11 @@
     font-weight: 400;
   }
 
-  .card {
-    display: flex;
-    flex-direction: column;
-    gap: var(--s2);
-    min-width: 0;
-    padding: var(--s1) var(--s3) var(--s3);
-    border: 1px solid var(--hairline);
-    border-radius: var(--r-md);
-    background: var(--bg-card);
-  }
+  /* A card is the Card of shadcn/ui (`cards/CardFrame.tsx`): its shape, its state and its
+     head are classes of Tailwind CSS. The rules here are for the parts of its body. */
 
-  /* The focus is a ring around the card, so the border keeps the colour of its state. */
-  .card:focus-visible,
-  .card:focus-within {
-    outline: 1px solid var(--text);
-    outline-offset: 2px;
-  }
-
-  /* A card that waits for a person has an amber border and tint, and a red one at a high risk.
-    A card whose answer may not have arrived stays amber. */
-  .card[data-state='open'],
-  .card[data-state='delivery_unknown'] {
-    border-color: var(--caution);
-    background: var(--tint-caution);
-  }
-
-  .card.risk-high[data-state='open'] {
-    border-color: var(--danger);
-    background: var(--tint-danger);
-  }
-
-  .card-button:focus-visible,
-  .card input:focus-visible,
-  .card textarea:focus-visible {
-    outline: 1px solid var(--text);
-    outline-offset: 0;
-  }
-
-  /* The line of a run that counts in the inbox without a card. */
-  .card-run-state[data-state='error'] .card-title {
-    color: var(--danger);
-  }
-
-  .card-run-state[data-state='rate_limited'] .card-title {
-    color: var(--text-dim);
-  }
-
-  /* A card that ended keeps the contrast of its text: a dashed border and a dim title, not a lower
-     opacity (WCAG 1.4.3). */
-  .card-ended {
-    border-style: dashed;
-  }
-
-  .card-ended .card-title {
-    color: var(--text-dim);
-  }
-
-  /* The head of a card: its title, its risk and its handle. */
-  .card-head {
-    display: flex;
-    gap: 1ch;
-    align-items: center;
-    min-height: 32px;
-  }
-
-  .card-title {
-    flex: 1;
-    margin: 0;
-    font-weight: 600;
-    overflow-wrap: anywhere;
-  }
-
-  .card-risk,
-  .card-handle,
   .card-label {
     color: var(--text-dim);
-  }
-
-  .card-handle {
-    color: var(--text-dim);
-  }
-
-  .card-risk {
-    text-transform: uppercase;
-    font-weight: 600;
-  }
-
-  .card-risk[data-risk='high'] {
-    padding: 0 6px;
-    border-radius: 4px;
-    background: var(--danger);
-    color: var(--on-signal);
-  }
-
-  .card-risk[data-risk='medium'] {
-    color: var(--caution);
   }
 
   .card-command,
@@ -174,123 +83,49 @@
     cursor: pointer;
   }
 
-  .card-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-    align-items: center;
-  }
-
-  .card-approval .card-button {
-    flex: 1 1 calc(50% - 4px);
-  }
-
-  .card-button {
-    display: flex;
-    align-items: center;
-    gap: 1ch;
-    padding: 4px var(--s2);
-    border: 1px solid var(--line);
-    color: var(--text);
-    text-align: left;
-  }
-
-  .card-button:hover:not(:disabled) {
-    border-color: var(--text);
-  }
-
-  .card-button.selected {
-    border-color: var(--text);
-    color: var(--text);
-  }
-
-  .card-button.refuses.selected {
-    border-color: var(--danger);
-    color: var(--danger);
-  }
-
-  /* The answers that let the agent go on are green, and the answer that stops it is red. */
-  .card-button:is([data-choice='allow'], [data-choice='allow_always'], [data-choice='approve']) {
-    color: var(--accent);
-  }
-
-  .card-button.selected:is(
-      [data-choice='allow'],
-      [data-choice='allow_always'],
-      [data-choice='approve']
-    ) {
-    border-color: var(--accent);
-  }
-
-  .card-button[data-choice='deny_stop'] {
-    color: var(--danger);
-  }
-
-  .card-button:disabled {
-    opacity: 0.5;
-  }
-
-  .card-key {
-    padding: 0 5px;
-    border-radius: 4px;
-    background: var(--cap);
-    color: var(--text);
-    font-weight: 600;
-  }
-
-  .card-button.selected .card-key {
-    background: var(--here);
-    color: var(--on-here);
-  }
-
-  .card-button.refuses.selected .card-key {
-    background: var(--danger);
-  }
-
-  .card-message,
-  .card-feedback {
-    flex: 1 1 100%;
-    box-sizing: border-box;
-    padding: 1px 6px;
-    color: var(--text);
-    font: inherit;
-    background: var(--bg);
-    border: 1px solid var(--text-dim);
-  }
-
-  .card-message::placeholder,
-  .card-feedback::placeholder {
-    color: var(--text-dim);
-  }
-
-  .card-feedback {
-    min-height: 56px;
-    resize: vertical;
-  }
-
-  .card-question {
+  /* A question: its prompt, the choice cards, and the field. The fieldset has a class of its
+     own: `card-question` is the class of the whole card. */
+  .card-ask {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: var(--s2);
     margin: 0;
     padding: 0;
     border: 0;
     min-width: 0;
   }
 
-  .card-option {
-    display: grid;
-    grid-template-columns: auto 1fr;
-    gap: 0 6px;
+  /* A fieldset draws its legend over its top border, so the space parts two questions. */
+  .card-ask + .card-ask {
+    margin-top: var(--s3);
   }
 
-  .card-option-description {
-    grid-column: 2;
-    color: var(--text-dim);
+  .card-prompt {
+    padding: 0 0 var(--s1);
+    color: var(--text);
+    font-weight: 500;
+    line-height: 20px;
+    overflow-wrap: anywhere;
   }
 
+  .card-prompt [data-slot='badge'] {
+    margin-right: var(--s1);
+    vertical-align: 1px;
+  }
+
+  .card-options {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  /* What the person must know: a line in the colour of its tone, on a tint of it. */
   .card-status {
     margin: 0;
+    padding: 6px var(--s3);
+    border-radius: var(--r-sm);
+    line-height: 18px;
+    background: color-mix(in oklch, currentColor 10%, transparent);
   }
 
   .card-status[data-tone='ok'] {

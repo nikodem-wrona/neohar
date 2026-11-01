@@ -2,14 +2,8 @@
 // true: the risk, the state of the delivery, who may answer. This module only turns those facts
 // into buttons, defaults and sentences, and builds the `Decision` that a click sends.
 
-import type {
-  Decision,
-  InteractionState,
-  InteractionValue,
-  Question,
-  QuestionAnswer,
-  Risk,
-} from '@neohar/transport';
+import type { Decision, InteractionValue, Question, QuestionAnswer, Risk } from '@neohar/transport';
+import type { ToastText } from '../app/toasts';
 
 export type ApprovalChoice = 'allow' | 'allow_always' | 'deny' | 'deny_stop';
 
@@ -132,28 +126,57 @@ export interface Status {
   tone: Tone;
 }
 
-const ENDED: Partial<Record<InteractionState, Tone>> = {
-  delivered: 'ok',
-  resolved_elsewhere: 'muted',
-  dismissed: 'muted',
-  cancelled: 'muted',
-  superseded: 'muted',
-};
-
-/** Who answered, for the line under a card: `ui via card`. */
-export function answeredBy(interaction: InteractionValue): string {
-  const { decided_by: by, via } = interaction.delivery;
-  if (by === 'policy') return 'a rule of the policy';
-  if (by && via) return `${by} via ${via}`;
-  return by ?? via ?? 'someone';
+/**
+ * The title of the card of a question while it waits: the header of one question, such as
+ * `Auth method`, or how many questions there are. The question itself is the body of the card.
+ */
+export function questionTitle(questions: readonly Question[]): string {
+  if (questions.length === 1) return questions[0]?.header || 'Question';
+  return `${questions.length} questions`;
 }
 
 /**
- * What the card says about the delivery of the answer. `harness` is the name of
- * the program, such as `Claude Code`.
+ * The badge of a card that is not open: what became of it, in a word or two. `harness` is the
+ * name of the program, such as `Claude Code`.
+ */
+export function stateBadge(interaction: InteractionValue, harness: string): Status | null {
+  switch (interaction.state) {
+    case 'open':
+      return null;
+    case 'decision_recorded':
+    case 'delivering':
+      return { text: 'Sending', tone: 'info' };
+    case 'delivered':
+      return {
+        text: interaction.delivery.decided_by === 'policy' ? 'Answered by policy' : 'Answered',
+        tone: 'muted',
+      };
+    case 'delivery_unknown':
+      return { text: 'Unconfirmed', tone: 'warn' };
+    case 'failed':
+      return { text: 'Not delivered', tone: 'error' };
+    case 'resolved_elsewhere':
+      return { text: `Answered in ${harness}`, tone: 'muted' };
+    case 'dismissed':
+      return { text: 'Dismissed', tone: 'muted' };
+    case 'cancelled':
+    case 'superseded':
+      return { text: 'Not needed', tone: 'muted' };
+  }
+}
+
+/** Why the core could not deliver the answer, in words: `dialog changed`. */
+function failReason(interaction: InteractionValue): string | null {
+  const reason = interaction.delivery.fail_reason;
+  return reason ? reason.replaceAll('_', ' ') : null;
+}
+
+/**
+ * The line under a card, for what the person must know or do: a card that only shows, or an
+ * answer that may not have arrived. The badge says the rest, and a toast says that an answer of
+ * this window arrived.
  */
 export function statusOf(interaction: InteractionValue, harness: string): Status | null {
-  const by = answeredBy(interaction);
   switch (interaction.state) {
     case 'open':
       // The core keeps a card from answers for several reasons: the run has no pane, or the
@@ -162,26 +185,55 @@ export function statusOf(interaction: InteractionValue, harness: string): Status
       return displayOnly(interaction)
         ? { text: `Display only. Answer it in ${harness}.`, tone: 'warn' }
         : null;
-    case 'decision_recorded':
-    case 'delivering':
-      return { text: `Sending the answer of ${by}…`, tone: 'info' };
-    case 'delivered':
-      return { text: `Delivered. Answered by ${by}.`, tone: ENDED.delivered ?? 'ok' };
     case 'delivery_unknown':
       return { text: `Couldn't confirm your answer reached ${harness}.`, tone: 'warn' };
     case 'failed': {
-      const reason = interaction.delivery.fail_reason;
+      const reason = failReason(interaction);
       return {
-        text: `Couldn't deliver the answer to ${harness}${reason ? `: ${reason.replaceAll('_', ' ')}` : ''}.`,
+        text: `Couldn't deliver the answer to ${harness}${reason ? `: ${reason}` : ''}.`,
         tone: 'error',
       };
     }
-    case 'resolved_elsewhere':
-      return { text: `Answered in ${harness}.`, tone: 'muted' };
-    case 'dismissed':
-      return { text: 'Dismissed.', tone: 'muted' };
-    case 'cancelled':
-    case 'superseded':
-      return { text: 'Not needed any more.', tone: 'muted' };
+    default:
+      return null;
+  }
+}
+
+/**
+ * Whether an answer that this window sent is at its end: the core delivered it, could not, or
+ * the interaction left the projection (`undefined`).
+ */
+export function answerArrived(interaction: InteractionValue | undefined): boolean {
+  if (!interaction) return true;
+  const { state } = interaction;
+  return state !== 'open' && state !== 'decision_recorded' && state !== 'delivering';
+}
+
+/**
+ * The toast for an answer of this window at its end, or `null` when there is nothing to say:
+ * the answer arrived, or it may not have.
+ */
+export function answerToast(interaction: InteractionValue, harness: string): ToastText | null {
+  switch (interaction.state) {
+    case 'delivered':
+      return {
+        title: `Answer delivered to ${harness}`,
+        description: interaction.title,
+        tone: 'ok',
+      };
+    case 'delivery_unknown':
+      return {
+        title: `Couldn't confirm the answer reached ${harness}`,
+        description: interaction.title,
+        tone: 'warn',
+      };
+    case 'failed':
+      return {
+        title: `Couldn't deliver the answer to ${harness}`,
+        description: failReason(interaction) ?? interaction.title,
+        tone: 'error',
+      };
+    default:
+      return null;
   }
 }

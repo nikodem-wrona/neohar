@@ -55,8 +55,8 @@ Review every changed file and report only concrete issues introduced by the PR.
 | Adapters | grants a capability for a version range without a golden case; answers an interaction outside the delivery transaction; uses a suggested binding to authorize an answer, a prompt or a policy decision; lets the shim express a decision through an exit code or print anything other than decision JSON; fails open where it must fail closed |
 | Gate and focus | treats a peek, a hover or a sibling-pane focus as pane focus; does not release a held hook on focus; draws a card or dialog over a pane |
 | Secrets | logs an environment value; bypasses `nh-redact` in logs, events or debug bundles |
-| Scope | adds a third harness, an extension transport, a plugin system or a compatibility layer; writes "Neohar" with a capital letter |
-| Budgets | allocates per frame in `packages/ui/surface`; grows the UI bundle past 300 KB gzipped; adds a UI dependency beyond `packages/transport` and `packages/proto-wasm` |
+| Scope | adds a harness adapter outside the core, an extension transport, a plugin system or a compatibility layer; writes "Neohar" with a capital letter |
+| Budgets | allocates per frame in `packages/ui/surface`; grows a UI bundle past 400 KB gzipped, or the first chunk of the phone past 250 KB; adds a UI dependency beyond `react`, `react-dom/client`, the packages of shadcn/ui (`radix-ui`, `class-variance-authority`, `clsx`, `tailwind-merge`, `lucide-react`, `cmdk`, `sonner`), `packages/transport` and `packages/proto-wasm` |
 
 Validate each finding against surrounding code before reporting it. Do not post style-only comments, speculative concerns without an impact path, or findings unrelated to changed lines. Calibrate severity as:
 

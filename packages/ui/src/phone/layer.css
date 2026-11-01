@@ -1,0 +1,3 @@
+/* The styles of the phone app in their layer, which `styles/index.css` puts after the chrome and
+   before the utilities of Tailwind CSS. */
+@import './phone.css' layer(phone);

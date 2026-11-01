@@ -3,9 +3,9 @@
 
 import type { Decoder } from '@neohar/proto-wasm';
 import type { Transport } from '@neohar/transport';
-import { createRoot } from 'solid-js';
-import { render } from 'solid-js/web';
+import { createRoot } from 'react-dom/client';
 import type { Platform } from '../input/clipboard';
+import { watchDeliveries } from '../cards/deliveries';
 import { CardHostProvider } from '../cards/host';
 import { Keyboard } from '../input/keyboard';
 import { InputSender } from '../input/sender';
@@ -16,6 +16,7 @@ import { Shell } from '../shell/Shell';
 import { createStores } from '../stores';
 import { AppProvider } from './context';
 import { createFailures, reportRejections } from './failures';
+import { createToasts } from './toasts';
 import { showPane } from './show';
 import { createViewState } from './view';
 
@@ -38,70 +39,72 @@ export function mountApp(
   windowId: string,
   options: MountOptions = {},
 ): MountedApp {
-  return createRoot((dispose) => {
-    const failures = createFailures(transport);
-    // A promise of the page that nobody handled, and a subscription that the core refused, show in
-    // the banner.
-    const stopRejections = reportRejections(window, failures.report);
-    const stopTransport = transport.onFailure?.(failures.report);
-    const stores = createStores(transport, windowId);
-    const view = createViewState();
-    const host = options.decoder
-      ? RenderHost.create({ transport, windowId, decoder: options.decoder })
-      : undefined;
-    host?.start();
-    const platform: Platform = navigator.userAgent.includes('Mac') ? 'macos' : 'other';
-    // Option is not Alt until the settings come: the shell applies `optionAsAlt` from them.
-    const keyboard = new Keyboard({ platform, optionAsAlt: 'none' });
-    const input = new InputSender(transport, pageFrames);
-    const unmount = render(
-      () => (
-        <AppProvider
-          value={{
-            transport,
-            run: failures.run,
-            report: failures.report,
-            failures,
-            form: 'desk',
-            stores,
-            windowId,
-            view,
-            input,
-            keyboard,
-            platform,
-            ...(host ? { render: host } : {}),
-          }}
-        >
-          {/* A card answers with `via: card`, and its Open shows the pane in this window. */}
-          <CardHostProvider
-            value={{
-              transport,
-              via: 'card',
-              report: failures.report,
-              open: (pane) => {
-                showPane(transport, windowId, pane).catch(failures.report);
-              },
-            }}
-          >
-            <Shell />
-          </CardHostProvider>
-        </AppProvider>
-      ),
-      root,
-    );
-    return {
-      dispose: () => {
-        unmount();
-        host?.stop();
-        stores.close();
-        stopRejections();
-        stopTransport?.();
-        failures.dismiss();
-        dispose();
-      },
-      ...(host ? { render: host } : {}),
-    };
-  });
+  const failures = createFailures(transport);
+  // A promise of the page that nobody handled, and a subscription that the core refused, show in
+  // the banner.
+  const stopRejections = reportRejections(window, failures.report);
+  const stopTransport = transport.onFailure?.(failures.report);
+  const stores = createStores(transport, windowId);
+  const toasts = createToasts();
+  const deliveries = watchDeliveries(stores, toasts);
+  const view = createViewState();
+  const host = options.decoder
+    ? RenderHost.create({ transport, windowId, decoder: options.decoder })
+    : undefined;
+  host?.start();
+  const platform: Platform = navigator.userAgent.includes('Mac') ? 'macos' : 'other';
+  // Option is not Alt until the settings come: the shell applies `optionAsAlt` from them.
+  const keyboard = new Keyboard({ platform, optionAsAlt: 'none' });
+  const input = new InputSender(transport, pageFrames);
+  // No `StrictMode`: it runs each effect two times, and a second attach of a pane loses its screen.
+  const app = createRoot(root);
+  app.render(
+    <AppProvider
+      value={{
+        transport,
+        run: failures.run,
+        report: failures.report,
+        failures,
+        toasts,
+        form: 'desk',
+        stores,
+        windowId,
+        view,
+        input,
+        keyboard,
+        platform,
+        ...(host ? { render: host } : {}),
+      }}
+    >
+      {/* A card answers with `via: card`, and its Open shows the pane in this window. */}
+      <CardHostProvider
+        value={{
+          transport,
+          via: 'card',
+          answered: deliveries.expect,
+          report: failures.report,
+          open: (pane) => {
+            showPane(transport, windowId, pane).catch(failures.report);
+          },
+        }}
+      >
+        <Shell />
+      </CardHostProvider>
+    </AppProvider>,
+  );
+  return {
+    dispose: () => {
+      app.unmount();
+      deliveries.stop();
+      host?.stop();
+      stores.close();
+      stopRejections();
+      stopTransport?.();
+      failures.dismiss();
+      toasts.clear();
+    },
+    ...(host ? { render: host } : {}),
+  };
 }
 
 /** Draws the settings window into `root`. It needs the transport and nothing else. */
@@ -111,5 +114,7 @@ export function mountSettings(
   machine?: string,
 ): () => void {
   document.title = machine ? `neohar settings · ${machine}` : 'neohar settings';
-  return render(() => <SettingsView transport={transport} />, root);
+  const app = createRoot(root);
+  app.render(<SettingsView transport={transport} />);
+  return () => app.unmount();
 }

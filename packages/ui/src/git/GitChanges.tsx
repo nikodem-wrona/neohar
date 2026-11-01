@@ -3,9 +3,14 @@
 // (`git.diff`). The diff loads again when the stamp of its row changes. The view is read-only.
 
 import { type ChangeRow, RpcError } from '@neohar/transport';
-import { createEffect, createMemo, createSignal, For, on, Show } from 'solid-js';
+import { type KeyboardEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { useApp } from '../app/context';
+import { Input } from '../components/ui/input';
+import { ScrollArea } from '../components/ui/scroll-area';
+import { SCROLL_LIST as LIST } from './scroll';
 import { statusLetter, statusWord } from '../changes/model';
+import { useLatest } from '../lib/hooks';
+import { cn } from '../lib/utils';
 import { DiffPane, type Loaded } from './DiffPane';
 import { matches, moveIndex } from './model';
 
@@ -21,143 +26,131 @@ export function GitChanges(props: {
   counted: boolean;
 }) {
   const { transport, report, windowId } = useApp();
-  const [filter, setFilter] = createSignal('');
-  const [picked, setPicked] = createSignal<string | null>(null);
-  const [loaded, setLoaded] = createSignal<(Loaded & { stamp: number }) | null>(null);
-  let list: HTMLUListElement | undefined;
+  const [filter, setFilter] = useState('');
+  const [picked, setPicked] = useState<string | null>(null);
+  const [loaded, setLoaded] = useState<(Loaded & { stamp: number }) | null>(null);
+  const list = useRef<HTMLUListElement>(null);
+  const subject = useLatest(props.subject);
 
-  const shown = createMemo(() =>
-    props.rows.filter((row) => matches(filter(), [row.path, row.old_path])),
+  const shown = props.rows.filter((row) => matches(filter, [row.path, row.old_path]));
+  const pickedRow = props.rows.find((row) => row.path === picked);
+
+  // A new subject starts the list again, in the render where it comes, before any effect loads
+  // the picked file of the old one.
+  const [seen, setSeen] = useState(props.subject);
+  if (seen !== props.subject) {
+    setSeen(props.subject);
+    setPicked(null);
+    setLoaded(null);
+  }
+
+  const load = useCallback(
+    (path: string, stamp: number): void => {
+      const asked = subject.current;
+      setLoaded({ file: path, stamp });
+      transport
+        .call('git.diff', { window: windowId, file: path })
+        .then((diff) => ({ diff }))
+        .catch((failure: unknown) => ({ error: errorText(failure) }))
+        .then((result) => {
+          // A diff of another file, of an older stamp or of another worktree is dropped.
+          setLoaded((before) =>
+            before?.file === path && before.stamp === stamp && subject.current === asked
+              ? { file: path, stamp, ...result }
+              : before,
+          );
+        })
+        .catch(report);
+    },
+    [transport, windowId, report, subject],
   );
-  const pickedRow = () => props.rows.find((row) => row.path === picked());
-
-  createEffect(
-    on(
-      () => props.subject,
-      () => {
-        setPicked(null);
-        setLoaded(null);
-      },
-    ),
-  );
-
-  const load = (path: string, stamp: number): void => {
-    const subject = props.subject;
-    setLoaded({ file: path, stamp });
-    transport
-      .call('git.diff', { window: windowId, file: path })
-      .then((diff) => ({ diff }))
-      .catch((failure: unknown) => ({ error: errorText(failure) }))
-      .then((result) => {
-        // A diff of another file, of an older stamp or of another worktree is dropped.
-        setLoaded((before) =>
-          before?.file === path && before.stamp === stamp && props.subject === subject
-            ? { file: path, stamp, ...result }
-            : before,
-        );
-      })
-      .catch(report);
-  };
 
   // The picked file that is gone closes. A picked file whose stamp changed loads again.
-  createEffect(() => {
-    const path = picked();
-    if (path === null) return;
-    const row = pickedRow();
-    if (!row) {
+  useEffect(() => {
+    if (picked === null) return;
+    if (!pickedRow) {
       setPicked(null);
       setLoaded(null);
       return;
     }
-    if (loaded()?.file !== path || loaded()?.stamp !== row.stamp) load(path, row.stamp);
-  });
+    if (loaded?.file !== picked || loaded.stamp !== pickedRow.stamp) load(picked, pickedRow.stamp);
+  }, [picked, pickedRow, loaded, load]);
 
   const onListKey = (event: KeyboardEvent): void => {
-    const rows = shown();
-    const at = rows.findIndex((row) => row.path === picked());
+    const rows = shown;
+    const at = rows.findIndex((row) => row.path === picked);
     const to = moveIndex(rows.length, at, event.key);
     if (to === null) return;
     event.preventDefault();
     const path = rows[to]?.path;
     if (path === undefined) return;
     setPicked(path);
-    list?.querySelector<HTMLElement>(`[data-path="${CSS.escape(path)}"]`)?.focus();
+    list.current?.querySelector<HTMLElement>(`[data-path="${CSS.escape(path)}"]`)?.focus();
   };
 
   return (
     <>
-      <div class="git-side-body">
-        <input
-          class="git-filter"
+      <div className="git-side-body">
+        <Input
           type="text"
           placeholder="Filter"
           aria-label="Filter the changed files"
-          value={filter()}
-          onInput={(event) => setFilter(event.currentTarget.value)}
+          className="h-auto flex-none rounded-sm px-2 py-0.5 text-sm/5 shadow-none md:text-sm/5"
+          value={filter}
+          onChange={(event) => setFilter(event.currentTarget.value)}
         />
-        <Show when={props.truncated}>
-          <p class="git-note">The list shows the first 1,000 files.</p>
-        </Show>
-        <Show
-          when={shown().length > 0}
-          fallback={
-            <p class="git-empty">
-              {props.counted ? (filter() ? 'No file matches.' : 'No changes.') : 'Counting…'}
-            </p>
-          }
-        >
-          <ul
-            class="git-list"
-            aria-label="Changed files"
-            ref={(element) => (list = element)}
-            onKeyDown={onListKey}
-          >
-            <For each={shown()}>
-              {(row) => (
-                <li>
+        {props.truncated ? <p className="git-note">The list shows the first 1,000 files.</p> : null}
+        {shown.length > 0 ? (
+          <ScrollArea className={LIST}>
+            <ul className="git-list" aria-label="Changed files" ref={list} onKeyDown={onListKey}>
+              {shown.map((row) => (
+                <li key={row.path}>
                   <button
                     type="button"
-                    class="git-file"
-                    classList={{ picked: picked() === row.path }}
+                    className={cn('git-file', { picked: picked === row.path })}
                     data-path={row.path}
-                    aria-pressed={picked() === row.path}
-                    tabIndex={
-                      picked() === row.path || (picked() === null && row === shown()[0]) ? 0 : -1
-                    }
+                    aria-pressed={picked === row.path}
+                    tabIndex={picked === row.path || (picked === null && row === shown[0]) ? 0 : -1}
                     title={row.old_path ? `${row.old_path} → ${row.path}` : row.path}
                     onClick={() => setPicked(row.path)}
                   >
                     <span
-                      class="changes-status"
+                      className="changes-status"
                       data-status={row.status}
                       title={statusWord(row.status)}
                     >
                       <span aria-hidden="true">{statusLetter(row.status)}</span>
-                      <span class="visually-hidden">{statusWord(row.status)}</span>
+                      <span className="visually-hidden">{statusWord(row.status)}</span>
                     </span>
-                    <span class="changes-path">
-                      <span class="changes-dir">{row.dir}</span>
-                      <span class="changes-name">{row.name}</span>
+                    <span className="changes-path">
+                      <span className="changes-dir">{row.dir}</span>
+                      <span className="changes-name">{row.name}</span>
                     </span>
-                    <span class="git-lines">
-                      <Show
-                        when={!row.binary}
-                        fallback={<span class="changes-binary">binary</span>}
-                      >
-                        <span class="add">+{row.add}</span> <span class="del">−{row.del}</span>
-                      </Show>
+                    <span className="git-lines">
+                      {!row.binary ? (
+                        <>
+                          <span className="add">+{row.add}</span>{' '}
+                          <span className="del">−{row.del}</span>
+                        </>
+                      ) : (
+                        <span className="changes-binary">binary</span>
+                      )}
                     </span>
                   </button>
                 </li>
-              )}
-            </For>
-          </ul>
-        </Show>
+              ))}
+            </ul>
+          </ScrollArea>
+        ) : (
+          <p className="git-empty">
+            {props.counted ? (filter ? 'No file matches.' : 'No changes.') : 'Counting…'}
+          </p>
+        )}
       </div>
-      <div class="git-detail">
+      <div className="git-detail">
         <DiffPane
-          loaded={loaded()}
-          binary={pickedRow()?.binary ?? false}
+          loaded={loaded}
+          binary={pickedRow?.binary ?? false}
           empty="Pick a file to see its diff."
         />
       </div>

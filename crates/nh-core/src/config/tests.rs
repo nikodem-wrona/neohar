@@ -42,12 +42,14 @@ fn without_a_file_every_setting_has_its_default_and_no_warning() {
             "daemon",
             "events",
             "git",
+            "hermes",
             "keys",
             "phone",
             "policy",
             "scrollback",
             "theme",
-            "ui"
+            "ui",
+            "workflows"
         ]
     );
     assert_eq!(sections["approvals"].entries["mode"].value, json!("auto"));
@@ -108,7 +110,8 @@ fn a_key_of_an_older_version_loads_without_a_warning() {
     let old = "[input]\nconfirm_multiline_paste_to_agents = false\n\n[search]\n\
                index_transcripts = true\n\n[update]\nmanifest_check = false\n\n\
                [tasks]\nports = 2\nport_range = [41000, 41999]\nsetup = [\"bun install\"]\n\n\
-               [tasks.env]\nAPP_ENV = \"dev\"\n\n[approvals]\nmode = \"observe\"\n";
+               [tasks.env]\nAPP_ENV = \"dev\"\n\n[keys]\nsearch_open = \"mod+shift+f\"\n\n\
+               [approvals]\nmode = \"observe\"\n";
     let (store, dir) = store_with("retired", Some(old));
     assert_eq!(store.config().approvals.mode, ApprovalMode::Observe);
     assert!(store.warnings().is_empty(), "{:?}", store.warnings());
@@ -398,7 +401,7 @@ fn the_settings_projection_has_a_row_for_each_section() {
     store.publish(&hub);
     hub.flush();
     let published = hub.snapshot(Projection::Settings);
-    assert_eq!(published.order.len(), 11);
+    assert_eq!(published.order.len(), 13);
     let approvals = &published.items["approvals"];
     assert_eq!(
         approvals["entries"]["mode"],

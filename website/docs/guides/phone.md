@@ -1,7 +1,7 @@
 ---
 title: The phone
 description: "Supervise your agents from a phone: turn on the phone listener, publish it with Tailscale, pair a phone, get a push when an agent needs you, and what keeps the listener safe."
-sidebar_position: 6
+sidebar_position: 7
 ---
 
 The phone app shows the desk of your Mac on a phone. You can read the panes, answer approvals and
@@ -10,7 +10,7 @@ when an agent needs you and no desktop window has the focus.
 
 The core of the app (or of `nh daemon`) serves the phone app on a port of `127.0.0.1`. Tailscale
 puts that port on your tailnet with HTTPS. neohar has no TLS and no network listener of its own.
-The phone app was tested as an iPhone in Safari.
+The phone app was tested as an iPhone in Safari. It needs Safari 16.4 or later (iOS 16.4 or later).
 
 ## Before you start
 

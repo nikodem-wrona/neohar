@@ -1,17 +1,17 @@
-//! The scrollback archive and its search.
+//! The scrollback archive.
 //!
 //! Lines that scroll off the screen of a pane are appended to **segment files**,
 //! `scrollback/<pane>/<segment_no>.zst`. A flush writes one record: a length (`u32`, little
 //! endian) and an independent zstd frame that holds a `postcard` list of lines. The table
 //! `scrollback_segments` has the first and the last line of each segment and the number of bytes
-//! that are valid. The table `scrollback_fts` (FTS5) has the text of every line.
+//! that are valid.
 //!
 //! The order of a flush makes a crash harmless. The writer cuts the file back to the valid length,
-//! appends the frame, syncs it, and then commits the database in one transaction: the segment row,
-//! the lines for search, and `panes.last_archived_line`. A crash before the commit leaves bytes
-//! after the valid length. Readers never look at them, and the next flush cuts them off. The
-//! engine replays the lines after `last_archived_line` when the core starts again, so a crash
-//! loses at most the lines of the last flush interval.
+//! appends the frame, syncs it, and then commits the database in one transaction: the segment row
+//! and `panes.last_archived_line`. A crash before the commit leaves bytes after the valid length.
+//! Readers never look at them, and the next flush cuts them off. The engine replays the lines after
+//! `last_archived_line` when the core starts again, so a crash loses at most the lines of the last
+//! flush interval.
 
 use std::{
     collections::HashMap,
@@ -42,8 +42,6 @@ pub const SEGMENT_LINES: u64 = 10_000;
 pub const SEGMENT_BYTES: usize = 4 * 1024 * 1024;
 /// The level of zstd. Lines of a terminal compress well at a low level, and the writer is fast.
 const ZSTD_LEVEL: i32 = 3;
-/// The line number in the key of the search index has 40 bits, and the pane number the rest.
-const LINE_BITS: u32 = 40;
 
 /// A run of cells with one style, in columns (`nh_term::StyleRun`).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -116,7 +114,6 @@ struct SegmentPosition {
 /// The writer of the archive of one pane. It buffers lines and writes them on a flush.
 pub struct ScrollbackWriter {
     pane: Ulid,
-    render_id: u32,
     dir: PathBuf,
     position: Position,
     buffer: Vec<ArchivedLine>,
@@ -143,14 +140,6 @@ fn to_i64(value: u64) -> Result<i64, StoreError> {
 
 fn to_u64(value: i64) -> Result<u64, StoreError> {
     u64::try_from(value).map_err(|_| StoreError::BadValue(format!("{value} is negative")))
-}
-
-/// The key of a line in the search index: the number of the pane and the number of the line.
-fn fts_rowid(render_id: u32, line_no: u64) -> Result<i64, StoreError> {
-    if line_no >= 1 << LINE_BITS {
-        return Err(StoreError::BadValue(format!("line {line_no} is too high")));
-    }
-    to_i64((u64::from(render_id) << LINE_BITS) | line_no)
 }
 
 /// Writes a frame: the length of the compressed record, and the record.
@@ -204,18 +193,15 @@ impl Store {
     /// The writer of the archive of a pane. It continues where the archive of the pane ends.
     pub fn scrollback_writer(&self, pane: Ulid) -> Result<ScrollbackWriter, StoreError> {
         let key = pane.to_string();
-        let row: Option<(i64, Option<i64>)> = self
+        let row: Option<Option<i64>> = self
             .conn
             .query_row(
-                "SELECT render_id, last_archived_line FROM panes WHERE id = ?1",
+                "SELECT last_archived_line FROM panes WHERE id = ?1",
                 [&key],
-                |row| Ok((row.get(0)?, row.get(1)?)),
+                |row| row.get(0),
             )
             .optional()?;
-        let (render_id, last_archived) =
-            row.ok_or_else(|| StoreError::BadValue(format!("no pane {key}")))?;
-        let render_id = u32::try_from(render_id)
-            .map_err(|_| StoreError::BadValue(format!("render id {render_id}")))?;
+        let last_archived = row.ok_or_else(|| StoreError::BadValue(format!("no pane {key}")))?;
         let last_line = last_archived.map(to_u64).transpose()?;
         let segment = self
             .conn
@@ -247,7 +233,6 @@ impl Store {
             .transpose()?;
         Ok(ScrollbackWriter {
             pane,
-            render_id,
             dir: self.scrollback_dir(pane)?,
             position: Position { segment, last_line },
             buffer: Vec::new(),
@@ -357,13 +342,6 @@ impl Store {
         now_ms: i64,
     ) -> Result<usize, StoreError> {
         let segments = self.scrollback_segments(pane)?;
-        let render_id: i64 = self.conn.query_row(
-            "SELECT render_id FROM panes WHERE id = ?1",
-            [pane.to_string()],
-            |row| row.get(0),
-        )?;
-        let render_id = u32::try_from(render_id)
-            .map_err(|_| StoreError::BadValue(format!("render id {render_id}")))?;
         let mut total: u64 = segments.iter().map(|s| s.bytes).sum();
         let mut doomed = Vec::new();
         for segment in segments.iter().take(segments.len().saturating_sub(1)) {
@@ -382,13 +360,6 @@ impl Store {
                 tx.sql().execute(
                     "DELETE FROM scrollback_segments WHERE pane_id = ?1 AND segment_no = ?2",
                     params![key, to_i64(segment.segment_no)?],
-                )?;
-                tx.sql().execute(
-                    "DELETE FROM scrollback_fts WHERE rowid BETWEEN ?1 AND ?2",
-                    params![
-                        fts_rowid(render_id, segment.first_line)?,
-                        fts_rowid(render_id, segment.last_line)?
-                    ],
                 )?;
             }
             Ok(())
@@ -511,7 +482,6 @@ impl ScrollbackWriter {
 
         // Commit the rows in one transaction.
         let key = self.pane.to_string();
-        let render_id = self.render_id;
         let last = chunks.last().map_or(0, |c| c.last_line);
         let result = store.tx(now_ms, |tx| {
             for chunk in &chunks {
@@ -530,17 +500,6 @@ impl ScrollbackWriter {
                         to_i64(chunk.bytes)?,
                     ],
                 )?;
-                let mut insert = tx.sql().prepare_cached(
-                    "INSERT INTO scrollback_fts (rowid, text, pane_id, line_no) VALUES (?1, ?2, ?3, ?4)",
-                )?;
-                for line in &chunk.lines {
-                    insert.execute(params![
-                        fts_rowid(render_id, line.line_no)?,
-                        line.text,
-                        key,
-                        to_i64(line.line_no)?,
-                    ])?;
-                }
             }
             tx.sql().execute(
                 "UPDATE panes SET last_archived_line = ?2, updated_at = ?3 WHERE id = ?1",
@@ -616,101 +575,6 @@ impl Chunk {
             lines: Vec::new(),
             bytes: 0,
         }
-    }
-}
-
-// --- search ------------------------------------------------------------------------------------
-
-/// Where a search looks.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum SearchScope {
-    Pane(Ulid),
-    /// All panes of a workspace, by the id of the workspace.
-    Workspace(String),
-    All,
-}
-
-/// A line that matches a search.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ScrollbackHit {
-    pub pane: Ulid,
-    pub line_no: u64,
-    /// The text around the match. A match is between U+0002 and U+0003, which a line of a
-    /// terminal does not hold. A bracket in the text is only text.
-    pub snippet: String,
-}
-
-/// Makes an FTS5 query from what a person typed: each word is a phrase of its own, so that a
-/// quote, a star or the word `AND` has no special meaning. A word with two letters or digits or
-/// more also matches the start of a longer word, so `con` finds `context` while the person types.
-/// A word of one letter matches only itself: as a prefix it makes FTS5 read every term
-/// that starts with the letter, and the search holds the actor while it runs.
-fn match_query(text: &str) -> Option<String> {
-    let words: Vec<String> = text
-        .split_whitespace()
-        .map(|word| {
-            let phrase = format!("\"{}\"", word.replace('"', "\"\""));
-            if word.chars().filter(|c| c.is_alphanumeric()).count() >= 2 {
-                phrase + "*"
-            } else {
-                phrase
-            }
-        })
-        .collect();
-    (!words.is_empty()).then(|| words.join(" "))
-}
-
-impl Store {
-    /// Searches the archive. The best matches come first.
-    pub fn search_scrollback(
-        &self,
-        scope: &SearchScope,
-        query: &str,
-        limit: usize,
-    ) -> Result<Vec<ScrollbackHit>, StoreError> {
-        let Some(terms) = match_query(query) else {
-            return Ok(Vec::new());
-        };
-        let (filter, argument): (&str, Option<String>) = match scope {
-            SearchScope::Pane(pane) => ("AND scrollback_fts.pane_id = ?3", Some(pane.to_string())),
-            SearchScope::Workspace(id) => ("AND p.workspace_id = ?3", Some(id.clone())),
-            SearchScope::All => ("", None),
-        };
-        let sql = format!(
-            "SELECT scrollback_fts.pane_id, scrollback_fts.line_no,
-                    snippet(scrollback_fts, 0, char(2), char(3), '…', 12)
-             FROM scrollback_fts JOIN panes p ON p.id = scrollback_fts.pane_id
-             WHERE scrollback_fts MATCH ?1 {filter}
-             ORDER BY rank LIMIT ?2"
-        );
-        let mut statement = self.conn.prepare(&sql)?;
-        let limit = i64::try_from(limit).unwrap_or(i64::MAX);
-        let map = |row: &rusqlite::Row<'_>| {
-            Ok((
-                row.get::<_, String>(0)?,
-                row.get::<_, i64>(1)?,
-                row.get::<_, String>(2)?,
-            ))
-        };
-        let rows: Vec<_> = match &argument {
-            Some(argument) => statement
-                .query_map(params![terms, limit, argument], map)?
-                .collect::<Result<_, _>>()?,
-            None => statement
-                .query_map(params![terms, limit], map)?
-                .collect::<Result<_, _>>()?,
-        };
-        rows.into_iter()
-            .map(|(pane, line_no, snippet)| {
-                Ok(ScrollbackHit {
-                    pane: pane
-                        .parse()
-                        .map_err(|_| StoreError::BadValue(format!("pane id {pane:?}")))?,
-                    line_no: to_u64(line_no)?,
-                    snippet,
-                })
-            })
-            .collect()
     }
 }
 
@@ -1119,135 +983,7 @@ mod tests {
     }
 
     #[test]
-    fn search_finds_lines_across_segments() {
-        let (mut store, dir) = temp_store("search");
-        let pane = add_pane(&store, 1);
-        let mut writer = store
-            .scrollback_writer(pane)
-            .expect("a writer")
-            .with_limits(10, usize::MAX);
-        let mut batch = lines(0..60);
-        batch[5].text = "migration failed: no such column".to_owned();
-        batch[45].text = "second migration failed: timeout".to_owned();
-        batch[50].text = "all tests passed".to_owned();
-        flush_all(&mut writer, &mut store, batch, 1);
-        let hits = store
-            .search_scrollback(&SearchScope::All, "migration failed", 10)
-            .expect("a search");
-        let mut found: Vec<u64> = hits.iter().map(|h| h.line_no).collect();
-        found.sort_unstable();
-        assert_eq!(found, [5, 45]);
-        assert!(hits.iter().all(|h| h.pane == pane));
-        assert!(
-            hits.iter()
-                .any(|h| h.snippet.contains("\u{2}migration\u{3}")),
-            "{hits:?}"
-        );
-        let _ = fs::remove_dir_all(dir);
-    }
-
-    #[test]
-    fn search_takes_a_scope_and_a_limit_and_no_syntax_from_the_user() {
-        let (mut store, dir) = temp_store("scope");
-        let (a, b) = (add_pane(&store, 1), add_pane(&store, 2));
-        store.conn.execute("INSERT INTO workspaces (id, handle, name, sort_key, created_at, updated_at) VALUES ('w1','w1','w','a',0,0)", []).expect("a workspace");
-        store
-            .conn
-            .execute(
-                "UPDATE panes SET workspace_id = 'w1' WHERE id = ?1",
-                [a.to_string()],
-            )
-            .expect("a place");
-        let mut wa = store.scrollback_writer(a).expect("a writer");
-        let mut wb = store.scrollback_writer(b).expect("a writer");
-        let mut one = lines(0..20);
-        one[3].text = "needle in pane a".to_owned();
-        one[4].text = "needle needle again".to_owned();
-        flush_all(&mut wa, &mut store, one, 1);
-        let mut two = lines(0..20);
-        two[7].text = "needle in pane b".to_owned();
-        flush_all(&mut wb, &mut store, two, 1);
-
-        let all = store
-            .search_scrollback(&SearchScope::All, "needle", 10)
-            .expect("a search");
-        assert_eq!(all.len(), 3);
-        let only_a = store
-            .search_scrollback(&SearchScope::Pane(a), "needle", 10)
-            .expect("a search");
-        assert!(only_a.len() == 2 && only_a.iter().all(|h| h.pane == a));
-        let in_workspace = store
-            .search_scrollback(&SearchScope::Workspace("w1".to_owned()), "needle", 10)
-            .expect("a search");
-        assert!(in_workspace.len() == 2 && in_workspace.iter().all(|h| h.pane == a));
-        assert_eq!(
-            store
-                .search_scrollback(&SearchScope::All, "needle", 1)
-                .expect("a search")
-                .len(),
-            1
-        );
-        // Characters that FTS5 treats as syntax are plain text here.
-        for query in [
-            "\"",
-            "needle AND",
-            "needle*",
-            "a OR b",
-            "NEAR(",
-            "col:x",
-            "-needle",
-            "",
-            "   ",
-        ] {
-            store
-                .search_scrollback(&SearchScope::All, query, 10)
-                .unwrap_or_else(|e| panic!("{query:?}: {e}"));
-        }
-        let _ = fs::remove_dir_all(dir);
-    }
-
-    #[test]
-    fn a_word_matches_the_start_of_a_longer_word() {
-        let (mut store, dir) = temp_store("prefix");
-        let pane = add_pane(&store, 1);
-        let mut writer = store.scrollback_writer(pane).expect("a writer");
-        let mut batch = lines(0..20);
-        batch[2].text = "context window is full".to_owned();
-        batch[6].text = "migration failed: no such column".to_owned();
-        batch[9].text = "c is a language".to_owned();
-        flush_all(&mut writer, &mut store, batch, 1);
-        let found = |query: &str| -> Vec<u64> {
-            let mut lines: Vec<u64> = store
-                .search_scrollback(&SearchScope::All, query, 10)
-                .unwrap_or_else(|e| panic!("{query:?}: {e}"))
-                .iter()
-                .map(|h| h.line_no)
-                .collect();
-            lines.sort_unstable();
-            lines
-        };
-        assert_eq!(found("con"), [2]);
-        assert_eq!(found("CON"), [2], "the case does not matter");
-        assert_eq!(found("migr fail"), [6], "each word is a prefix");
-        assert_eq!(
-            found("ontext"),
-            Vec::<u64>::new(),
-            "only the start of a word"
-        );
-        assert_eq!(found("c"), [9], "one letter matches only itself");
-        assert!(
-            store
-                .search_scrollback(&SearchScope::All, "con", 10)
-                .expect("a search")[0]
-                .snippet
-                .contains("\u{2}context\u{3}"),
-            "the whole word is marked"
-        );
-        let _ = fs::remove_dir_all(dir);
-    }
-
-    #[test]
-    fn the_size_cap_deletes_the_oldest_segments_with_their_search_rows() {
+    fn the_size_cap_deletes_the_oldest_segments() {
         let (mut store, dir) = temp_store("trim");
         let pane = add_pane(&store, 1);
         add_pane(&store, 2);
@@ -1255,10 +991,7 @@ mod tests {
             .scrollback_writer(pane)
             .expect("a writer")
             .with_limits(20, usize::MAX);
-        let mut batch = lines(0..100);
-        batch[3].text = "ancient needle".to_owned();
-        batch[95].text = "recent needle".to_owned();
-        flush_all(&mut writer, &mut store, batch, 1);
+        flush_all(&mut writer, &mut store, lines(0..100), 1);
         assert_eq!(
             store.scrollback_panes().expect("panes"),
             [pane],
@@ -1286,25 +1019,9 @@ mod tests {
                 .join("4.zst")
                 .exists()
         );
-        let hits = store
-            .search_scrollback(&SearchScope::All, "needle", 10)
-            .expect("a search");
-        assert_eq!(
-            hits.iter().map(|h| h.line_no).collect::<Vec<_>>(),
-            [95],
-            "the search rows went too"
-        );
         assert_eq!(
             store.read_lines(pane, 0, 1_000).expect("a read"),
             lines(60..100)
-                .into_iter()
-                .map(|mut l| {
-                    if l.line_no == 95 {
-                        l.text = "recent needle".to_owned();
-                    }
-                    l
-                })
-                .collect::<Vec<_>>()
         );
         // The newest segment is never deleted, whatever the cap.
         assert_eq!(store.trim_scrollback(pane, 0, 3).expect("a trim"), 1);
@@ -1414,16 +1131,9 @@ mod tests {
         let (mut store, dir) = temp_store("million");
         let pane = add_pane(&store, 1);
         let mut writer = store.scrollback_writer(pane).expect("a writer");
-        let make = |n: u64| {
-            let mut l = line(n);
-            if n == 777_777 {
-                l.text = "the unique needle is here".to_owned();
-            }
-            l
-        };
         let started = std::time::Instant::now();
         for start in (0..1_000_000).step_by(5_000) {
-            writer.push((start..start + 5_000).map(make), start as i64);
+            writer.push(lines(start..start + 5_000), start as i64);
             writer.flush(&mut store, start as i64).expect("a flush");
         }
         eprintln!("1,000,000 lines written in {:?}", started.elapsed());
@@ -1439,16 +1149,9 @@ mod tests {
             (777_700, 200),
         ] {
             let got = store.read_lines(pane, from, count).expect("a read");
-            let expected: Vec<_> = (from..(from + count as u64).min(1_000_000))
-                .map(make)
-                .collect();
+            let expected = lines(from..(from + count as u64).min(1_000_000));
             assert_eq!(got, expected, "from {from}");
         }
-        let hits = store
-            .search_scrollback(&SearchScope::All, "unique needle", 5)
-            .expect("a search");
-        assert_eq!(hits.len(), 1);
-        assert_eq!(hits[0].line_no, 777_777);
         let _ = fs::remove_dir_all(dir);
     }
 }

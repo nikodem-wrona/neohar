@@ -47,6 +47,21 @@ const MIGRATIONS: &[Migration] = &[
         sql: include_str!("../migrations/0018_git_trust.sql"),
         rebuilds_tables: false,
     },
+    Migration {
+        version: 19,
+        sql: include_str!("../migrations/0019_workflows.sql"),
+        rebuilds_tables: false,
+    },
+    Migration {
+        version: 20,
+        sql: include_str!("../migrations/0020_drop_scrollback_search.sql"),
+        rebuilds_tables: false,
+    },
+    Migration {
+        version: 21,
+        sql: include_str!("../migrations/0021_hermes.sql"),
+        rebuilds_tables: false,
+    },
 ];
 
 /// The schema version that this build writes.

@@ -1,10 +1,23 @@
-// A menu of the top bar of the Git view: a button that shows the value, and a popover with a filter
-// field and a list. A letter filters the items, the arrows move, Enter picks and Escape closes. The
-// core gives the items in their order, and the menu only keeps the ones that match the filter. The
-// popover is in the top layer, so a click beside it closes it.
+// A menu of the top bar of the Git view: a button that shows the value, and a Popover with a
+// Command of shadcn/ui: a filter field and a list. A letter filters the items, the arrows move,
+// Enter picks and Escape closes. The core gives the items in their order, and the menu only keeps
+// the ones that match the filter (`matches` of the model): the Command does not filter or sort.
+// The popover is in a layer over the window, so a click beside it closes it.
 
-import { createMemo, createSignal, For, Show } from 'solid-js';
-import { matches, moveIndex } from './model';
+import { useState } from 'react';
+import { useLayer } from '../app/layer';
+import { Button } from '../components/ui/button';
+import {
+  Command,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  CommandSeparator,
+} from '../components/ui/command';
+import { Popover, PopoverContent, PopoverTrigger } from '../components/ui/popover';
+import { cn } from '../lib/utils';
+import { matches } from './model';
 
 export interface MenuItem {
   key: string;
@@ -41,183 +54,166 @@ export interface GitMenuProps {
   empty: string;
 }
 
+/** The groups with the items that match `filter`, and no empty group. */
+function filtered(groups: MenuGroup[], filter: string): MenuGroup[] {
+  return groups
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) => matches(filter, [item.title, item.detail, item.agents])),
+    }))
+    .filter((group) => group.items.length > 0);
+}
+
+/** The value of an action in the Command: it comes after the items. */
+function actionValue(index: number): string {
+  return `\u0000action ${index}`;
+}
+
 export function GitMenu(props: GitMenuProps) {
-  let trigger: HTMLButtonElement | undefined;
-  let panel: HTMLDivElement | undefined;
-  let field: HTMLInputElement | undefined;
-  const [open, setOpen] = createSignal(false);
-  const [filter, setFilter] = createSignal('');
-  const [active, setActive] = createSignal(0);
-  const id = `git-menu-${props.label.toLowerCase()}`;
+  const [open, setOpen] = useState(false);
+  const [filter, setFilter] = useState('');
+  /** The value of the item under the keys: its key, or the value of an action. */
+  const [active, setActive] = useState('');
+  useLayer(open);
 
-  const shown = createMemo(() =>
-    props.groups
-      .map((group) => ({
-        ...group,
-        items: group.items.filter((item) =>
-          matches(filter(), [item.title, item.detail, item.agents]),
-        ),
-      }))
-      .filter((group) => group.items.length > 0),
-  );
-  const flat = createMemo(() => shown().flatMap((group) => group.items));
-  const actions = () => props.actions?.(filter()) ?? [];
+  const shown = filtered(props.groups, filter);
+  const flat = shown.flatMap((group) => group.items);
+  const actions = props.actions?.(filter) ?? [];
 
-  const close = (): void => {
-    if (panel?.matches(':popover-open')) panel.hidePopover();
+  /** The first item of a filter, else its first action, has the keys. */
+  const firstOf = (text: string): string => {
+    const first = filtered(props.groups, text)[0]?.items[0];
+    if (first) return first.key;
+    return (props.actions?.(text) ?? []).length > 0 ? actionValue(0) : '';
   };
-  const show = (): void => {
-    if (!panel || !trigger) return;
-    const box = trigger.getBoundingClientRect();
-    panel.style.left = `${Math.max(4, Math.min(box.left, window.innerWidth - 360))}px`;
-    panel.style.top = `${box.bottom + 4}px`;
-    setFilter('');
-    const current = flat().findIndex((item) => item.current);
-    setActive(Math.max(0, current));
-    panel.showPopover();
-    field?.focus();
+
+  const onOpenChange = (next: boolean): void => {
+    if (next) {
+      // The filter is empty when the menu opens, and the current item has the keys.
+      setFilter('');
+      const current = filtered(props.groups, '')
+        .flatMap((group) => group.items)
+        .find((item) => item.current);
+      setActive(current?.key ?? firstOf(''));
+    }
+    setOpen(next);
   };
-  const pick = (item: MenuItem | undefined): void => {
-    if (!item || item.disabled) return;
-    close();
+  const pick = (item: MenuItem): void => {
+    if (item.disabled) return;
+    // The popover gives the focus back to its button when it closes.
+    setOpen(false);
     props.onPick(item.key);
-    trigger?.focus();
-  };
-
-  const onKey = (event: KeyboardEvent): void => {
-    if (event.key === 'Escape') {
-      event.preventDefault();
-      event.stopPropagation();
-      close();
-      trigger?.focus();
-      return;
-    }
-    if (event.key === 'Enter') {
-      event.preventDefault();
-      const item = flat()[active()];
-      if (item) pick(item);
-      else actions()[0]?.run();
-      if (!item) close();
-      return;
-    }
-    const to = moveIndex(flat().length, active(), event.key);
-    if (to === null) return;
-    event.preventDefault();
-    setActive(to);
-    panel?.querySelector<HTMLElement>(`[data-index="${to}"]`)?.scrollIntoView({ block: 'nearest' });
   };
 
   return (
-    <div class="git-menu-anchor">
-      <button
-        type="button"
-        class="git-menu-button"
-        classList={{ open: open() }}
-        aria-haspopup="listbox"
-        aria-expanded={open()}
-        aria-controls={id}
-        ref={(element) => (trigger = element)}
-        onClick={() => (open() ? close() : show())}
-      >
-        <span class="git-menu-label">{props.label}</span>
-        <span class="git-menu-line">
-          <span class="git-menu-value">{props.value}</span>
-          <Show when={props.note}>{(note) => <span class="git-menu-note">{note()}</span>}</Show>
-          <span class="git-menu-arrow" aria-hidden="true">
-            ▾
-          </span>
-        </span>
-      </button>
-      <div
-        id={id}
-        class="git-menu"
-        popover="auto"
-        ref={(element) => {
-          panel = element;
-          element.addEventListener('toggle', (event) => {
-            setOpen((event as ToggleEvent).newState === 'open');
-          });
-        }}
-        onKeyDown={onKey}
-      >
-        <input
-          class="git-menu-filter"
-          type="text"
-          placeholder="Filter"
-          aria-label={`Filter the ${props.label.toLowerCase()} menu`}
-          aria-activedescendant={flat()[active()] ? `${id}-${active()}` : undefined}
-          value={filter()}
-          ref={(element) => (field = element)}
-          onInput={(event) => {
-            setFilter(event.currentTarget.value);
-            setActive(0);
-          }}
-        />
-        <div class="git-menu-list" role="listbox" aria-label={props.label}>
-          <Show when={flat().length > 0} fallback={<p class="git-menu-empty">{props.empty}</p>}>
-            <For each={shown()}>
-              {(group) => (
-                <div class="git-menu-group" role="group" aria-label={group.title}>
-                  <Show when={group.title}>
-                    <div class="git-menu-group-title" aria-hidden="true">
-                      {group.title}
-                    </div>
-                  </Show>
-                  <For each={group.items}>
-                    {(item) => {
-                      const index = () => flat().indexOf(item);
-                      return (
-                        <div
-                          id={`${id}-${index()}`}
-                          class="git-menu-item"
-                          classList={{
-                            active: index() === active(),
-                            current: item.current === true,
-                            disabled: item.disabled === true,
-                          }}
-                          role="option"
-                          aria-selected={item.current === true}
-                          aria-disabled={item.disabled === true}
-                          data-index={index()}
-                          data-key={item.key}
-                          onPointerMove={() => setActive(index())}
-                          onClick={() => pick(item)}
+    <div className="min-w-0">
+      <Popover open={open} onOpenChange={onOpenChange}>
+        <PopoverTrigger asChild>
+          {/* The name of the menu over its value, as the menus of GitHub Desktop. */}
+          <Button
+            variant="ghost"
+            className="h-auto max-w-[40ch] min-w-0 shrink flex-col items-start gap-0 px-2 py-0.5 text-left text-sm/4 font-normal data-[state=open]:bg-accent"
+          >
+            <span className="text-(length:--size-small) text-muted-foreground">{props.label}</span>
+            <span className="flex max-w-full min-w-0 items-baseline gap-[1ch]">
+              <span className="min-w-0 truncate font-semibold">{props.value}</span>
+              {props.note ? (
+                <span className="flex-none text-(length:--size-small) whitespace-nowrap text-muted-foreground">
+                  {props.note}
+                </span>
+              ) : null}
+              <span className="flex-none text-muted-foreground" aria-hidden="true">
+                ▾
+              </span>
+            </span>
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent
+          align="start"
+          aria-label={props.label}
+          className="flex max-h-[min(60vh,520px)] w-[min(52ch,90vw)] flex-col rounded-(--r-md) p-1"
+        >
+          <Command
+            shouldFilter={false}
+            value={active}
+            onValueChange={setActive}
+            className="min-h-0"
+          >
+            <CommandInput
+              placeholder="Filter"
+              aria-label={`Filter the ${props.label.toLowerCase()} menu`}
+              value={filter}
+              onValueChange={(text) => {
+                setFilter(text);
+                setActive(firstOf(text));
+              }}
+            />
+            <CommandList aria-label={props.label} className="max-h-none min-h-0 flex-1 py-1">
+              {flat.length > 0 ? (
+                shown.map((group, at) => (
+                  <CommandGroup
+                    key={group.title ?? at}
+                    heading={group.title}
+                    className="p-0 [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:pt-1 [&_[cmdk-group-heading]]:pb-0"
+                  >
+                    {group.items.map((item) => (
+                      <CommandItem
+                        key={item.key}
+                        value={item.key}
+                        disabled={item.disabled === true}
+                        data-key={item.key}
+                        onSelect={() => pick(item)}
+                        className="grid cursor-pointer grid-cols-[minmax(0,max-content)_minmax(0,1fr)] gap-x-[1ch] gap-y-0 px-2 py-0.5 text-sm data-[disabled=true]:cursor-default data-[disabled=true]:text-muted-foreground data-[disabled=true]:opacity-100"
+                      >
+                        <span
+                          className={cn(
+                            'max-w-[36ch] truncate',
+                            item.current === true && "font-semibold before:content-['✓_']",
+                          )}
                         >
-                          <span class="git-menu-item-title">{item.title}</span>
-                          <Show when={item.detail}>
-                            {(detail) => <span class="git-menu-item-detail">{detail()}</span>}
-                          </Show>
-                          <Show when={item.agents}>
-                            {(agents) => <span class="git-menu-item-agents">{agents()}</span>}
-                          </Show>
-                        </div>
-                      );
-                    }}
-                  </For>
-                </div>
+                          {item.title}
+                        </span>
+                        {item.detail ? (
+                          <span className="min-w-0 truncate text-right font-mono text-(length:--size-data) text-muted-foreground">
+                            {item.detail}
+                          </span>
+                        ) : null}
+                        {item.agents ? (
+                          <span className="col-span-full text-(length:--size-small) text-muted-foreground">
+                            {item.agents}
+                          </span>
+                        ) : null}
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                ))
+              ) : (
+                <p className="px-2 py-1 text-muted-foreground">{props.empty}</p>
               )}
-            </For>
-          </Show>
-        </div>
-        <Show when={actions().length > 0}>
-          <div class="git-menu-actions">
-            <For each={actions()}>
-              {(action) => (
-                <button
-                  type="button"
-                  class="git-menu-action"
-                  onClick={() => {
-                    close();
-                    action.run();
-                  }}
-                >
-                  {action.label}
-                </button>
-              )}
-            </For>
-          </div>
-        </Show>
-      </div>
+            </CommandList>
+            {actions.length > 0 ? (
+              <>
+                <CommandSeparator className="mx-0" />
+                <CommandGroup className="p-0 pt-1">
+                  {actions.map((action, index) => (
+                    <CommandItem
+                      key={action.label}
+                      value={actionValue(index)}
+                      className="cursor-pointer px-2 py-0.5 text-sm data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground"
+                      onSelect={() => {
+                        setOpen(false);
+                        action.run();
+                      }}
+                    >
+                      {action.label}
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </>
+            ) : null}
+          </Command>
+        </PopoverContent>
+      </Popover>
     </div>
   );
 }

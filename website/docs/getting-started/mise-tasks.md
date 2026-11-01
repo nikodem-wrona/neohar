@@ -1,6 +1,6 @@
 ---
 title: "mise tasks"
-description: "All 48 tasks of mise.toml: what each one does, what it depends on and the commands it runs."
+description: "All 49 tasks of mise.toml: what each one does, what it depends on and the commands it runs."
 sidebar_position: 6
 toc_max_heading_level: 3
 ---
@@ -43,7 +43,7 @@ mise installs these tools at these versions (`mise install`):
 | [`check:gen`](#check-gen) | Fail when packages/transport/src/generated.ts is not what `nh api schema` makes |  |
 | [`check:notices`](#check-notices) | Fail when THIRD_PARTY_LICENSES.md is not what gen:notices writes (offline) |  |
 | [`check:deps`](#check-deps) | Check the crate dependency rules (scripts/check-deps.ts) and the wasm-bindgen pin |  |
-| [`check:bundle`](#check-bundle) | Fail when the gzipped scripts, styles and WASM of the webview are over 300 KB, or those of the phone app over 150 KB. It builds both first |  |
+| [`check:bundle`](#check-bundle) | Fail when the gzipped scripts, styles and WASM of the webview or of the phone app are over 400 KB, or the first chunk of the phone app is over 250 KB. It builds both first |  |
 | [`check:docs`](#check-docs) | Fail when a generated page of website/docs is not what `bun run gen` writes, or when the page checker finds a fault (offline, writes nothing). The CLI pages need an nh binary in target/ that is newer than crates/nh/src |  |
 | [`check:holder-size`](#check-holder-size) | Fail when crates/nh-hold/src has more than 2,500 lines of code |  |
 | [`check:commits`](#check-commits) | Fail when a commit that @{upstream} does not have is not a Conventional Commit (scripts/commits.ts) |  |
@@ -63,6 +63,7 @@ mise installs these tools at these versions (`mise install`):
 | [`test:install`](#test-install) | The test of scripts/app-install.sh, on folders under /tmp (it never touches ~/Applications) |  |
 | [`test:apps`](#test-apps) | Real programs in panes of nh-core: less, vim and htop (local, needs them installed) |  |
 | [`test:harness`](#test-harness) | Record the scenarios of the installed Claude Code and Codex offline and compare them with the committed recordings (local, macOS, needs both installed) |  |
+| [`test:hermes`](#test-hermes) | A chat with the installed Hermes Agent through the core: a prompt, an edit approval and a resume (local, needs Hermes with a model provider and the network; uses the quota of the provider) |  |
 | [`bench`](#bench) | Run the benches of nh-term against their budgets: frame build, snapshot and restore |  |
 | [`build:nh`](#build-nh) | Build the nh binary that the app starts holders with (target/debug/nh) |  |
 | [`build:web`](#build-web) | Build the phone app into target/web-dist. The builds of nh and of the app put it into the binary with NEOHAR_WEB_DIST |  |
@@ -169,7 +170,7 @@ bun scripts/check-deps.ts
 
 ### `check:bundle` {#check-bundle}
 
-Fail when the gzipped scripts, styles and WASM of the webview are over 300 KB, or those of the phone app over 150 KB. It builds both first
+Fail when the gzipped scripts, styles and WASM of the webview or of the phone app are over 400 KB, or the first chunk of the phone app is over 250 KB. It builds both first
 
 **Depends on:** [`build:wasm`](#build-wasm)
 
@@ -354,6 +355,14 @@ Record the scenarios of the installed Claude Code and Codex offline and compare 
 
 ```bash
 bash scripts/with-test-env.sh env NEOHAR_HARNESS=1 cargo nextest run -p nh-golden --test record --test delivery --locked
+```
+
+### `test:hermes` {#test-hermes}
+
+A chat with the installed Hermes Agent through the core: a prompt, an edit approval and a resume (local, needs Hermes with a model provider and the network; uses the quota of the provider)
+
+```bash
+bash scripts/with-test-env.sh env NEOHAR_HERMES=1 cargo nextest run -p nh --test hermes_live --locked
 ```
 
 ## Benchmarks

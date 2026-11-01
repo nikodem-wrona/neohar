@@ -471,6 +471,9 @@ export interface ChangesHead {
   trust?: GitTrustAsk | null;
 }
 
+/** The ULID of a hermes chat, as 26 characters. */
+export type ChatId = string;
+
 /** How a check of the doctor came out. */
 export type CheckStatus = 'ok' | 'info' | 'warn' | 'fail';
 
@@ -877,6 +880,68 @@ export type Execution =
 export interface ExecutionFacet {
   provenance: Provenance;
   value: Execution;
+}
+
+/** The ULID of a workflow execution, as 26 characters. */
+export type ExecutionId = string;
+
+/** One node of a `workflow_executions` row. */
+export interface ExecutionNodeValue {
+  /** The id of the node in the graph of the execution. */
+  node: string;
+  /** The pane of that agent run, while the agent runs. */
+  pane?: PaneId | null;
+  /** Why the node failed, or what it waits for, as a person reads it. */
+  reason?: string | null;
+  /** The absolute path of the report of the node. */
+  report?: string | null;
+  /** The agent of the node can start again with `workflow.continue`. */
+  resumable?: boolean;
+  /** The agent run of the node, while it has one. */
+  run?: RunId | null;
+  state: NodeState;
+  /** The time of the node as a person reads it, for example "6 min". */
+  time_text?: string | null;
+  verdict?: Verdict | null;
+}
+
+/** The state of an execution of a workflow. */
+export type ExecutionState = 'running' | 'paused' | 'done' | 'cancelled';
+
+/**
+ * `workflow_executions`: one execution of a workflow. The key is the id. The core orders
+ * the rows, the newest first.
+ */
+export interface ExecutionValue {
+  /** The base of the changes, for example `main`. */
+  base?: string | null;
+  branch?: string | null;
+  /** The folder of the files of the execution. */
+  dir: string;
+  ended_at?: Timestamp | null;
+  /** The folder in which the agents work. */
+  folder: string;
+  /** The `HEAD` commit at the start, short. */
+  head?: string | null;
+  id: ExecutionId;
+  /** The name of the execution, for example "Review 3". */
+  label: string;
+  /** The nodes, in the order of the graph. */
+  nodes: ExecutionNodeValue[];
+  /** The number of the execution of this workflow, from 1. */
+  number: number;
+  /** The node of "Execute this node", when the execution has only that node. */
+  only?: string | null;
+  /** The path of `report.md`, when a Report node wrote it. */
+  report?: string | null;
+  started_at: Timestamp;
+  state: ExecutionState;
+  /** The time and the length as a person reads it, for example "14:12 · 14 min". */
+  time_text: string;
+  /** The `HEAD` commit or the changes of the worktree are different from the start. */
+  tree_changed?: boolean;
+  /** The name of the workflow file without `.toml`. */
+  workflow: string;
 }
 
 export type Facet = 'liveness' | 'execution' | 'pending' | 'adapter_health';
@@ -1642,6 +1707,184 @@ export interface HealthValue {
   warnings: DoctorWarning[];
 }
 
+export interface HermesAnswer {
+  chat: ChatId;
+  /** The `id` of one of its options. */
+  option: string;
+  /** The `request` of the approval item. */
+  request: string;
+}
+
+export type HermesAnswerState = 'open' | 'answered' | 'expired' | 'gone';
+
+/** The payload of `hermes.chat_started` and `hermes.chat_closed`. */
+export interface HermesChatEvent {
+  chat: ChatId;
+  cwd: string;
+}
+
+export interface HermesChatRef {
+  chat: ChatId;
+}
+
+/** The state of a chat with Hermes Agent. */
+export type HermesChatState = 'idle' | 'starting' | 'working' | 'waiting' | 'disconnected';
+
+/**
+ * `hermes_chats`: one chat with Hermes Agent. The key is the id. The core orders the rows,
+ * the newest first.
+ */
+export interface HermesChatValue {
+  /** The context window as a person reads it, for example "15k of 500k tokens". */
+  context_text?: string | null;
+  /** The folder in which Hermes works. */
+  cwd: string;
+  error?: string | null;
+  /**
+   * The state of the turn is a guess: the core found the turn when it resumed the
+   * session, and ACP tells the end of a turn only to the client that sent the prompt.
+   */
+  guessed?: boolean;
+  id: ChatId;
+  mode?: string | null;
+  model?: string | null;
+  models?: HermesChoice[];
+  modes?: HermesChoice[];
+  /** The approvals that wait. */
+  pending?: number;
+  /** The session id of Hermes, after `session/new`. */
+  session?: string | null;
+  started_at: Timestamp;
+  state: HermesChatState;
+  /** The start as a person reads it, for example "14:12" or "Oct 31". */
+  time_text: string;
+  /** The title that Hermes gave the session, or the folder name before the first prompt. */
+  title: string;
+}
+
+/** A model or a mode that the session offers. */
+export interface HermesChoice {
+  id: string;
+  name: string;
+}
+
+/**
+ * `hermes_chat:<chat>`: one item of a chat. The core orders the items as the chat shows
+ * them.
+ */
+export interface HermesItem {
+  at: Timestamp;
+  body: HermesItemBody;
+  id: string;
+}
+
+export type HermesItemBody =
+  | {
+      markdown: Markdown;
+      type: 'prompt';
+    }
+  | {
+      markdown: Markdown;
+      /** More text can come. */
+      streaming?: boolean;
+      type: 'assistant';
+    }
+  | {
+      markdown: Markdown;
+      type: 'thought';
+    }
+  | {
+      diff?: Diff | null;
+      /** The kind of ACP: `read`, `edit`, `execute`, `search`, `fetch`, `think`, `other`. */
+      kind: string;
+      output?: Markdown | null;
+      status: HermesToolStatus;
+      title: string;
+      type: 'tool';
+    }
+  | {
+      entries: HermesPlanEntry[];
+      type: 'plan';
+    }
+  | {
+      /** The label of the option that went to Hermes. */
+      answer?: string | null;
+      /** When Hermes denies the request if nobody answers (`approvals.timeout`). */
+      deadline?: Timestamp | null;
+      detail?: Markdown | null;
+      diff?: Diff | null;
+      options: HermesOption[];
+      /** The id that `hermes.answer` names. */
+      request: string;
+      state: HermesAnswerState;
+      title: string;
+      type: 'approval';
+    }
+  | {
+      text: string;
+      type: 'notice';
+    };
+
+/** An option of an approval, as Hermes gives it. */
+export interface HermesOption {
+  /** The option lets the tool run. */
+  allow: boolean;
+  id: string;
+  label: string;
+}
+
+/** One step of the plan of a turn (the `todo` tool of Hermes). */
+export interface HermesPlanEntry {
+  status: HermesPlanStatus;
+  text: string;
+}
+
+export type HermesPlanStatus = 'pending' | 'in_progress' | 'completed';
+
+export interface HermesPrompt {
+  chat: ChatId;
+  /** A second call with the same id sends nothing. */
+  input_id: number;
+  text: string;
+}
+
+export interface HermesSet {
+  chat: ChatId;
+  /** The id of a mode of the chat. */
+  mode?: string | null;
+  /** The id of a model of the chat. */
+  model?: string | null;
+}
+
+export interface HermesStart {
+  /** The absolute path of the folder in which Hermes works. */
+  cwd: string;
+  /** The first prompt. */
+  prompt?: string | null;
+}
+
+export interface HermesStarted {
+  chat: ChatId;
+}
+
+/** `hermes.check`: whether this machine can run Hermes. */
+export interface HermesStatus {
+  /**
+   * `approvals.mode` of the config of Hermes. With `smart` or `off`, shell commands do not
+   * ask in the chat.
+   */
+  approvals_mode?: string | null;
+  /** `hermes acp --version` answered. */
+  found: boolean;
+  /** What to do, when Hermes is not found or the check failed. */
+  message?: string | null;
+  /** `hermes acp --check` passed. */
+  ok: boolean;
+  version?: string | null;
+}
+
+export type HermesToolStatus = 'running' | 'done' | 'failed';
+
 export interface Hunk {
   header: string;
   lines: DiffLine[];
@@ -2184,6 +2427,10 @@ export type MouseKind = ('down' | 'up' | 'wheel') | 'move';
 /** The mouse protocol that the program in the pane asked for. */
 export type MouseMode = 'none' | 'x10' | 'normal' | 'button_event' | 'any_event';
 
+/** The state of one node in an execution. */
+export type NodeState =
+  'waiting' | 'queued' | 'working' | 'needs_you' | 'done' | 'failed' | 'skipped' | 'cancelled';
+
 export interface NoticePayload {
   resets_at?: Timestamp | null;
   text: string;
@@ -2225,7 +2472,7 @@ export interface PaletteExecute {
 
 /**
  * What `palette.execute` did. Some commands belong to the page and not to the core, for
- * example the search. The core then names the action, and the page does it.
+ * example the inbox. The core then names the action, and the page does it.
  */
 export interface PaletteExecuted {
   ui?: string | null;
@@ -2859,7 +3106,7 @@ export interface ProcessSpec {
   env?: Record<string, string>;
 }
 
-/** The name of a projection. timeline:<run>, pane_text:<pane>, agents_for:<window>, changes_for:<window>, changes_head:<window>, git_head:<window>, git_worktrees:<window>, git_branches:<window> and git_changes:<window> take an id. */
+/** The name of a projection. timeline:<run>, pane_text:<pane>, agents_for:<window>, changes_for:<window>, changes_head:<window>, git_head:<window>, git_worktrees:<window>, git_branches:<window>, git_changes:<window> and hermes_chat:<chat> take an id. */
 export type Projection = string;
 
 /** The state of a projection: the values by key, and the order of the keys. */
@@ -3062,29 +3309,6 @@ export interface ScrollbackParams {
   count: number;
   from_line: number;
   pane: RefPaneId;
-}
-
-export interface SearchHit {
-  at?: Timestamp | null;
-  /** The absolute line. */
-  line: number;
-  pane: PaneId;
-  text: Spans;
-}
-
-export interface SearchQuery {
-  limit?: number | null;
-  pane?: RefPaneId | null;
-  query: string;
-  workspace?: RefWorkspaceId | null;
-}
-
-export interface SearchResults {
-  hits: SearchHit[];
-  /** A job that goes on searching the archive. Its result has the later hits. */
-  job?: JobId | null;
-  /** More hits exist than `limit`. */
-  truncated?: boolean;
 }
 
 export type SelectMode = 'simple' | 'word' | 'line' | 'block';
@@ -3346,6 +3570,9 @@ export interface Usage {
   output_tokens: number;
 }
 
+/** The last line of a report: `Verdict: pass`, `warn` or `fail`. */
+export type Verdict = ('pass' | 'warn' | 'fail') | 'unknown';
+
 /** The surface a client answers from. The delivery record keeps it. */
 export type Via = ('card' | 'notification' | 'tray' | 'palette' | 'cli') | 'policy' | 'phone';
 
@@ -3453,6 +3680,286 @@ export interface WindowValue {
   visible_panes: PaneId[];
   /** The workspace of that tab. The tab bar shows its tabs. */
   workspace?: WorkspaceId | null;
+}
+
+/**
+ * `workflow.continue`: starts the agent of a node again with its resume handle, in a new
+ * tab that the window shows.
+ */
+export interface WorkflowContinue {
+  execution: ExecutionId;
+  node: string;
+  /** The window that selects the new tab. */
+  window?: WindowId | null;
+}
+
+/** The result of `workflow.copy_to_folder`. */
+export interface WorkflowCopied {
+  /** The absolute path of the copy. */
+  path: string;
+}
+
+/** `workflow.create`: a new workflow file. The name of the file comes from `name`. */
+export interface WorkflowCreate {
+  name: string;
+  /**
+   * A preset workflow of `workflow.presets`, for example `review`. Without it, the workflow
+   * has only the trigger.
+   */
+  preset?: string | null;
+}
+
+/** `workflow.execute`: starts an execution. */
+export interface WorkflowExecute {
+  /** The base of the changes. Without it, the default of `workflow.facts`. */
+  base?: string | null;
+  /** The absolute path of the folder in which the agents work. */
+  folder: string;
+  /** Execute only this node, with the reports of the last execution in this folder as inputs. */
+  node?: string | null;
+  /** What the person built and why. `{{start.notes}}` gives it to a prompt. */
+  notes?: string | null;
+  workflow: string;
+}
+
+/** The result of `workflow.execute`. */
+export interface WorkflowExecuted {
+  execution: ExecutionId;
+  /** The name of the execution, for example "Review 3". */
+  label: string;
+}
+
+/** The payload of `workflow.execution_started` and `workflow.execution_ended`. */
+export interface WorkflowExecutionEvent {
+  execution: ExecutionId;
+  state: ExecutionState;
+  /** The name of the workflow file without `.toml`. */
+  workflow: string;
+}
+
+/** The result of `workflow.executions`. */
+export interface WorkflowExecutionList {
+  executions: ExecutionValue[];
+}
+
+/** `workflow.execution`, `workflow.cancel`, `workflow.copy_to_folder`: one execution. */
+export interface WorkflowExecutionRef {
+  execution: ExecutionId;
+}
+
+/** The result of `workflow.execution`: the execution and the graph that it runs. */
+export interface WorkflowExecutionShown {
+  execution: ExecutionValue;
+  graph: WorkflowGraph;
+}
+
+/** `workflow.executions`: the executions, the newest first. */
+export interface WorkflowExecutions {
+  /** Only the executions in this folder. */
+  folder?: string | null;
+}
+
+/** The facts of a folder for an execution. */
+export interface WorkflowFacts {
+  /** The default base: the default branch of `origin` (`origin/HEAD`), else `main` or `master`. */
+  base?: string | null;
+  branch?: string | null;
+  folder: string;
+  /** The root of the git worktree that holds the folder. */
+  repo?: string | null;
+}
+
+/** `workflow.facts`: what the dialog of an execution shows for a folder. */
+export interface WorkflowFactsGet {
+  /** An absolute path. */
+  folder: string;
+}
+
+/** The graph of a workflow. */
+export interface WorkflowGraph {
+  /** The name, for example "Review". */
+  name: string;
+  nodes: WorkflowNode[];
+}
+
+/** `workflow.layout`: gives each node a new position, one column for each depth, and saves. */
+export interface WorkflowLayout {
+  revision: string;
+  workflow: string;
+}
+
+/** `workflow.list`: the workflows, as the `workflows` projection has them. */
+export interface WorkflowList {
+  workflows: WorkflowValue[];
+}
+
+/** A node of a workflow. */
+export interface WorkflowNode {
+  /** Agent: the agent can edit files. Without it, the agent is read-only. */
+  can_edit?: boolean;
+  /** Agent: the effort level. Without it, the harness uses its own. */
+  effort?: string | null;
+  /** Agent: the harness. */
+  harness?: Harness | null;
+  /**
+   * The id: `[a-z][a-z0-9_]*`, unique in the workflow. A reference names it, for example
+   * `{{code.report}}`.
+   */
+  id: string;
+  /** The ids of the nodes that connect to this node. */
+  inputs?: string[];
+  kind: WorkflowNodeKind;
+  /** Agent: the model, as the harness names it. Without it, the harness uses its own. */
+  model?: string | null;
+  /** Agent: the prompt, with references such as `{{start.base}}`. */
+  prompt?: string;
+  /** Report: the harness that writes a summary at the top of `report.md`. */
+  summary_by?: Harness | null;
+  /** Report: the first part of the prompt of the summary. Without it, the core uses its own. */
+  summary_prompt?: string | null;
+  /** Agent: the time limit in minutes. Without it, `workflows.time_limit_min`. */
+  time_limit_min?: number | null;
+  /** The title on the card. Without it, the card shows the id. */
+  title?: string;
+  /** The position on the canvas, in canvas units. */
+  x: number;
+  y: number;
+}
+
+/** The payload of `workflow.node_changed`. */
+export interface WorkflowNodeEvent {
+  execution: ExecutionId;
+  node: string;
+  reason?: string | null;
+  /** The agent run of the node, while it has one. */
+  run?: RunId | null;
+  state: NodeState;
+}
+
+/** The kind of a node. */
+export type WorkflowNodeKind = 'manual' | 'agent' | 'report';
+
+/** A node of the node picker. */
+export interface WorkflowNodePreset {
+  id: string;
+  /** The text of the picker, for example "Security review". */
+  label: string;
+  /** The node without `id`, `inputs` and position. */
+  node: WorkflowNode;
+}
+
+/** `workflow.retry`, `workflow.skip`: one node of an execution. */
+export interface WorkflowNodeRef {
+  execution: ExecutionId;
+  node: string;
+}
+
+/** The result of `workflow.notes_from`. */
+export interface WorkflowNotes {
+  text: string;
+}
+
+/** `workflow.notes_from`: the prompts of an agent run, as one text for the notes. */
+export interface WorkflowNotesFrom {
+  agent: RefRunId;
+}
+
+/** A workflow that `workflow.create` can start from. */
+export interface WorkflowPreset {
+  id: string;
+  label: string;
+}
+
+/** `workflow.presets`: the items of the node picker and the preset workflows. */
+export interface WorkflowPresets {
+  nodes: WorkflowNodePreset[];
+  workflows: WorkflowPreset[];
+}
+
+/** An error in a workflow. A workflow with errors can be saved, but not executed. */
+export interface WorkflowProblem {
+  /** The node with the error, if the error is in one node. */
+  node?: string | null;
+  text: string;
+}
+
+/**
+ * `workflow.show`, `workflow.delete`, `workflow.duplicate`, `workflow.undo`, `workflow.redo`:
+ * one workflow.
+ */
+export interface WorkflowRef {
+  /** The name of the file without `.toml`. */
+  workflow: string;
+}
+
+/** `workflow.rename`: gives a workflow a new name, and its file the name that comes from it. */
+export interface WorkflowRename {
+  name: string;
+  workflow: string;
+}
+
+/** The result of `workflow.report`. */
+export interface WorkflowReport {
+  markdown: Markdown;
+  path: string;
+}
+
+/** `workflow.report`: a report of an execution. */
+export interface WorkflowReportGet {
+  execution: ExecutionId;
+  /** The node. Without it, `report.md`. */
+  node?: string | null;
+}
+
+/**
+ * `workflow.reveal`: the tab of the agent of a node shows in the tab bar, and the window
+ * selects it.
+ */
+export interface WorkflowReveal {
+  execution: ExecutionId;
+  node: string;
+  window: WindowId;
+}
+
+/** `workflow.save`: writes the graph of a workflow. */
+export interface WorkflowSave {
+  graph: WorkflowGraph;
+  /** The revision that the change starts from. An older one answers `conflict`. */
+  revision: string;
+  workflow: string;
+}
+
+/** A workflow and its errors: the result of `workflow.show` and of each change. */
+export interface WorkflowShown {
+  /** `workflow.redo` has a version to go forward to. */
+  can_redo?: boolean;
+  /** `workflow.undo` has a version to go back to. */
+  can_undo?: boolean;
+  graph: WorkflowGraph;
+  /** The absolute path of the file. */
+  path: string;
+  problems: WorkflowProblem[];
+  /** The revision of the file. `workflow.save` takes it. */
+  revision: string;
+  /** The name of the file without `.toml`. */
+  workflow: string;
+}
+
+/**
+ * `workflows`: a workflow file in `<config>/workflows/`. The key is the name of the file
+ * without `.toml`. The core orders the rows by name.
+ */
+export interface WorkflowValue {
+  /** The name in the file, for example "Review". */
+  name: string;
+  /** The number of nodes. */
+  nodes: number;
+  /** The number of errors. A workflow with errors cannot be executed. */
+  problems: number;
+  /** The revision of the file, as `workflow.show` gives it. */
+  revision: string;
+  /** The name of the file without `.toml`. Calls name the workflow with it. */
+  workflow: string;
 }
 
 /** `confirm_required` when a pane has a live process and `force` is false. */
@@ -3720,6 +4227,37 @@ export interface MethodMap {
   'phone.push_test': { params: PhonePushTest; result: Empty };
   'phone.visible': { params: PhoneVisible; result: Empty };
   'phone.window': { params: Empty; result: PhoneWindowResult };
+  'workflow.list': { params: Empty; result: WorkflowList };
+  'workflow.show': { params: WorkflowRef; result: WorkflowShown };
+  'workflow.create': { params: WorkflowCreate; result: WorkflowShown };
+  'workflow.save': { params: WorkflowSave; result: WorkflowShown };
+  'workflow.rename': { params: WorkflowRename; result: WorkflowShown };
+  'workflow.duplicate': { params: WorkflowRef; result: WorkflowShown };
+  'workflow.delete': { params: WorkflowRef; result: Empty };
+  'workflow.undo': { params: WorkflowRef; result: WorkflowShown };
+  'workflow.redo': { params: WorkflowRef; result: WorkflowShown };
+  'workflow.layout': { params: WorkflowLayout; result: WorkflowShown };
+  'workflow.presets': { params: Empty; result: WorkflowPresets };
+  'workflow.facts': { params: WorkflowFactsGet; result: WorkflowFacts };
+  'workflow.execute': { params: WorkflowExecute; result: WorkflowExecuted };
+  'workflow.notes_from': { params: WorkflowNotesFrom; result: WorkflowNotes };
+  'workflow.executions': { params: WorkflowExecutions; result: WorkflowExecutionList };
+  'workflow.execution': { params: WorkflowExecutionRef; result: WorkflowExecutionShown };
+  'workflow.report': { params: WorkflowReportGet; result: WorkflowReport };
+  'workflow.retry': { params: WorkflowNodeRef; result: Empty };
+  'workflow.skip': { params: WorkflowNodeRef; result: Empty };
+  'workflow.cancel': { params: WorkflowExecutionRef; result: Empty };
+  'workflow.continue': { params: WorkflowContinue; result: JobStarted };
+  'workflow.reveal': { params: WorkflowReveal; result: Empty };
+  'workflow.copy_to_folder': { params: WorkflowExecutionRef; result: WorkflowCopied };
+  'hermes.check': { params: Empty; result: HermesStatus };
+  'hermes.start': { params: HermesStart; result: HermesStarted };
+  'hermes.prompt': { params: HermesPrompt; result: Empty };
+  'hermes.cancel': { params: HermesChatRef; result: Empty };
+  'hermes.answer': { params: HermesAnswer; result: Empty };
+  'hermes.set': { params: HermesSet; result: Empty };
+  'hermes.retry': { params: HermesChatRef; result: Empty };
+  'hermes.close': { params: HermesChatRef; result: Empty };
   'events.subscribe': { params: EventsSubscribe; result: EventsSubscribed };
   'events.unsubscribe': { params: EventsUnsubscribe; result: Empty };
   'projection.subscribe': { params: ProjectionSubscribe; result: ProjectionSubscribed };
@@ -3743,7 +4281,6 @@ export interface MethodMap {
   };
   'doctor.run': { params: DoctorRun; result: DoctorReport };
   'debug.bundle': { params: DebugBundle; result: DebugBundled };
-  'search.query': { params: SearchQuery; result: SearchResults };
   'palette.query': { params: PaletteQuery; result: PaletteResults };
   'palette.execute': { params: PaletteExecute; result: PaletteExecuted };
   'rich.diff': { params: RichDiff; result: Diff };
@@ -3876,6 +4413,37 @@ export type UiMethod =
   | 'phone.publish'
   | 'phone.unpublish'
   | 'phone.push_test'
+  | 'workflow.list'
+  | 'workflow.show'
+  | 'workflow.create'
+  | 'workflow.save'
+  | 'workflow.rename'
+  | 'workflow.duplicate'
+  | 'workflow.delete'
+  | 'workflow.undo'
+  | 'workflow.redo'
+  | 'workflow.layout'
+  | 'workflow.presets'
+  | 'workflow.facts'
+  | 'workflow.execute'
+  | 'workflow.notes_from'
+  | 'workflow.executions'
+  | 'workflow.execution'
+  | 'workflow.report'
+  | 'workflow.retry'
+  | 'workflow.skip'
+  | 'workflow.cancel'
+  | 'workflow.continue'
+  | 'workflow.reveal'
+  | 'workflow.copy_to_folder'
+  | 'hermes.check'
+  | 'hermes.start'
+  | 'hermes.prompt'
+  | 'hermes.cancel'
+  | 'hermes.answer'
+  | 'hermes.set'
+  | 'hermes.retry'
+  | 'hermes.close'
   | 'projection.subscribe'
   | 'projection.unsubscribe'
   | 'projection.versions'
@@ -3893,7 +4461,6 @@ export type UiMethod =
   | 'integration.doctor'
   | 'integration.capabilities'
   | 'doctor.run'
-  | 'search.query'
   | 'palette.query'
   | 'palette.execute'
   | 'rich.diff'
@@ -3990,6 +4557,22 @@ export type CliMethod =
   | 'phone.publish'
   | 'phone.unpublish'
   | 'phone.push_test'
+  | 'workflow.list'
+  | 'workflow.execute'
+  | 'workflow.executions'
+  | 'workflow.execution'
+  | 'workflow.report'
+  | 'workflow.retry'
+  | 'workflow.skip'
+  | 'workflow.cancel'
+  | 'hermes.check'
+  | 'hermes.start'
+  | 'hermes.prompt'
+  | 'hermes.cancel'
+  | 'hermes.answer'
+  | 'hermes.set'
+  | 'hermes.retry'
+  | 'hermes.close'
   | 'events.subscribe'
   | 'events.unsubscribe'
   | 'projection.subscribe'
@@ -4010,7 +4593,6 @@ export type CliMethod =
   | 'integration.capabilities'
   | 'doctor.run'
   | 'debug.bundle'
-  | 'search.query'
   | 'jobs.cancel';
 
 /** The methods that the `pane` scope may call. */
@@ -4138,6 +4720,37 @@ export const METHOD_SCOPES: { readonly [M in Method]: readonly Scope[] } = {
   'phone.push_test': ['ui', 'cli', 'phone'],
   'phone.visible': ['phone'],
   'phone.window': ['phone'],
+  'workflow.list': ['ui', 'cli', 'phone'],
+  'workflow.show': ['ui', 'phone'],
+  'workflow.create': ['ui', 'phone'],
+  'workflow.save': ['ui', 'phone'],
+  'workflow.rename': ['ui', 'phone'],
+  'workflow.duplicate': ['ui', 'phone'],
+  'workflow.delete': ['ui', 'phone'],
+  'workflow.undo': ['ui', 'phone'],
+  'workflow.redo': ['ui', 'phone'],
+  'workflow.layout': ['ui', 'phone'],
+  'workflow.presets': ['ui', 'phone'],
+  'workflow.facts': ['ui', 'phone'],
+  'workflow.execute': ['ui', 'cli', 'phone'],
+  'workflow.notes_from': ['ui', 'phone'],
+  'workflow.executions': ['ui', 'cli', 'phone'],
+  'workflow.execution': ['ui', 'cli', 'phone'],
+  'workflow.report': ['ui', 'cli', 'phone'],
+  'workflow.retry': ['ui', 'cli', 'phone'],
+  'workflow.skip': ['ui', 'cli', 'phone'],
+  'workflow.cancel': ['ui', 'cli', 'phone'],
+  'workflow.continue': ['ui', 'phone'],
+  'workflow.reveal': ['ui', 'phone'],
+  'workflow.copy_to_folder': ['ui', 'phone'],
+  'hermes.check': ['ui', 'cli', 'phone'],
+  'hermes.start': ['ui', 'cli', 'phone'],
+  'hermes.prompt': ['ui', 'cli', 'phone'],
+  'hermes.cancel': ['ui', 'cli', 'phone'],
+  'hermes.answer': ['ui', 'cli', 'phone'],
+  'hermes.set': ['ui', 'cli', 'phone'],
+  'hermes.retry': ['ui', 'cli', 'phone'],
+  'hermes.close': ['ui', 'cli', 'phone'],
   'events.subscribe': ['cli'],
   'events.unsubscribe': ['cli'],
   'projection.subscribe': ['ui', 'cli', 'phone'],
@@ -4158,7 +4771,6 @@ export const METHOD_SCOPES: { readonly [M in Method]: readonly Scope[] } = {
   'integration.capabilities': ['ui', 'cli', 'phone'],
   'doctor.run': ['ui', 'cli', 'phone'],
   'debug.bundle': ['cli'],
-  'search.query': ['ui', 'cli', 'phone'],
   'palette.query': ['ui', 'phone'],
   'palette.execute': ['ui', 'phone'],
   'rich.diff': ['ui', 'phone'],
@@ -4217,6 +4829,10 @@ export interface ProjectionValueMap {
   git_worktrees: GitWorktreeValue;
   git_branches: GitBranchValue;
   git_changes: ChangeRow;
+  workflows: WorkflowValue;
+  workflow_executions: ExecutionValue;
+  hermes_chats: HermesChatValue;
+  hermes_chat: HermesItem;
 }
 
 export type ProjectionBase = keyof ProjectionValueMap;
@@ -4242,6 +4858,9 @@ export type ProjectionName =
   | 'phone_pairing'
   | 'phone_status'
   | 'git_repos'
+  | 'workflows'
+  | 'workflow_executions'
+  | 'hermes_chats'
   | `timeline:${string}`
   | `pane_text:${string}`
   | `agents_for:${string}`
@@ -4250,7 +4869,8 @@ export type ProjectionName =
   | `git_head:${string}`
   | `git_worktrees:${string}`
   | `git_branches:${string}`
-  | `git_changes:${string}`;
+  | `git_changes:${string}`
+  | `hermes_chat:${string}`;
 
 /** The projections with one key, `_`. */
 export const SINGLETON_PROJECTIONS = [
@@ -4324,6 +4944,11 @@ export interface EventPayloadMap {
   'git.unstashed': GitWrite;
   'git.fetched': GitWrite;
   'git.pulled': GitWrite;
+  'workflow.execution_started': WorkflowExecutionEvent;
+  'workflow.node_changed': WorkflowNodeEvent;
+  'workflow.execution_ended': WorkflowExecutionEvent;
+  'hermes.chat_started': HermesChatEvent;
+  'hermes.chat_closed': HermesChatEvent;
 }
 
 export type EventKind = keyof EventPayloadMap;

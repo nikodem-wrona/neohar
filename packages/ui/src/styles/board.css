@@ -209,28 +209,7 @@
     font-weight: 600;
   }
 
-  /* The list of every agent lies in the top layer under the `+N` cell. The page sets the place. */
-  .board-list {
-    position: fixed;
-    inset: auto;
-    top: var(--list-top, 0);
-    right: var(--list-right, 0);
-    width: 44ch;
-    max-height: 60vh;
-    margin: 0;
-    padding: 0;
-    overflow-y: auto;
-    padding: var(--s1);
-    border-radius: var(--r-md);
-    color: var(--text);
-  }
-
-  .board-list ul {
-    margin: 0;
-    padding: 0;
-    list-style: none;
-  }
-
+  /* A strip in the list of every agent, behind the `+N` cell (`board/BoardList.tsx`). */
   .board-list .strip {
     width: 100%;
     height: var(--row);

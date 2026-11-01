@@ -111,7 +111,7 @@ fn a_worker_that_drops_its_handle_fails_the_job() {
 #[tokio::test]
 async fn cancel_marks_the_job_at_once_and_wakes_the_worker() {
     let (jobs, hub) = registry();
-    let job = jobs.start("Search").expect("a job");
+    let job = jobs.start("Fetch").expect("a job");
     let id = job.id();
     let token = job.token();
     assert!(!token.is_cancelled() && !job.is_cancelled());

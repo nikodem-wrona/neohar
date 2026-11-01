@@ -247,8 +247,9 @@ fn merge(base: &mut toml::Table, over: toml::Table) {
 
 /// Keys that an older version had and that this version ignores. A file that still has one is
 /// not wrong: the key gets one line in the log and no warning in `health`.
-const RETIRED: [&str; 3] = [
+const RETIRED: [&str; 4] = [
     "input.confirm_multiline_paste_to_agents",
+    "keys.search_open",
     "search.index_transcripts",
     "update.manifest_check",
 ];

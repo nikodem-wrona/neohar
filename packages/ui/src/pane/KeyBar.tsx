@@ -7,24 +7,38 @@
 // A button of the bar keeps the focus in the field of the pane, so the keyboard stays.
 
 import { type LogicalInput, RpcError } from '@neohar/transport';
-import { createSignal, For, Show } from 'solid-js';
+import { type PointerEvent, useState } from 'react';
 import { useApp } from '../app/context';
 import { phoneKeys } from '../app/preferences';
+import { Button } from '../components/ui/button';
+import { Textarea } from '../components/ui/textarea';
+import { Toggle } from '../components/ui/toggle';
 import type { TypingField } from '../app/view';
 import { readClipboard } from '../input/clipboard';
 import { replyState } from '../drawer/group';
 import { BAR_KEYS, chordOf, ENTER, nextSticky, stickyMods, withMods } from '../input/soft';
+import { useSelect, useValue } from '../lib/hooks';
 
 /** A press on a button of the bar must not take the focus from the field. */
 const keepFocus = (event: PointerEvent): void => event.preventDefault();
 
+/**
+ * A key of the bar: the Button or the Toggle of shadcn/ui, as high and as wide as a finger. A
+ * pressed toggle is in reverse at once, with no transition, and a locked one has a line of the
+ * accent at its foot.
+ */
+const KEY =
+  'h-auto min-h-(--control) min-w-(--control) flex-none rounded-(--r-sm) bg-secondary px-(--s2) py-0 font-mono text-[15px] leading-none font-medium text-foreground transition-none hover:bg-secondary hover:text-foreground data-[state=on]:bg-foreground data-[state=on]:text-background data-[state=on]:hover:bg-foreground data-[state=on]:hover:text-background data-[locked=true]:shadow-[inset_0_-3px_0_var(--accent)]';
+
 export function KeyBar(props: { field: TypingField }) {
   const { stores, transport, input, view, report } = useApp();
-  const [composing, setComposing] = createSignal(false);
-  const [draft, setDraft] = createSignal('');
-  const [error, setError] = createSignal<string | null>(null);
-  const extra = () => phoneKeys(stores.settings.state.byKey);
-  const mods = () => stickyMods(view.barCtrl(), view.barAlt());
+  const [composing, setComposing] = useState(false);
+  const [draft, setDraft] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const extra = useSelect(stores.settings, (state) => phoneKeys(state.byKey), sameKeys);
+  const barCtrl = useValue(view.barCtrl);
+  const barAlt = useValue(view.barAlt);
+  const mods = stickyMods(barCtrl, barAlt);
 
   const send = (event: LogicalInput): void => {
     props.field.restart();
@@ -34,13 +48,13 @@ export function KeyBar(props: { field: TypingField }) {
 
   /** The run of the agent in the pane, when it waits for its next prompt. */
   const idleRun = (): string | undefined => {
-    const run = stores.panes.state.byKey[props.field.pane]?.run;
+    const run = stores.panes.get().byKey[props.field.pane]?.run;
     if (!run) return undefined;
-    return replyState(stores.agents.state.byKey[run]) === 'ready' ? run : undefined;
+    return replyState(stores.agents.get().byKey[run]) === 'ready' ? run : undefined;
   };
 
   const submit = async (enter: boolean): Promise<void> => {
-    const text = draft();
+    const text = draft;
     if (text.trim() === '') return;
     setError(null);
     try {
@@ -65,115 +79,102 @@ export function KeyBar(props: { field: TypingField }) {
     props.field.focus();
   };
 
+  // The keys of the bar are a fixed list, so their place is their key.
+  const barKey = (item: (typeof BAR_KEYS)[number], at: number) => (
+    <Button
+      key={at}
+      variant="secondary"
+      className={KEY}
+      aria-label={item.name}
+      onPointerDown={keepFocus}
+      onClick={() => send(withMods(item.event, mods))}
+    >
+      {item.label}
+    </Button>
+  );
+
   return (
-    <div class="key-bar" role="toolbar" aria-label="Keys">
-      <Show when={composing()}>
+    <div className="key-bar" role="toolbar" aria-label="Keys">
+      {composing ? (
+        // The Textarea and the Buttons of shadcn/ui. The field has 16 px, so that Safari does not
+        // zoom, and Send is the one action of the form.
         <form
-          class="key-compose"
+          className="flex flex-col gap-(--s1)"
           aria-label="Compose"
           onSubmit={(event) => {
             event.preventDefault();
             submit(true).catch(report);
           }}
         >
-          <textarea
-            class="key-compose-field"
+          <Textarea
+            className="min-h-22 resize-none rounded-(--r-sm) border-muted-foreground bg-background px-2.5 py-2 font-(family-name:--font-data) text-base/[1.4] field-sizing-fixed md:text-base/[1.4]"
             aria-label="Text for the pane"
-            rows="3"
-            value={draft()}
-            onInput={(event) => setDraft(event.currentTarget.value)}
+            rows={3}
+            value={draft}
+            onChange={(event) => setDraft(event.currentTarget.value)}
           />
-          <div class="key-compose-buttons">
-            <button type="submit" class="card-button" disabled={draft().trim() === ''}>
+          <div className="flex gap-(--s2)">
+            <Button type="submit" className="h-(--control)" disabled={draft.trim() === ''}>
               Send
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
-              class="card-button"
-              disabled={draft().trim() === ''}
+              variant="outline"
+              className="h-(--control)"
+              disabled={draft.trim() === ''}
               onClick={() => void submit(false).catch(report)}
             >
               Insert
-            </button>
-            <button type="button" class="card-button" onClick={close}>
+            </Button>
+            <Button type="button" variant="outline" className="h-(--control)" onClick={close}>
               Cancel
-            </button>
+            </Button>
           </div>
-          <Show when={error()}>
-            <p class="card-error" role="alert">
-              {error()}
+          {error ? (
+            <p className="card-error" role="alert">
+              {error}
             </p>
-          </Show>
+          ) : null}
         </form>
-      </Show>
-      <div class="key-row">
-        <For each={BAR_KEYS.slice(0, 3)}>
-          {(item) => (
-            <button
-              type="button"
-              class="key"
-              aria-label={item.name}
-              onPointerDown={keepFocus}
-              onClick={() => send(withMods(item.event, mods()))}
-            >
-              {item.label}
-            </button>
-          )}
-        </For>
-        <button
-          type="button"
-          class="key"
-          aria-pressed={view.barCtrl() !== 'off'}
-          data-locked={view.barCtrl() === 'locked'}
+      ) : null}
+      <div className="key-row">
+        {BAR_KEYS.slice(0, 3).map(barKey)}
+        {/* Ctrl and Alt are for the next key, and a second tap locks them. */}
+        <Toggle
+          className={KEY}
+          pressed={barCtrl !== 'off'}
+          data-locked={barCtrl === 'locked'}
           onPointerDown={keepFocus}
-          onClick={() => view.setBarCtrl(nextSticky(view.barCtrl()))}
+          onPressedChange={() => view.barCtrl.set(nextSticky(view.barCtrl.get()))}
         >
           Ctrl
-        </button>
-        <button
-          type="button"
-          class="key"
-          aria-pressed={view.barAlt() !== 'off'}
-          data-locked={view.barAlt() === 'locked'}
+        </Toggle>
+        <Toggle
+          className={KEY}
+          pressed={barAlt !== 'off'}
+          data-locked={barAlt === 'locked'}
           onPointerDown={keepFocus}
-          onClick={() => view.setBarAlt(nextSticky(view.barAlt()))}
+          onPressedChange={() => view.barAlt.set(nextSticky(view.barAlt.get()))}
         >
           Alt
-        </button>
-        <For each={BAR_KEYS.slice(3)}>
-          {(item) => (
-            <button
-              type="button"
-              class="key"
-              aria-label={item.name}
-              onPointerDown={keepFocus}
-              onClick={() => send(withMods(item.event, mods()))}
-            >
-              {item.label}
-            </button>
-          )}
-        </For>
-        <For each={extra()}>
-          {(character) => (
-            <button
-              type="button"
-              class="key"
-              onPointerDown={keepFocus}
-              onClick={() =>
-                send(
-                  mods().length > 0
-                    ? chordOf(character, mods())
-                    : { type: 'text', text: character },
-                )
-              }
-            >
-              {character}
-            </button>
-          )}
-        </For>
-        <button
-          type="button"
-          class="key"
+        </Toggle>
+        {BAR_KEYS.slice(3).map((item, at) => barKey(item, at + 3))}
+        {extra.map((character, at) => (
+          <Button
+            key={at}
+            variant="secondary"
+            className={KEY}
+            onPointerDown={keepFocus}
+            onClick={() =>
+              send(mods.length > 0 ? chordOf(character, mods) : { type: 'text', text: character })
+            }
+          >
+            {character}
+          </Button>
+        ))}
+        <Button
+          variant="secondary"
+          className={KEY}
           onPointerDown={keepFocus}
           onClick={() => {
             readClipboard().then((text) => {
@@ -183,27 +184,31 @@ export function KeyBar(props: { field: TypingField }) {
           }}
         >
           Paste
-        </button>
-        <button
-          type="button"
-          class="key"
+        </Button>
+        <Toggle
+          className={KEY}
           aria-label="Compose"
-          aria-pressed={composing()}
+          pressed={composing}
           onPointerDown={keepFocus}
-          onClick={() => (composing() ? close() : setComposing(true))}
+          onPressedChange={() => (composing ? close() : setComposing(true))}
         >
           ✎
-        </button>
-        <button
-          type="button"
-          class="key"
+        </Toggle>
+        <Button
+          variant="secondary"
+          className={KEY}
           aria-label="Hide the keyboard"
           onPointerDown={keepFocus}
           onClick={() => props.field.hide()}
         >
           Hide
-        </button>
+        </Button>
       </div>
     </div>
   );
+}
+
+/** Whether two lists of keys are the same. */
+function sameKeys(a: readonly string[], b: readonly string[]): boolean {
+  return a.length === b.length && a.every((key, at) => key === b[at]);
 }

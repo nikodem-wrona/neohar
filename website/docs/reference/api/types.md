@@ -1,6 +1,6 @@
 ---
 title: "Types"
-description: "Every one of the 439 named types of the API contract, with fields and the places that use it."
+description: "Every one of the 494 named types of the API contract, with fields and the places that use it."
 sidebar_position: 7
 toc_max_heading_level: 2
 ---
@@ -12,7 +12,7 @@ Do not edit it by hand. Change the source and run `bun run gen` in `website/`.
 
 :::
 
-The contract names 439 types. They are Rust types in `nh-proto` (behind its `api` feature) with `serde` and `schemars::JsonSchema`, and `mise run gen:api` turns the same schema into TypeScript in [`packages/transport/src/generated.ts`](https://github.com/nikodem-wrona/neohar/blob/main/packages/transport/src/generated.ts).
+The contract names 494 types. They are Rust types in `nh-proto` (behind its `api` feature) with `serde` and `schemars::JsonSchema`, and `mise run gen:api` turns the same schema into TypeScript in [`packages/transport/src/generated.ts`](https://github.com/nikodem-wrona/neohar/blob/main/packages/transport/src/generated.ts).
 
 Jump to a letter: [A](#letter-a) · [B](#letter-b) · [C](#letter-c) · [D](#letter-d) · [E](#letter-e) · [F](#letter-f) · [G](#letter-g) · [H](#letter-h) · [I](#letter-i) · [J](#letter-j) · [K](#letter-k) · [L](#letter-l) · [M](#letter-m) · [N](#letter-n) · [P](#letter-p) · [Q](#letter-q) · [R](#letter-r) · [S](#letter-s) · [T](#letter-t) · [U](#letter-u) · [V](#letter-v) · [W](#letter-w)
 
@@ -41,7 +41,7 @@ A lower source disagreed with a structured one.
 | `run` | [`RunId`](/docs/reference/api/types#runid) | yes |  |
 | `structured` | any | yes |  |
 
-**Rust:** [`crates/nh-proto/src/api/events.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/events.rs#L105) · **Used by:** [event `adapter.disagreement`](/docs/reference/api/events#adapter-disagreement)
+**Rust:** [`crates/nh-proto/src/api/events.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/events.rs#L108) · **Used by:** [event `adapter.disagreement`](/docs/reference/api/events#adapter-disagreement)
 
 ### `AdapterGate` {#adaptergate}
 
@@ -150,7 +150,7 @@ A run was seen. It is not identified yet.
 | `run` | [`RunId`](/docs/reference/api/types#runid) | yes |  |
 | `via` | string | yes | How the core found it: `launch`, `hook`, `process`, `screen`. |
 
-**Rust:** [`crates/nh-proto/src/api/events.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/events.rs#L66) · **Used by:** [event `agent.detected`](/docs/reference/api/events#agent-detected)
+**Rust:** [`crates/nh-proto/src/api/events.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/events.rs#L69) · **Used by:** [event `agent.detected`](/docs/reference/api/events#agent-detected)
 
 ### `AgentDriftDetected` {#agentdriftdetected}
 
@@ -161,7 +161,7 @@ A run was seen. It is not identified yet.
 | `observations` | integer (uint32) | yes |  |
 | `version` | string | yes |  |
 
-**Rust:** [`crates/nh-proto/src/api/events.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/events.rs#L97) · **Used by:** [event `agent.drift_detected`](/docs/reference/api/events#agent-drift-detected)
+**Rust:** [`crates/nh-proto/src/api/events.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/events.rs#L100) · **Used by:** [event `agent.drift_detected`](/docs/reference/api/events#agent-drift-detected)
 
 ### `AgentHarnessVersionUnvalidated` {#agentharnessversionunvalidated}
 
@@ -170,7 +170,7 @@ A run was seen. It is not identified yet.
 | `harness` | [`Harness`](/docs/reference/api/types#harness) | yes |  |
 | `version` | string | yes |  |
 
-**Rust:** [`crates/nh-proto/src/api/events.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/events.rs#L92) · **Used by:** [event `agent.harness_version_unvalidated`](/docs/reference/api/events#agent-harness-version-unvalidated)
+**Rust:** [`crates/nh-proto/src/api/events.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/events.rs#L95) · **Used by:** [event `agent.harness_version_unvalidated`](/docs/reference/api/events#agent-harness-version-unvalidated)
 
 ### `AgentIdentified` {#agentidentified}
 
@@ -183,7 +183,7 @@ A run got its session id and its pane.
 | `run` | [`RunId`](/docs/reference/api/types#runid) | yes |  |
 | `session_id` | string | yes |  |
 
-**Rust:** [`crates/nh-proto/src/api/events.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/events.rs#L74) · **Used by:** [event `agent.identified`](/docs/reference/api/events#agent-identified)
+**Rust:** [`crates/nh-proto/src/api/events.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/events.rs#L77) · **Used by:** [event `agent.identified`](/docs/reference/api/events#agent-identified)
 
 ### `AgentInterrupt` {#agentinterrupt}
 
@@ -324,7 +324,7 @@ Every change of a facet.
 | `source` | [`Source`](/docs/reference/api/types#source) | yes |  |
 | `to` | any | yes |  |
 
-**Rust:** [`crates/nh-proto/src/api/events.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/events.rs#L83) · **Used by:** [event `agent.state_changed`](/docs/reference/api/events#agent-state-changed)
+**Rust:** [`crates/nh-proto/src/api/events.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/events.rs#L86) · **Used by:** [event `agent.state_changed`](/docs/reference/api/events#agent-state-changed)
 
 ### `AgentStop` {#agentstop}
 
@@ -582,7 +582,7 @@ One row of the capability matrix.
 | `mode` | [`LaunchMode`](/docs/reference/api/types#launchmode) | yes |  |
 | `version` | string | yes |  |
 
-**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L316) · **Used by:** [`IntegrationCapabilitiesResult`](/docs/reference/api/types#integrationcapabilitiesresult)
+**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L315) · **Used by:** [`IntegrationCapabilitiesResult`](/docs/reference/api/types#integrationcapabilitiesresult)
 
 ### `ChangeRow` {#changerow}
 
@@ -663,6 +663,14 @@ One of these forms:
 
 **Rust:** [`crates/nh-proto/src/api/model.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/model.rs#L625) · **Used by:** [projection `changes_head`](/docs/reference/api/projections#changes-head)
 
+### `ChatId` {#chatid}
+
+The ULID of a hermes chat, as 26 characters.
+
+Type: string. Pattern: `^[0-9A-HJKMNP-TV-Z]{26}$`.
+
+**Used by:** [`HermesAnswer`](/docs/reference/api/types#hermesanswer), [`HermesChatEvent`](/docs/reference/api/types#hermeschatevent), [`HermesChatRef`](/docs/reference/api/types#hermeschatref), [`HermesChatValue`](/docs/reference/api/types#hermeschatvalue), [`HermesPrompt`](/docs/reference/api/types#hermesprompt), [`HermesSet`](/docs/reference/api/types#hermesset), [`HermesStarted`](/docs/reference/api/types#hermesstarted)
+
 ### `CheckStatus` {#checkstatus}
 
 How a check of the doctor came out.
@@ -677,7 +685,7 @@ One of these forms:
 
 - `"fail"` — Something does not work.
 
-**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L334) · **Used by:** [`DoctorCheck`](/docs/reference/api/types#doctorcheck)
+**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L333) · **Used by:** [`DoctorCheck`](/docs/reference/api/types#doctorcheck)
 
 ### `ClipboardDropped` {#clipboarddropped}
 
@@ -723,13 +731,13 @@ A shell command, for an approval card.
 |---|---|---|---|
 | `section` | string \| `null` |  | One section, for example `approvals`. Without it all sections. |
 
-**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L95) · **Used by:** [`config.get`](/docs/reference/api/methods/config#config-get)
+**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L94) · **Used by:** [`config.get`](/docs/reference/api/methods/config#config-get)
 
 ### `ConfigReload` {#configreload}
 
 An object with no fields: `{}`.
 
-**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L113) · **Used by:** [`config.reload`](/docs/reference/api/methods/config#config-reload)
+**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L112) · **Used by:** [`config.reload`](/docs/reference/api/methods/config#config-reload)
 
 ### `ConfigReloaded` {#configreloaded}
 
@@ -737,7 +745,7 @@ An object with no fields: `{}`.
 |---|---|---|---|
 | `errors` | string[] | yes | Errors of the files. The old values stay in force. |
 
-**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L115) · **Used by:** [`config.reload`](/docs/reference/api/methods/config#config-reload)
+**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L114) · **Used by:** [`config.reload`](/docs/reference/api/methods/config#config-reload)
 
 ### `ConfigSet` {#configset}
 
@@ -748,7 +756,7 @@ Sets a value in `config.toml`. The file keeps its comments and its order. A `nul
 | `key` | string | yes | The path, for example `approvals.mode`. |
 | `value` | any | yes |  |
 
-**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L107) · **Used by:** [`config.set`](/docs/reference/api/methods/config#config-set)
+**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L106) · **Used by:** [`config.set`](/docs/reference/api/methods/config#config-set)
 
 ### `ConfigValues` {#configvalues}
 
@@ -756,7 +764,7 @@ Sets a value in `config.toml`. The file keeps its comments and its order. A `nul
 |---|---|---|---|
 | `sections` | map of string to [`SettingsSection`](/docs/reference/api/types#settingssection) | yes |  |
 
-**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L101) · **Used by:** [`config.get`](/docs/reference/api/methods/config#config-get)
+**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L100) · **Used by:** [`config.get`](/docs/reference/api/methods/config#config-get)
 
 ### `CopyResult` {#copyresult}
 
@@ -777,7 +785,7 @@ A place in the event log. `log_epoch` changes when the log starts again, and a c
 | `seq` | integer (uint64) | yes |  |
 | `session_uuid` | string | yes |  |
 
-**Rust:** [`crates/nh-proto/src/api/events.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/events.rs#L21) · **Used by:** [`EventsSubscribe`](/docs/reference/api/types#eventssubscribe), [`EventsSubscribed`](/docs/reference/api/types#eventssubscribed), [`EventsTruncated`](/docs/reference/api/types#eventstruncated)
+**Rust:** [`crates/nh-proto/src/api/events.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/events.rs#L24) · **Used by:** [`EventsSubscribe`](/docs/reference/api/types#eventssubscribe), [`EventsSubscribed`](/docs/reference/api/types#eventssubscribed), [`EventsTruncated`](/docs/reference/api/types#eventstruncated)
 
 ## D {#letter-d}
 
@@ -813,7 +821,7 @@ A place in the event log. `log_epoch` changes when the log starts again, and a c
 | `include_scrollback` | boolean |  | Add the text of the panes. Without it the bundle has no scrollback. Default: `false`. |
 | `out` | string \| `null` |  | The file to write. The CLI always gives one. Without it the core writes `neohar-debug-<time>.zip` in the directory of the logs. |
 
-**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L361) · **Used by:** [`debug.bundle`](/docs/reference/api/methods/debug#debug-bundle)
+**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L360) · **Used by:** [`debug.bundle`](/docs/reference/api/methods/debug#debug-bundle)
 
 ### `DebugBundled` {#debugbundled}
 
@@ -823,7 +831,7 @@ A place in the event log. `log_epoch` changes when the log starts again, and a c
 | `files` | integer (uint32) | yes |  |
 | `path` | string | yes |  |
 
-**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L371) · **Used by:** [`debug.bundle`](/docs/reference/api/methods/debug#debug-bundle)
+**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L370) · **Used by:** [`debug.bundle`](/docs/reference/api/methods/debug#debug-bundle)
 
 ### `DebugRestoredScreen` {#debugrestoredscreen}
 
@@ -949,7 +957,7 @@ Type: string. Pattern: `^[0-9A-HJKMNP-TV-Z]{26}$`.
 |---|---|---|---|
 | `files` | [`FileDiff`](/docs/reference/api/types#filediff)[] | yes |  |
 
-**Rust:** [`crates/nh-proto/src/api/rich.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/rich.rs#L66) · **Used by:** [`rich.diff`](/docs/reference/api/methods/rich#rich-diff), [`ApprovalPayload`](/docs/reference/api/types#approvalpayload), [`TimelineBody`](/docs/reference/api/types#timelinebody)
+**Rust:** [`crates/nh-proto/src/api/rich.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/rich.rs#L66) · **Used by:** [`rich.diff`](/docs/reference/api/methods/rich#rich-diff), [`ApprovalPayload`](/docs/reference/api/types#approvalpayload), [`HermesItemBody`](/docs/reference/api/types#hermesitembody), [`TimelineBody`](/docs/reference/api/types#timelinebody)
 
 ### `DiffLine` {#diffline}
 
@@ -982,7 +990,7 @@ Type: string. Pattern: `^[0-9A-HJKMNP-TV-Z]{26}$`.
 | `status` | [`CheckStatus`](/docs/reference/api/types#checkstatus) | yes |  |
 | `title` | string | yes |  |
 
-**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L344) · **Used by:** [`DoctorReport`](/docs/reference/api/types#doctorreport)
+**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L343) · **Used by:** [`DoctorReport`](/docs/reference/api/types#doctorreport)
 
 ### `DoctorReport` {#doctorreport}
 
@@ -992,13 +1000,13 @@ Type: string. Pattern: `^[0-9A-HJKMNP-TV-Z]{26}$`.
 |---|---|---|---|
 | `checks` | [`DoctorCheck`](/docs/reference/api/types#doctorcheck)[] | yes |  |
 
-**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L356) · **Used by:** [`doctor.run`](/docs/reference/api/methods/doctor#doctor-run)
+**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L355) · **Used by:** [`doctor.run`](/docs/reference/api/methods/doctor#doctor-run)
 
 ### `DoctorRun` {#doctorrun}
 
 An object with no fields: `{}`.
 
-**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L329) · **Used by:** [`doctor.run`](/docs/reference/api/methods/doctor#doctor-run)
+**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L328) · **Used by:** [`doctor.run`](/docs/reference/api/methods/doctor#doctor-run)
 
 ### `DoctorWarning` {#doctorwarning}
 
@@ -1107,7 +1115,7 @@ An entry of the log.
 | `subject` | string \| `null` |  | The id of the main object, as text. |
 | `v` | integer (uint16) | yes | The version of the payload. A payload only gets new fields within a version. |
 
-**Rust:** [`crates/nh-proto/src/api/events.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/events.rs#L29) · **Used by:** [`EventNotification`](/docs/reference/api/types#eventnotification)
+**Rust:** [`crates/nh-proto/src/api/events.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/events.rs#L32) · **Used by:** [`EventNotification`](/docs/reference/api/types#eventnotification)
 
 ### `EventFilter` {#eventfilter}
 
@@ -1118,7 +1126,7 @@ Which events a subscription wants.
 | `kinds` | string[] |  | Kinds. A trailing `*` is a prefix: `interaction.*`. Without it all kinds match. |
 | `subject` | string \| `null` |  | Only events about this object. |
 
-**Rust:** [`crates/nh-proto/src/api/events.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/events.rs#L45) · **Used by:** [`EventsSubscribe`](/docs/reference/api/types#eventssubscribe)
+**Rust:** [`crates/nh-proto/src/api/events.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/events.rs#L48) · **Used by:** [`EventsSubscribe`](/docs/reference/api/types#eventssubscribe)
 
 ### `EventNotification` {#eventnotification}
 
@@ -1129,7 +1137,7 @@ The params of the notification `events.event`.
 | `event` | [`Event`](/docs/reference/api/types#event) | yes |  |
 | `subscription` | string | yes |  |
 
-**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L44)
+**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L43)
 
 ### `EventsSubscribe` {#eventssubscribe}
 
@@ -1140,7 +1148,7 @@ The params of the notification `events.event`.
 | `cursor` | [`Cursor`](/docs/reference/api/types#cursor) \| `null` |  | Where to start. Without it the subscription starts at the end of the log. |
 | `filter` | [`EventFilter`](/docs/reference/api/types#eventfilter) |  | Default: `{}`. |
 
-**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L24) · **Used by:** [`events.subscribe`](/docs/reference/api/methods/events#events-subscribe)
+**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L23) · **Used by:** [`events.subscribe`](/docs/reference/api/methods/events#events-subscribe)
 
 ### `EventsSubscribed` {#eventssubscribed}
 
@@ -1149,7 +1157,7 @@ The params of the notification `events.event`.
 | `cursor` | [`Cursor`](/docs/reference/api/types#cursor) | yes | The cursor of the end of the log at the moment of the call. |
 | `subscription` | string | yes | The id of the subscription, as it is in the notifications. |
 
-**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L32) · **Used by:** [`events.subscribe`](/docs/reference/api/methods/events#events-subscribe)
+**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L31) · **Used by:** [`events.subscribe`](/docs/reference/api/methods/events#events-subscribe)
 
 ### `EventsTruncated` {#eventstruncated}
 
@@ -1160,7 +1168,7 @@ The params of the notification `events.truncated`.
 | `cursor` | [`Cursor`](/docs/reference/api/types#cursor) | yes | The cursor to start from after a fresh snapshot. |
 | `subscription` | string | yes |  |
 
-**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L50)
+**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L49)
 
 ### `EventsUnsubscribe` {#eventsunsubscribe}
 
@@ -1168,7 +1176,7 @@ The params of the notification `events.truncated`.
 |---|---|---|---|
 | `subscription` | string | yes |  |
 
-**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L39) · **Used by:** [`events.unsubscribe`](/docs/reference/api/methods/events#events-unsubscribe)
+**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L38) · **Used by:** [`events.unsubscribe`](/docs/reference/api/methods/events#events-unsubscribe)
 
 ### `Execution` {#execution}
 
@@ -1228,13 +1236,78 @@ One of these forms:
 
 **Rust:** [`crates/nh-proto/src/api/model.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/model.rs#L258) · **Used by:** [`Facets`](/docs/reference/api/types#facets)
 
+### `ExecutionId` {#executionid}
+
+The ULID of a workflow execution, as 26 characters.
+
+Type: string. Pattern: `^[0-9A-HJKMNP-TV-Z]{26}$`.
+
+**Used by:** [`ExecutionValue`](/docs/reference/api/types#executionvalue), [`WorkflowContinue`](/docs/reference/api/types#workflowcontinue), [`WorkflowExecuted`](/docs/reference/api/types#workflowexecuted), [`WorkflowExecutionEvent`](/docs/reference/api/types#workflowexecutionevent), [`WorkflowExecutionRef`](/docs/reference/api/types#workflowexecutionref), [`WorkflowNodeEvent`](/docs/reference/api/types#workflownodeevent), [`WorkflowNodeRef`](/docs/reference/api/types#workflownoderef), [`WorkflowReportGet`](/docs/reference/api/types#workflowreportget), [`WorkflowReveal`](/docs/reference/api/types#workflowreveal)
+
+### `ExecutionNodeValue` {#executionnodevalue}
+
+One node of a `workflow_executions` row.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `node` | string | yes | The id of the node in the graph of the execution. |
+| `pane` | [`PaneId`](/docs/reference/api/types#paneid) \| `null` |  | The pane of that agent run, while the agent runs. |
+| `reason` | string \| `null` |  | Why the node failed, or what it waits for, as a person reads it. |
+| `report` | string \| `null` |  | The absolute path of the report of the node. |
+| `resumable` | boolean |  | The agent of the node can start again with `workflow.continue`. Default: `false`. |
+| `run` | [`RunId`](/docs/reference/api/types#runid) \| `null` |  | The agent run of the node, while it has one. |
+| `state` | [`NodeState`](/docs/reference/api/types#nodestate) | yes |  |
+| `time_text` | string \| `null` |  | The time of the node as a person reads it, for example "6 min". |
+| `verdict` | [`Verdict`](/docs/reference/api/types#verdict) \| `null` |  |  |
+
+**Rust:** [`crates/nh-proto/src/api/model.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/model.rs#L1372) · **Used by:** [`ExecutionValue`](/docs/reference/api/types#executionvalue)
+
+### `ExecutionState` {#executionstate}
+
+The state of an execution of a workflow.
+
+| Value | Meaning |
+|---|---|
+| `"running"` | A node works, or can start. |
+| `"paused"` | No node can start, and a node failed. Retry or skip the failed node, or cancel. |
+| `"done"` | Each node is done or skipped. |
+| `"cancelled"` | The person cancelled the execution. |
+
+**Rust:** [`crates/nh-proto/src/api/model.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/model.rs#L1327) · **Used by:** [`ExecutionValue`](/docs/reference/api/types#executionvalue), [`WorkflowExecutionEvent`](/docs/reference/api/types#workflowexecutionevent)
+
+### `ExecutionValue` {#executionvalue}
+
+`workflow_executions`: one execution of a workflow. The key is the id. The core orders the rows, the newest first.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `base` | string \| `null` |  | The base of the changes, for example `main`. |
+| `branch` | string \| `null` |  |  |
+| `dir` | string | yes | The folder of the files of the execution. |
+| `ended_at` | [`Timestamp`](/docs/reference/api/types#timestamp) \| `null` |  |  |
+| `folder` | string | yes | The folder in which the agents work. |
+| `head` | string \| `null` |  | The `HEAD` commit at the start, short. |
+| `id` | [`ExecutionId`](/docs/reference/api/types#executionid) | yes |  |
+| `label` | string | yes | The name of the execution, for example "Review 3". |
+| `nodes` | [`ExecutionNodeValue`](/docs/reference/api/types#executionnodevalue)[] | yes | The nodes, in the order of the graph. |
+| `number` | integer (uint32) | yes | The number of the execution of this workflow, from 1. |
+| `only` | string \| `null` |  | The node of "Execute this node", when the execution has only that node. |
+| `report` | string \| `null` |  | The path of `report.md`, when a Report node wrote it. |
+| `started_at` | [`Timestamp`](/docs/reference/api/types#timestamp) | yes |  |
+| `state` | [`ExecutionState`](/docs/reference/api/types#executionstate) | yes |  |
+| `time_text` | string | yes | The time and the length as a person reads it, for example "14:12 · 14 min". |
+| `tree_changed` | boolean |  | The `HEAD` commit or the changes of the worktree are different from the start. Default: `false`. |
+| `workflow` | string | yes | The name of the workflow file without `.toml`. |
+
+**Rust:** [`crates/nh-proto/src/api/model.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/model.rs#L1400) · **Used by:** [projection `workflow_executions`](/docs/reference/api/projections#workflow-executions), [`WorkflowExecutionList`](/docs/reference/api/types#workflowexecutionlist), [`WorkflowExecutionShown`](/docs/reference/api/types#workflowexecutionshown)
+
 ## F {#letter-f}
 
 ### `Facet` {#facet}
 
 Values: `"liveness"`, `"execution"`, `"pending"`, `"adapter_health"`.
 
-**Rust:** [`crates/nh-proto/src/api/events.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/events.rs#L58) · **Used by:** [`AdapterDisagreement`](/docs/reference/api/types#adapterdisagreement), [`AgentStateChanged`](/docs/reference/api/types#agentstatechanged)
+**Rust:** [`crates/nh-proto/src/api/events.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/events.rs#L61) · **Used by:** [`AdapterDisagreement`](/docs/reference/api/types#adapterdisagreement), [`AgentStateChanged`](/docs/reference/api/types#agentstatechanged)
 
 ### `Facets` {#facets}
 
@@ -1254,7 +1327,7 @@ The five facets of a run.
 
 Values: `"created"`, `"modified"`, `"removed"`, `"unchanged"`.
 
-**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L249) · **Used by:** [`FileChange`](/docs/reference/api/types#filechange)
+**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L248) · **Used by:** [`FileChange`](/docs/reference/api/types#filechange)
 
 ### `FileChange` {#filechange}
 
@@ -1264,7 +1337,7 @@ Values: `"created"`, `"modified"`, `"removed"`, `"unchanged"`.
 | `backup` | string \| `null` |  | The backup that the installer wrote before the first change. |
 | `path` | string | yes |  |
 
-**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L256) · **Used by:** [`IntegrationChanges`](/docs/reference/api/types#integrationchanges)
+**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L255) · **Used by:** [`IntegrationChanges`](/docs/reference/api/types#integrationchanges)
 
 ### `FileDiff` {#filediff}
 
@@ -1712,7 +1785,7 @@ The payload of `git.repo_added`: `git_repos` keeps a repository that the person 
 | `common_dir` | string | yes | The common git directory of the repository. |
 | `path` | string | yes | The path that the person gave. |
 
-**Rust:** [`crates/nh-proto/src/api/events.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/events.rs#L272) · **Used by:** [event `git.repo_added`](/docs/reference/api/events#git-repo-added)
+**Rust:** [`crates/nh-proto/src/api/events.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/events.rs#L275) · **Used by:** [event `git.repo_added`](/docs/reference/api/events#git-repo-added)
 
 ### `GitRepoList` {#gitrepolist}
 
@@ -1845,7 +1918,7 @@ The payload of `git.trusted` and `git.untrusted`: the person trusts a repository
 | `common_dir` | string | yes | The common git directory of the repository: the key of the trust. |
 | `path` | string | yes | The path that the person gave. |
 
-**Rust:** [`crates/nh-proto/src/api/events.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/events.rs#L281) · **Used by:** [event `git.trusted`](/docs/reference/api/events#git-trusted), [event `git.untrusted`](/docs/reference/api/events#git-untrusted)
+**Rust:** [`crates/nh-proto/src/api/events.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/events.rs#L284) · **Used by:** [event `git.trusted`](/docs/reference/api/events#git-trusted), [event `git.untrusted`](/docs/reference/api/events#git-untrusted)
 
 ### `GitTrustReason` {#gittrustreason}
 
@@ -1935,7 +2008,7 @@ The payload of `git.switched`, `git.unstashed`, `git.fetched` and `git.pulled`: 
 | `stash` | string \| `null` |  | The stash that a switch made or that `git.unstash` put back. |
 | `to` | string \| `null` |  | The branch after a switch or a pull. |
 
-**Rust:** [`crates/nh-proto/src/api/events.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/events.rs#L290) · **Used by:** [event `git.switched`](/docs/reference/api/events#git-switched), [event `git.unstashed`](/docs/reference/api/events#git-unstashed), [event `git.fetched`](/docs/reference/api/events#git-fetched), [event `git.pulled`](/docs/reference/api/events#git-pulled)
+**Rust:** [`crates/nh-proto/src/api/events.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/events.rs#L293) · **Used by:** [event `git.switched`](/docs/reference/api/events#git-switched), [event `git.unstashed`](/docs/reference/api/events#git-unstashed), [event `git.fetched`](/docs/reference/api/events#git-fetched), [event `git.pulled`](/docs/reference/api/events#git-pulled)
 
 ### `GroupClose` {#groupclose}
 
@@ -1972,7 +2045,7 @@ The payload of the `group.*` events.
 | `group` | [`GroupId`](/docs/reference/api/types#groupid) | yes |  |
 | `name` | string \| `null` |  |  |
 
-**Rust:** [`crates/nh-proto/src/api/events.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/events.rs#L205) · **Used by:** [event `group.created`](/docs/reference/api/events#group-created), [event `group.renamed`](/docs/reference/api/events#group-renamed), [event `group.moved`](/docs/reference/api/events#group-moved), [event `group.closed`](/docs/reference/api/events#group-closed)
+**Rust:** [`crates/nh-proto/src/api/events.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/events.rs#L208) · **Used by:** [event `group.created`](/docs/reference/api/events#group-created), [event `group.renamed`](/docs/reference/api/events#group-renamed), [event `group.moved`](/docs/reference/api/events#group-moved), [event `group.closed`](/docs/reference/api/events#group-closed)
 
 ### `GroupId` {#groupid}
 
@@ -2051,7 +2124,7 @@ The two harnesses of v1.
 
 Values: `"claude"`, `"codex"`.
 
-**Rust:** [`crates/nh-proto/src/api/common.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/common.rs#L128) · **Used by:** [`AdapterGate`](/docs/reference/api/types#adaptergate), [`AdapterSignal`](/docs/reference/api/types#adaptersignal), [`AgentChoices`](/docs/reference/api/types#agentchoices), [`AgentDetected`](/docs/reference/api/types#agentdetected), [`AgentDriftDetected`](/docs/reference/api/types#agentdriftdetected), [`AgentHarnessVersionUnvalidated`](/docs/reference/api/types#agentharnessversionunvalidated), [`AgentIdentified`](/docs/reference/api/types#agentidentified), [`AgentLink`](/docs/reference/api/types#agentlink), [`AgentList`](/docs/reference/api/types#agentlist), [`AgentStart`](/docs/reference/api/types#agentstart), [`AgentValue`](/docs/reference/api/types#agentvalue), [`CapabilityRow`](/docs/reference/api/types#capabilityrow), [`GitAgent`](/docs/reference/api/types#gitagent), [`HarnessChoices`](/docs/reference/api/types#harnesschoices), [`IntegrationInfo`](/docs/reference/api/types#integrationinfo), [`IntegrationStatusEntry`](/docs/reference/api/types#integrationstatusentry), [`LimitValue`](/docs/reference/api/types#limitvalue), [`PolicyRule`](/docs/reference/api/types#policyrule), [`UnvalidatedHarness`](/docs/reference/api/types#unvalidatedharness)
+**Rust:** [`crates/nh-proto/src/api/common.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/common.rs#L128) · **Used by:** [`AdapterGate`](/docs/reference/api/types#adaptergate), [`AdapterSignal`](/docs/reference/api/types#adaptersignal), [`AgentChoices`](/docs/reference/api/types#agentchoices), [`AgentDetected`](/docs/reference/api/types#agentdetected), [`AgentDriftDetected`](/docs/reference/api/types#agentdriftdetected), [`AgentHarnessVersionUnvalidated`](/docs/reference/api/types#agentharnessversionunvalidated), [`AgentIdentified`](/docs/reference/api/types#agentidentified), [`AgentLink`](/docs/reference/api/types#agentlink), [`AgentList`](/docs/reference/api/types#agentlist), [`AgentStart`](/docs/reference/api/types#agentstart), [`AgentValue`](/docs/reference/api/types#agentvalue), [`CapabilityRow`](/docs/reference/api/types#capabilityrow), [`GitAgent`](/docs/reference/api/types#gitagent), [`HarnessChoices`](/docs/reference/api/types#harnesschoices), [`IntegrationInfo`](/docs/reference/api/types#integrationinfo), [`IntegrationStatusEntry`](/docs/reference/api/types#integrationstatusentry), [`LimitValue`](/docs/reference/api/types#limitvalue), [`PolicyRule`](/docs/reference/api/types#policyrule), [`UnvalidatedHarness`](/docs/reference/api/types#unvalidatedharness), [`WorkflowNode`](/docs/reference/api/types#workflownode)
 
 ### `HarnessChoices` {#harnesschoices}
 
@@ -2076,7 +2149,7 @@ Values: `"claude"`, `"codex"`.
 | `source` | string | yes |  |
 | `version` | string | yes |  |
 
-**Rust:** [`crates/nh-proto/src/api/events.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/events.rs#L112) · **Used by:** [event `harness.manifest_loaded`](/docs/reference/api/events#harness-manifest-loaded)
+**Rust:** [`crates/nh-proto/src/api/events.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/events.rs#L115) · **Used by:** [event `harness.manifest_loaded`](/docs/reference/api/events#harness-manifest-loaded)
 
 ### `HarnessRefresh` {#harnessrefresh}
 
@@ -2132,6 +2205,264 @@ Finds the harnesses again and asks each one for its login state now. The call re
 
 **Rust:** [`crates/nh-proto/src/api/model.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/model.rs#L921) · **Used by:** [projection `health`](/docs/reference/api/projections#health)
 
+### `HermesAnswer` {#hermesanswer}
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `chat` | [`ChatId`](/docs/reference/api/types#chatid) | yes |  |
+| `option` | string | yes | The `id` of one of its options. |
+| `request` | string | yes | The `request` of the approval item. |
+
+**Rust:** [`crates/nh-proto/src/api/calls/hermes.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/hermes.rs#L51) · **Used by:** [`hermes.answer`](/docs/reference/api/methods/hermes#hermes-answer)
+
+### `HermesAnswerState` {#hermesanswerstate}
+
+| Value | Meaning |
+|---|---|
+| `"open"` | The approval waits for an answer. |
+| `"answered"` | The answer went to Hermes. |
+| `"expired"` | The deadline went by, and Hermes denied the request. |
+| `"gone"` | The request ended without an answer of neohar: the turn was cancelled, or `hermes acp` stopped. |
+
+**Rust:** [`crates/nh-proto/src/api/model.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/model.rs#L1534) · **Used by:** [`HermesItemBody`](/docs/reference/api/types#hermesitembody)
+
+### `HermesChatEvent` {#hermeschatevent}
+
+The payload of `hermes.chat_started` and `hermes.chat_closed`.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `chat` | [`ChatId`](/docs/reference/api/types#chatid) | yes |  |
+| `cwd` | string | yes |  |
+
+**Rust:** [`crates/nh-proto/src/api/events.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/events.rs#L330) · **Used by:** [event `hermes.chat_started`](/docs/reference/api/events#hermes-chat-started), [event `hermes.chat_closed`](/docs/reference/api/events#hermes-chat-closed)
+
+### `HermesChatRef` {#hermeschatref}
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `chat` | [`ChatId`](/docs/reference/api/types#chatid) | yes |  |
+
+**Rust:** [`crates/nh-proto/src/api/calls/hermes.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/hermes.rs#L40) · **Used by:** [`hermes.cancel`](/docs/reference/api/methods/hermes#hermes-cancel), [`hermes.retry`](/docs/reference/api/methods/hermes#hermes-retry), [`hermes.close`](/docs/reference/api/methods/hermes#hermes-close)
+
+### `HermesChatState` {#hermeschatstate}
+
+The state of a chat with Hermes Agent.
+
+One of these forms:
+
+- `"idle"`
+
+- `"starting"` — The core starts `hermes acp` and opens the session.
+
+- `"working"` — A turn works.
+
+- `"waiting"` — An approval of the turn waits for the person.
+
+- `"disconnected"` — `hermes acp` does not run. `error` tells why. A prompt or `hermes.retry` starts it again.
+
+**Rust:** [`crates/nh-proto/src/api/model.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/model.rs#L1446) · **Used by:** [`HermesChatValue`](/docs/reference/api/types#hermeschatvalue)
+
+### `HermesChatValue` {#hermeschatvalue}
+
+`hermes_chats`: one chat with Hermes Agent. The key is the id. The core orders the rows, the newest first.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `context_text` | string \| `null` |  | The context window as a person reads it, for example "15k of 500k tokens". |
+| `cwd` | string | yes | The folder in which Hermes works. |
+| `error` | string \| `null` |  |  |
+| `guessed` | boolean |  | The state of the turn is a guess: the core found the turn when it resumed the session, and ACP tells the end of a turn only to the client that sent the prompt. Default: `false`. |
+| `id` | [`ChatId`](/docs/reference/api/types#chatid) | yes |  |
+| `mode` | string \| `null` |  |  |
+| `model` | string \| `null` |  |  |
+| `models` | [`HermesChoice`](/docs/reference/api/types#hermeschoice)[] |  |  |
+| `modes` | [`HermesChoice`](/docs/reference/api/types#hermeschoice)[] |  |  |
+| `pending` | integer (uint32) |  | The approvals that wait. Default: `0`. |
+| `session` | string \| `null` |  | The session id of Hermes, after `session/new`. |
+| `started_at` | [`Timestamp`](/docs/reference/api/types#timestamp) | yes |  |
+| `state` | [`HermesChatState`](/docs/reference/api/types#hermeschatstate) | yes |  |
+| `time_text` | string | yes | The start as a person reads it, for example "14:12" or "Oct 31". |
+| `title` | string | yes | The title that Hermes gave the session, or the folder name before the first prompt. |
+
+**Rust:** [`crates/nh-proto/src/api/model.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/model.rs#L1467) · **Used by:** [projection `hermes_chats`](/docs/reference/api/projections#hermes-chats)
+
+### `HermesChoice` {#hermeschoice}
+
+A model or a mode that the session offers.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `id` | string | yes |  |
+| `name` | string | yes |  |
+
+**Rust:** [`crates/nh-proto/src/api/model.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/model.rs#L1460) · **Used by:** [`HermesChatValue`](/docs/reference/api/types#hermeschatvalue)
+
+### `HermesItem` {#hermesitem}
+
+`hermes_chat:<chat>`: one item of a chat. The core orders the items as the chat shows them.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `at` | [`Timestamp`](/docs/reference/api/types#timestamp) | yes |  |
+| `body` | [`HermesItemBody`](/docs/reference/api/types#hermesitembody) | yes |  |
+| `id` | string | yes |  |
+
+**Rust:** [`crates/nh-proto/src/api/model.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/model.rs#L1589) · **Used by:** [projection `hermes_chat`](/docs/reference/api/projections#hermes-chat)
+
+### `HermesItemBody` {#hermesitembody}
+
+One of these forms:
+
+#### `type: "prompt"`
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `markdown` | [`Markdown`](/docs/reference/api/types#markdown) | yes |  |
+| `type` | `"prompt"` | yes |  |
+
+#### `type: "assistant"`
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `markdown` | [`Markdown`](/docs/reference/api/types#markdown) | yes |  |
+| `streaming` | boolean |  | More text can come. Default: `false`. |
+| `type` | `"assistant"` | yes |  |
+
+#### `type: "thought"`
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `markdown` | [`Markdown`](/docs/reference/api/types#markdown) | yes |  |
+| `type` | `"thought"` | yes |  |
+
+#### `type: "tool"`
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `diff` | [`Diff`](/docs/reference/api/types#diff) \| `null` |  |  |
+| `kind` | string | yes | The kind of ACP: `read`, `edit`, `execute`, `search`, `fetch`, `think`, `other`. |
+| `output` | [`Markdown`](/docs/reference/api/types#markdown) \| `null` |  |  |
+| `status` | [`HermesToolStatus`](/docs/reference/api/types#hermestoolstatus) | yes |  |
+| `title` | string | yes |  |
+| `type` | `"tool"` | yes |  |
+
+#### `type: "plan"`
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `entries` | [`HermesPlanEntry`](/docs/reference/api/types#hermesplanentry)[] | yes |  |
+| `type` | `"plan"` | yes |  |
+
+#### `type: "approval"`
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `answer` | string \| `null` |  | The label of the option that went to Hermes. |
+| `deadline` | [`Timestamp`](/docs/reference/api/types#timestamp) \| `null` |  | When Hermes denies the request if nobody answers (`approvals.timeout`). |
+| `detail` | [`Markdown`](/docs/reference/api/types#markdown) \| `null` |  |  |
+| `diff` | [`Diff`](/docs/reference/api/types#diff) \| `null` |  |  |
+| `options` | [`HermesOption`](/docs/reference/api/types#hermesoption)[] | yes |  |
+| `request` | string | yes | The id that `hermes.answer` names. |
+| `state` | [`HermesAnswerState`](/docs/reference/api/types#hermesanswerstate) | yes |  |
+| `title` | string | yes |  |
+| `type` | `"approval"` | yes |  |
+
+#### `type: "notice"`
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `text` | string | yes |  |
+| `type` | `"notice"` | yes |  |
+
+**Rust:** [`crates/nh-proto/src/api/model.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/model.rs#L1547) · **Used by:** [`HermesItem`](/docs/reference/api/types#hermesitem)
+
+### `HermesOption` {#hermesoption}
+
+An option of an approval, as Hermes gives it.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `allow` | boolean | yes | The option lets the tool run. |
+| `id` | string | yes |  |
+| `label` | string | yes |  |
+
+**Rust:** [`crates/nh-proto/src/api/model.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/model.rs#L1525) · **Used by:** [`HermesItemBody`](/docs/reference/api/types#hermesitembody)
+
+### `HermesPlanEntry` {#hermesplanentry}
+
+One step of the plan of a turn (the `todo` tool of Hermes).
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `status` | [`HermesPlanStatus`](/docs/reference/api/types#hermesplanstatus) | yes |  |
+| `text` | string | yes |  |
+
+**Rust:** [`crates/nh-proto/src/api/model.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/model.rs#L1519) · **Used by:** [`HermesItemBody`](/docs/reference/api/types#hermesitembody)
+
+### `HermesPlanStatus` {#hermesplanstatus}
+
+Values: `"pending"`, `"in_progress"`, `"completed"`.
+
+**Rust:** [`crates/nh-proto/src/api/model.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/model.rs#L1512) · **Used by:** [`HermesPlanEntry`](/docs/reference/api/types#hermesplanentry)
+
+### `HermesPrompt` {#hermesprompt}
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `chat` | [`ChatId`](/docs/reference/api/types#chatid) | yes |  |
+| `input_id` | integer (uint64) | yes | A second call with the same id sends nothing. |
+| `text` | string | yes |  |
+
+**Rust:** [`crates/nh-proto/src/api/calls/hermes.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/hermes.rs#L44) · **Used by:** [`hermes.prompt`](/docs/reference/api/methods/hermes#hermes-prompt)
+
+### `HermesSet` {#hermesset}
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `chat` | [`ChatId`](/docs/reference/api/types#chatid) | yes |  |
+| `mode` | string \| `null` |  | The id of a mode of the chat. |
+| `model` | string \| `null` |  | The id of a model of the chat. |
+
+**Rust:** [`crates/nh-proto/src/api/calls/hermes.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/hermes.rs#L59) · **Used by:** [`hermes.set`](/docs/reference/api/methods/hermes#hermes-set)
+
+### `HermesStart` {#hermesstart}
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `cwd` | string | yes | The absolute path of the folder in which Hermes works. |
+| `prompt` | string \| `null` |  | The first prompt. |
+
+**Rust:** [`crates/nh-proto/src/api/calls/hermes.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/hermes.rs#L28) · **Used by:** [`hermes.start`](/docs/reference/api/methods/hermes#hermes-start)
+
+### `HermesStarted` {#hermesstarted}
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `chat` | [`ChatId`](/docs/reference/api/types#chatid) | yes |  |
+
+**Rust:** [`crates/nh-proto/src/api/calls/hermes.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/hermes.rs#L36) · **Used by:** [`hermes.start`](/docs/reference/api/methods/hermes#hermes-start)
+
+### `HermesStatus` {#hermesstatus}
+
+`hermes.check`: whether this machine can run Hermes.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `approvals_mode` | string \| `null` |  | `approvals.mode` of the config of Hermes. With `smart` or `off`, shell commands do not ask in the chat. |
+| `found` | boolean | yes | `hermes acp --version` answered. |
+| `message` | string \| `null` |  | What to do, when Hermes is not found or the check failed. |
+| `ok` | boolean | yes | `hermes acp --check` passed. |
+| `version` | string \| `null` |  |  |
+
+**Rust:** [`crates/nh-proto/src/api/calls/hermes.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/hermes.rs#L12) · **Used by:** [`hermes.check`](/docs/reference/api/methods/hermes#hermes-check)
+
+### `HermesToolStatus` {#hermestoolstatus}
+
+Values: `"running"`, `"done"`, `"failed"`.
+
+**Rust:** [`crates/nh-proto/src/api/model.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/model.rs#L1504) · **Used by:** [`HermesItemBody`](/docs/reference/api/types#hermesitembody)
+
 ### `Hunk` {#hunk}
 
 | Field | Type | Required | Description |
@@ -2155,7 +2486,7 @@ Finds the harnesses again and asks each one for its login state now. The call re
 
 An object with no fields: `{}`.
 
-**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L306) · **Used by:** [`integration.capabilities`](/docs/reference/api/methods/integration#integration-capabilities)
+**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L305) · **Used by:** [`integration.capabilities`](/docs/reference/api/methods/integration#integration-capabilities)
 
 ### `IntegrationCapabilitiesResult` {#integrationcapabilitiesresult}
 
@@ -2163,7 +2494,7 @@ An object with no fields: `{}`.
 |---|---|---|---|
 | `rows` | [`CapabilityRow`](/docs/reference/api/types#capabilityrow)[] | yes |  |
 
-**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L323) · **Used by:** [`integration.capabilities`](/docs/reference/api/methods/integration#integration-capabilities)
+**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L322) · **Used by:** [`integration.capabilities`](/docs/reference/api/methods/integration#integration-capabilities)
 
 ### `IntegrationChanges` {#integrationchanges}
 
@@ -2172,7 +2503,7 @@ An object with no fields: `{}`.
 | `changes` | [`FileChange`](/docs/reference/api/types#filechange)[] | yes |  |
 | `notes` | string[] | yes | What the user must do, for example `/hooks` in Codex. |
 
-**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L264) · **Used by:** [`integration.install`](/docs/reference/api/methods/integration#integration-install), [`integration.uninstall`](/docs/reference/api/methods/integration#integration-uninstall)
+**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L263) · **Used by:** [`integration.install`](/docs/reference/api/methods/integration#integration-install), [`integration.uninstall`](/docs/reference/api/methods/integration#integration-uninstall)
 
 ### `IntegrationDoctor` {#integrationdoctor}
 
@@ -2182,7 +2513,7 @@ Runs the round trip of `nh integration doctor`. It returns a job.
 |---|---|---|---|
 | `target` | [`IntegrationTarget`](/docs/reference/api/types#integrationtarget) \| `null` |  |  |
 
-**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L301) · **Used by:** [`integration.doctor`](/docs/reference/api/methods/integration#integration-doctor)
+**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L300) · **Used by:** [`integration.doctor`](/docs/reference/api/methods/integration#integration-doctor)
 
 ### `IntegrationInfo` {#integrationinfo}
 
@@ -2193,7 +2524,7 @@ Runs the round trip of `nh integration doctor`. It returns a job.
 | `transports` | string[] | yes | The transports in use: `hooks`, `transcript`, `screen`, `process`. |
 | `version_seen` | string \| `null` |  |  |
 
-**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L223) · **Used by:** [`IntegrationListResult`](/docs/reference/api/types#integrationlistresult)
+**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L222) · **Used by:** [`IntegrationListResult`](/docs/reference/api/types#integrationlistresult)
 
 ### `IntegrationInstall` {#integrationinstall}
 
@@ -2204,13 +2535,13 @@ Runs the round trip of `nh integration doctor`. It returns a job.
 | `scope` | [`IntegrationScope`](/docs/reference/api/types#integrationscope) |  | Default: `"user"`. |
 | `target` | [`IntegrationTarget`](/docs/reference/api/types#integrationtarget) | yes |  |
 
-**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L236) · **Used by:** [`integration.install`](/docs/reference/api/methods/integration#integration-install)
+**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L235) · **Used by:** [`integration.install`](/docs/reference/api/methods/integration#integration-install)
 
 ### `IntegrationList` {#integrationlist}
 
 An object with no fields: `{}`.
 
-**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L221) · **Used by:** [`integration.list`](/docs/reference/api/methods/integration#integration-list)
+**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L220) · **Used by:** [`integration.list`](/docs/reference/api/methods/integration#integration-list)
 
 ### `IntegrationListResult` {#integrationlistresult}
 
@@ -2218,13 +2549,13 @@ An object with no fields: `{}`.
 |---|---|---|---|
 | `integrations` | [`IntegrationInfo`](/docs/reference/api/types#integrationinfo)[] | yes |  |
 
-**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L232) · **Used by:** [`integration.list`](/docs/reference/api/methods/integration#integration-list)
+**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L231) · **Used by:** [`integration.list`](/docs/reference/api/methods/integration#integration-list)
 
 ### `IntegrationScope` {#integrationscope}
 
 Values: `"user"`, `"project"`.
 
-**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L215) · **Used by:** [`IntegrationInstall`](/docs/reference/api/types#integrationinstall), [`IntegrationUninstall`](/docs/reference/api/types#integrationuninstall)
+**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L214) · **Used by:** [`IntegrationInstall`](/docs/reference/api/types#integrationinstall), [`IntegrationUninstall`](/docs/reference/api/types#integrationuninstall)
 
 ### `IntegrationStatusEntry` {#integrationstatusentry}
 
@@ -2237,7 +2568,7 @@ Values: `"user"`, `"project"`.
 | `last_signal_at` | [`Timestamp`](/docs/reference/api/types#timestamp) \| `null` |  |  |
 | `version_validated` | boolean | yes |  |
 
-**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L275) · **Used by:** [`IntegrationStatusResult`](/docs/reference/api/types#integrationstatusresult)
+**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L274) · **Used by:** [`IntegrationStatusResult`](/docs/reference/api/types#integrationstatusresult)
 
 ### `IntegrationStatusParams` {#integrationstatusparams}
 
@@ -2245,7 +2576,7 @@ Values: `"user"`, `"project"`.
 |---|---|---|---|
 | `target` | [`IntegrationTarget`](/docs/reference/api/types#integrationtarget) \| `null` |  |  |
 
-**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L270) · **Used by:** [`integration.status`](/docs/reference/api/methods/integration#integration-status)
+**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L269) · **Used by:** [`integration.status`](/docs/reference/api/methods/integration#integration-status)
 
 ### `IntegrationStatusResult` {#integrationstatusresult}
 
@@ -2253,7 +2584,7 @@ Values: `"user"`, `"project"`.
 |---|---|---|---|
 | `status` | [`IntegrationStatusEntry`](/docs/reference/api/types#integrationstatusentry)[] | yes |  |
 
-**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L287) · **Used by:** [`integration.status`](/docs/reference/api/methods/integration#integration-status)
+**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L286) · **Used by:** [`integration.status`](/docs/reference/api/methods/integration#integration-status)
 
 ### `IntegrationTarget` {#integrationtarget}
 
@@ -2261,7 +2592,7 @@ Which integration. `All` means both harnesses.
 
 Values: `"claude"`, `"codex"`, `"all"`.
 
-**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L207) · **Used by:** [`IntegrationDoctor`](/docs/reference/api/types#integrationdoctor), [`IntegrationInstall`](/docs/reference/api/types#integrationinstall), [`IntegrationStatusParams`](/docs/reference/api/types#integrationstatusparams), [`IntegrationUninstall`](/docs/reference/api/types#integrationuninstall)
+**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L206) · **Used by:** [`IntegrationDoctor`](/docs/reference/api/types#integrationdoctor), [`IntegrationInstall`](/docs/reference/api/types#integrationinstall), [`IntegrationStatusParams`](/docs/reference/api/types#integrationstatusparams), [`IntegrationUninstall`](/docs/reference/api/types#integrationuninstall)
 
 ### `IntegrationUninstall` {#integrationuninstall}
 
@@ -2271,7 +2602,7 @@ Values: `"claude"`, `"codex"`, `"all"`.
 | `scope` | [`IntegrationScope`](/docs/reference/api/types#integrationscope) |  | Default: `"user"`. |
 | `target` | [`IntegrationTarget`](/docs/reference/api/types#integrationtarget) | yes |  |
 
-**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L291) · **Used by:** [`integration.uninstall`](/docs/reference/api/methods/integration#integration-uninstall)
+**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L290) · **Used by:** [`integration.uninstall`](/docs/reference/api/methods/integration#integration-uninstall)
 
 ### `InteractionAnswer` {#interactionanswer}
 
@@ -2301,7 +2632,7 @@ Values: `"claude"`, `"codex"`, `"all"`.
 | `interaction` | [`InteractionId`](/docs/reference/api/types#interactionid) | yes |  |
 | `reason` | string | yes | For example `process_exited`. |
 
-**Rust:** [`crates/nh-proto/src/api/events.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/events.rs#L159) · **Used by:** [event `interaction.cancelled`](/docs/reference/api/events#interaction-cancelled)
+**Rust:** [`crates/nh-proto/src/api/events.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/events.rs#L162) · **Used by:** [event `interaction.cancelled`](/docs/reference/api/events#interaction-cancelled)
 
 ### `InteractionDecided` {#interactiondecided}
 
@@ -2312,7 +2643,7 @@ Values: `"claude"`, `"codex"`, `"all"`.
 | `rev` | integer (uint32) | yes |  |
 | `via` | [`Via`](/docs/reference/api/types#via) | yes |  |
 
-**Rust:** [`crates/nh-proto/src/api/events.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/events.rs#L134) · **Used by:** [event `interaction.decided`](/docs/reference/api/events#interaction-decided)
+**Rust:** [`crates/nh-proto/src/api/events.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/events.rs#L137) · **Used by:** [event `interaction.decided`](/docs/reference/api/events#interaction-decided)
 
 ### `InteractionDelivery` {#interactiondelivery}
 
@@ -2323,7 +2654,7 @@ The payload of `interaction.delivery_started`, `interaction.delivered` and `inte
 | `interaction` | [`InteractionId`](/docs/reference/api/types#interactionid) | yes |  |
 | `rev` | integer (uint32) | yes |  |
 
-**Rust:** [`crates/nh-proto/src/api/events.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/events.rs#L143) · **Used by:** [event `interaction.delivery_started`](/docs/reference/api/events#interaction-delivery-started), [event `interaction.delivered`](/docs/reference/api/events#interaction-delivered), [event `interaction.delivery_unknown`](/docs/reference/api/events#interaction-delivery-unknown)
+**Rust:** [`crates/nh-proto/src/api/events.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/events.rs#L146) · **Used by:** [event `interaction.delivery_started`](/docs/reference/api/events#interaction-delivery-started), [event `interaction.delivered`](/docs/reference/api/events#interaction-delivered), [event `interaction.delivery_unknown`](/docs/reference/api/events#interaction-delivery-unknown)
 
 ### `InteractionDeliveryFailed` {#interactiondeliveryfailed}
 
@@ -2333,7 +2664,7 @@ The payload of `interaction.delivery_started`, `interaction.delivered` and `inte
 | `reason` | string | yes |  |
 | `rev` | integer (uint32) | yes |  |
 
-**Rust:** [`crates/nh-proto/src/api/events.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/events.rs#L148) · **Used by:** [event `interaction.delivery_failed`](/docs/reference/api/events#interaction-delivery-failed)
+**Rust:** [`crates/nh-proto/src/api/events.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/events.rs#L151) · **Used by:** [event `interaction.delivery_failed`](/docs/reference/api/events#interaction-delivery-failed)
 
 ### `InteractionDismiss` {#interactiondismiss}
 
@@ -2353,7 +2684,7 @@ The payload of `interaction.resolved_elsewhere` and `interaction.dismissed`.
 |---|---|---|---|
 | `interaction` | [`InteractionId`](/docs/reference/api/types#interactionid) | yes |  |
 
-**Rust:** [`crates/nh-proto/src/api/events.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/events.rs#L155) · **Used by:** [event `interaction.resolved_elsewhere`](/docs/reference/api/events#interaction-resolved-elsewhere), [event `interaction.dismissed`](/docs/reference/api/events#interaction-dismissed)
+**Rust:** [`crates/nh-proto/src/api/events.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/events.rs#L158) · **Used by:** [event `interaction.resolved_elsewhere`](/docs/reference/api/events#interaction-resolved-elsewhere), [event `interaction.dismissed`](/docs/reference/api/events#interaction-dismissed)
 
 ### `InteractionId` {#interactionid}
 
@@ -2418,7 +2749,7 @@ The most urgent open interaction that a client can answer.
 | `risk` | [`Risk`](/docs/reference/api/types#risk) | yes |  |
 | `run` | [`RunId`](/docs/reference/api/types#runid) \| `null` |  |  |
 
-**Rust:** [`crates/nh-proto/src/api/events.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/events.rs#L121) · **Used by:** [event `interaction.opened`](/docs/reference/api/events#interaction-opened)
+**Rust:** [`crates/nh-proto/src/api/events.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/events.rs#L124) · **Used by:** [event `interaction.opened`](/docs/reference/api/events#interaction-opened)
 
 ### `InteractionPayload` {#interactionpayload}
 
@@ -2527,7 +2858,7 @@ The ULID of a job, as 26 characters.
 
 Type: string. Pattern: `^[0-9A-HJKMNP-TV-Z]{26}$`.
 
-**Used by:** [`GitJob`](/docs/reference/api/types#gitjob), [`JobStarted`](/docs/reference/api/types#jobstarted), [`JobValue`](/docs/reference/api/types#jobvalue), [`JobsCancel`](/docs/reference/api/types#jobscancel), [`SearchResults`](/docs/reference/api/types#searchresults)
+**Used by:** [`GitJob`](/docs/reference/api/types#gitjob), [`JobStarted`](/docs/reference/api/types#jobstarted), [`JobValue`](/docs/reference/api/types#jobvalue), [`JobsCancel`](/docs/reference/api/types#jobscancel)
 
 ### `JobStarted` {#jobstarted}
 
@@ -2537,7 +2868,7 @@ The result of a command that runs as a job. Progress is in the `jobs` projection
 |---|---|---|---|
 | `job` | [`JobId`](/docs/reference/api/types#jobid) | yes |  |
 
-**Rust:** [`crates/nh-proto/src/api/common.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/common.rs#L37) · **Used by:** [`agent.start`](/docs/reference/api/methods/agent#agent-start), [`agent.resume`](/docs/reference/api/methods/agent#agent-resume), [`git.fetch`](/docs/reference/api/methods/git#git-fetch), [`git.pull`](/docs/reference/api/methods/git#git-pull), [`integration.doctor`](/docs/reference/api/methods/integration#integration-doctor)
+**Rust:** [`crates/nh-proto/src/api/common.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/common.rs#L37) · **Used by:** [`agent.start`](/docs/reference/api/methods/agent#agent-start), [`agent.resume`](/docs/reference/api/methods/agent#agent-resume), [`git.fetch`](/docs/reference/api/methods/git#git-fetch), [`git.pull`](/docs/reference/api/methods/git#git-pull), [`workflow.continue`](/docs/reference/api/methods/workflow#workflow-continue), [`integration.doctor`](/docs/reference/api/methods/integration#integration-doctor)
 
 ### `JobStatus` {#jobstatus}
 
@@ -2569,7 +2900,7 @@ Values: `"running"`, `"done"`, `"failed"`, `"cancelled"`.
 |---|---|---|---|
 | `job` | [`JobId`](/docs/reference/api/types#jobid) | yes |  |
 
-**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L490) · **Used by:** [`jobs.cancel`](/docs/reference/api/methods/jobs#jobs-cancel)
+**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L460) · **Used by:** [`jobs.cancel`](/docs/reference/api/methods/jobs#jobs-cancel)
 
 ### `JsonRpc` {#jsonrpc}
 
@@ -2593,7 +2924,7 @@ Values: `"press"`, `"repeat"`, `"release"`.
 
 Values: `"tui"`, `"headless"`.
 
-**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L310) · **Used by:** [`CapabilityRow`](/docs/reference/api/types#capabilityrow)
+**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L309) · **Used by:** [`CapabilityRow`](/docs/reference/api/types#capabilityrow)
 
 ### `LayoutChanged` {#layoutchanged}
 
@@ -2603,7 +2934,7 @@ The layout of a tab changed (a split, a ratio, a float or a zoom).
 |---|---|---|---|
 | `tab` | [`TabId`](/docs/reference/api/types#tabid) | yes |  |
 
-**Rust:** [`crates/nh-proto/src/api/events.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/events.rs#L229) · **Used by:** [event `layout.changed`](/docs/reference/api/events#layout-changed)
+**Rust:** [`crates/nh-proto/src/api/events.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/events.rs#L232) · **Used by:** [event `layout.changed`](/docs/reference/api/events#layout-changed)
 
 ### `LayoutEqualize` {#layoutequalize}
 
@@ -2926,7 +3257,7 @@ Sanitized HTML (`ammonia`). The UI inserts it only through the `RichHtml` compon
 | `html` | string | yes |  |
 | `truncated` | boolean |  | The text was cut at the cap (256 KB for a plan). The UI offers "open full". Default: `false`. |
 
-**Rust:** [`crates/nh-proto/src/api/rich.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/rich.rs#L71) · **Used by:** [`rich.markdown`](/docs/reference/api/methods/rich#rich-markdown), [`FsReadResult`](/docs/reference/api/types#fsreadresult), [`PlanPayload`](/docs/reference/api/types#planpayload)
+**Rust:** [`crates/nh-proto/src/api/rich.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/rich.rs#L71) · **Used by:** [`rich.markdown`](/docs/reference/api/methods/rich#rich-markdown), [`FsReadResult`](/docs/reference/api/types#fsreadresult), [`HermesItemBody`](/docs/reference/api/types#hermesitembody), [`PlanPayload`](/docs/reference/api/types#planpayload), [`WorkflowReport`](/docs/reference/api/types#workflowreport)
 
 ### `ModName` {#modname}
 
@@ -2985,6 +3316,23 @@ Values: `"none"`, `"x10"`, `"normal"`, `"button_event"`, `"any_event"`.
 **Rust:** [`crates/nh-proto/src/api/model.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/model.rs#L132) · **Used by:** [`PaneValue`](/docs/reference/api/types#panevalue)
 
 ## N {#letter-n}
+
+### `NodeState` {#nodestate}
+
+The state of one node in an execution.
+
+| Value | Meaning |
+|---|---|
+| `"waiting"` | An input is not done. |
+| `"queued"` | The inputs are done, and `workflows.max_agents` agents work. |
+| `"working"` | The agent of the node works. |
+| `"needs_you"` | The agent of the node has an open interaction. |
+| `"done"` | The report of the node exists. |
+| `"failed"` | The node failed. `reason` tells why. |
+| `"skipped"` | The person skipped the node. |
+| `"cancelled"` | The person cancelled the execution. |
+
+**Rust:** [`crates/nh-proto/src/api/model.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/model.rs#L1341) · **Used by:** [`ExecutionNodeValue`](/docs/reference/api/types#executionnodevalue), [`WorkflowNodeEvent`](/docs/reference/api/types#workflownodeevent)
 
 ### `NoticePayload` {#noticepayload}
 
@@ -3066,17 +3414,17 @@ The state of the offer of a pairing.
 | `command` | string | yes | The id of the command (`PaletteCommand.id`). |
 | `window` | [`WindowId`](/docs/reference/api/types#windowid) \| `null` |  | The window that runs the command. A command on the tab or the pane in focus needs it. |
 
-**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L428) · **Used by:** [`palette.execute`](/docs/reference/api/methods/palette#palette-execute)
+**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L398) · **Used by:** [`palette.execute`](/docs/reference/api/methods/palette#palette-execute)
 
 ### `PaletteExecuted` {#paletteexecuted}
 
-What `palette.execute` did. Some commands belong to the page and not to the core, for example the search. The core then names the action, and the page does it.
+What `palette.execute` did. Some commands belong to the page and not to the core, for example the inbox. The core then names the action, and the page does it.
 
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `ui` | string \| `null` |  |  |
 
-**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L440) · **Used by:** [`palette.execute`](/docs/reference/api/methods/palette#palette-execute)
+**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L410) · **Used by:** [`palette.execute`](/docs/reference/api/methods/palette#palette-execute)
 
 ### `PaletteMatch` {#palettematch}
 
@@ -3086,7 +3434,7 @@ What `palette.execute` did. Some commands belong to the page and not to the core
 | `ranges` | any[][] | yes | The matched ranges of the title, in UTF-16 code units. |
 | `score` | number (float) | yes |  |
 
-**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L417) · **Used by:** [`PaletteResults`](/docs/reference/api/types#paletteresults)
+**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L387) · **Used by:** [`PaletteResults`](/docs/reference/api/types#paletteresults)
 
 ### `PaletteQuery` {#palettequery}
 
@@ -3096,7 +3444,7 @@ What `palette.execute` did. Some commands belong to the page and not to the core
 | `query` | string | yes |  |
 | `window` | [`WindowId`](/docs/reference/api/types#windowid) \| `null` |  | The window that asks. A later version ranks the commands of that window first. |
 
-**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L408) · **Used by:** [`palette.query`](/docs/reference/api/methods/palette#palette-query)
+**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L378) · **Used by:** [`palette.query`](/docs/reference/api/methods/palette#palette-query)
 
 ### `PaletteResults` {#paletteresults}
 
@@ -3104,7 +3452,7 @@ What `palette.execute` did. Some commands belong to the page and not to the core
 |---|---|---|---|
 | `items` | [`PaletteMatch`](/docs/reference/api/types#palettematch)[] | yes |  |
 
-**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L424) · **Used by:** [`palette.query`](/docs/reference/api/methods/palette#palette-query)
+**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L394) · **Used by:** [`palette.query`](/docs/reference/api/methods/palette#palette-query)
 
 ### `PaletteValue` {#palettevalue}
 
@@ -3135,7 +3483,7 @@ The program in the pane rang the bell. The core sends at most one event in 2 sec
 |---|---|---|---|
 | `pane` | [`PaneId`](/docs/reference/api/types#paneid) | yes |  |
 
-**Rust:** [`crates/nh-proto/src/api/events.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/events.rs#L190) · **Used by:** [event `pane.bell`](/docs/reference/api/events#pane-bell)
+**Rust:** [`crates/nh-proto/src/api/events.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/events.rs#L193) · **Used by:** [event `pane.bell`](/docs/reference/api/events#pane-bell)
 
 ### `PaneClaim` {#paneclaim}
 
@@ -3227,7 +3575,7 @@ The payload of the `pane.*` events that name a pane and its place.
 | `tab` | [`TabId`](/docs/reference/api/types#tabid) | yes |  |
 | `workspace` | [`WorkspaceId`](/docs/reference/api/types#workspaceid) | yes |  |
 
-**Rust:** [`crates/nh-proto/src/api/events.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/events.rs#L221) · **Used by:** [event `pane.created`](/docs/reference/api/events#pane-created), [event `pane.closed`](/docs/reference/api/events#pane-closed), [event `pane.moved`](/docs/reference/api/events#pane-moved), [event `pane.floated`](/docs/reference/api/events#pane-floated), [event `pane.unfloated`](/docs/reference/api/events#pane-unfloated), [event `pane.restarted`](/docs/reference/api/events#pane-restarted)
+**Rust:** [`crates/nh-proto/src/api/events.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/events.rs#L224) · **Used by:** [event `pane.created`](/docs/reference/api/events#pane-created), [event `pane.closed`](/docs/reference/api/events#pane-closed), [event `pane.moved`](/docs/reference/api/events#pane-moved), [event `pane.floated`](/docs/reference/api/events#pane-floated), [event `pane.unfloated`](/docs/reference/api/events#pane-unfloated), [event `pane.restarted`](/docs/reference/api/events#pane-restarted)
 
 ### `PaneExited` {#paneexited}
 
@@ -3236,7 +3584,7 @@ The payload of the `pane.*` events that name a pane and its place.
 | `code` | integer (int32) \| `null` |  |  |
 | `pane` | [`PaneId`](/docs/reference/api/types#paneid) | yes |  |
 
-**Rust:** [`crates/nh-proto/src/api/events.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/events.rs#L182) · **Used by:** [event `pane.exited`](/docs/reference/api/events#pane-exited)
+**Rust:** [`crates/nh-proto/src/api/events.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/events.rs#L185) · **Used by:** [event `pane.exited`](/docs/reference/api/events#pane-exited)
 
 ### `PaneFloat` {#panefloat}
 
@@ -3264,7 +3612,7 @@ The ULID of a pane, as 26 characters.
 
 Type: string. Pattern: `^[0-9A-HJKMNP-TV-Z]{26}$`.
 
-**Used by:** [`AgentIdentified`](/docs/reference/api/types#agentidentified), [`AgentValue`](/docs/reference/api/types#agentvalue), [`DebugScreen`](/docs/reference/api/types#debugscreen), [`DebugScreenResult`](/docs/reference/api/types#debugscreenresult), [`DebugSpawnedPane`](/docs/reference/api/types#debugspawnedpane), [`FloatingPane`](/docs/reference/api/types#floatingpane), [`GitAgent`](/docs/reference/api/types#gitagent), [`InteractionOpened`](/docs/reference/api/types#interactionopened), [`InteractionValue`](/docs/reference/api/types#interactionvalue), [`LayoutNode`](/docs/reference/api/types#layoutnode), [`PaneBell`](/docs/reference/api/types#panebell), [`PaneCreated`](/docs/reference/api/types#panecreated), [`PaneEvent`](/docs/reference/api/types#paneevent), [`PaneExited`](/docs/reference/api/types#paneexited), [`PaneInputUnconfirmed`](/docs/reference/api/types#paneinputunconfirmed), [`PaneValue`](/docs/reference/api/types#panevalue), [`SearchHit`](/docs/reference/api/types#searchhit), [`TabCreated`](/docs/reference/api/types#tabcreated), [`TabValue`](/docs/reference/api/types#tabvalue), [`WindowValue`](/docs/reference/api/types#windowvalue), [`WorkspaceCreated`](/docs/reference/api/types#workspacecreated)
+**Used by:** [`AgentIdentified`](/docs/reference/api/types#agentidentified), [`AgentValue`](/docs/reference/api/types#agentvalue), [`DebugScreen`](/docs/reference/api/types#debugscreen), [`DebugScreenResult`](/docs/reference/api/types#debugscreenresult), [`DebugSpawnedPane`](/docs/reference/api/types#debugspawnedpane), [`ExecutionNodeValue`](/docs/reference/api/types#executionnodevalue), [`FloatingPane`](/docs/reference/api/types#floatingpane), [`GitAgent`](/docs/reference/api/types#gitagent), [`InteractionOpened`](/docs/reference/api/types#interactionopened), [`InteractionValue`](/docs/reference/api/types#interactionvalue), [`LayoutNode`](/docs/reference/api/types#layoutnode), [`PaneBell`](/docs/reference/api/types#panebell), [`PaneCreated`](/docs/reference/api/types#panecreated), [`PaneEvent`](/docs/reference/api/types#paneevent), [`PaneExited`](/docs/reference/api/types#paneexited), [`PaneInputUnconfirmed`](/docs/reference/api/types#paneinputunconfirmed), [`PaneValue`](/docs/reference/api/types#panevalue), [`TabCreated`](/docs/reference/api/types#tabcreated), [`TabValue`](/docs/reference/api/types#tabvalue), [`WindowValue`](/docs/reference/api/types#windowvalue), [`WorkspaceCreated`](/docs/reference/api/types#workspacecreated)
 
 ### `PaneInput` {#paneinput}
 
@@ -3288,7 +3636,7 @@ An input was in flight when the holder or the core went away.
 | `pane` | [`PaneId`](/docs/reference/api/types#paneid) | yes |  |
 | `reason` | [`UnconfirmedReason`](/docs/reference/api/types#unconfirmedreason) | yes |  |
 
-**Rust:** [`crates/nh-proto/src/api/events.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/events.rs#L176) · **Used by:** [event `pane.input_unconfirmed`](/docs/reference/api/events#pane-input-unconfirmed)
+**Rust:** [`crates/nh-proto/src/api/events.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/events.rs#L179) · **Used by:** [event `pane.input_unconfirmed`](/docs/reference/api/events#pane-input-unconfirmed)
 
 ### `PaneInsertPaths` {#paneinsertpaths}
 
@@ -3608,7 +3956,7 @@ Sets the order of all keys.
 | `keys` | string[] | yes |  |
 | `op` | `"order"` | yes |  |
 
-**Rust:** [`crates/nh-proto/src/api/projections.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/projections.rs#L243) · **Used by:** [`ProjectionMessage`](/docs/reference/api/types#projectionmessage)
+**Rust:** [`crates/nh-proto/src/api/projections.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/projections.rs#L263) · **Used by:** [`ProjectionMessage`](/docs/reference/api/types#projectionmessage)
 
 ### `PeekParams` {#peekparams}
 
@@ -3632,7 +3980,7 @@ The payload of `phone.paired`, `phone.renamed` and `phone.removed`. The event ne
 | `device` | [`DeviceId`](/docs/reference/api/types#deviceid) | yes |  |
 | `name` | string | yes |  |
 
-**Rust:** [`crates/nh-proto/src/api/events.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/events.rs#L242) · **Used by:** [event `phone.paired`](/docs/reference/api/events#phone-paired), [event `phone.renamed`](/docs/reference/api/events#phone-renamed), [event `phone.removed`](/docs/reference/api/events#phone-removed)
+**Rust:** [`crates/nh-proto/src/api/events.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/events.rs#L245) · **Used by:** [event `phone.paired`](/docs/reference/api/events#phone-paired), [event `phone.renamed`](/docs/reference/api/events#phone-renamed), [event `phone.removed`](/docs/reference/api/events#phone-removed)
 
 ### `PhonePairBegin` {#phonepairbegin}
 
@@ -3679,7 +4027,7 @@ The payload of `phone.push_failed`: a push of a run did not reach the push servi
 | `device` | [`DeviceId`](/docs/reference/api/types#deviceid) | yes |  |
 | `status` | integer (uint16) \| `null` |  | The last status of the push service. `None` when no answer came. |
 
-**Rust:** [`crates/nh-proto/src/api/events.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/events.rs#L257) · **Used by:** [event `phone.push_failed`](/docs/reference/api/events#phone-push-failed)
+**Rust:** [`crates/nh-proto/src/api/events.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/events.rs#L260) · **Used by:** [event `phone.push_failed`](/docs/reference/api/events#phone-push-failed)
 
 ### `PhonePushSubscribe` {#phonepushsubscribe}
 
@@ -3713,7 +4061,7 @@ The payload of `phone.pushed`: the push service took a push of a run for a phone
 | `reason` | [`AttentionReason`](/docs/reference/api/types#attentionreason) | yes |  |
 | `run` | [`RunId`](/docs/reference/api/types#runid) | yes |  |
 
-**Rust:** [`crates/nh-proto/src/api/events.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/events.rs#L249) · **Used by:** [event `phone.pushed`](/docs/reference/api/events#phone-pushed)
+**Rust:** [`crates/nh-proto/src/api/events.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/events.rs#L252) · **Used by:** [event `phone.pushed`](/docs/reference/api/events#phone-pushed)
 
 ### `PhoneRemove` {#phoneremove}
 
@@ -3745,7 +4093,7 @@ The payload of `phone.replied`: a phone sent `agent.reply` to a run. The event d
 | `device` | [`DeviceId`](/docs/reference/api/types#deviceid) | yes |  |
 | `run` | [`RunId`](/docs/reference/api/types#runid) | yes |  |
 
-**Rust:** [`crates/nh-proto/src/api/events.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/events.rs#L266) · **Used by:** [event `phone.replied`](/docs/reference/api/events#phone-replied)
+**Rust:** [`crates/nh-proto/src/api/events.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/events.rs#L269) · **Used by:** [event `phone.replied`](/docs/reference/api/events#phone-replied)
 
 ### `PhoneStatusValue` {#phonestatusvalue}
 
@@ -3857,7 +4205,7 @@ An existing pane whose shell is idle. The core types the command there.
 |---|---|---|---|
 | `rule` | [`PolicyRule`](/docs/reference/api/types#policyrule) | yes |  |
 
-**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L174) · **Used by:** [`policy.add`](/docs/reference/api/methods/policy#policy-add)
+**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L173) · **Used by:** [`policy.add`](/docs/reference/api/methods/policy#policy-add)
 
 ### `PolicyAdded` {#policyadded}
 
@@ -3865,13 +4213,13 @@ An existing pane whose shell is idle. The core types the command there.
 |---|---|---|---|
 | `id` | string | yes |  |
 
-**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L178) · **Used by:** [`policy.add`](/docs/reference/api/methods/policy#policy-add)
+**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L177) · **Used by:** [`policy.add`](/docs/reference/api/methods/policy#policy-add)
 
 ### `PolicyDecision` {#policydecision}
 
 Values: `"allow"`, `"deny"`.
 
-**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L124) · **Used by:** [`PolicyRule`](/docs/reference/api/types#policyrule)
+**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L123) · **Used by:** [`PolicyRule`](/docs/reference/api/types#policyrule)
 
 ### `PolicyEvent` {#policyevent}
 
@@ -3882,13 +4230,13 @@ The payload of `policy.added` and `policy.removed`.
 | `id` | string | yes |  |
 | `scope` | [`PolicyScope`](/docs/reference/api/types#policyscope) | yes |  |
 
-**Rust:** [`crates/nh-proto/src/api/events.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/events.rs#L313) · **Used by:** [event `policy.added`](/docs/reference/api/events#policy-added), [event `policy.removed`](/docs/reference/api/events#policy-removed)
+**Rust:** [`crates/nh-proto/src/api/events.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/events.rs#L316) · **Used by:** [event `policy.added`](/docs/reference/api/events#policy-added), [event `policy.removed`](/docs/reference/api/events#policy-removed)
 
 ### `PolicyList` {#policylist}
 
 An object with no fields: `{}`.
 
-**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L168) · **Used by:** [`policy.list`](/docs/reference/api/methods/policy#policy-list)
+**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L167) · **Used by:** [`policy.list`](/docs/reference/api/methods/policy#policy-list)
 
 ### `PolicyListResult` {#policylistresult}
 
@@ -3896,7 +4244,7 @@ An object with no fields: `{}`.
 |---|---|---|---|
 | `rules` | [`PolicyRuleValue`](/docs/reference/api/types#policyrulevalue)[] | yes |  |
 
-**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L170) · **Used by:** [`policy.list`](/docs/reference/api/methods/policy#policy-list)
+**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L169) · **Used by:** [`policy.list`](/docs/reference/api/methods/policy#policy-list)
 
 ### `PolicyRemove` {#policyremove}
 
@@ -3904,7 +4252,7 @@ An object with no fields: `{}`.
 |---|---|---|---|
 | `id` | string | yes |  |
 
-**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L182) · **Used by:** [`policy.remove`](/docs/reference/api/methods/policy#policy-remove)
+**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L181) · **Used by:** [`policy.remove`](/docs/reference/api/methods/policy#policy-remove)
 
 ### `PolicyRule` {#policyrule}
 
@@ -3921,7 +4269,7 @@ A rule.
 | `tool` | string | yes | The exact name of the tool, or `*`. |
 | `workspace` | string \| `null` |  |  |
 
-**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L130) · **Used by:** [`PolicyAdd`](/docs/reference/api/types#policyadd), [`PolicyRuleValue`](/docs/reference/api/types#policyrulevalue), [`PolicySuggestion`](/docs/reference/api/types#policysuggestion)
+**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L129) · **Used by:** [`PolicyAdd`](/docs/reference/api/types#policyadd), [`PolicyRuleValue`](/docs/reference/api/types#policyrulevalue), [`PolicySuggestion`](/docs/reference/api/types#policysuggestion)
 
 ### `PolicyRuleValue` {#policyrulevalue}
 
@@ -3932,7 +4280,7 @@ A rule.
 | `rule` | [`PolicyRule`](/docs/reference/api/types#policyrule) | yes |  |
 | `scope` | [`PolicyScope`](/docs/reference/api/types#policyscope) | yes |  |
 
-**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L161) · **Used by:** [`PolicyListResult`](/docs/reference/api/types#policylistresult)
+**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L160) · **Used by:** [`PolicyListResult`](/docs/reference/api/types#policylistresult)
 
 ### `PolicyScope` {#policyscope}
 
@@ -3941,13 +4289,13 @@ A rule.
 | `"config"` | From the config file. |
 | `"session"` | From "Allow always" in a card. |
 
-**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L154) · **Used by:** [`PolicyEvent`](/docs/reference/api/types#policyevent), [`PolicyRuleValue`](/docs/reference/api/types#policyrulevalue)
+**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L153) · **Used by:** [`PolicyEvent`](/docs/reference/api/types#policyevent), [`PolicyRuleValue`](/docs/reference/api/types#policyrulevalue)
 
 ### `PolicySuggest` {#policysuggest}
 
 An object with no fields: `{}`.
 
-**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L186) · **Used by:** [`policy.suggest`](/docs/reference/api/methods/policy#policy-suggest)
+**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L185) · **Used by:** [`policy.suggest`](/docs/reference/api/methods/policy#policy-suggest)
 
 ### `PolicySuggestResult` {#policysuggestresult}
 
@@ -3955,7 +4303,7 @@ An object with no fields: `{}`.
 |---|---|---|---|
 | `suggestions` | [`PolicySuggestion`](/docs/reference/api/types#policysuggestion)[] | yes |  |
 
-**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L198) · **Used by:** [`policy.suggest`](/docs/reference/api/methods/policy#policy-suggest)
+**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L197) · **Used by:** [`policy.suggest`](/docs/reference/api/methods/policy#policy-suggest)
 
 ### `PolicySuggestion` {#policysuggestion}
 
@@ -3969,7 +4317,7 @@ A rule that the user could add: approved at least 5 times, never denied, in 30 d
 | `rule` | [`PolicyRule`](/docs/reference/api/types#policyrule) | yes |  |
 | `toml` | string | yes | The rule as a `[[policy.rule]]` block, ready to paste into `config.toml`. |
 
-**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L189) · **Used by:** [`PolicySuggestResult`](/docs/reference/api/types#policysuggestresult)
+**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L188) · **Used by:** [`PolicySuggestResult`](/docs/reference/api/types#policysuggestresult)
 
 ### `PortForward` {#portforward}
 
@@ -3996,11 +4344,11 @@ What to run in a new pane. Without it the pane runs the login shell of the user.
 
 ### `Projection` {#projection}
 
-The name of a projection. timeline:&lt;run>, pane_text:&lt;pane>, agents_for:&lt;window>, changes_for:&lt;window>, changes_head:&lt;window>, git_head:&lt;window>, git_worktrees:&lt;window>, git_branches:&lt;window> and git_changes:&lt;window> take an id.
+The name of a projection. timeline:&lt;run>, pane_text:&lt;pane>, agents_for:&lt;window>, changes_for:&lt;window>, changes_head:&lt;window>, git_head:&lt;window>, git_worktrees:&lt;window>, git_branches:&lt;window>, git_changes:&lt;window> and hermes_chat:&lt;chat> take an id.
 
-Type: string. Pattern: `^(windows|tree|panes|agents|attention|interactions|notifications|machines|harnesses|limits|jobs|palette|settings|phones|phone_pairing|phone_status|git_repos|health|link|timeline:[0-9A-HJKMNP-TV-Z]{26}|pane_text:[0-9A-HJKMNP-TV-Z]{26}|agents_for:[0-9A-HJKMNP-TV-Z]{26}|changes_for:[0-9A-HJKMNP-TV-Z]{26}|changes_head:[0-9A-HJKMNP-TV-Z]{26}|git_head:[0-9A-HJKMNP-TV-Z]{26}|git_worktrees:[0-9A-HJKMNP-TV-Z]{26}|git_branches:[0-9A-HJKMNP-TV-Z]{26}|git_changes:[0-9A-HJKMNP-TV-Z]{26})$`.
+Type: string. Pattern: `^(windows|tree|panes|agents|attention|interactions|notifications|machines|harnesses|limits|jobs|palette|settings|phones|phone_pairing|phone_status|git_repos|workflows|workflow_executions|hermes_chats|health|link|timeline:[0-9A-HJKMNP-TV-Z]{26}|pane_text:[0-9A-HJKMNP-TV-Z]{26}|agents_for:[0-9A-HJKMNP-TV-Z]{26}|changes_for:[0-9A-HJKMNP-TV-Z]{26}|changes_head:[0-9A-HJKMNP-TV-Z]{26}|git_head:[0-9A-HJKMNP-TV-Z]{26}|git_worktrees:[0-9A-HJKMNP-TV-Z]{26}|git_branches:[0-9A-HJKMNP-TV-Z]{26}|git_changes:[0-9A-HJKMNP-TV-Z]{26}|hermes_chat:[0-9A-HJKMNP-TV-Z]{26})$`.
 
-**Rust:** [`crates/nh-proto/src/api/projections.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/projections.rs#L28) · **Used by:** [`ProjectionSubscribe`](/docs/reference/api/types#projectionsubscribe), [`ProjectionVersions`](/docs/reference/api/types#projectionversions)
+**Rust:** [`crates/nh-proto/src/api/projections.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/projections.rs#L29) · **Used by:** [`ProjectionSubscribe`](/docs/reference/api/types#projectionsubscribe), [`ProjectionVersions`](/docs/reference/api/types#projectionversions)
 
 ### `ProjectionData` {#projectiondata}
 
@@ -4011,7 +4359,7 @@ The state of a projection: the values by key, and the order of the keys.
 | `items` | map of string to any | yes |  |
 | `order` | string[] | yes |  |
 
-**Rust:** [`crates/nh-proto/src/api/projections.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/projections.rs#L236) · **Used by:** [`ProjectionMessage`](/docs/reference/api/types#projectionmessage)
+**Rust:** [`crates/nh-proto/src/api/projections.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/projections.rs#L256) · **Used by:** [`ProjectionMessage`](/docs/reference/api/types#projectionmessage)
 
 ### `ProjectionMessage` {#projectionmessage}
 
@@ -4041,7 +4389,7 @@ One of these forms:
 |---|---|---|---|
 | `type` | `"resync"` | yes |  |
 
-**Rust:** [`crates/nh-proto/src/api/projections.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/projections.rs#L254) · **Used by:** [`ProjectionNotification`](/docs/reference/api/types#projectionnotification)
+**Rust:** [`crates/nh-proto/src/api/projections.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/projections.rs#L274) · **Used by:** [`ProjectionNotification`](/docs/reference/api/types#projectionnotification)
 
 ### `ProjectionNotification` {#projectionnotification}
 
@@ -4052,7 +4400,7 @@ The params of the notification `projection.message`.
 | `message` | [`ProjectionMessage`](/docs/reference/api/types#projectionmessage) | yes |  |
 | `subscription` | string | yes |  |
 
-**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L75)
+**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L74)
 
 ### `ProjectionSubscribe` {#projectionsubscribe}
 
@@ -4063,7 +4411,7 @@ The params of the notification `projection.message`.
 | `name` | [`Projection`](/docs/reference/api/types#projection) | yes |  |
 | `since` | integer (uint64) \| `null` |  | The version the client has. The core sends only patches if it still retains them. |
 
-**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L59) · **Used by:** [`projection.subscribe`](/docs/reference/api/methods/projection#projection-subscribe)
+**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L58) · **Used by:** [`projection.subscribe`](/docs/reference/api/methods/projection#projection-subscribe)
 
 ### `ProjectionSubscribed` {#projectionsubscribed}
 
@@ -4071,7 +4419,7 @@ The params of the notification `projection.message`.
 |---|---|---|---|
 | `subscription` | string | yes |  |
 
-**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L66) · **Used by:** [`projection.subscribe`](/docs/reference/api/methods/projection#projection-subscribe)
+**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L65) · **Used by:** [`projection.subscribe`](/docs/reference/api/methods/projection#projection-subscribe)
 
 ### `ProjectionUnsubscribe` {#projectionunsubscribe}
 
@@ -4079,7 +4427,7 @@ The params of the notification `projection.message`.
 |---|---|---|---|
 | `subscription` | string | yes |  |
 
-**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L70) · **Used by:** [`projection.unsubscribe`](/docs/reference/api/methods/projection#projection-unsubscribe)
+**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L69) · **Used by:** [`projection.unsubscribe`](/docs/reference/api/methods/projection#projection-unsubscribe)
 
 ### `ProjectionVersions` {#projectionversions}
 
@@ -4089,7 +4437,7 @@ The params of the notification `projection.message`.
 |---|---|---|---|
 | `names` | [`Projection`](/docs/reference/api/types#projection)[] | yes |  |
 
-**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L84) · **Used by:** [`projection.versions`](/docs/reference/api/methods/projection#projection-versions)
+**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L83) · **Used by:** [`projection.versions`](/docs/reference/api/methods/projection#projection-versions)
 
 ### `ProjectionVersionsResult` {#projectionversionsresult}
 
@@ -4097,7 +4445,7 @@ The params of the notification `projection.message`.
 |---|---|---|---|
 | `versions` | map of string to integer (uint64) | yes | The version by name. A projection that the core has not made is left out. |
 
-**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L88) · **Used by:** [`projection.versions`](/docs/reference/api/methods/projection#projection-versions)
+**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L87) · **Used by:** [`projection.versions`](/docs/reference/api/methods/projection#projection-versions)
 
 ### `Protocols` {#protocols}
 
@@ -4234,7 +4582,7 @@ A reference to an agent run: its ULID, or its unique name.
 
 Type: string.
 
-**Used by:** [`AgentInterrupt`](/docs/reference/api/types#agentinterrupt), [`AgentMove`](/docs/reference/api/types#agentmove), [`AgentPrompt`](/docs/reference/api/types#agentprompt), [`AgentReply`](/docs/reference/api/types#agentreply), [`AgentResume`](/docs/reference/api/types#agentresume), [`AgentShow`](/docs/reference/api/types#agentshow), [`AgentStop`](/docs/reference/api/types#agentstop), [`AgentUnlink`](/docs/reference/api/types#agentunlink), [`AgentWait`](/docs/reference/api/types#agentwait), [`InteractionList`](/docs/reference/api/types#interactionlist), [`TimelineItemGet`](/docs/reference/api/types#timelineitemget), [`TimelinePageParams`](/docs/reference/api/types#timelinepageparams)
+**Used by:** [`AgentInterrupt`](/docs/reference/api/types#agentinterrupt), [`AgentMove`](/docs/reference/api/types#agentmove), [`AgentPrompt`](/docs/reference/api/types#agentprompt), [`AgentReply`](/docs/reference/api/types#agentreply), [`AgentResume`](/docs/reference/api/types#agentresume), [`AgentShow`](/docs/reference/api/types#agentshow), [`AgentStop`](/docs/reference/api/types#agentstop), [`AgentUnlink`](/docs/reference/api/types#agentunlink), [`AgentWait`](/docs/reference/api/types#agentwait), [`InteractionList`](/docs/reference/api/types#interactionlist), [`TimelineItemGet`](/docs/reference/api/types#timelineitemget), [`TimelinePageParams`](/docs/reference/api/types#timelinepageparams), [`WorkflowNotesFrom`](/docs/reference/api/types#workflownotesfrom)
 
 ### `RefTabId` {#reftabid}
 
@@ -4250,7 +4598,7 @@ A reference to a workspace: its ULID, or its short handle.
 
 Type: string.
 
-**Used by:** [`AgentList`](/docs/reference/api/types#agentlist), [`PaneList`](/docs/reference/api/types#panelist), [`Placement`](/docs/reference/api/types#placement), [`SearchQuery`](/docs/reference/api/types#searchquery), [`TabCreate`](/docs/reference/api/types#tabcreate), [`TabMove`](/docs/reference/api/types#tabmove), [`WorkspaceClose`](/docs/reference/api/types#workspaceclose), [`WorkspaceMove`](/docs/reference/api/types#workspacemove), [`WorkspaceRename`](/docs/reference/api/types#workspacerename), [`WorkspaceShow`](/docs/reference/api/types#workspaceshow)
+**Used by:** [`AgentList`](/docs/reference/api/types#agentlist), [`PaneList`](/docs/reference/api/types#panelist), [`Placement`](/docs/reference/api/types#placement), [`TabCreate`](/docs/reference/api/types#tabcreate), [`TabMove`](/docs/reference/api/types#tabmove), [`WorkspaceClose`](/docs/reference/api/types#workspaceclose), [`WorkspaceMove`](/docs/reference/api/types#workspacemove), [`WorkspaceRename`](/docs/reference/api/types#workspacerename), [`WorkspaceShow`](/docs/reference/api/types#workspaceshow)
 
 ### `RenderAck` {#renderack}
 
@@ -4342,7 +4690,7 @@ A request to a window: show the inbox, and focus the card of this interaction.
 | `lang` | string \| `null` |  |  |
 | `path` | string \| `null` |  |  |
 
-**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L445) · **Used by:** [`rich.diff`](/docs/reference/api/methods/rich#rich-diff)
+**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L415) · **Used by:** [`rich.diff`](/docs/reference/api/methods/rich#rich-diff)
 
 ### `RichHighlight` {#richhighlight}
 
@@ -4351,7 +4699,7 @@ A request to a window: show the inbox, and focus the card of this interaction.
 | `lang` | string | yes |  |
 | `text` | string | yes |  |
 
-**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L458) · **Used by:** [`rich.highlight`](/docs/reference/api/methods/rich#rich-highlight)
+**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L428) · **Used by:** [`rich.highlight`](/docs/reference/api/methods/rich#rich-highlight)
 
 ### `RichMarkdown` {#richmarkdown}
 
@@ -4359,7 +4707,7 @@ A request to a window: show the inbox, and focus the card of this interaction.
 |---|---|---|---|
 | `text` | string | yes |  |
 
-**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L454) · **Used by:** [`rich.markdown`](/docs/reference/api/methods/rich#rich-markdown)
+**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L424) · **Used by:** [`rich.markdown`](/docs/reference/api/methods/rich#rich-markdown)
 
 ### `Risk` {#risk}
 
@@ -4387,7 +4735,7 @@ The ULID of a run of an agent, as 26 characters.
 
 Type: string. Pattern: `^[0-9A-HJKMNP-TV-Z]{26}$`.
 
-**Used by:** [`AdapterDisagreement`](/docs/reference/api/types#adapterdisagreement), [`AgentDetected`](/docs/reference/api/types#agentdetected), [`AgentIdentified`](/docs/reference/api/types#agentidentified), [`AgentLinked`](/docs/reference/api/types#agentlinked), [`AgentStateChanged`](/docs/reference/api/types#agentstatechanged), [`AgentValue`](/docs/reference/api/types#agentvalue), [`AttentionValue`](/docs/reference/api/types#attentionvalue), [`GitAgent`](/docs/reference/api/types#gitagent), [`GitWrite`](/docs/reference/api/types#gitwrite), [`InteractionOpened`](/docs/reference/api/types#interactionopened), [`InteractionValue`](/docs/reference/api/types#interactionvalue), [`PaneValue`](/docs/reference/api/types#panevalue), [`PhonePushed`](/docs/reference/api/types#phonepushed), [`PhoneReplied`](/docs/reference/api/types#phonereplied)
+**Used by:** [`AdapterDisagreement`](/docs/reference/api/types#adapterdisagreement), [`AgentDetected`](/docs/reference/api/types#agentdetected), [`AgentIdentified`](/docs/reference/api/types#agentidentified), [`AgentLinked`](/docs/reference/api/types#agentlinked), [`AgentStateChanged`](/docs/reference/api/types#agentstatechanged), [`AgentValue`](/docs/reference/api/types#agentvalue), [`AttentionValue`](/docs/reference/api/types#attentionvalue), [`ExecutionNodeValue`](/docs/reference/api/types#executionnodevalue), [`GitAgent`](/docs/reference/api/types#gitagent), [`GitWrite`](/docs/reference/api/types#gitwrite), [`InteractionOpened`](/docs/reference/api/types#interactionopened), [`InteractionValue`](/docs/reference/api/types#interactionvalue), [`PaneValue`](/docs/reference/api/types#panevalue), [`PhonePushed`](/docs/reference/api/types#phonepushed), [`PhoneReplied`](/docs/reference/api/types#phonereplied), [`WorkflowNodeEvent`](/docs/reference/api/types#workflownodeevent)
 
 ## S {#letter-s}
 
@@ -4400,38 +4748,6 @@ Type: string. Pattern: `^[0-9A-HJKMNP-TV-Z]{26}$`.
 | `pane` | [`RefPaneId`](/docs/reference/api/types#refpaneid) | yes |  |
 
 **Rust:** [`crates/nh-proto/src/api/streams.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/streams.rs#L49) · **Used by:** [stream `scrollback`](/docs/reference/api/streams#scrollback)
-
-### `SearchHit` {#searchhit}
-
-| Field | Type | Required | Description |
-|---|---|---|---|
-| `at` | [`Timestamp`](/docs/reference/api/types#timestamp) \| `null` |  |  |
-| `line` | integer (uint64) | yes | The absolute line. |
-| `pane` | [`PaneId`](/docs/reference/api/types#paneid) | yes |  |
-| `text` | [`Spans`](/docs/reference/api/types#spans) | yes |  |
-
-**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L389) · **Used by:** [`SearchResults`](/docs/reference/api/types#searchresults)
-
-### `SearchQuery` {#searchquery}
-
-| Field | Type | Required | Description |
-|---|---|---|---|
-| `limit` | integer (uint32) \| `null` |  |  |
-| `pane` | [`RefPaneId`](/docs/reference/api/types#refpaneid) \| `null` |  |  |
-| `query` | string | yes |  |
-| `workspace` | [`RefWorkspaceId`](/docs/reference/api/types#refworkspaceid) \| `null` |  |  |
-
-**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L379) · **Used by:** [`search.query`](/docs/reference/api/methods/search#search-query)
-
-### `SearchResults` {#searchresults}
-
-| Field | Type | Required | Description |
-|---|---|---|---|
-| `hits` | [`SearchHit`](/docs/reference/api/types#searchhit)[] | yes |  |
-| `job` | [`JobId`](/docs/reference/api/types#jobid) \| `null` |  | A job that goes on searching the archive. Its result has the later hits. |
-| `truncated` | boolean |  | More hits exist than `limit`. Default: `false`. |
-
-**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L398) · **Used by:** [`search.query`](/docs/reference/api/methods/search#search-query)
 
 ### `SelectMode` {#selectmode}
 
@@ -4542,7 +4858,7 @@ Text with highlighted ranges.
 | `spans` | any[][] | yes | `[start, end, class]`, in UTF-16 code units. |
 | `text` | string | yes |  |
 
-**Rust:** [`crates/nh-proto/src/api/rich.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/rich.rs#L8) · **Used by:** [`rich.highlight`](/docs/reference/api/methods/rich#rich-highlight), [`Command`](/docs/reference/api/types#command), [`DiffLine`](/docs/reference/api/types#diffline), [`FsReadResult`](/docs/reference/api/types#fsreadresult), [`SearchHit`](/docs/reference/api/types#searchhit)
+**Rust:** [`crates/nh-proto/src/api/rich.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/rich.rs#L8) · **Used by:** [`rich.highlight`](/docs/reference/api/methods/rich#rich-highlight), [`Command`](/docs/reference/api/types#command), [`DiffLine`](/docs/reference/api/types#diffline), [`FsReadResult`](/docs/reference/api/types#fsreadresult)
 
 ### `SplitDirection` {#splitdirection}
 
@@ -4629,7 +4945,7 @@ The payload of the `tab.*` events.
 | `tab` | [`TabId`](/docs/reference/api/types#tabid) | yes |  |
 | `workspace` | [`WorkspaceId`](/docs/reference/api/types#workspaceid) | yes |  |
 
-**Rust:** [`crates/nh-proto/src/api/events.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/events.rs#L212) · **Used by:** [event `tab.created`](/docs/reference/api/events#tab-created), [event `tab.renamed`](/docs/reference/api/events#tab-renamed), [event `tab.moved`](/docs/reference/api/events#tab-moved), [event `tab.closed`](/docs/reference/api/events#tab-closed), [event `tab.selected`](/docs/reference/api/events#tab-selected)
+**Rust:** [`crates/nh-proto/src/api/events.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/events.rs#L215) · **Used by:** [event `tab.created`](/docs/reference/api/events#tab-created), [event `tab.renamed`](/docs/reference/api/events#tab-renamed), [event `tab.moved`](/docs/reference/api/events#tab-moved), [event `tab.closed`](/docs/reference/api/events#tab-closed), [event `tab.selected`](/docs/reference/api/events#tab-selected)
 
 ### `TabId` {#tabid}
 
@@ -4794,7 +5110,7 @@ The full text of a `prompt` item or an `assistant` item of `timeline:<run>`. An 
 | `item` | string | yes |  |
 | `run` | [`RefRunId`](/docs/reference/api/types#refrunid) | yes |  |
 
-**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L479) · **Used by:** [`timeline.item`](/docs/reference/api/methods/timeline#timeline-item)
+**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L449) · **Used by:** [`timeline.item`](/docs/reference/api/methods/timeline#timeline-item)
 
 ### `TimelineItemText` {#timelineitemtext}
 
@@ -4805,7 +5121,7 @@ The text as sanitized HTML. `truncated` is true when the text was longer than 64
 | `html` | string | yes |  |
 | `truncated` | boolean | yes |  |
 
-**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L485) · **Used by:** [`timeline.item`](/docs/reference/api/methods/timeline#timeline-item)
+**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L455) · **Used by:** [`timeline.item`](/docs/reference/api/methods/timeline#timeline-item)
 
 ### `TimelinePageParams` {#timelinepageparams}
 
@@ -4817,7 +5133,7 @@ Older items of `timeline:<run>`. They are history, not live state.
 | `limit` | integer (uint32) \| `null` |  |  |
 | `run` | [`RefRunId`](/docs/reference/api/types#refrunid) | yes |  |
 
-**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L464) · **Used by:** [`timeline.page`](/docs/reference/api/methods/timeline#timeline-page)
+**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L434) · **Used by:** [`timeline.page`](/docs/reference/api/methods/timeline#timeline-page)
 
 ### `TimelinePageResult` {#timelinepageresult}
 
@@ -4826,7 +5142,7 @@ Older items of `timeline:<run>`. They are history, not live state.
 | `items` | [`TimelineItem`](/docs/reference/api/types#timelineitem)[] | yes |  |
 | `more` | boolean | yes |  |
 
-**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L472) · **Used by:** [`timeline.page`](/docs/reference/api/methods/timeline#timeline-page)
+**Rust:** [`crates/nh-proto/src/api/calls/system.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/system.rs#L442) · **Used by:** [`timeline.page`](/docs/reference/api/methods/timeline#timeline-page)
 
 ### `Timestamp` {#timestamp}
 
@@ -4834,7 +5150,7 @@ RFC 3339 in UTC with milliseconds, for example 2026-10-09T12:34:56.789Z.
 
 Type: string (date-time).
 
-**Rust:** [`crates/nh-proto/src/api/time.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/time.rs#L12) · **Used by:** [`AgentValue`](/docs/reference/api/types#agentvalue), [`AttentionValue`](/docs/reference/api/types#attentionvalue), [`ClipboardDropped`](/docs/reference/api/types#clipboarddropped), [`Event`](/docs/reference/api/types#event), [`Execution`](/docs/reference/api/types#execution), [`GitBranchValue`](/docs/reference/api/types#gitbranchvalue), [`GitCommit`](/docs/reference/api/types#gitcommit), [`GitHead`](/docs/reference/api/types#githead), [`HarnessValue`](/docs/reference/api/types#harnessvalue), [`IntegrationStatusEntry`](/docs/reference/api/types#integrationstatusentry), [`InteractionValue`](/docs/reference/api/types#interactionvalue), [`JobValue`](/docs/reference/api/types#jobvalue), [`LinkValue`](/docs/reference/api/types#linkvalue), [`NoticePayload`](/docs/reference/api/types#noticepayload), [`NotificationValue`](/docs/reference/api/types#notificationvalue), [`PhonePairStarted`](/docs/reference/api/types#phonepairstarted), [`PhonePairingValue`](/docs/reference/api/types#phonepairingvalue), [`PhoneValue`](/docs/reference/api/types#phonevalue), [`PolicyRuleValue`](/docs/reference/api/types#policyrulevalue), [`PolicySuggestion`](/docs/reference/api/types#policysuggestion), [`Provenance`](/docs/reference/api/types#provenance), [`RateLimitWindow`](/docs/reference/api/types#ratelimitwindow), [`SearchHit`](/docs/reference/api/types#searchhit), [`SessionInfo`](/docs/reference/api/types#sessioninfo), …
+**Rust:** [`crates/nh-proto/src/api/time.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/time.rs#L12) · **Used by:** [`AgentValue`](/docs/reference/api/types#agentvalue), [`AttentionValue`](/docs/reference/api/types#attentionvalue), [`ClipboardDropped`](/docs/reference/api/types#clipboarddropped), [`Event`](/docs/reference/api/types#event), [`Execution`](/docs/reference/api/types#execution), [`ExecutionValue`](/docs/reference/api/types#executionvalue), [`GitBranchValue`](/docs/reference/api/types#gitbranchvalue), [`GitCommit`](/docs/reference/api/types#gitcommit), [`GitHead`](/docs/reference/api/types#githead), [`HarnessValue`](/docs/reference/api/types#harnessvalue), [`HermesChatValue`](/docs/reference/api/types#hermeschatvalue), [`HermesItem`](/docs/reference/api/types#hermesitem), [`HermesItemBody`](/docs/reference/api/types#hermesitembody), [`IntegrationStatusEntry`](/docs/reference/api/types#integrationstatusentry), [`InteractionValue`](/docs/reference/api/types#interactionvalue), [`JobValue`](/docs/reference/api/types#jobvalue), [`LinkValue`](/docs/reference/api/types#linkvalue), [`NoticePayload`](/docs/reference/api/types#noticepayload), [`NotificationValue`](/docs/reference/api/types#notificationvalue), [`PhonePairStarted`](/docs/reference/api/types#phonepairstarted), [`PhonePairingValue`](/docs/reference/api/types#phonepairingvalue), [`PhoneValue`](/docs/reference/api/types#phonevalue), [`PolicyRuleValue`](/docs/reference/api/types#policyrulevalue), [`PolicySuggestion`](/docs/reference/api/types#policysuggestion), …
 
 ### `ToolStatus` {#toolstatus}
 
@@ -4848,7 +5164,7 @@ Values: `"running"`, `"ok"`, `"failed"`, `"denied"`.
 
 Values: `"holder_lost"`, `"server_restarted"`, `"not_written"`.
 
-**Rust:** [`crates/nh-proto/src/api/events.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/events.rs#L169) · **Used by:** [`PaneInputUnconfirmed`](/docs/reference/api/types#paneinputunconfirmed)
+**Rust:** [`crates/nh-proto/src/api/events.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/events.rs#L172) · **Used by:** [`PaneInputUnconfirmed`](/docs/reference/api/types#paneinputunconfirmed)
 
 ### `UnvalidatedHarness` {#unvalidatedharness}
 
@@ -4882,6 +5198,18 @@ Token use and cost. The cost is the figure of the harness when it reports one.
 **Rust:** [`crates/nh-proto/src/api/model.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/model.rs#L293) · **Used by:** [`AgentValue`](/docs/reference/api/types#agentvalue), [`LimitValue`](/docs/reference/api/types#limitvalue)
 
 ## V {#letter-v}
+
+### `Verdict` {#verdict}
+
+The last line of a report: `Verdict: pass`, `warn` or `fail`.
+
+One of these forms:
+
+- `"pass"` | `"warn"` | `"fail"`
+
+- `"unknown"` — The report has no verdict line.
+
+**Rust:** [`crates/nh-proto/src/api/model.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/model.rs#L1363) · **Used by:** [`ExecutionNodeValue`](/docs/reference/api/types#executionnodevalue)
 
 ### `Via` {#via}
 
@@ -4925,7 +5253,7 @@ The payload of the `window.*` events.
 |---|---|---|---|
 | `window` | [`WindowId`](/docs/reference/api/types#windowid) | yes |  |
 
-**Rust:** [`crates/nh-proto/src/api/events.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/events.rs#L234) · **Used by:** [event `window.opened`](/docs/reference/api/events#window-opened), [event `window.closed`](/docs/reference/api/events#window-closed)
+**Rust:** [`crates/nh-proto/src/api/events.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/events.rs#L237) · **Used by:** [event `window.opened`](/docs/reference/api/events#window-opened), [event `window.closed`](/docs/reference/api/events#window-closed)
 
 ### `WindowFocusReport` {#windowfocusreport}
 
@@ -5034,6 +5362,394 @@ The single view of a window. With `single`, the window draws only its focused pa
 
 **Rust:** [`crates/nh-proto/src/api/model.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/model.rs#L24) · **Used by:** [projection `windows`](/docs/reference/api/projections#windows)
 
+### `WorkflowContinue` {#workflowcontinue}
+
+`workflow.continue`: starts the agent of a node again with its resume handle, in a new tab that the window shows.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `execution` | [`ExecutionId`](/docs/reference/api/types#executionid) | yes |  |
+| `node` | string | yes |  |
+| `window` | [`WindowId`](/docs/reference/api/types#windowid) \| `null` |  | The window that selects the new tab. |
+
+**Rust:** [`crates/nh-proto/src/api/calls/workflow.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workflow.rs#L268) · **Used by:** [`workflow.continue`](/docs/reference/api/methods/workflow#workflow-continue)
+
+### `WorkflowCopied` {#workflowcopied}
+
+The result of `workflow.copy_to_folder`.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `path` | string | yes | The absolute path of the copy. |
+
+**Rust:** [`crates/nh-proto/src/api/calls/workflow.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workflow.rs#L285) · **Used by:** [`workflow.copy_to_folder`](/docs/reference/api/methods/workflow#workflow-copy-to-folder)
+
+### `WorkflowCreate` {#workflowcreate}
+
+`workflow.create`: a new workflow file. The name of the file comes from `name`.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `name` | string | yes |  |
+| `preset` | string \| `null` |  | A preset workflow of `workflow.presets`, for example `review`. Without it, the workflow has only the trigger. |
+
+**Rust:** [`crates/nh-proto/src/api/calls/workflow.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workflow.rs#L120) · **Used by:** [`workflow.create`](/docs/reference/api/methods/workflow#workflow-create)
+
+### `WorkflowExecute` {#workflowexecute}
+
+`workflow.execute`: starts an execution.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `base` | string \| `null` |  | The base of the changes. Without it, the default of `workflow.facts`. |
+| `folder` | string | yes | The absolute path of the folder in which the agents work. |
+| `node` | string \| `null` |  | Execute only this node, with the reports of the last execution in this folder as inputs. |
+| `notes` | string \| `null` |  | What the person built and why. `{{start.notes}}` gives it to a prompt. |
+| `workflow` | string | yes |  |
+
+**Rust:** [`crates/nh-proto/src/api/calls/workflow.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workflow.rs#L191) · **Used by:** [`workflow.execute`](/docs/reference/api/methods/workflow#workflow-execute)
+
+### `WorkflowExecuted` {#workflowexecuted}
+
+The result of `workflow.execute`.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `execution` | [`ExecutionId`](/docs/reference/api/types#executionid) | yes |  |
+| `label` | string | yes | The name of the execution, for example "Review 3". |
+
+**Rust:** [`crates/nh-proto/src/api/calls/workflow.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workflow.rs#L207) · **Used by:** [`workflow.execute`](/docs/reference/api/methods/workflow#workflow-execute)
+
+### `WorkflowExecutionEvent` {#workflowexecutionevent}
+
+The payload of `workflow.execution_started` and `workflow.execution_ended`.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `execution` | [`ExecutionId`](/docs/reference/api/types#executionid) | yes |  |
+| `state` | [`ExecutionState`](/docs/reference/api/types#executionstate) | yes |  |
+| `workflow` | string | yes | The name of the workflow file without `.toml`. |
+
+**Rust:** [`crates/nh-proto/src/api/events.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/events.rs#L322) · **Used by:** [event `workflow.execution_started`](/docs/reference/api/events#workflow-execution-started), [event `workflow.execution_ended`](/docs/reference/api/events#workflow-execution-ended)
+
+### `WorkflowExecutionList` {#workflowexecutionlist}
+
+The result of `workflow.executions`.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `executions` | [`ExecutionValue`](/docs/reference/api/types#executionvalue)[] | yes |  |
+
+**Rust:** [`crates/nh-proto/src/api/calls/workflow.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workflow.rs#L231) · **Used by:** [`workflow.executions`](/docs/reference/api/methods/workflow#workflow-executions)
+
+### `WorkflowExecutionRef` {#workflowexecutionref}
+
+`workflow.execution`, `workflow.cancel`, `workflow.copy_to_folder`: one execution.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `execution` | [`ExecutionId`](/docs/reference/api/types#executionid) | yes |  |
+
+**Rust:** [`crates/nh-proto/src/api/calls/workflow.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workflow.rs#L236) · **Used by:** [`workflow.execution`](/docs/reference/api/methods/workflow#workflow-execution), [`workflow.cancel`](/docs/reference/api/methods/workflow#workflow-cancel), [`workflow.copy_to_folder`](/docs/reference/api/methods/workflow#workflow-copy-to-folder)
+
+### `WorkflowExecutionShown` {#workflowexecutionshown}
+
+The result of `workflow.execution`: the execution and the graph that it runs.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `execution` | [`ExecutionValue`](/docs/reference/api/types#executionvalue) | yes |  |
+| `graph` | [`WorkflowGraph`](/docs/reference/api/types#workflowgraph) | yes |  |
+
+**Rust:** [`crates/nh-proto/src/api/calls/workflow.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workflow.rs#L241) · **Used by:** [`workflow.execution`](/docs/reference/api/methods/workflow#workflow-execution)
+
+### `WorkflowExecutions` {#workflowexecutions}
+
+`workflow.executions`: the executions, the newest first.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `folder` | string \| `null` |  | Only the executions in this folder. |
+
+**Rust:** [`crates/nh-proto/src/api/calls/workflow.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workflow.rs#L224) · **Used by:** [`workflow.executions`](/docs/reference/api/methods/workflow#workflow-executions)
+
+### `WorkflowFacts` {#workflowfacts}
+
+The facts of a folder for an execution.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `base` | string \| `null` |  | The default base: the default branch of `origin` (`origin/HEAD`), else `main` or `master`. |
+| `branch` | string \| `null` |  |  |
+| `folder` | string | yes |  |
+| `repo` | string \| `null` |  | The root of the git worktree that holds the folder. |
+
+**Rust:** [`crates/nh-proto/src/api/calls/workflow.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workflow.rs#L178) · **Used by:** [`workflow.facts`](/docs/reference/api/methods/workflow#workflow-facts)
+
+### `WorkflowFactsGet` {#workflowfactsget}
+
+`workflow.facts`: what the dialog of an execution shows for a folder.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `folder` | string | yes | An absolute path. |
+
+**Rust:** [`crates/nh-proto/src/api/calls/workflow.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workflow.rs#L172) · **Used by:** [`workflow.facts`](/docs/reference/api/methods/workflow#workflow-facts)
+
+### `WorkflowGraph` {#workflowgraph}
+
+The graph of a workflow.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `name` | string | yes | The name, for example "Review". |
+| `nodes` | [`WorkflowNode`](/docs/reference/api/types#workflownode)[] | yes |  |
+
+**Rust:** [`crates/nh-proto/src/api/calls/workflow.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workflow.rs#L75) · **Used by:** [`WorkflowExecutionShown`](/docs/reference/api/types#workflowexecutionshown), [`WorkflowSave`](/docs/reference/api/types#workflowsave), [`WorkflowShown`](/docs/reference/api/types#workflowshown)
+
+### `WorkflowLayout` {#workflowlayout}
+
+`workflow.layout`: gives each node a new position, one column for each depth, and saves.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `revision` | string | yes |  |
+| `workflow` | string | yes |  |
+
+**Rust:** [`crates/nh-proto/src/api/calls/workflow.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workflow.rs#L143) · **Used by:** [`workflow.layout`](/docs/reference/api/methods/workflow#workflow-layout)
+
+### `WorkflowList` {#workflowlist}
+
+`workflow.list`: the workflows, as the `workflows` projection has them.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `workflows` | [`WorkflowValue`](/docs/reference/api/types#workflowvalue)[] | yes |  |
+
+**Rust:** [`crates/nh-proto/src/api/calls/workflow.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workflow.rs#L108) · **Used by:** [`workflow.list`](/docs/reference/api/methods/workflow#workflow-list)
+
+### `WorkflowNode` {#workflownode}
+
+A node of a workflow.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `can_edit` | boolean |  | Agent: the agent can edit files. Without it, the agent is read-only. Default: `false`. |
+| `effort` | string \| `null` |  | Agent: the effort level. Without it, the harness uses its own. |
+| `harness` | [`Harness`](/docs/reference/api/types#harness) \| `null` |  | Agent: the harness. |
+| `id` | string | yes | The id: `[a-z][a-z0-9_]*`, unique in the workflow. A reference names it, for example `{{code.report}}`. |
+| `inputs` | string[] |  | The ids of the nodes that connect to this node. Default: `[]`. |
+| `kind` | [`WorkflowNodeKind`](/docs/reference/api/types#workflownodekind) | yes |  |
+| `model` | string \| `null` |  | Agent: the model, as the harness names it. Without it, the harness uses its own. |
+| `prompt` | string |  | Agent: the prompt, with references such as `{{start.base}}`. Default: `""`. |
+| `summary_by` | [`Harness`](/docs/reference/api/types#harness) \| `null` |  | Report: the harness that writes a summary at the top of `report.md`. |
+| `summary_prompt` | string \| `null` |  | Report: the first part of the prompt of the summary. Without it, the core uses its own. |
+| `time_limit_min` | integer (uint32) \| `null` |  | Agent: the time limit in minutes. Without it, `workflows.time_limit_min`. |
+| `title` | string |  | The title on the card. Without it, the card shows the id. Default: `""`. |
+| `x` | integer (int32) | yes | The position on the canvas, in canvas units. |
+| `y` | integer (int32) | yes |  |
+
+**Rust:** [`crates/nh-proto/src/api/calls/workflow.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workflow.rs#L34) · **Used by:** [`WorkflowGraph`](/docs/reference/api/types#workflowgraph), [`WorkflowNodePreset`](/docs/reference/api/types#workflownodepreset)
+
+### `WorkflowNodeEvent` {#workflownodeevent}
+
+The payload of `workflow.node_changed`.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `execution` | [`ExecutionId`](/docs/reference/api/types#executionid) | yes |  |
+| `node` | string | yes |  |
+| `reason` | string \| `null` |  |  |
+| `run` | [`RunId`](/docs/reference/api/types#runid) \| `null` |  | The agent run of the node, while it has one. |
+| `state` | [`NodeState`](/docs/reference/api/types#nodestate) | yes |  |
+
+**Rust:** [`crates/nh-proto/src/api/events.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/events.rs#L336) · **Used by:** [event `workflow.node_changed`](/docs/reference/api/events#workflow-node-changed)
+
+### `WorkflowNodeKind` {#workflownodekind}
+
+The kind of a node.
+
+| Value | Meaning |
+|---|---|
+| `"manual"` | The start of the workflow. Each workflow has exactly one. |
+| `"agent"` | Claude Code or Codex does the prompt of the node and gives a report. |
+| `"report"` | Writes `report.md` from the reports of its inputs. |
+
+**Rust:** [`crates/nh-proto/src/api/calls/workflow.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workflow.rs#L24) · **Used by:** [`WorkflowNode`](/docs/reference/api/types#workflownode)
+
+### `WorkflowNodePreset` {#workflownodepreset}
+
+A node of the node picker.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `id` | string | yes |  |
+| `label` | string | yes | The text of the picker, for example "Security review". |
+| `node` | [`WorkflowNode`](/docs/reference/api/types#workflownode) | yes | The node without `id`, `inputs` and position. |
+
+**Rust:** [`crates/nh-proto/src/api/calls/workflow.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workflow.rs#L149) · **Used by:** [`WorkflowPresets`](/docs/reference/api/types#workflowpresets)
+
+### `WorkflowNodeRef` {#workflownoderef}
+
+`workflow.retry`, `workflow.skip`: one node of an execution.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `execution` | [`ExecutionId`](/docs/reference/api/types#executionid) | yes |  |
+| `node` | string | yes |  |
+
+**Rust:** [`crates/nh-proto/src/api/calls/workflow.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workflow.rs#L247) · **Used by:** [`workflow.retry`](/docs/reference/api/methods/workflow#workflow-retry), [`workflow.skip`](/docs/reference/api/methods/workflow#workflow-skip)
+
+### `WorkflowNotes` {#workflownotes}
+
+The result of `workflow.notes_from`.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `text` | string | yes |  |
+
+**Rust:** [`crates/nh-proto/src/api/calls/workflow.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workflow.rs#L219) · **Used by:** [`workflow.notes_from`](/docs/reference/api/methods/workflow#workflow-notes-from)
+
+### `WorkflowNotesFrom` {#workflownotesfrom}
+
+`workflow.notes_from`: the prompts of an agent run, as one text for the notes.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `agent` | [`RefRunId`](/docs/reference/api/types#refrunid) | yes |  |
+
+**Rust:** [`crates/nh-proto/src/api/calls/workflow.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workflow.rs#L214) · **Used by:** [`workflow.notes_from`](/docs/reference/api/methods/workflow#workflow-notes-from)
+
+### `WorkflowPreset` {#workflowpreset}
+
+A workflow that `workflow.create` can start from.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `id` | string | yes |  |
+| `label` | string | yes |  |
+
+**Rust:** [`crates/nh-proto/src/api/calls/workflow.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workflow.rs#L158) · **Used by:** [`WorkflowPresets`](/docs/reference/api/types#workflowpresets)
+
+### `WorkflowPresets` {#workflowpresets}
+
+`workflow.presets`: the items of the node picker and the preset workflows.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `nodes` | [`WorkflowNodePreset`](/docs/reference/api/types#workflownodepreset)[] | yes |  |
+| `workflows` | [`WorkflowPreset`](/docs/reference/api/types#workflowpreset)[] | yes |  |
+
+**Rust:** [`crates/nh-proto/src/api/calls/workflow.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workflow.rs#L164) · **Used by:** [`workflow.presets`](/docs/reference/api/methods/workflow#workflow-presets)
+
+### `WorkflowProblem` {#workflowproblem}
+
+An error in a workflow. A workflow with errors can be saved, but not executed.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `node` | string \| `null` |  | The node with the error, if the error is in one node. |
+| `text` | string | yes |  |
+
+**Rust:** [`crates/nh-proto/src/api/calls/workflow.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workflow.rs#L82) · **Used by:** [`WorkflowShown`](/docs/reference/api/types#workflowshown)
+
+### `WorkflowRef` {#workflowref}
+
+`workflow.show`, `workflow.delete`, `workflow.duplicate`, `workflow.undo`, `workflow.redo`: one workflow.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `workflow` | string | yes | The name of the file without `.toml`. |
+
+**Rust:** [`crates/nh-proto/src/api/calls/workflow.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workflow.rs#L114) · **Used by:** [`workflow.show`](/docs/reference/api/methods/workflow#workflow-show), [`workflow.duplicate`](/docs/reference/api/methods/workflow#workflow-duplicate), [`workflow.delete`](/docs/reference/api/methods/workflow#workflow-delete), [`workflow.undo`](/docs/reference/api/methods/workflow#workflow-undo), [`workflow.redo`](/docs/reference/api/methods/workflow#workflow-redo)
+
+### `WorkflowRename` {#workflowrename}
+
+`workflow.rename`: gives a workflow a new name, and its file the name that comes from it.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `name` | string | yes |  |
+| `workflow` | string | yes |  |
+
+**Rust:** [`crates/nh-proto/src/api/calls/workflow.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workflow.rs#L137) · **Used by:** [`workflow.rename`](/docs/reference/api/methods/workflow#workflow-rename)
+
+### `WorkflowReport` {#workflowreport}
+
+The result of `workflow.report`.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `markdown` | [`Markdown`](/docs/reference/api/types#markdown) | yes |  |
+| `path` | string | yes |  |
+
+**Rust:** [`crates/nh-proto/src/api/calls/workflow.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workflow.rs#L261) · **Used by:** [`workflow.report`](/docs/reference/api/methods/workflow#workflow-report)
+
+### `WorkflowReportGet` {#workflowreportget}
+
+`workflow.report`: a report of an execution.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `execution` | [`ExecutionId`](/docs/reference/api/types#executionid) | yes |  |
+| `node` | string \| `null` |  | The node. Without it, `report.md`. |
+
+**Rust:** [`crates/nh-proto/src/api/calls/workflow.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workflow.rs#L253) · **Used by:** [`workflow.report`](/docs/reference/api/methods/workflow#workflow-report)
+
+### `WorkflowReveal` {#workflowreveal}
+
+`workflow.reveal`: the tab of the agent of a node shows in the tab bar, and the window selects it.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `execution` | [`ExecutionId`](/docs/reference/api/types#executionid) | yes |  |
+| `node` | string | yes |  |
+| `window` | [`WindowId`](/docs/reference/api/types#windowid) | yes |  |
+
+**Rust:** [`crates/nh-proto/src/api/calls/workflow.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workflow.rs#L278) · **Used by:** [`workflow.reveal`](/docs/reference/api/methods/workflow#workflow-reveal)
+
+### `WorkflowSave` {#workflowsave}
+
+`workflow.save`: writes the graph of a workflow.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `graph` | [`WorkflowGraph`](/docs/reference/api/types#workflowgraph) | yes |  |
+| `revision` | string | yes | The revision that the change starts from. An older one answers `conflict`. |
+| `workflow` | string | yes |  |
+
+**Rust:** [`crates/nh-proto/src/api/calls/workflow.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workflow.rs#L129) · **Used by:** [`workflow.save`](/docs/reference/api/methods/workflow#workflow-save)
+
+### `WorkflowShown` {#workflowshown}
+
+A workflow and its errors: the result of `workflow.show` and of each change.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `can_redo` | boolean |  | `workflow.redo` has a version to go forward to. Default: `false`. |
+| `can_undo` | boolean |  | `workflow.undo` has a version to go back to. Default: `false`. |
+| `graph` | [`WorkflowGraph`](/docs/reference/api/types#workflowgraph) | yes |  |
+| `path` | string | yes | The absolute path of the file. |
+| `problems` | [`WorkflowProblem`](/docs/reference/api/types#workflowproblem)[] | yes |  |
+| `revision` | string | yes | The revision of the file. `workflow.save` takes it. |
+| `workflow` | string | yes | The name of the file without `.toml`. |
+
+**Rust:** [`crates/nh-proto/src/api/calls/workflow.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/calls/workflow.rs#L90) · **Used by:** [`workflow.show`](/docs/reference/api/methods/workflow#workflow-show), [`workflow.create`](/docs/reference/api/methods/workflow#workflow-create), [`workflow.save`](/docs/reference/api/methods/workflow#workflow-save), [`workflow.rename`](/docs/reference/api/methods/workflow#workflow-rename), [`workflow.duplicate`](/docs/reference/api/methods/workflow#workflow-duplicate), [`workflow.undo`](/docs/reference/api/methods/workflow#workflow-undo), [`workflow.redo`](/docs/reference/api/methods/workflow#workflow-redo), [`workflow.layout`](/docs/reference/api/methods/workflow#workflow-layout)
+
+### `WorkflowValue` {#workflowvalue}
+
+`workflows`: a workflow file in `<config>/workflows/`. The key is the name of the file without `.toml`. The core orders the rows by name.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `name` | string | yes | The name in the file, for example "Review". |
+| `nodes` | integer (uint32) | yes | The number of nodes. |
+| `problems` | integer (uint32) | yes | The number of errors. A workflow with errors cannot be executed. |
+| `revision` | string | yes | The revision of the file, as `workflow.show` gives it. |
+| `workflow` | string | yes | The name of the file without `.toml`. Calls name the workflow with it. |
+
+**Rust:** [`crates/nh-proto/src/api/model.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/model.rs#L1311) · **Used by:** [projection `workflows`](/docs/reference/api/projections#workflows), [`WorkflowList`](/docs/reference/api/types#workflowlist)
+
 ### `WorkspaceClose` {#workspaceclose}
 
 `confirm_required` when a pane has a live process and `force` is false.
@@ -5082,7 +5798,7 @@ The payload of the `workspace.*` events.
 | `name` | string \| `null` |  |  |
 | `workspace` | [`WorkspaceId`](/docs/reference/api/types#workspaceid) | yes |  |
 
-**Rust:** [`crates/nh-proto/src/api/events.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/events.rs#L197) · **Used by:** [event `workspace.created`](/docs/reference/api/events#workspace-created), [event `workspace.renamed`](/docs/reference/api/events#workspace-renamed), [event `workspace.moved`](/docs/reference/api/events#workspace-moved), [event `workspace.closed`](/docs/reference/api/events#workspace-closed)
+**Rust:** [`crates/nh-proto/src/api/events.rs`](https://github.com/nikodem-wrona/neohar/blob/main/crates/nh-proto/src/api/events.rs#L200) · **Used by:** [event `workspace.created`](/docs/reference/api/events#workspace-created), [event `workspace.renamed`](/docs/reference/api/events#workspace-renamed), [event `workspace.moved`](/docs/reference/api/events#workspace-moved), [event `workspace.closed`](/docs/reference/api/events#workspace-closed)
 
 ### `WorkspaceId` {#workspaceid}
 

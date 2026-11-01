@@ -36,8 +36,9 @@ function context(overrides: Partial<ActionContext> = {}) {
     ],
     showDrawer: (tab) => drawer.push(tab),
     togglePalette: () => drawer.push('palette'),
-    toggleSearch: () => drawer.push('search'),
     toggleGit: () => drawer.push('git'),
+    toggleWorkflows: () => drawer.push('workflows'),
+    toggleHermes: () => drawer.push('hermes'),
     focusCard: (id) => drawer.push(`card:${id}`),
     ...overrides,
   };
@@ -75,7 +76,7 @@ test('the split chords split the focused pane, and none focused means nothing', 
   expect(none.calls).toEqual([]);
 });
 
-test('a new window, the inbox, the search, and the commands of later packages', () => {
+test('a new window, the inbox, the palette, and the commands of later packages', () => {
   const { ctx, calls, drawer } = context();
   expect(runCommand('window.new', ctx)).toBe(true);
   expect(calls).toEqual([{ method: 'window.open', params: {} }]);
@@ -83,10 +84,10 @@ test('a new window, the inbox, the search, and the commands of later packages', 
   expect(drawer).toEqual(['inbox']);
   expect(runCommand('palette.open', ctx)).toBe(true);
   expect(drawer).toEqual(['inbox', 'palette']);
-  expect(runCommand('search.open', ctx)).toBe(true);
-  expect(drawer).toEqual(['inbox', 'palette', 'search']);
   expect(runCommand('git.open', ctx)).toBe(true);
-  expect(drawer).toEqual(['inbox', 'palette', 'search', 'git']);
+  expect(drawer).toEqual(['inbox', 'palette', 'git']);
+  expect(runCommand('workflows.open', ctx)).toBe(true);
+  expect(drawer).toEqual(['inbox', 'palette', 'git', 'workflows']);
   // The key of the peek is reserved, and nothing happens.
   expect(runCommand('peek.sibling', ctx)).toBe(true);
   expect(calls).toHaveLength(1);

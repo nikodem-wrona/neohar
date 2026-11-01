@@ -2,13 +2,14 @@
 // core shows, and the id of this window.
 
 import type { Method, Params, Transport } from '@neohar/transport';
-import { createContext, useContext } from 'solid-js';
+import { createContext, useContext } from 'react';
 import type { Platform } from '../input/clipboard';
 import type { Keyboard } from '../input/keyboard';
 import type { InputSender } from '../input/sender';
 import type { RenderHost } from '../render';
 import type { Stores } from '../stores';
 import type { Failures } from './failures';
+import type { Toasts } from './toasts';
 import type { ViewState } from './view';
 
 /**
@@ -28,6 +29,8 @@ export interface App {
   report(failure: unknown): void;
   /** The failure that the banner shows. */
   failures: Failures;
+  /** The toasts in the bottom right corner, such as an answer that arrived. */
+  toasts: Toasts;
   form: Form;
   stores: Stores;
   windowId: string;
@@ -46,7 +49,7 @@ export interface App {
   upload?: (file: File) => Promise<string>;
 }
 
-const AppContext = createContext<App>();
+const AppContext = createContext<App | undefined>(undefined);
 
 export const AppProvider = AppContext.Provider;
 

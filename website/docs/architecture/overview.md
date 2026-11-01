@@ -27,7 +27,7 @@ neohar is two binaries and many small processes. The app, `neohar.app`, links th
 ```mermaid
 flowchart LR
   subgraph APP["neohar.app"]
-    WV["Webview: SolidJS chrome, WASM decoder, WebGL2"]
+    WV["Webview: React chrome, WASM decoder, WebGL2"]
     HOST["Tauri host"]
     CORE["nh-core: state actor, pane tasks, render server, API server"]
   end
@@ -80,8 +80,8 @@ One module, [crates/nh-proto/src/paths.rs](https://github.com/nikodem-wrona/neoh
 
 | Root | macOS | Linux | Holds |
 |---|---|---|---|
-| Config | `~/.config/neohar` | `$XDG_CONFIG_HOME/neohar` | `config.toml`, `harnesses/*.toml` |
-| Data | `~/Library/Application Support/dev.neohar.app/<session>` | `$XDG_DATA_HOME/neohar/<session>` | `state.db`, `scrollback/`, `blobs/`, `logs/`, `shims/` |
+| Config | `~/.config/neohar` | `$XDG_CONFIG_HOME/neohar` | `config.toml`, `harnesses/*.toml`, `workflows/*.toml` |
+| Data | `~/Library/Application Support/dev.neohar.app/<session>` | `$XDG_DATA_HOME/neohar/<session>` | `state.db`, `scrollback/`, `blobs/`, `logs/`, `shims/`, `workflows/executions/` |
 | Runtime | `/tmp/neohar-$UID/<session>` | `$XDG_RUNTIME_DIR/neohar/<session>` | `api.sock`, `link.sock`, `holders/<pane>.sock`, `ssh/` |
 
 - The macOS runtime root is under `/tmp`, because a socket path under `$TMPDIR` is longer than the macOS limit of 103 bytes. The core uses it only if it is a real directory of the user with mode 0700. Another user can make it first, so the clients check it too before they connect (see the security model).
@@ -102,7 +102,7 @@ Numbers are from measurements on a Mac with an Apple M4 and a 60 Hz display. [Lo
 | Memory per pane (≤ 120 columns) | < 4 MB | 3.75 MB at 120 columns |
 | Cold start to first painted window | < 500 ms | 299–396 ms |
 | Reattach 20 panes | < 1 s | median 16 ms |
-| UI bundle gzipped | < 300 KB | 87 KB |
+| UI bundle gzipped: desk, phone / first chunk of the phone | < 400 KB each / < 250 KB | 315.9 KB, 323.7 KB / 232.8 KB |
 | Hook shim through the symlink | p50 ≤ 5 ms | 1.3–1.4 ms |
 | Link cost, key to frame | ≤ 1 ms p99 | 0.39 ms (no ssh) |
 

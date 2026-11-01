@@ -46,12 +46,12 @@ describe('table', () => {
 });
 
 describe('the limit', () => {
-  it('is 300 KB of gzipped bytes', () => {
-    expect(LIMIT).toBe(300_000);
+  it('is 400 KB of gzipped bytes', () => {
+    expect(LIMIT).toBe(400_000);
   });
 
-  it('is 300 KB for the phone app, and 150 KB for its first chunk', () => {
-    expect(PHONE_LIMIT).toBe(150_000);
+  it('is 400 KB for the phone app, and 250 KB for its first chunk', () => {
+    expect(PHONE_LIMIT).toBe(250_000);
     expect(BUNDLES.map((bundle) => [bundle.name, bundle.limit, bundle.first])).toEqual([
       ['desk', LIMIT, null],
       ['phone', LIMIT, PHONE_LIMIT],
@@ -63,13 +63,13 @@ describe('the limit', () => {
     const page = [
       '<link rel="stylesheet" href="/theme.css" />',
       '<script type="module" crossorigin src="/assets/main-1.js"></script>',
-      '<link rel="modulepreload" crossorigin href="/assets/solid-2.js">',
+      '<link rel="modulepreload" crossorigin href="/assets/react-2.js">',
       '<link rel="stylesheet" crossorigin href="/assets/main-3.css">',
     ].join('\n');
     expect(firstFiles(page)).toEqual([
       'assets/main-1.js',
       'assets/main-3.css',
-      'assets/solid-2.js',
+      'assets/react-2.js',
     ]);
   });
 });

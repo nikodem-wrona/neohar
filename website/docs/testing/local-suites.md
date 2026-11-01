@@ -19,7 +19,9 @@ go to `playwright test`. `NEOHAR_CHROMIUM` names a Chromium that is already on t
 The real UI packages run in Playwright WebKit (the engine of the macOS webview) against a headless
 `nh daemon --dev-ws` with real holders. Playwright cannot drive the WKWebView of the app, so the page
 uses the dev WebSocket transport instead of the Tauri channel. The test also runs `axe-core` on the
-drawer, the palette and the search, and checks that hostile text in an approval card stays inert.
+drawer and the palette, and checks that hostile text in an approval card stays inert. Escape must
+close each layer (the palette, the menus, the dialogs, the large view of a file), and the focus must
+go back to the element that had it.
 
 ```bash
 mise run test:shell                      # tests/ui/ui.pw.ts
@@ -47,7 +49,7 @@ and WebKit opens it as an iPhone 17 Pro Max (440 × 956, DPR 3, touch). One test
 | Push | The address `#/run/<id>` of a push opens the Inbox with the card of the run |
 | Turn ended | A reply from the line of the run in the Inbox goes to the program once, and the Timeline shows the last message in full |
 | Panes | One pane in portrait with a dot for each pane of the tab, and both panes and the rails in landscape |
-| Sheets | The drawer, the left column, More and the palette |
+| Sheets | The drawer, the left column, More and the palette. Escape closes each menu and sheet, and the focus goes back to its button |
 | Banner | The core stops and starts again, and the app connects again |
 | Unpair | "Unpair this phone" shows the view Pair |
 

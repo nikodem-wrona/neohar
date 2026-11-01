@@ -144,6 +144,7 @@ fn the_pane_of_a_run_that_goes_leaves_the_run() {
                 layout: json!({"type": "pane", "pane": id(30).to_string()}),
                 floating: json!([]),
                 zoomed: None,
+                hidden: false,
             })?;
             tx.put_pane_slot(&PaneSlot {
                 id: id(30),

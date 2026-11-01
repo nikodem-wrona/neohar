@@ -3,8 +3,10 @@
   "compilerOptions": {
     "lib": ["ES2023", "DOM", "DOM.Iterable"],
     "types": ["bun"],
-    "jsx": "preserve",
-    "jsxImportSource": "solid-js"
+    "jsx": "react-jsx",
+    "paths": {
+      "@/*": ["./src/*"]
+    }
   },
   "include": ["src", "bench"]
 }

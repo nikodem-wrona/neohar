@@ -1,7 +1,7 @@
 ---
 title: "nh config"
 description: "The configuration"
-sidebar_position: 19
+sidebar_position: 21
 ---
 
 :::info[Generated page]

@@ -21,7 +21,7 @@ neohar supports two harnesses, **Claude Code** and **Codex**, and nothing else.
 flowchart LR
   subgraph app["neohar.app (Tauri)"]
     core["nh-core (Rust library)"]
-    webview["Webview: SolidJS UI + WebGL2"]
+    webview["Webview: React UI + WebGL2"]
     core -- "projections, frames" --> webview
     webview -- "commands (JSON-RPC)" --> core
   end
@@ -47,7 +47,9 @@ flowchart LR
 
 ## What works today
 
-- **On one Mac**: workspaces, tabs and panes; Claude Code and Codex in panes, with their state on the board; approvals and questions as cards, notifications or CLI calls; policy rules; the Files and Changes tabs; the Git view of a repository and its worktrees; search; and the `nh` command line.
+- **On one Mac**: workspaces, tabs and panes; Claude Code and Codex in panes, with their state on the board; approvals and questions as cards, notifications or CLI calls; policy rules; the Files and Changes tabs; the Git view of a repository and its worktrees; and the `nh` command line.
+- **Hermes Agent** in a chat, through ACP ([Hermes Agent](/docs/guides/hermes)).
+- **Workflows**: graphs of Claude Code and Codex agents on a canvas. An execution in a folder gives one report ([Workflows](/docs/guides/workflows)).
 - **Remote machines**: the app connects over ssh to an `nh daemon` on another Mac and shows its panes ([Remote machines](/docs/guides/remote-machines)).
 - **A phone app**: the core serves it on `127.0.0.1`, and `tailscale serve` puts it on your tailnet. A paired phone shows the desk, answers requests, and gets a push when an agent needs you and no desktop window has the focus ([The phone](/docs/guides/phone)).
 - macOS is the only tested platform. Each release has a DMG for Apple silicon. Builds are ad-hoc signed and not notarized, and the app has no updater.
@@ -67,7 +69,7 @@ flowchart LR
 
 These are decided:
 
-- Any harness other than Claude Code and Codex. No plugin system, no generic agent protocol.
+- A plugin system, or a harness adapter outside the core.
 - A terminal emulator product. Plain shells must be good, but the product is agent supervision.
 - Windows: the core uses Unix sockets and PTYs.
 - Cloud sandboxes, a merge queue, a planner, or a coding agent of its own.

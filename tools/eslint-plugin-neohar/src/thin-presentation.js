@@ -16,11 +16,22 @@ export const TIMING_FILE = 'packages/ui/src/lib/timing.ts';
 export const SURFACE_SOURCES = ['packages/ui/src/surface/**'];
 
 /**
- * Import specifiers `packages/ui` may use. Everything else is an error.
+ * Import specifiers `packages/ui` may use. Everything else is an error. They are React and the
+ * packages of shadcn/ui, the two packages of the workspace, `@/` (the source of the package, as
+ * the shadcn/ui CLI writes it) and relative modules. A new package needs a change of this list.
  * Each entry is a regular expression that must match the whole specifier.
  */
 const ALLOWED_IMPORTS = [
-  'solid-js(?:/.*)?',
+  'react',
+  'react-dom/client',
+  'radix-ui',
+  'class-variance-authority',
+  'clsx',
+  'tailwind-merge',
+  'lucide-react',
+  'cmdk',
+  'sonner',
+  '@/.+',
   '@neohar/transport',
   '@neohar/proto-wasm',
   '\\.{1,2}(?:/.*)?',
@@ -37,7 +48,7 @@ export function importOptions(extraAllowed = []) {
       {
         regex: `^(?!(?:${allowed})$)`,
         message:
-          'packages/ui may import only solid-js, @neohar/transport, @neohar/proto-wasm and relative modules.',
+          'packages/ui may import only react, react-dom/client, the packages of shadcn/ui (radix-ui, class-variance-authority, clsx, tailwind-merge, lucide-react, cmdk, sonner), @neohar/transport, @neohar/proto-wasm, @/ and relative modules.',
       },
     ],
   };
@@ -106,6 +117,12 @@ export function thinPresentation(plugin) {
       name: 'neohar/inner-html-allowed',
       files: [RICH_HTML_FILE],
       rules: { 'neohar/no-inner-html': 'off' },
+    },
+    {
+      name: 'neohar/no-synthetic-beforeinput',
+      files: UI_SOURCES,
+      plugins: { neohar: plugin },
+      rules: { 'neohar/no-synthetic-beforeinput': 'error' },
     },
     {
       name: 'neohar/ui-imports',

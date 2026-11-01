@@ -4,7 +4,6 @@
 // of a line is its place in the list.
 
 import type { FsReadResult } from '@neohar/transport';
-import { For, Show } from 'solid-js';
 import { RichHtml } from '../rich/RichHtml';
 import { segments } from '../rich/segments';
 
@@ -13,54 +12,46 @@ export function FileBody(props: {
   /** Show the lines of a Markdown file, and not its HTML. */
   source: boolean;
 }) {
-  const markdown = () => (props.source ? undefined : (props.preview.markdown ?? undefined));
+  const markdown = props.source ? undefined : (props.preview.markdown ?? undefined);
+  const image = props.preview.kind === 'image' && props.preview.image;
   return (
-    <div class="file-body" tabIndex={0} aria-label={`The text of ${props.preview.name}`}>
-      <Show when={props.preview.kind === 'image' && props.preview.image}>
-        {(image) => <img class="file-image" src={image()} alt={props.preview.name} />}
-      </Show>
-      <Show when={props.preview.kind === 'binary'}>
-        <p class="drawer-empty">This file has no text to show.</p>
-      </Show>
-      <Show when={props.preview.kind === 'text'}>
-        <Show
-          when={markdown()}
-          fallback={
-            <Show
-              when={props.preview.lines.length > 0}
-              fallback={<p class="drawer-empty">The file is empty.</p>}
-            >
-              <div class="file-lines">
-                <For each={props.preview.lines}>
-                  {(line, index) => (
-                    <div class="file-line">
-                      <span class="file-num" aria-hidden="true">
-                        {index() + 1}
+    <div className="file-body" tabIndex={0} aria-label={`The text of ${props.preview.name}`}>
+      {image ? <img className="file-image" src={image} alt={props.preview.name} /> : null}
+      {props.preview.kind === 'binary' ? (
+        <p className="drawer-empty">This file has no text to show.</p>
+      ) : null}
+      {props.preview.kind === 'text' ? (
+        markdown ? (
+          <RichHtml html={markdown.html} />
+        ) : props.preview.lines.length > 0 ? (
+          <div className="file-lines">
+            {/* The lines and the runs of a file do not move: their place is their key. */}
+            {props.preview.lines.map((line, index) => (
+              <div key={index} className="file-line">
+                <span className="file-num" aria-hidden="true">
+                  {index + 1}
+                </span>
+                <span className="file-text">
+                  {segments(line).map((run, at) =>
+                    run.className ? (
+                      <span key={at} className={`hl-${run.className}`}>
+                        {run.text}
                       </span>
-                      <span class="file-text">
-                        <For each={segments(line)}>
-                          {(run) =>
-                            run.className ? (
-                              <span class={`hl-${run.className}`}>{run.text}</span>
-                            ) : (
-                              run.text
-                            )
-                          }
-                        </For>
-                      </span>
-                    </div>
+                    ) : (
+                      run.text
+                    ),
                   )}
-                </For>
+                </span>
               </div>
-            </Show>
-          }
-        >
-          {(html) => <RichHtml html={html().html} />}
-        </Show>
-      </Show>
-      <Show when={props.preview.truncated}>
-        <p class="file-truncated">The view shows only the start of this file.</p>
-      </Show>
+            ))}
+          </div>
+        ) : (
+          <p className="drawer-empty">The file is empty.</p>
+        )
+      ) : null}
+      {props.preview.truncated ? (
+        <p className="file-truncated">The view shows only the start of this file.</p>
+      ) : null}
     </div>
   );
 }

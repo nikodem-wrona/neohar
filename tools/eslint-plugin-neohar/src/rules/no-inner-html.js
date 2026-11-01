@@ -1,7 +1,12 @@
 // @ts-check
 
 /** DOM properties and methods that parse a string as HTML. */
-const FORBIDDEN = new Set(['innerHTML', 'outerHTML', 'insertAdjacentHTML']);
+const FORBIDDEN = new Set([
+  'innerHTML',
+  'outerHTML',
+  'insertAdjacentHTML',
+  'dangerouslySetInnerHTML',
+]);
 
 /**
  * The name a key or property expression spells out, or null when it is computed at run time.
@@ -18,9 +23,9 @@ function staticName(node, computed) {
 /**
  * Forbids every way to put a string into the DOM as HTML: `el.innerHTML`, `el["outerHTML"]`,
  * `el.insertAdjacentHTML(...)`, object keys such as `{ innerHTML: x }` (also in a destructuring
- * pattern or a spread into a JSX element) and the JSX attributes `innerHTML`, `outerHTML` and
- * `prop:innerHTML` that Solid supports. The one allowed place, `RichHtml.tsx`, turns the rule off
- * in `eslint.config.js`.
+ * pattern or a spread into a JSX element), the JSX attribute `dangerouslySetInnerHTML` of React and
+ * the JSX attributes `innerHTML`, `outerHTML` and `prop:innerHTML`. The one allowed place,
+ * `RichHtml.tsx`, turns the rule off in `eslint.config.js`.
  *
  * @type {import('eslint').Rule.RuleModule}
  */

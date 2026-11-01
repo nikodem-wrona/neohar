@@ -1,18 +1,23 @@
 // The keys of a list over the window, in its last row: the arrows move, Enter does the action of
-// the row and Escape closes the list. The palette and the search of the scrollback show it.
+// the row and Escape closes the list. The palette shows it.
+
+import { Kbd } from '../components/ui/kbd';
 
 export function PaletteKeys(props: { action: string }) {
   return (
-    <div class="palette-keys" aria-hidden="true">
+    <div
+      className="flex flex-none gap-4 border-t border-border px-4 py-2 text-xs text-muted-foreground"
+      aria-hidden="true"
+    >
       <span>
-        <kbd class="cap">↑</kbd>
-        <kbd class="cap">↓</kbd> Move
+        <Kbd className="mr-0.5">↑</Kbd>
+        <Kbd className="mr-0.5">↓</Kbd> Move
       </span>
       <span>
-        <kbd class="cap">↵</kbd> {props.action}
+        <Kbd className="mr-0.5">↵</Kbd> {props.action}
       </span>
       <span>
-        <kbd class="cap">esc</kbd> Close
+        <Kbd className="mr-0.5">esc</Kbd> Close
       </span>
     </div>
   );

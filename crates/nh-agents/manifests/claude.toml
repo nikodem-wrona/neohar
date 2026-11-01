@@ -45,6 +45,10 @@ session_id_format = "uuid"
 prompt_arg = "trailing"
 model_arg = ["--model", "{model}"]
 effort_arg = ["--effort", "{effort}"]
+# A read-only workflow node: no tool that edits a file. Bash can still write.
+read_only_args = ["--disallowedTools", "Edit,Write,NotebookEdit"]
+# The folder of the reports of a workflow is outside the project.
+add_dir_arg = ["--add-dir", "{add_dir}"]
 # The aliases of `claude --help` (2.1.296); `[1m]` is the context of a million tokens.
 models = [
   { id = "fable", label = "Fable" },

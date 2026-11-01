@@ -1,7 +1,7 @@
 // One card for an interaction of the `interactions` projection.
 
 import type { InteractionPayload, InteractionValue } from '@neohar/transport';
-import { Match, Switch } from 'solid-js';
+import { memo, type Ref } from 'react';
 import { ApprovalCard } from './ApprovalCard';
 import { NoticeCard } from './NoticeCard';
 import { PlanCard } from './PlanCard';
@@ -17,54 +17,55 @@ function payloadOf<K extends InteractionPayload['kind']>(
     : undefined;
 }
 
-export function Card(props: {
+export const Card = memo(function Card(props: {
   interaction: InteractionValue;
   /** The name of the program that the run belongs to, such as `Claude Code`. */
   harness: string;
-  ref?: ((element: HTMLElement) => void) | undefined;
+  ref?: Ref<HTMLElement> | undefined;
 }) {
-  return (
-    <Switch>
-      <Match when={payloadOf(props.interaction, 'approval')}>
-        {(payload) => (
-          <ApprovalCard
-            interaction={props.interaction}
-            payload={payload()}
-            harness={props.harness}
-            ref={props.ref}
-          />
-        )}
-      </Match>
-      <Match when={payloadOf(props.interaction, 'question')}>
-        {(payload) => (
-          <QuestionCard
-            interaction={props.interaction}
-            payload={payload()}
-            harness={props.harness}
-            ref={props.ref}
-          />
-        )}
-      </Match>
-      <Match when={payloadOf(props.interaction, 'plan_review')}>
-        {(payload) => (
-          <PlanCard
-            interaction={props.interaction}
-            payload={payload()}
-            harness={props.harness}
-            ref={props.ref}
-          />
-        )}
-      </Match>
-      <Match when={payloadOf(props.interaction, 'notice')}>
-        {(payload) => (
-          <NoticeCard
-            interaction={props.interaction}
-            payload={payload()}
-            harness={props.harness}
-            ref={props.ref}
-          />
-        )}
-      </Match>
-    </Switch>
-  );
-}
+  const approval = payloadOf(props.interaction, 'approval');
+  if (approval) {
+    return (
+      <ApprovalCard
+        interaction={props.interaction}
+        payload={approval}
+        harness={props.harness}
+        ref={props.ref}
+      />
+    );
+  }
+  const question = payloadOf(props.interaction, 'question');
+  if (question) {
+    return (
+      <QuestionCard
+        interaction={props.interaction}
+        payload={question}
+        harness={props.harness}
+        ref={props.ref}
+      />
+    );
+  }
+  const plan = payloadOf(props.interaction, 'plan_review');
+  if (plan) {
+    return (
+      <PlanCard
+        interaction={props.interaction}
+        payload={plan}
+        harness={props.harness}
+        ref={props.ref}
+      />
+    );
+  }
+  const notice = payloadOf(props.interaction, 'notice');
+  if (notice) {
+    return (
+      <NoticeCard
+        interaction={props.interaction}
+        payload={notice}
+        harness={props.harness}
+        ref={props.ref}
+      />
+    );
+  }
+  return null;
+});

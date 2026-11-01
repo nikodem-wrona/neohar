@@ -79,13 +79,7 @@ async fn an_empty_core_has_the_fixed_commands_and_the_ones_that_need_a_tab_are_d
     let all = query(&h, "").await;
     let ids: Vec<&str> = all.iter().map(|(id, _)| id.as_str()).collect();
     assert_eq!(ids[0], "tab.new");
-    for id in [
-        "workspace.new",
-        "window.new",
-        "search.open",
-        "settings.open",
-        "phone.pair",
-    ] {
+    for id in ["workspace.new", "window.new", "settings.open", "phone.pair"] {
         assert!(ids.contains(&id), "{id} is missing: {ids:?}");
     }
     let enabled = |id: &str| all.iter().find(|(i, _)| i == id).expect("a command").1;
@@ -304,13 +298,7 @@ async fn the_commands_that_go_to_an_object_select_the_tab_and_focus_the_pane() {
 async fn the_commands_of_the_page_name_their_action_and_a_wrong_call_has_a_code() {
     let h = Harness::start();
     let window = h.call("window.open", json!({})).await["window"].clone();
-    for id in [
-        "search.open",
-        "inbox.open",
-        "git.open",
-        "tab.rename",
-        "workspace.rename",
-    ] {
+    for id in ["inbox.open", "git.open", "tab.rename", "workspace.rename"] {
         let result = h
             .call(
                 "palette.execute",

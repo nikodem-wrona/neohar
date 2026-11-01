@@ -10,12 +10,14 @@
 // does not trust has `trust` in the head, and the tab shows the prompt of `TrustPrompt` instead.
 
 import { type ChangeRow, type ChangesHead, RpcError } from '@neohar/transport';
-import { createEffect, createMemo, createSignal, For, on, onCleanup, Show } from 'solid-js';
+import { type KeyboardEvent, useEffect, useRef, useState } from 'react';
 import { useApp } from '../app/context';
-import { windowFolder } from '../files/folder';
+import { useWindowFolder } from '../files/folder';
 import { TrustPrompt } from '../git/TrustPrompt';
+import { useLatest, useRows, useSelect } from '../lib/hooks';
+import { cn } from '../lib/utils';
 import { DiffHunks } from '../rich/Diff';
-import { createProjectionStore, type ProjectionStore } from '../stores';
+import { useProjectionStore } from '../stores';
 import {
   type Fetched,
   headFacts,
@@ -31,66 +33,63 @@ function errorText(failure: unknown): string {
   return failure instanceof RpcError ? failure.message : 'The diff did not load.';
 }
 
-export function ChangesPanel() {
-  const { stores, transport, run, report, windowId, view, form } = useApp();
-  const folder = createMemo(() => windowFolder(stores, windowId));
+/** The rows of a worktree that is not known yet: the same array at each read. */
+const NO_ROWS: ChangeRow[] = [];
 
+export function ChangesPanel() {
+  const { stores, windowId } = useApp();
+  const folder = useWindowFolder(stores, windowId);
   // The subscriptions live while this tab shows and the window has a folder. Without a folder,
-  // the core must not count the folder that the window named before.
-  const [live, setLive] = createSignal<ProjectionStore<ChangeRow> | null>(null);
-  const [heads, setHeads] = createSignal<ProjectionStore<ChangesHead> | null>(null);
-  createEffect(
-    on(
-      () => folder() !== undefined,
-      (has) => {
-        if (!has) return;
-        const rows = createProjectionStore(transport, `changes_for:${windowId}`);
-        const head = createProjectionStore(transport, `changes_head:${windowId}`);
-        setLive(rows);
-        setHeads(head);
-        onCleanup(() => {
-          rows.close();
-          head.close();
-          setLive(null);
-          setHeads(null);
-        });
-      },
-    ),
+  // the core must not count the folder that the window named before. `FolderChanges` owns them.
+  return (
+    <div className="changes-panel">
+      {folder !== undefined ? (
+        <FolderChanges folder={folder} />
+      ) : (
+        <p className="drawer-empty">This tab has no folder.</p>
+      )}
+    </div>
   );
-  const head = () => heads()?.state.byKey['_'];
-  const subject = createMemo(() => subjectOf(head()));
+}
+
+/** The tab for a window that has a folder. */
+function FolderChanges(props: { folder: string }) {
+  const { transport, run, report, windowId, view, form } = useApp();
+  const { folder } = props;
+  const live = useProjectionStore(transport, `changes_for:${windowId}`);
+  const heads = useProjectionStore(transport, `changes_head:${windowId}`);
+  const head = useSelect(heads, (state) => state.byKey['_']);
+  const subject = subjectOf(head);
 
   // The core follows the folder of the window. A `cd` in the pane with the focus names a new one.
-  createEffect(
-    on(folder, (path) => {
-      if (path) run('changes.follow', { window: windowId, path });
-    }),
-  );
+  useEffect(() => {
+    if (folder) run('changes.follow', { window: windowId, path: folder });
+  }, [folder, run, windowId]);
 
-  const [open, setOpen] = createSignal<ReadonlySet<string>>(new Set());
-  const [fetched, setFetched] = createSignal<ReadonlyMap<string, Fetched>>(new Map());
-  const [focusPath, setFocusPath] = createSignal<string | null>(null);
-  let list: HTMLUListElement | undefined;
+  const [open, setOpen] = useState<ReadonlySet<string>>(() => new Set());
+  const [fetched, setFetched] = useState<ReadonlyMap<string, Fetched>>(() => new Map());
+  const [focusPath, setFocusPath] = useState<string | null>(null);
+  const list = useRef<HTMLUListElement>(null);
 
-  // The open rows belong to the worktree. Another one closes them.
-  createEffect(
-    on(subject, () => {
-      setOpen(new Set<string>());
-      setFetched(new Map());
-      setFocusPath(null);
-    }),
-  );
+  // The open rows belong to the worktree. Another one closes them. The reset is in the render, so
+  // that no effect sees the open rows of the worktree before.
+  const [openOf, setOpenOf] = useState(subject);
+  if (openOf !== subject) {
+    setOpenOf(subject);
+    setOpen(new Set<string>());
+    setFetched(new Map());
+    setFocusPath(null);
+  }
 
-  const rows = (): ChangeRow[] => (subject() ? (live()?.rows() ?? []) : []);
-  const keys = createMemo(() => rows().map((row) => row.path));
-  const byPath = createMemo(() => new Map(rows().map((row) => [row.path, row])));
-  const tabStop = () => {
-    const at = focusPath();
-    return at !== null && byPath().has(at) ? at : (keys()[0] ?? null);
-  };
+  const liveRows = useRows(live);
+  const rows: ChangeRow[] = subject ? liveRows : NO_ROWS;
+  const keys = rows.map((row) => row.path);
+  const byPath = new Map(rows.map((row) => [row.path, row]));
+  const tabStop = focusPath !== null && byPath.has(focusPath) ? focusPath : (keys[0] ?? null);
 
+  const subjectNow = useLatest(subject);
   const load = (path: string, stamp: number): void => {
-    const at = subject();
+    const at = subject;
     // The stamp is noted at once, so that the same stamp never loads twice.
     setFetched((before) => new Map(before).set(path, { ...before.get(path), stamp }));
     transport
@@ -100,7 +99,7 @@ export function ChangesPanel() {
       .then((entry: Fetched) => {
         // A diff of an older stamp, of a row that closed, or of another worktree is dropped.
         setFetched((before) =>
-          before.get(path)?.stamp === stamp && subject() === at
+          before.get(path)?.stamp === stamp && subjectNow.current === at
             ? new Map(before).set(path, entry)
             : before,
         );
@@ -109,18 +108,19 @@ export function ChangesPanel() {
   };
 
   // An open row that is gone closes. An open row whose stamp changed loads its diff again.
-  createEffect(() => {
-    const now = rows();
-    const kept = stillOpen(open(), now);
-    if (kept.size !== open().size) setOpen(kept);
-    for (const path of toFetch(kept, now, fetched())) {
-      const row = byPath().get(path);
-      if (row) load(path, row.stamp);
+  const loadNow = useLatest(load);
+  useEffect(() => {
+    const kept = stillOpen(open, rows);
+    if (kept.size !== open.size) setOpen(kept);
+    const rowOf = new Map(rows.map((row) => [row.path, row]));
+    for (const path of toFetch(kept, rows, fetched)) {
+      const row = rowOf.get(path);
+      if (row) loadNow.current(path, row.stamp);
     }
-  });
+  }, [rows, open, fetched, loadNow]);
 
   const toggle = (path: string): void => {
-    const next = new Set(open());
+    const next = new Set(open);
     if (next.has(path)) {
       next.delete(path);
       setFetched((before) => {
@@ -134,185 +134,128 @@ export function ChangesPanel() {
     setOpen(next);
   };
 
-  const onListKey = (event: KeyboardEvent): void => {
-    const to = moveTo(keys(), focusPath(), event.key);
+  const onListKey = (event: KeyboardEvent<HTMLUListElement>): void => {
+    const to = moveTo(keys, focusPath, event.key);
     if (to === null) return;
     event.preventDefault();
     setFocusPath(to);
-    list?.querySelector<HTMLElement>(`[data-path="${CSS.escape(to)}"]`)?.focus();
+    list.current?.querySelector<HTMLElement>(`[data-path="${CSS.escape(to)}"]`)?.focus();
   };
 
-  return (
-    <div class="changes-panel">
-      <Show when={folder()} fallback={<p class="drawer-empty">This tab has no folder.</p>}>
-        <Show when={head()} fallback={<p class="drawer-empty">Counting…</p>}>
-          {(shown) => (
-            <Show
-              when={!shown().trust && shown().root}
-              fallback={
-                <Show
-                  when={shown().trust}
-                  fallback={<p class="drawer-empty">This folder is not in a git repository.</p>}
+  /** The diff of an open row: loading, an error, no lines, or its hunks. */
+  const diffOf = (row: ChangeRow) => {
+    const entry = fetched.get(row.path);
+    if (!entry) return <p className="drawer-empty">Loading…</p>;
+    if (!entry.diff) {
+      return (
+        <p className={entry.error ? 'changes-error' : 'drawer-empty'}>
+          {entry.error ?? 'Loading…'}
+        </p>
+      );
+    }
+    if (entry.diff.hunks.length === 0) {
+      return (
+        <p className="drawer-empty">
+          {row.binary ? 'A binary file has no lines to show.' : 'No lines to show.'}
+        </p>
+      );
+    }
+    return <DiffHunks file={entry.diff} />;
+  };
+
+  /** The head and the rows of a worktree that the person trusts. */
+  const worktree = (shown: ChangesHead, root: string) => (
+    <>
+      <header className="changes-head">
+        <div className="changes-branch">
+          <span className="changes-branch-name">
+            {shown.branch ?? (shown.changes ? 'Detached HEAD' : '')}
+          </span>
+          {form !== 'phone' ? (
+            <button type="button" className="changes-open-git" onClick={() => view.openGit(folder)}>
+              Open in Git view
+            </button>
+          ) : null}
+        </div>
+        <div className="changes-root" title={root}>
+          {root}
+        </div>
+        {headFacts(shown).length > 0 ? (
+          <div className="changes-facts" data-testid="changes-facts">
+            {headFacts(shown).join(' · ')}
+          </div>
+        ) : null}
+        {shown.changes?.truncated ? (
+          <p className="changes-note">The list shows the first 1,000 files.</p>
+        ) : null}
+        {shown.changes?.error ? (
+          <p className="changes-error" role="alert">
+            {shown.changes.error}
+          </p>
+        ) : null}
+      </header>
+      {keys.length > 0 ? (
+        <ul className="changes-list" aria-label="Changed files" ref={list} onKeyDown={onListKey}>
+          {rows.map((row) => {
+            const path = row.path;
+            const isOpen = open.has(path);
+            return (
+              <li key={path} className="changes-item">
+                <button
+                  type="button"
+                  className={cn('changes-row', { open: isOpen })}
+                  data-path={path}
+                  aria-expanded={isOpen}
+                  tabIndex={tabStop === path ? 0 : -1}
+                  title={row.old_path ? `${row.old_path} → ${path}` : path}
+                  onFocus={() => setFocusPath(path)}
+                  onClick={() => toggle(path)}
                 >
-                  {(ask) => <TrustPrompt ask={ask()} />}
-                </Show>
-              }
-            >
-              {(root) => (
-                <>
-                  <header class="changes-head">
-                    <div class="changes-branch">
-                      <span class="changes-branch-name">
-                        {shown().branch ?? (shown().changes ? 'Detached HEAD' : '')}
-                      </span>
-                      <Show when={form !== 'phone'}>
-                        <button
-                          type="button"
-                          class="changes-open-git"
-                          onClick={() => view.openGit(folder() ?? null)}
-                        >
-                          Open in Git view
-                        </button>
-                      </Show>
-                    </div>
-                    <div class="changes-root" title={root()}>
-                      {root()}
-                    </div>
-                    <Show when={headFacts(shown()).length > 0}>
-                      <div class="changes-facts" data-testid="changes-facts">
-                        {headFacts(shown()).join(' · ')}
-                      </div>
-                    </Show>
-                    <Show when={shown().changes?.truncated}>
-                      <p class="changes-note">The list shows the first 1,000 files.</p>
-                    </Show>
-                    <Show when={shown().changes?.error}>
-                      {(error) => (
-                        <p class="changes-error" role="alert">
-                          {error()}
-                        </p>
-                      )}
-                    </Show>
-                  </header>
-                  <Show
-                    when={keys().length > 0}
-                    fallback={
-                      <p class="drawer-empty">
-                        {shown().changes ? 'No changes yet.' : 'Counting…'}
-                      </p>
-                    }
+                  <span
+                    className="changes-status"
+                    data-status={row.status}
+                    title={statusWord(row.status)}
                   >
-                    <ul
-                      class="changes-list"
-                      aria-label="Changed files"
-                      ref={(element) => (list = element)}
-                      onKeyDown={onListKey}
-                    >
-                      <For each={keys()}>
-                        {(path) => {
-                          const row = () => byPath().get(path);
-                          const isOpen = () => open().has(path);
-                          return (
-                            <Show when={row()}>
-                              {(shownRow) => (
-                                <li class="changes-item">
-                                  <button
-                                    type="button"
-                                    class="changes-row"
-                                    classList={{ open: isOpen() }}
-                                    data-path={path}
-                                    aria-expanded={isOpen()}
-                                    tabIndex={tabStop() === path ? 0 : -1}
-                                    title={
-                                      shownRow().old_path
-                                        ? `${shownRow().old_path} → ${path}`
-                                        : path
-                                    }
-                                    onFocus={() => setFocusPath(path)}
-                                    onClick={() => toggle(path)}
-                                  >
-                                    <span
-                                      class="changes-status"
-                                      data-status={shownRow().status}
-                                      title={statusWord(shownRow().status)}
-                                    >
-                                      <span aria-hidden="true">
-                                        {statusLetter(shownRow().status)}
-                                      </span>
-                                      <span class="visually-hidden">
-                                        {statusWord(shownRow().status)}
-                                      </span>
-                                    </span>
-                                    <span class="changes-path">
-                                      <span class="changes-dir">{shownRow().dir}</span>
-                                      <span class="changes-name">{shownRow().name}</span>
-                                    </span>
-                                    <span class="changes-lines">
-                                      <Show
-                                        when={!shownRow().binary}
-                                        fallback={<span class="changes-binary">binary</span>}
-                                      >
-                                        <span class="add">+{shownRow().add}</span>{' '}
-                                        <span class="del">−{shownRow().del}</span>
-                                      </Show>
-                                    </span>
-                                  </button>
-                                  <Show when={isOpen()}>
-                                    <div
-                                      class="changes-diff diff"
-                                      role="group"
-                                      aria-label={`Diff of ${path}`}
-                                    >
-                                      <Show
-                                        when={fetched().get(path)}
-                                        fallback={<p class="drawer-empty">Loading…</p>}
-                                      >
-                                        {(entry) => (
-                                          <Show
-                                            when={entry().diff}
-                                            fallback={
-                                              <p
-                                                class={
-                                                  entry().error ? 'changes-error' : 'drawer-empty'
-                                                }
-                                              >
-                                                {entry().error ?? 'Loading…'}
-                                              </p>
-                                            }
-                                          >
-                                            {(diff) => (
-                                              <Show
-                                                when={diff().hunks.length > 0}
-                                                fallback={
-                                                  <p class="drawer-empty">
-                                                    {shownRow().binary
-                                                      ? 'A binary file has no lines to show.'
-                                                      : 'No lines to show.'}
-                                                  </p>
-                                                }
-                                              >
-                                                <DiffHunks file={diff()} />
-                                              </Show>
-                                            )}
-                                          </Show>
-                                        )}
-                                      </Show>
-                                    </div>
-                                  </Show>
-                                </li>
-                              )}
-                            </Show>
-                          );
-                        }}
-                      </For>
-                    </ul>
-                  </Show>
-                </>
-              )}
-            </Show>
-          )}
-        </Show>
-      </Show>
-    </div>
+                    <span aria-hidden="true">{statusLetter(row.status)}</span>
+                    <span className="visually-hidden">{statusWord(row.status)}</span>
+                  </span>
+                  <span className="changes-path">
+                    <span className="changes-dir">{row.dir}</span>
+                    <span className="changes-name">{row.name}</span>
+                  </span>
+                  <span className="changes-lines">
+                    {!row.binary ? (
+                      <>
+                        <span className="add">+{row.add}</span>{' '}
+                        <span className="del">−{row.del}</span>
+                      </>
+                    ) : (
+                      <span className="changes-binary">binary</span>
+                    )}
+                  </span>
+                </button>
+                {isOpen ? (
+                  <div className="changes-diff diff" role="group" aria-label={`Diff of ${path}`}>
+                    {diffOf(row)}
+                  </div>
+                ) : null}
+              </li>
+            );
+          })}
+        </ul>
+      ) : (
+        <p className="drawer-empty">{shown.changes ? 'No changes yet.' : 'Counting…'}</p>
+      )}
+    </>
   );
+
+  /** The tab for the head that the core gave. */
+  const content = (shown: ChangesHead) => {
+    if (!shown.trust && shown.root) return worktree(shown, shown.root);
+    if (shown.trust) return <TrustPrompt ask={shown.trust} />;
+    return <p className="drawer-empty">This folder is not in a git repository.</p>;
+  };
+
+  if (!folder) return <p className="drawer-empty">This tab has no folder.</p>;
+  return head ? content(head) : <p className="drawer-empty">Counting…</p>;
 }

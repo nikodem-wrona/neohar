@@ -4,9 +4,14 @@
 // (`git.diff` with the commit). A new `HEAD` reads the history again from the start.
 
 import { type GitCommit, type GitLogResult, type GitShown, RpcError } from '@neohar/transport';
-import { createEffect, createSignal, For, on, Show } from 'solid-js';
+import { type KeyboardEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { useApp } from '../app/context';
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
+import { ScrollArea } from '../components/ui/scroll-area';
+import { SCROLL_LIST as LIST } from './scroll';
 import { statusLetter, statusWord } from '../changes/model';
+import { cn } from '../lib/utils';
 import { DiffPane, type Loaded } from './DiffPane';
 import { commitLabels, matches, moveIndex } from './model';
 
@@ -21,64 +26,70 @@ export function GitHistory(props: {
   subject: string | null;
 }) {
   const { transport, report, windowId } = useApp();
-  const [commits, setCommits] = createSignal<GitCommit[]>([]);
-  const [more, setMore] = createSignal(false);
-  const [loading, setLoading] = createSignal(false);
-  const [failed, setFailed] = createSignal<string | null>(null);
-  const [filter, setFilter] = createSignal('');
-  const [picked, setPicked] = createSignal<string | null>(null);
-  const [shown, setShown] = createSignal<GitShown | { error: string } | null>(null);
-  const [loaded, setLoaded] = createSignal<Loaded | null>(null);
-  let list: HTMLUListElement | undefined;
+  const [commits, setCommits] = useState<GitCommit[]>([]);
+  const [more, setMore] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [failed, setFailed] = useState<string | null>(null);
+  const [filter, setFilter] = useState('');
+  const [picked, setPicked] = useState<string | null>(null);
+  const [shown, setShown] = useState<GitShown | { error: string } | null>(null);
+  const [loaded, setLoaded] = useState<Loaded | null>(null);
+  const list = useRef<HTMLUListElement>(null);
   /** Grows with each new start, so that a page of an older start is dropped. */
-  let generation = 0;
-
-  const page = (skip: number): void => {
-    const at = generation;
-    setLoading(true);
-    transport
-      .call('git.log', { window: windowId, skip })
-      .then((result: GitLogResult) => {
-        if (at !== generation) return;
-        setCommits((before) => (skip === 0 ? result.commits : [...before, ...result.commits]));
-        setMore(result.more);
-        setFailed(null);
-      })
-      .catch((failure: unknown) => {
-        if (at === generation) setFailed(errorText(failure, 'The history'));
-      })
-      .finally(() => {
-        if (at === generation) setLoading(false);
-      })
-      .catch(report);
+  const generation = useRef(0);
+  /** The picked commit now, for an answer that comes after the pick. */
+  const pickedNow = useRef<string | null>(null);
+  const choose = (hash: string | null): void => {
+    pickedNow.current = hash;
+    setPicked(hash);
   };
 
-  createEffect(
-    on(
-      () => [props.subject, props.head] as const,
-      ([subject]) => {
-        generation += 1;
-        setCommits([]);
-        setMore(false);
-        setPicked(null);
-        setShown(null);
-        setLoaded(null);
-        if (subject) page(0);
-      },
-    ),
+  const page = useCallback(
+    (skip: number): void => {
+      const at = generation.current;
+      setLoading(true);
+      transport
+        .call('git.log', { window: windowId, skip })
+        .then((result: GitLogResult) => {
+          if (at !== generation.current) return;
+          setCommits((before) => (skip === 0 ? result.commits : [...before, ...result.commits]));
+          setMore(result.more);
+          setFailed(null);
+        })
+        .catch((failure: unknown) => {
+          if (at === generation.current) setFailed(errorText(failure, 'The history'));
+        })
+        .finally(() => {
+          if (at === generation.current) setLoading(false);
+        })
+        .catch(report);
+    },
+    [transport, windowId, report],
   );
 
+  const { subject, head } = props;
+  useEffect(() => {
+    generation.current += 1;
+    setCommits([]);
+    setMore(false);
+    pickedNow.current = null;
+    setPicked(null);
+    setShown(null);
+    setLoaded(null);
+    if (subject) page(0);
+  }, [subject, head, page]);
+
   const pick = (hash: string): void => {
-    setPicked(hash);
+    choose(hash);
     setShown(null);
     setLoaded(null);
     transport
       .call('git.show', { window: windowId, commit: hash })
       .then((result) => {
-        if (picked() === hash) setShown(result);
+        if (pickedNow.current === hash) setShown(result);
       })
       .catch((failure: unknown) => {
-        if (picked() === hash) setShown({ error: errorText(failure, 'The commit') });
+        if (pickedNow.current === hash) setShown({ error: errorText(failure, 'The commit') });
       })
       .catch(report);
   };
@@ -91,198 +102,170 @@ export function GitHistory(props: {
       .catch((failure: unknown) => ({ error: errorText(failure, 'The diff') }))
       .then((result) => {
         setLoaded((before) =>
-          before?.file === file && picked() === commit ? { file, ...result } : before,
+          before?.file === file && pickedNow.current === commit ? { file, ...result } : before,
         );
       })
       .catch(report);
   };
 
-  const visible = () =>
-    commits().filter((commit) =>
-      matches(filter(), [commit.subject, commit.author, commit.short, ...commitLabels(commit)]),
-    );
+  const visible = commits.filter((commit) =>
+    matches(filter, [commit.subject, commit.author, commit.short, ...commitLabels(commit)]),
+  );
 
   const onListKey = (event: KeyboardEvent): void => {
-    const rows = visible();
-    const at = rows.findIndex((commit) => commit.hash === picked());
+    const rows = visible;
+    const at = rows.findIndex((commit) => commit.hash === picked);
     const to = moveIndex(rows.length, at, event.key);
     if (to === null) return;
     event.preventDefault();
     const hash = rows[to]?.hash;
     if (hash === undefined) return;
     pick(hash);
-    list?.querySelector<HTMLElement>(`[data-hash="${hash}"]`)?.focus();
+    list.current?.querySelector<HTMLElement>(`[data-hash="${hash}"]`)?.focus();
   };
 
-  const detail = () => {
-    const value = shown();
-    return value && 'commit' in value ? value : null;
-  };
+  const detail = shown && 'commit' in shown ? shown : null;
 
   return (
     <>
-      <div class="git-side-body">
-        <input
-          class="git-filter"
+      <div className="git-side-body">
+        <Input
           type="text"
           placeholder="Filter"
           aria-label="Filter the commits"
-          value={filter()}
-          onInput={(event) => setFilter(event.currentTarget.value)}
+          className="h-auto flex-none rounded-sm px-2 py-0.5 text-sm/5 shadow-none md:text-sm/5"
+          value={filter}
+          onChange={(event) => setFilter(event.currentTarget.value)}
         />
-        <Show when={failed()}>
-          {(text) => (
-            <p class="git-error" role="alert">
-              {text()}
-            </p>
-          )}
-        </Show>
-        <Show
-          when={visible().length > 0}
-          fallback={
-            <p class="git-empty">
-              {loading() ? 'Loading…' : filter() ? 'No commit matches.' : 'No commit yet.'}
-            </p>
-          }
-        >
-          <ul
-            class="git-list"
-            aria-label="Commits"
-            ref={(element) => (list = element)}
-            onKeyDown={onListKey}
-          >
-            <For each={visible()}>
-              {(commit) => (
-                <li>
+        {failed ? (
+          <p className="git-error" role="alert">
+            {failed}
+          </p>
+        ) : null}
+        {visible.length > 0 ? (
+          <ScrollArea className={LIST}>
+            <ul className="git-list" aria-label="Commits" ref={list} onKeyDown={onListKey}>
+              {visible.map((commit) => (
+                <li key={commit.hash}>
                   <button
                     type="button"
-                    class="git-commit"
-                    classList={{ picked: picked() === commit.hash }}
+                    className={cn('git-commit', { picked: picked === commit.hash })}
                     data-hash={commit.hash}
-                    aria-pressed={picked() === commit.hash}
+                    aria-pressed={picked === commit.hash}
                     tabIndex={
-                      picked() === commit.hash || (picked() === null && commit === visible()[0])
-                        ? 0
-                        : -1
+                      picked === commit.hash || (picked === null && commit === visible[0]) ? 0 : -1
                     }
                     onClick={() => pick(commit.hash)}
                   >
-                    <span class="git-commit-subject">
-                      <Show when={commit.unpushed}>
-                        <span class="git-unpushed" title="Not pushed">
+                    <span className="git-commit-subject">
+                      {commit.unpushed ? (
+                        <span className="git-unpushed" title="Not pushed">
                           ↑
                         </span>
-                      </Show>
+                      ) : null}
                       {commit.subject}
                     </span>
-                    <span class="git-commit-meta">
+                    <span className="git-commit-meta">
                       {commit.author} · {commit.time_text} ·{' '}
-                      <span class="git-hash">{commit.short}</span>
+                      <span className="git-hash">{commit.short}</span>
                     </span>
-                    <Show when={commitLabels(commit).length > 0}>
-                      <span class="git-labels">
-                        <For each={commitLabels(commit)}>
-                          {(label) => <span class="git-label">{label}</span>}
-                        </For>
+                    {commitLabels(commit).length > 0 ? (
+                      <span className="git-labels">
+                        {commitLabels(commit).map((label) => (
+                          <span key={label} className="git-label">
+                            {label}
+                          </span>
+                        ))}
                       </span>
-                    </Show>
+                    ) : null}
                   </button>
                 </li>
-              )}
-            </For>
-          </ul>
-          <Show when={more()}>
-            <button
-              type="button"
-              class="git-more"
-              disabled={loading()}
-              onClick={() => page(commits().length)}
-            >
-              {loading() ? 'Loading…' : 'Show more commits'}
-            </button>
-          </Show>
-        </Show>
+              ))}
+            </ul>
+            {more ? (
+              <Button
+                variant="ghost"
+                size="xs"
+                className="self-start text-sm font-normal text-muted-foreground"
+                disabled={loading}
+                onClick={() => page(commits.length)}
+              >
+                {loading ? 'Loading…' : 'Show more commits'}
+              </Button>
+            ) : null}
+          </ScrollArea>
+        ) : (
+          <p className="git-empty">
+            {loading ? 'Loading…' : filter ? 'No commit matches.' : 'No commit yet.'}
+          </p>
+        )}
       </div>
-      <div class="git-detail">
-        <Show
-          when={picked()}
-          fallback={<p class="git-empty">Pick a commit to see its message and its files.</p>}
-        >
-          {(hash) => (
-            <Show
-              when={detail()}
-              fallback={
-                <p class={shown() ? 'git-error' : 'git-empty'} role="status">
-                  {(() => {
-                    const value = shown();
-                    return value && 'error' in value ? value.error : 'Loading…';
-                  })()}
+      <div className="git-detail">
+        {picked ? (
+          detail ? (
+            <div className="git-commit-detail">
+              <header className="git-commit-head">
+                <h2 className="git-commit-title">{detail.commit.subject}</h2>
+                <p className="git-commit-meta">
+                  {detail.commit.author} · {detail.commit.time_text} ·{' '}
+                  <span className="git-hash">{detail.commit.short}</span>
+                  {detail.parents.length > 1 ? <> · merge of {detail.parents.join(', ')}</> : null}
                 </p>
-              }
-            >
-              {(commit) => (
-                <div class="git-commit-detail">
-                  <header class="git-commit-head">
-                    <h2 class="git-commit-title">{commit().commit.subject}</h2>
-                    <p class="git-commit-meta">
-                      {commit().commit.author} · {commit().commit.time_text} ·{' '}
-                      <span class="git-hash">{commit().commit.short}</span>
-                      <Show when={commit().parents.length > 1}>
-                        {' '}
-                        · merge of {commit().parents.join(', ')}
-                      </Show>
-                    </p>
-                    <Show when={commit().body}>
-                      <pre class="git-commit-body">{commit().body}</pre>
-                    </Show>
-                  </header>
-                  <ul class="git-list git-commit-files" aria-label="Files of the commit">
-                    <For each={commit().files}>
-                      {(row) => (
-                        <li>
-                          <button
-                            type="button"
-                            class="git-file"
-                            classList={{ picked: loaded()?.file === row.path }}
-                            aria-pressed={loaded()?.file === row.path}
-                            title={row.old_path ? `${row.old_path} → ${row.path}` : row.path}
-                            onClick={() => pickFile(hash(), row.path)}
-                          >
-                            <span
-                              class="changes-status"
-                              data-status={row.status}
-                              title={statusWord(row.status)}
-                            >
-                              <span aria-hidden="true">{statusLetter(row.status)}</span>
-                              <span class="visually-hidden">{statusWord(row.status)}</span>
-                            </span>
-                            <span class="changes-path">
-                              <span class="changes-dir">{row.dir}</span>
-                              <span class="changes-name">{row.name}</span>
-                            </span>
-                            <span class="git-lines">
-                              <Show
-                                when={!row.binary}
-                                fallback={<span class="changes-binary">binary</span>}
-                              >
-                                <span class="add">+{row.add}</span>{' '}
-                                <span class="del">−{row.del}</span>
-                              </Show>
-                            </span>
-                          </button>
-                        </li>
-                      )}
-                    </For>
-                  </ul>
-                  <Show when={commit().truncated}>
-                    <p class="git-note">The list shows the first 1,000 files.</p>
-                  </Show>
-                  <DiffPane loaded={loaded()} empty="Pick a file to see its diff." />
-                </div>
-              )}
-            </Show>
-          )}
-        </Show>
+                {detail.body ? <pre className="git-commit-body">{detail.body}</pre> : null}
+              </header>
+              <ScrollArea
+                className={cn(LIST, 'flex-none [&>[data-slot=scroll-area-viewport]]:max-h-[25vh]')}
+              >
+                <ul className="git-list" aria-label="Files of the commit">
+                  {detail.files.map((row) => (
+                    <li key={row.path}>
+                      <button
+                        type="button"
+                        className={cn('git-file', { picked: loaded?.file === row.path })}
+                        aria-pressed={loaded?.file === row.path}
+                        title={row.old_path ? `${row.old_path} → ${row.path}` : row.path}
+                        onClick={() => pickFile(picked, row.path)}
+                      >
+                        <span
+                          className="changes-status"
+                          data-status={row.status}
+                          title={statusWord(row.status)}
+                        >
+                          <span aria-hidden="true">{statusLetter(row.status)}</span>
+                          <span className="visually-hidden">{statusWord(row.status)}</span>
+                        </span>
+                        <span className="changes-path">
+                          <span className="changes-dir">{row.dir}</span>
+                          <span className="changes-name">{row.name}</span>
+                        </span>
+                        <span className="git-lines">
+                          {!row.binary ? (
+                            <>
+                              <span className="add">+{row.add}</span>{' '}
+                              <span className="del">−{row.del}</span>
+                            </>
+                          ) : (
+                            <span className="changes-binary">binary</span>
+                          )}
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </ScrollArea>
+              {detail.truncated ? (
+                <p className="git-note">The list shows the first 1,000 files.</p>
+              ) : null}
+              <DiffPane loaded={loaded} empty="Pick a file to see its diff." />
+            </div>
+          ) : (
+            <p className={shown ? 'git-error' : 'git-empty'} role="status">
+              {shown && 'error' in shown ? shown.error : 'Loading…'}
+            </p>
+          )
+        ) : (
+          <p className="git-empty">Pick a commit to see its message and its files.</p>
+        )}
       </div>
     </>
   );

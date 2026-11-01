@@ -5,10 +5,11 @@
 // so the core reads the file for no one else.
 
 import { RpcError, type TimelineItem } from '@neohar/transport';
-import { createEffect, createMemo, createSignal, For, on, onCleanup, Show } from 'solid-js';
+import { useState } from 'react';
 import { harnessName } from '../agents/badge';
 import { useApp } from '../app/context';
-import { createProjectionStore, type ProjectionStore } from '../stores';
+import { useRows, useSelect } from '../lib/hooks';
+import { useProjectionStore } from '../stores';
 import { LastMessage } from './LastMessage';
 import {
   focusedRun,
@@ -26,46 +27,46 @@ import {
 const PAGE = 100;
 
 export function TimelinePanel() {
-  const { stores, transport, windowId } = useApp();
-  const pane = () => {
-    const id = stores.windows.state.byKey[windowId]?.focused_pane;
-    return id ? stores.panes.state.byKey[id] : undefined;
-  };
-  const run = createMemo(() => focusedRun(pane()));
-  const agent = () => {
-    const id = run();
-    return id ? stores.agents.state.byKey[id] : undefined;
-  };
-  const [live, setLive] = createSignal<ProjectionStore<TimelineItem> | null>(null);
-  const [older, setOlder] = createSignal<TimelineItem[]>([]);
-  const [more, setMore] = createSignal<boolean | null>(null);
-  const [message, setMessage] = createSignal<string | null>(null);
+  const { stores, windowId } = useApp();
+  const focused = useSelect(stores.windows, (state) => state.byKey[windowId]?.focused_pane);
+  const pane = useSelect(stores.panes, (state) => (focused ? state.byKey[focused] : undefined));
+  const run = focusedRun(pane);
+
+  return (
+    <div className="timeline-panel">
+      {/* A new run is a new timeline: its own subscription, older items and message. */}
+      {run ? (
+        <RunTimeline key={run} run={run} />
+      ) : (
+        <p className="drawer-empty">No agent is in focus.</p>
+      )}
+    </div>
+  );
+}
+
+function RunTimeline(props: { run: string }) {
+  const { stores, transport } = useApp();
+  const { run } = props;
+  const agent = useSelect(stores.agents, (state) => state.byKey[run]);
+  const [older, setOlder] = useState<TimelineItem[]>([]);
+  const [more, setMore] = useState<boolean | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
 
   // One subscription for the run in focus. It ends when the focus moves or the tab closes.
-  createEffect(
-    on(run, (id) => {
-      setOlder([]);
-      setMore(null);
-      setMessage(null);
-      const store = id ? createProjectionStore(transport, `timeline:${id}`) : null;
-      setLive(store);
-      onCleanup(() => store?.close());
-    }),
-  );
-
-  const items = createMemo(() => joinPages(older(), live()?.rows() ?? []));
-  const turns = createMemo(() => groupByTurn(items()));
-  const last = createMemo(() => lastMessage(turns()[turns().length - 1]));
+  const live = useProjectionStore(transport, `timeline:${run}`);
+  const liveRows = useRows(live);
+  const items = joinPages(older, liveRows);
+  const turns = groupByTurn(items);
+  const last = lastMessage(turns[turns.length - 1]);
   // With fewer items than the projection can hold, no older item exists.
-  const canLoadOlder = () => more() ?? (live()?.rows().length ?? 0) >= LIVE_ITEMS;
+  const canLoadOlder = more ?? liveRows.length >= LIVE_ITEMS;
 
   const loadOlder = (): void => {
-    const id = run();
-    const first = items()[0];
-    if (!id || !first) return;
+    const first = items[0];
+    if (!first) return;
     setMessage(null);
     transport
-      .call('timeline.page', { run: id, before_item: first.id, limit: PAGE })
+      .call('timeline.page', { run, before_item: first.id, limit: PAGE })
       .then((result) => {
         setOlder((previous) => [...result.items, ...previous]);
         setMore(result.more);
@@ -76,71 +77,65 @@ export function TimelinePanel() {
   };
 
   return (
-    <div class="timeline-panel">
-      <Show when={run()} fallback={<p class="drawer-empty">No agent is in focus.</p>}>
-        <header class="timeline-head">
-          <span class="timeline-agent">{agent() ? harnessName(agent()!.harness) : 'Agent'}</span>
-          <Show when={agent() && hasUsage(agent()!.usage)}>
-            <span class="timeline-usage" data-testid="timeline-usage">
-              {usageText(agent()!.usage)}
-            </span>
-          </Show>
-          <Show when={agent()?.rate_limit}>
-            {(limit) => <span class="timeline-limit">{windowText(limit())}</span>}
-          </Show>
-        </header>
-        <Show when={message()}>
-          <p class="timeline-message" role="alert">
-            {message()}
-          </p>
-        </Show>
-        <Show
-          when={items().length > 0}
-          fallback={<p class="drawer-empty">Nothing is in the transcript yet.</p>}
-        >
-          <Show when={canLoadOlder()}>
-            <button type="button" class="timeline-older" onClick={loadOlder}>
+    <>
+      <header className="timeline-head">
+        <span className="timeline-agent">{agent ? harnessName(agent.harness) : 'Agent'}</span>
+        {agent && hasUsage(agent.usage) ? (
+          <span className="timeline-usage" data-testid="timeline-usage">
+            {usageText(agent.usage)}
+          </span>
+        ) : null}
+        {agent?.rate_limit ? (
+          <span className="timeline-limit">{windowText(agent.rate_limit)}</span>
+        ) : null}
+      </header>
+      {message ? (
+        <p className="timeline-message" role="alert">
+          {message}
+        </p>
+      ) : null}
+      {items.length > 0 ? (
+        <>
+          {canLoadOlder ? (
+            <button type="button" className="timeline-older" onClick={loadOlder}>
               Older items
             </button>
-          </Show>
-          <For each={turns()}>
-            {(turn) => (
-              <section class="timeline-turn" aria-label={`Turn ${turn.turn}`}>
-                <h3 class="timeline-turn-title">Turn {turn.turn}</h3>
-                <ul class="timeline-items">
-                  <For each={turn.items}>
-                    {(item) => {
-                      const line = lineOf(item);
-                      return (
-                        <li class={`timeline-item timeline-${line.kind}`} data-item={item.id}>
-                          <span class="timeline-label">{line.label}</span>
-                          <Show when={line.status}>
-                            <span class="timeline-status" data-status={line.status}>
-                              {line.status}
-                            </span>
-                          </Show>
-                          <Show
-                            when={line.kind === 'output'}
-                            fallback={<span class="timeline-text">{line.text}</span>}
-                          >
-                            <pre class="timeline-text">{line.text}</pre>
-                          </Show>
-                          <Show when={line.truncated}>
-                            <span class="timeline-cut">cut</span>
-                          </Show>
-                        </li>
-                      );
-                    }}
-                  </For>
-                </ul>
-              </section>
-            )}
-          </For>
-          <Show when={run() !== undefined && last() !== undefined}>
-            <LastMessage run={run()!} item={last()!} />
-          </Show>
-        </Show>
-      </Show>
-    </div>
+          ) : null}
+          {turns.map((turn) => (
+            <section key={turn.turn} className="timeline-turn" aria-label={`Turn ${turn.turn}`}>
+              <h3 className="timeline-turn-title">Turn {turn.turn}</h3>
+              <ul className="timeline-items">
+                {turn.items.map((item) => {
+                  const line = lineOf(item);
+                  return (
+                    <li
+                      key={item.id}
+                      className={`timeline-item timeline-${line.kind}`}
+                      data-item={item.id}
+                    >
+                      <span className="timeline-label">{line.label}</span>
+                      {line.status ? (
+                        <span className="timeline-status" data-status={line.status}>
+                          {line.status}
+                        </span>
+                      ) : null}
+                      {line.kind === 'output' ? (
+                        <pre className="timeline-text">{line.text}</pre>
+                      ) : (
+                        <span className="timeline-text">{line.text}</span>
+                      )}
+                      {line.truncated ? <span className="timeline-cut">cut</span> : null}
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          ))}
+          {last !== undefined ? <LastMessage run={run} item={last} /> : null}
+        </>
+      ) : (
+        <p className="drawer-empty">Nothing is in the transcript yet.</p>
+      )}
+    </>
   );
 }

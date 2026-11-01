@@ -2,13 +2,16 @@
 // in the menu of a file, shows it. It draws the same preview as the view under the tree
 // (`fs.read`), with room to read it, and it has the actions of the file. Open in app gives the file
 // to the editor of `ui.editor` or to the default app of the file. Escape, the close button or a
-// click beside the box closes the view. It is a modal `<dialog>`: the rest of the window is inert
-// while it is open, and when it closes the focus goes back to where it was.
+// click beside the box closes the view. It is the Dialog of shadcn/ui: the rest of the window is
+// inert while it is open. When it closes, the Files tab gives the focus back (`FilesPanel.tsx`).
 
 import type { FsReadResult } from '@neohar/transport';
-import { createEffect, createSignal, For, on, onCleanup, onMount, Show } from 'solid-js';
+import { useEffect, useRef, useState } from 'react';
 import { useApp } from '../app/context';
-import { outside } from '../shell/modal';
+import { useLayer } from '../app/layer';
+import { Dialog, DialogContent, DialogTitle } from '../components/ui/dialog';
+import { Tooltip, TooltipContent, TooltipTrigger } from '../components/ui/tooltip';
+import { cn } from '../lib/utils';
 import { FileBody } from './FileBody';
 import { FileIcon } from './FileIcon';
 import type { MenuItem } from './model';
@@ -22,6 +25,11 @@ const ACTIONS: readonly (MenuItem & { short: string })[] = [
   { id: 'insert', label: 'Insert into pane', short: 'Insert' },
 ];
 
+/** The text takes the focus, else the box. */
+function focusText(dialog: HTMLElement | null): void {
+  (dialog?.querySelector<HTMLElement>('.file-body') ?? dialog)?.focus({ preventScroll: true });
+}
+
 export function FileModal(props: {
   /** The path of the open file. */
   path: string;
@@ -31,92 +39,94 @@ export function FileModal(props: {
   message: { text: string; error: boolean } | null;
   onAction: (id: MenuItem['id'], path: string) => void;
   onClose: () => void;
+  /** The view is out of the page: the tab gives the focus back. */
+  onClosed: () => void;
 }) {
   const { form } = useApp();
   const actions = ACTIONS.filter(
     (action) => form !== 'phone' || (action.id !== 'open-app' && action.id !== 'reveal'),
   );
   // A Markdown file shows its HTML first. The switch shows its lines.
-  const [source, setSource] = createSignal(false);
-  createEffect(
-    on(
-      () => props.path,
-      () => setSource(false),
-      { defer: true },
-    ),
-  );
+  const [source, setSource] = useState(false);
+  // Another file shows its HTML first again.
+  const [sourceOf, setSourceOf] = useState(props.path);
+  if (sourceOf !== props.path) {
+    setSourceOf(props.path);
+    setSource(false);
+  }
 
-  let dialog: HTMLDialogElement | undefined;
+  // The view is open while it is in the page.
+  useLayer(true);
+  const dialog = useRef<HTMLDivElement>(null);
   // The text takes the focus, so that the arrow keys and Page Down move it at once. While the file
   // is not read yet, the box holds the focus, and the text takes it when it comes.
-  const focusText = (): void => {
-    (dialog?.querySelector<HTMLElement>('.file-body') ?? dialog)?.focus({ preventScroll: true });
-  };
-  onMount(() => {
-    dialog?.showModal();
-    focusText();
-  });
-  createEffect(
-    on(
-      () => props.preview,
-      () => {
-        if (document.activeElement === dialog) focusText();
-      },
-      { defer: true },
-    ),
-  );
-  // `close()` gives the focus back to the element that had it before the view.
-  onCleanup(() => {
-    if (dialog?.open) dialog.close();
-  });
+  const first = useRef(true);
+  useEffect(() => {
+    if (first.current) {
+      first.current = false;
+      return;
+    }
+    if (document.activeElement === dialog.current) focusText(dialog.current);
+  }, [props.preview]);
 
   return (
-    // WebKit gives no focus to a button that the person clicks. The box takes it, so that Escape
-    // still reaches it after a click on a button.
-    <dialog
-      class="file-modal"
-      aria-labelledby="file-modal-title"
-      tabIndex={-1}
-      ref={(element) => (dialog = element)}
-      onCancel={(event) => {
-        event.preventDefault();
-        props.onClose();
-      }}
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget && outside(event, event.currentTarget)) {
-          props.onClose();
-        }
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open) props.onClose();
       }}
     >
-      <header class="file-modal-head">
-        <Show when={props.preview}>{(preview) => <FileIcon icon={preview().icon} />}</Show>
-        <h2 id="file-modal-title" class="file-modal-title">
-          {props.preview?.name ?? props.path}
-        </h2>
-        <span class="file-modal-path" title={props.path}>
-          {props.path}
-        </span>
-        <Show when={props.preview}>
-          {(preview) => <span class="file-info">{preview().info}</span>}
-        </Show>
-        <button
-          type="button"
-          class="file-close"
-          aria-label="Close the large view"
-          title="Close (Escape)"
-          onClick={() => props.onClose()}
-        >
-          <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true">
-            <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.5" />
-          </svg>
-        </button>
-      </header>
-      <div class="file-actions file-modal-actions" role="toolbar" aria-label="File actions">
-        <For each={actions}>
-          {(action) => (
+      {/* WebKit gives no focus to a button that the person clicks. The box takes it, so that
+          Escape still reaches it after a click on a button. */}
+      <DialogContent
+        ref={dialog}
+        showCloseButton={false}
+        aria-describedby={undefined}
+        className={cn(
+          'file-modal flex h-[calc(100vh-48px)] w-[min(1400px,calc(100vw-48px))] max-w-none flex-col gap-(--s2) overflow-hidden rounded-xl px-(--s4) pt-(--s3) pb-(--s4) text-foreground outline-none sm:max-w-none',
+          // On a phone the view takes the screen.
+          form === 'phone' && 'h-dvh w-screen rounded-none pt-[env(safe-area-inset-top)]',
+        )}
+        onOpenAutoFocus={(event) => {
+          event.preventDefault();
+          focusText(dialog.current);
+        }}
+        onCloseAutoFocus={(event) => {
+          event.preventDefault();
+          props.onClosed();
+        }}
+      >
+        <header className="file-modal-head">
+          {props.preview ? <FileIcon icon={props.preview.icon} /> : null}
+          <DialogTitle className="file-modal-title">
+            {props.preview?.name ?? props.path}
+          </DialogTitle>
+          <span className="file-modal-path" title={props.path}>
+            {props.path}
+          </span>
+          {props.preview ? <span className="file-info">{props.preview.info}</span> : null}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                className="file-close"
+                aria-label="Close the large view"
+                onClick={() => props.onClose()}
+              >
+                <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true">
+                  <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.5" />
+                </svg>
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>Close (Escape)</TooltipContent>
+          </Tooltip>
+        </header>
+        <div className="file-actions file-modal-actions" role="toolbar" aria-label="File actions">
+          {actions.map((action) => (
             <button
+              key={action.id}
               type="button"
-              class="file-action"
+              className="file-action"
               data-action={action.id}
               title={
                 action.id === 'open-app'
@@ -128,46 +138,38 @@ export function FileModal(props: {
             >
               {action.short}
             </button>
-          )}
-        </For>
-        <Show when={props.preview?.markdown}>
-          <button
-            type="button"
-            class="file-action file-source"
-            aria-pressed={source()}
-            title={source() ? 'Show the Markdown' : 'Show the lines'}
-            onClick={() => setSource(!source())}
-          >
-            {source() ? 'Rendered' : 'Source'}
-          </button>
-        </Show>
-        <Show when={props.message}>
-          {(note) => (
-            <span
-              class="files-message"
-              classList={{ error: note().error }}
-              role={note().error ? 'alert' : 'status'}
+          ))}
+          {props.preview?.markdown ? (
+            <button
+              type="button"
+              className="file-action file-source"
+              aria-pressed={source}
+              title={source ? 'Show the Markdown' : 'Show the lines'}
+              onClick={() => setSource(!source)}
             >
-              {note().text}
+              {source ? 'Rendered' : 'Source'}
+            </button>
+          ) : null}
+          {props.message ? (
+            <span
+              className={cn('files-message', { error: props.message.error })}
+              role={props.message.error ? 'alert' : 'status'}
+            >
+              {props.message.text}
             </span>
-          )}
-        </Show>
-      </div>
-      <Show when={props.error}>
-        <p class="file-error" role="alert">
-          {props.error}
-        </p>
-      </Show>
-      <Show
-        when={props.preview}
-        fallback={
-          <Show when={!props.error}>
-            <p class="drawer-empty">Reading the file…</p>
-          </Show>
-        }
-      >
-        {(preview) => <FileBody preview={preview()} source={source()} />}
-      </Show>
-    </dialog>
+          ) : null}
+        </div>
+        {props.error ? (
+          <p className="file-error" role="alert">
+            {props.error}
+          </p>
+        ) : null}
+        {props.preview ? (
+          <FileBody preview={props.preview} source={source} />
+        ) : !props.error ? (
+          <p className="drawer-empty">Reading the file…</p>
+        ) : null}
+      </DialogContent>
+    </Dialog>
   );
 }

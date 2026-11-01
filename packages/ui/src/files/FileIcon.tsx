@@ -4,19 +4,20 @@
 // wait for it. Until it is there, an icon is an empty square of the same size. A name that the art
 // does not have draws the icon of any file or folder.
 
-import { createMemo, createSignal, For, Show } from 'solid-js';
+import { createValue } from '../lib/value';
+import { useValue } from '../lib/hooks';
 import type { IconArt, IconPath } from './icon-art';
 
 type Art = typeof import('./icon-art');
 
-const [art, setArt] = createSignal<Art | null>(null);
+const art = createValue<Art | null>(null);
 let loading = false;
 
 function load(): void {
   if (loading) return;
   loading = true;
   import('./icon-art').then(
-    (module) => setArt(() => module),
+    (module) => art.set(module),
     // The next icon asks again.
     () => (loading = false),
   );
@@ -36,28 +37,25 @@ function drawn(module: Art, icon: string, folder: boolean, open: boolean): IconA
 
 export function FileIcon(props: { icon: string; folder?: boolean; open?: boolean }) {
   load();
-  const shown = createMemo(() => {
-    const module = art();
-    return module ? drawn(module, props.icon, props.folder ?? false, props.open ?? false) : null;
-  });
+  const module = useValue(art);
+  const shown = module
+    ? drawn(module, props.icon, props.folder ?? false, props.open ?? false)
+    : null;
+  // The paths of an icon do not move: their place is their key.
   return (
     <svg
-      class="file-icon"
+      className="file-icon"
       data-icon={props.icon}
       width="16"
       height="16"
-      viewBox={shown()?.[0]}
+      viewBox={shown?.[0]}
       aria-hidden="true"
     >
-      <Show when={shown()}>
-        {(now) => (
-          <For each={now()[1]}>
-            {([fill, d, evenOdd]) => (
-              <path fill={fill} d={d} fill-rule={evenOdd ? 'evenodd' : undefined} />
-            )}
-          </For>
-        )}
-      </Show>
+      {shown
+        ? shown[1].map(([fill, d, evenOdd], at) => (
+            <path key={at} fill={fill} d={d} fillRule={evenOdd ? 'evenodd' : undefined} />
+          ))
+        : null}
     </svg>
   );
 }

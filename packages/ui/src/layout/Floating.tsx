@@ -4,9 +4,10 @@
 // predicts nothing.
 
 import type { FloatingPane, Rect, TabValue } from '@neohar/transport';
-import { onCleanup } from 'solid-js';
+import { type PointerEvent, type RefObject, useEffect, useRef, useState } from 'react';
 import { useApp } from '../app/context';
 import { createFrameSender, pageFrames } from '../lib/frames';
+import { useLatest } from '../lib/hooks';
 import { movedRect, resizedRect } from './float';
 import { PaneBox } from './PaneBox';
 
@@ -22,17 +23,20 @@ interface Gesture {
 export function Floating(props: {
   tab: TabValue;
   item: FloatingPane;
-  area: () => HTMLElement | undefined;
+  area: RefObject<HTMLElement | null>;
 }) {
   const { run } = useApp();
-  const sender = createFrameSender<Rect>(
-    (rect) => run('pane.set_float_rect', { pane: props.item.pane, rect }),
-    pageFrames,
+  const pane = useLatest(props.item.pane);
+  const [sender] = useState(() =>
+    createFrameSender<Rect>(
+      (rect) => run('pane.set_float_rect', { pane: pane.current, rect }),
+      pageFrames,
+    ),
   );
-  onCleanup(() => sender.cancel());
-  let gesture: Gesture | null = null;
+  useEffect(() => () => sender.cancel(), [sender]);
+  const gesture = useRef<Gesture | null>(null);
 
-  const begin = (event: PointerEvent): void => {
+  const begin = (event: PointerEvent<HTMLElement>): void => {
     if (event.button !== 0) return;
     const target = event.target as HTMLElement;
     const mode = target.closest('.float-resize')
@@ -43,13 +47,13 @@ export function Floating(props: {
     if (!mode) return;
     event.preventDefault();
     try {
-      (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+      event.currentTarget.setPointerCapture(event.pointerId);
     } catch {
       // A pointer that the browser does not track keeps sending events to the pane anyway.
     }
-    const box = props.area()?.getBoundingClientRect();
+    const box = props.area.current?.getBoundingClientRect();
     if (!box) return;
-    gesture = {
+    gesture.current = {
       mode,
       x: event.clientX,
       y: event.clientY,
@@ -60,24 +64,23 @@ export function Floating(props: {
   };
 
   const move = (event: PointerEvent): void => {
-    if (!gesture || gesture.width <= 0 || gesture.height <= 0) return;
-    const dx = (event.clientX - gesture.x) / gesture.width;
-    const dy = (event.clientY - gesture.y) / gesture.height;
+    const held = gesture.current;
+    if (!held || held.width <= 0 || held.height <= 0) return;
+    const dx = (event.clientX - held.x) / held.width;
+    const dy = (event.clientY - held.y) / held.height;
     sender.push(
-      gesture.mode === 'move'
-        ? movedRect(gesture.start, dx, dy)
-        : resizedRect(gesture.start, dx, dy),
+      held.mode === 'move' ? movedRect(held.start, dx, dy) : resizedRect(held.start, dx, dy),
     );
   };
 
   const end = (): void => {
-    gesture = null;
+    gesture.current = null;
     sender.flush();
   };
 
   return (
     <div
-      class="floating"
+      className="floating"
       data-floating={props.item.pane}
       style={{
         left: `${props.item.rect.x * 100}%`,
@@ -91,7 +94,7 @@ export function Floating(props: {
       onPointerCancel={end}
     >
       <PaneBox id={props.item.pane} tab={props.tab} />
-      <div class="float-resize" aria-hidden="true" />
+      <div className="float-resize" aria-hidden="true" />
     </div>
   );
 }

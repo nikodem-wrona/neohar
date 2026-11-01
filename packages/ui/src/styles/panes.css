@@ -38,80 +38,12 @@
     overflow: hidden;
   }
 
-  /* A tab is a row high. Its hover is one step under the card of the selected tab, so that the
-     tab under the pointer never looks selected. The fill comes and goes in 150 ms, and a press
-     moves the control down by 1 px. */
-  .tab,
-  .tab-new {
-    --tab-hover: color-mix(in oklch, var(--text) 5%, transparent);
-    display: flex;
-    align-items: center;
-    height: var(--row);
-    border-radius: var(--r-tab);
-    color: var(--text-dim);
-    white-space: nowrap;
-  }
-
-  .tab-new {
-    justify-content: center;
-    width: var(--row);
-  }
-
-  /* The cross has a slot at the right that it keeps when it is hidden, so that no tab moves when
-     the pointer comes. */
-  .tab {
-    gap: var(--s1);
-    min-width: 0;
-    padding: 0 var(--s2) 0 var(--s4);
-    -webkit-user-select: none;
-    user-select: none;
-  }
-
-  @media (prefers-reduced-motion: no-preference) {
-    .tab,
-    .tab-new,
-    .tab-close {
-      transition-property: background-color, color, opacity, translate;
-      transition-duration: 150ms;
-      transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-    }
-  }
-
-  .tab:active,
-  .tab-new:active:enabled {
-    translate: 0 1px;
-  }
-
-  /* The handle of the tab, from `data-handle`, so that the text of the tab stays its name. The bar
-     sets it only with `ui.show_handles`. */
-  .tab[data-handle]::before {
-    content: attr(data-handle);
-    color: var(--text-dim);
-  }
-
+  /* A tab and the button of a new tab are Buttons of shadcn/ui (`shell/TabBar.tsx`), with their
+     look in their classes. The name of a tab is cut with an ellipsis. */
   .tab-name {
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
-  }
-
-  .tab:hover,
-  .tab-new:hover:enabled {
-    background: var(--tab-hover);
-    color: var(--text);
-  }
-
-  .tab:active,
-  .tab-new:active:enabled {
-    background: var(--bg-card);
-  }
-
-  /* The selected tab is a card on the panel. Its name keeps the weight of the other names, so that
-     the text and the width of a tab do not change when it becomes selected. */
-  .tab.selected {
-    background: var(--bg-card);
-    color: var(--text);
-    box-shadow: inset 0 0 0 1px var(--hairline);
   }
 
   /* The cross of a tab: on the selected tab and under the pointer. It is not red: a close is not
@@ -129,6 +61,14 @@
     pointer-events: none;
   }
 
+  @media (prefers-reduced-motion: no-preference) {
+    .tab-close {
+      transition-property: background-color, color, opacity;
+      transition-duration: 150ms;
+      transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    }
+  }
+
   .tab:hover .tab-close,
   .tab.selected .tab-close {
     opacity: 1;
@@ -140,10 +80,6 @@
     color: var(--text);
   }
 
-  .tab-new:disabled {
-    opacity: 0.4;
-  }
-
   .tab-rename {
     position: absolute;
     z-index: 1;
@@ -153,11 +89,6 @@
     border-radius: var(--r-tab);
   }
 
-  .tab.drop-target,
-  .side-tab.drop-target {
-    box-shadow: inset 0 0 0 1px var(--text);
-  }
-
   /* A drag of a tab or a pane. The page draws no copy under the pointer: the cursor and the
      dim source show the drag, and a target shows its outline. */
   .shell.dragging,
@@ -165,7 +96,6 @@
     cursor: grabbing;
   }
 
-  .tab.lifted,
   .pane.lifted > .pane-title,
   .files-row.lifted {
     opacity: 0.5;
@@ -334,22 +264,6 @@
     font-weight: 500;
   }
 
-  /* The last folders name the repository, so a path that does not fit loses its start. */
-  .pane-cwd {
-    min-width: 0;
-    max-width: 48ch;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    direction: rtl;
-    text-align: left;
-    color: var(--text-dim);
-  }
-
-  .pane-cost {
-    flex: none;
-    color: var(--text);
-  }
-
   .pane-unconfirmed {
     color: var(--danger);
     font-weight: 600;
@@ -358,21 +272,6 @@
   .pane-clipboard-dropped {
     flex: none;
     color: var(--caution);
-  }
-
-  /* Another window has the size of the PTY. */
-  .pane-size {
-    flex: none;
-    padding: 0 6px;
-    border-radius: var(--r-sm);
-    color: var(--text-dim);
-    font: inherit;
-  }
-
-  .pane-size:hover,
-  .pane-size:focus-visible {
-    background: var(--bg-hover);
-    color: var(--text);
   }
 
   .pane-spacer {
@@ -396,8 +295,13 @@
   }
 
   .pane-button:hover,
-  .pane-button[aria-pressed='true'] {
+  .pane-button[aria-pressed='true'],
+  .pane-button[aria-expanded='true'] {
     color: var(--text);
+  }
+
+  .pane-button[aria-expanded='true'] {
+    background: var(--hairline);
   }
 
   .pane-button.pane-close:hover {
@@ -485,18 +389,6 @@
     box-shadow: inset 2px 0 0 var(--caution);
   }
 
-  .pane-exited button,
-  .pane-held button {
-    padding: 0 8px;
-    border: 1px solid var(--line);
-    color: var(--text);
-  }
-
-  .pane-exited button:hover,
-  .pane-held button:hover {
-    border-color: var(--text);
-  }
-
   /* A pane that waits for the screen of its holder shimmers until the first frame comes. */
   .pane.restoring .pane-body {
     animation: shimmer 1.2s ease-in-out infinite;
@@ -538,78 +430,6 @@
     color: var(--text-dim);
   }
 
-  .clipboard-remember {
-    color: var(--text-dim);
-  }
-
-  /* What is wrong with the core: a banner over the tab bar. */
-  .banner {
-    display: flex;
-    gap: 1ch;
-    padding: 0 8px;
-    line-height: 20px;
-    border-bottom: 1px solid var(--line);
-  }
-
-  .banner-storage {
-    background: var(--danger);
-    color: var(--on-signal);
-    font-weight: 600;
-  }
-
-  .banner-warning {
-    background: var(--bg-raised);
-    color: var(--text);
-    box-shadow: inset 2px 0 0 var(--caution);
-  }
-
-  .banner-hint {
-    color: var(--text-dim);
-  }
-
-  /* A link that is down: the window waits for it and takes no input. */
-  .banner-link {
-    background: var(--bg-raised);
-    color: var(--text);
-    box-shadow: inset 2px 0 0 var(--danger);
-  }
-
-  .banner-link-text {
-    font-weight: 600;
-  }
-
-  /* A command of this window that failed: the message of the core, its code and a cross. */
-  .banner-failure {
-    align-items: center;
-    background: var(--bg-raised);
-    color: var(--text);
-    box-shadow: inset 2px 0 0 var(--danger);
-  }
-
-  .banner-failure-text {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .banner-close {
-    display: flex;
-    flex: none;
-    align-items: center;
-    justify-content: center;
-    width: 16px;
-    height: 16px;
-    margin-left: auto;
-    border-radius: var(--r-sm);
-    color: var(--text-dim);
-  }
-
-  .banner-close:hover {
-    background: var(--hairline);
-    color: var(--text);
-  }
-
   .main-body {
     display: flex;
     flex: 1;
@@ -622,22 +442,100 @@
     opacity: 0.55;
   }
 
-  .pane-harness {
-    display: inline-flex;
-    align-items: center;
-    gap: 1ch;
+  /* The badge of the harness: its mark and its name. */
+  .harness-badge {
+    gap: 5px;
+    padding-left: 6px;
+  }
+
+  .harness-mark {
     flex: none;
-    color: var(--text-dim);
+    width: 11px;
+    height: 11px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.6;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .harness-badge[data-harness='codex'] .harness-mark {
+    stroke-width: 1.8;
   }
 
   /* A mode that the person chose and that does not change: a dim tag, not an alarm. */
   .pane-yolo {
-    flex: none;
-    padding: 0 5px;
-    border: 1px solid var(--text-dim);
-    border-radius: var(--r-sm);
-    line-height: 14px;
+    font-weight: 500;
+  }
+
+  /* --- the details of a pane: a popover under the button i ----------------------------------- */
+
+  .pane-details {
+    width: 360px;
+  }
+
+  .pane-details-head {
+    display: flex;
+    align-items: center;
+    gap: var(--s2);
+    min-width: 0;
+  }
+
+  .pane-details-title {
+    font-weight: 600;
+  }
+
+  .pane-details-list {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr);
+    column-gap: var(--s4);
+    row-gap: var(--s2);
+    margin: 0;
+    padding-top: var(--s3);
+    border-top: 1px solid var(--hairline);
+  }
+
+  /* A row is a pair of the grid of the list. */
+  .pane-detail {
+    display: contents;
+  }
+
+  .pane-detail dt {
     color: var(--text-dim);
+    line-height: 18px;
+  }
+
+  .pane-detail dd {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--s1);
+    min-width: 0;
+    margin: 0;
+    line-height: 18px;
+  }
+
+  /* A path or an id breaks where it must, so the whole value shows. */
+  .pane-detail-value {
+    min-width: 0;
+    flex: 1;
+    overflow-wrap: anywhere;
+  }
+
+  .pane-detail-copy {
+    flex: none;
+    margin: -3px -4px -3px 0;
+    color: var(--text-dim);
+  }
+
+  .pane-detail-copy:hover {
+    color: var(--text);
+  }
+
+  .pane-detail-copy svg {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.3;
+    stroke-linejoin: round;
   }
 
   /* A version of the harness that is not validated: a fact about the harness, so it is
@@ -653,14 +551,5 @@
   .pane.path-over {
     outline: 1px dashed var(--text);
     outline-offset: -1px;
-  }
-}
-
-@layer states {
-  /* A press on a tab selects it, so the card of the selected tab is the answer to the press, and
-     not reverse white. */
-  .tab:active:not(:disabled) {
-    background: var(--bg-card);
-    color: var(--text);
   }
 }

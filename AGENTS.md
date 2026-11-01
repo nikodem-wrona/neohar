@@ -4,7 +4,7 @@ This file gives guidance to coding agents that work in this repository. [CONTRIB
 
 ## What this repository is
 
-neohar (always lowercase) is a Tauri 2 desktop workspace to supervise coding agents. A Rust core owns the terminals, the agent state and the approvals. The core keeps agent processes alive when the app quits, crashes or updates. The webview is a thin surface that paints what the core sends. neohar supports Claude Code and Codex only.
+neohar (always lowercase) is a Tauri 2 desktop workspace to supervise coding agents. A Rust core owns the terminals, the agent state and the approvals. The core keeps agent processes alive when the app quits, crashes or updates. The webview is a thin surface that paints what the core sends. neohar supports Claude Code and Codex in panes, and Hermes Agent in a chat (`nh-core/src/hermes/`).
 
 The code is the reference: there is no separate spec or plan. `website/` is the documentation site (Docusaurus, with its own `bun install`). Its guide is short on purpose.
 
@@ -60,9 +60,9 @@ A change to the API in `nh-proto` has three generated outputs. Make all three in
 
 ## Scope and fixed choices
 
-- **Harnesses:** Claude Code and Codex, and no other harness. No extension transport, no generic agent protocol, no external adapter protocol, no plugin system.
+- **Harnesses:** each harness has its own adapter in the core. No extension transport, no external adapter protocol, no plugin system.
 - **Name:** `neohar`, lowercase everywhere, also in `neohar.app` and at the start of a sentence.
-- **UI:** SolidJS and TypeScript, Vite, Bun.
+- **UI:** React and TypeScript, shadcn/ui on Radix and Tailwind CSS, Vite, Bun. No `StrictMode`: it runs each effect two times, and a second attach of a pane loses its screen.
 - **VT engine:** `alacritty_terminal` behind the `VtEngine` trait, with `wezterm-term` as the named fallback. Not libghostty-vt: the cut points of the holder make parser-state snapshots unnecessary, and the Tauri build must stay free of foreign toolchains.
 - **Directories:** config in `~/.config/neohar/`, data in the app-support directory of the platform, and runtime sockets under `/tmp/neohar-$UID/` on macOS and `$XDG_RUNTIME_DIR` on Linux. On macOS, a socket path under `$TMPDIR` is longer than the limit.
 - **Heavy tests:** the budget, GPU, chaos, live-harness and remote suites run locally, never in CI.
@@ -83,6 +83,7 @@ These pieces take several files to see together.
 [CONTRIBUTING.md](CONTRIBUTING.md) has the full list. In short:
 
 - **Rust:** `thiserror` in libraries, `anyhow` only in binaries and tools. No `unwrap()` outside tests. `tracing` everywhere except `nh-hold` and the hook shim. Every `unsafe` block has a `// SAFETY:` comment. `scripts/check-deps.ts` holds the crate dependency rules (for example, no `tokio` in `nh-proto`, `nh-hold` or `nh-term`).
+- **UI components:** use [shadcn/ui](https://ui.shadcn.com/) for each component that it has. To add one, run `bunx shadcn@latest add <name>` in `packages/ui`. The command writes it to `packages/ui/src/components/ui/`. Before you add a component, look in `components/ui/` for one that you can use or extend. Do not make a button, a field, a dialog, a menu or another control by hand when shadcn/ui has it. When shadcn/ui has no equivalent, make the component from shadcn components and Radix primitives. Use Tailwind classes and the theme variables of `styles/tokens.css`. You can change a file in `components/ui/` for neohar, but keep its props. A component shows the results and the order that the core gives: do not filter or sort in it (for example, set `shouldFilter={false}` on `Command`). `neohar/ui-imports` allows only the packages of shadcn/ui: `radix-ui`, `class-variance-authority`, `clsx`, `tailwind-merge`, `lucide-react`, `cmdk` and `sonner`. A new package needs a change of that list.
 - **Wire types** live only in `nh-proto`. The `holder` and `frame` modules change only by appends: never reorder or remove a variant or a field.
 - **Temporary directories.** Every test sets the three `NEOHAR_*_DIR` variables. Harness tests also set `HOME`, `CLAUDE_CONFIG_DIR` and `CODEX_HOME`. The tests do not change `PATH`, so a core can run an installed `claude` or `codex` to read its version. No test uses the network outside `127.0.0.1`. A test that starts holders kills them on drop.
 - **Gates, not skips.** No `#[ignore]` or `.skip` to make a check pass. An environment variable gates each test that needs a live harness, a GPU or an installed program. Its `mise` task sets the variable.

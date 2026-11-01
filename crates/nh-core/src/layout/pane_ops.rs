@@ -207,7 +207,7 @@ impl Layout {
         let workspace = &mut self.workspaces[w];
         let closed = workspace.tabs.remove(t);
         if workspace.selected_tab == Some(closed.id) {
-            workspace.selected_tab = workspace.tabs.get(t.saturating_sub(1)).map(|tab| tab.id);
+            workspace.selected_tab = workspace.visible_near(t);
         }
         event(
             closed.id,

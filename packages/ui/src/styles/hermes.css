@@ -1,0 +1,154 @@
+/* The Hermes view: the list of the chats on the left, and one chat in the middle: its head, its
+   items and the field of the prompt. It takes the main panel, as the Workflows view does, and
+   uses the bar and the list of that view (`workflows.css`). */
+@layer components {
+  .hm-view {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+    background: var(--bg-raised);
+    outline: none;
+  }
+
+  .hm-body {
+    display: grid;
+    grid-template-columns: minmax(22ch, 30ch) minmax(0, 1fr);
+    flex: 1;
+    min-height: 0;
+  }
+
+  .hm-banner {
+    display: flex;
+    align-items: center;
+    gap: var(--s1);
+    margin: 0;
+    padding: var(--s1) var(--s3);
+    border-bottom: 1px solid var(--hairline);
+    color: var(--caution);
+    font-size: var(--size-small);
+  }
+
+  .hm-banner.hm-danger {
+    color: var(--danger);
+  }
+
+  .hm-chat {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+  }
+
+  .hm-chat-head {
+    display: flex;
+    align-items: center;
+    gap: var(--s1);
+    padding: var(--s1) var(--s3);
+    border-bottom: 1px solid var(--hairline);
+  }
+
+  .hm-items {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s2);
+    max-width: 90ch;
+    margin: 0 auto;
+    padding: var(--s3);
+    list-style: none;
+  }
+
+  .hm-item {
+    min-width: 0;
+  }
+
+  /* The prompt of the person sits on the right, as in a chat. */
+  .hm-item-prompt {
+    align-self: flex-end;
+    max-width: 80%;
+  }
+
+  .hm-prompt-text {
+    padding: var(--s1) var(--s2);
+    border-radius: var(--r-md);
+    background: var(--bg-card);
+  }
+
+  .hm-streaming::after {
+    content: '▍';
+    color: var(--text-dim);
+    animation: hm-blink 1s steps(2) infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hm-streaming::after {
+      animation: none;
+    }
+  }
+
+  @keyframes hm-blink {
+    50% {
+      opacity: 0;
+    }
+  }
+
+  .hm-details > summary {
+    cursor: pointer;
+    list-style: none;
+  }
+
+  .hm-details[open] > summary {
+    margin-bottom: var(--s1);
+  }
+
+  .hm-tool-line {
+    display: flex;
+    align-items: center;
+    gap: var(--s1);
+    min-width: 0;
+    color: var(--text-dim);
+    font-family: var(--font-data);
+    font-size: var(--size-small);
+  }
+
+  .hm-mark {
+    display: inline-block;
+    width: 2ch;
+    text-align: center;
+  }
+
+  .hm-plan {
+    margin: 0;
+    padding: var(--s1) var(--s2);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-md);
+    list-style: none;
+  }
+
+  .hm-plan-done {
+    color: var(--text-dim);
+    text-decoration: line-through;
+  }
+
+  .hm-approval {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s1);
+    padding: var(--s2);
+    border: 1px solid var(--caution);
+    border-radius: var(--r-md);
+    background: var(--bg-card, var(--bg-raised));
+  }
+
+  .hm-approval-closed {
+    border-color: var(--hairline);
+  }
+
+  .hm-composer {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s1);
+    padding: var(--s2) var(--s3);
+    border-top: 1px solid var(--hairline);
+  }
+}

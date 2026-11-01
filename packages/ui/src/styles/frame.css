@@ -130,47 +130,12 @@
     font-weight: 600;
   }
 
-  /* The field opens the palette in its place: the palette lies over it (`.palette`). It is a
-     button with a fill, the magnifier and its words, so it needs no border. */
-  .cmdline {
-    display: flex;
-    align-items: center;
-    gap: var(--s2);
-    width: 100%;
-    box-sizing: border-box;
-    height: 28px;
-    padding: 0 var(--s1) 0 var(--s2);
-    background: var(--bg-hover);
-    border: 0;
-    border-radius: var(--r-sm);
-    color: var(--text-dim);
-    text-align: left;
-    cursor: text;
-  }
-
-  .cmdline:hover,
-  .cmdline:active:not(:disabled) {
-    background: var(--bg-focus);
-    color: var(--text-dim);
-  }
-
-  /* Under the open palette, the field has no words, so that they do not show through the glass. */
-  .cmdline[aria-expanded='true'] > * {
-    visibility: hidden;
-  }
-
+  /* The field of the palette is a Button of shadcn/ui (`shell/CommandBar.tsx`). */
   .cmdline-hint {
     flex: 1;
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
-  }
-
-  .cmdline .cap {
-    background: none;
-    box-shadow: inset 0 0 0 1px var(--line);
-    color: var(--text-dim);
-    font-weight: 400;
   }
 
   /* The attention line: how many agents wait, and the first interaction. It is empty with no
@@ -184,18 +149,7 @@
     max-width: 100%;
   }
 
-  .badge {
-    flex: none;
-    height: 22px;
-    padding: 0 var(--s2);
-    border-radius: var(--r-sm);
-    line-height: 22px;
-    font-weight: 600;
-    background: var(--caution);
-    color: var(--on-signal);
-  }
-
-  /* The pill comes when the count goes up from 0, and flashes three times. */
+  /* The pill (a Badge of shadcn/ui) comes when the count goes up from 0, and flashes three times. */
   @media (prefers-reduced-motion: no-preference) {
     .badge {
       animation: flash 0.45s steps(1) 3;
@@ -207,24 +161,6 @@
       background: var(--bg);
       color: var(--caution);
     }
-  }
-
-  .ticker-next {
-    display: flex;
-    align-items: center;
-    gap: 1ch;
-    min-width: 0;
-    height: 28px;
-    padding: 0 var(--s2);
-    border-radius: var(--r-sm);
-  }
-
-  .ticker-next:disabled {
-    cursor: default;
-  }
-
-  .ticker-next:hover {
-    background: var(--bg-hover);
   }
 
   .ticker-title {
@@ -242,7 +178,6 @@
 
   .sidebar {
     grid-area: sidebar;
-    container: left-column / inline-size;
     display: flex;
     flex-direction: column;
     min-width: 0;
@@ -285,90 +220,9 @@
     padding: 0 var(--s2) 0 calc(var(--s2) + 1.5ch);
   }
 
-  .side-tab {
-    min-width: 0;
-    height: calc(var(--row) - 4px);
-    padding: 0 var(--s2);
-    border-radius: var(--r-tab);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    text-align: left;
-    color: var(--text-dim);
-  }
-
-  .side-tab:hover {
-    background: var(--bg-hover);
-  }
-
-  /* The tab that the window shows, as the selected tab of the tab bar: a quiet "you are here",
-    with no change of weight. */
-  .side-tab.selected {
-    background: var(--bg-hover);
-    color: var(--text);
-    box-shadow: inset 0 0 0 1px var(--hairline);
-  }
-
-  /* The cross that closes a workspace or a tab of the left column. It stays in place, dim until the row
-     has the pointer or the focus. */
-  .row-close {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 18px;
-    height: 18px;
-    flex: none;
-    color: var(--text-dim);
-    opacity: 0.5;
-  }
-
-  .workspace-name:hover .row-close,
-  .side-tab-row:hover .row-close,
-  .row-close:focus-visible {
-    opacity: 1;
-  }
-
-  .row-close:hover {
-    color: var(--danger);
-  }
-
-  /* The field of a new name: in place of the name in the left column, and over the tab in the
-     bar. A name that the core refused gives the field a red border, and the message is its title. */
-  .rename-field {
-    min-width: 0;
-    height: calc(var(--row) - 4px);
-    padding: 0 var(--s1);
-    border: 1px solid var(--text);
-    border-radius: var(--r-sm);
-    outline: none;
-    background: var(--bg);
-    color: var(--text);
-    caret-color: var(--text);
-  }
-
-  .side-tab-row > .rename-field {
-    width: 100%;
-  }
-
-  .rename-field[aria-invalid='true'] {
-    border-color: var(--danger);
-  }
-
-  .new-workspace {
-    margin-top: var(--s2);
-    padding: 0 var(--s2);
-    height: var(--row);
-    text-align: left;
-    color: var(--text-dim);
-  }
-
-  .new-workspace::before {
-    content: '+ ';
-  }
-
-  .new-workspace:hover {
-    color: var(--text);
-  }
+  /* The tabs of a workspace, the crosses and the button of a new workspace are Buttons of
+     shadcn/ui (`shell/Sidebar.tsx`). A cross stays in place, dim until the row has the pointer or
+     the focus. */
 
   /* --- the function keys and the status --------------------------------------------------------- */
 
@@ -390,34 +244,8 @@
     min-width: 0;
   }
 
-  .fkey {
-    display: flex;
-    align-items: center;
-    gap: 0.5ch;
-    padding-right: 2px;
-    color: var(--text);
-  }
-
-  .fkey:hover .cap {
-    outline: 1px solid var(--text);
-  }
-
   .status-spacer {
     flex: 1;
-  }
-
-  .status-pass {
-    padding: 0 4px;
-    background: var(--here);
-    color: var(--on-here);
-  }
-
-  .status-warnings {
-    color: var(--danger);
-  }
-
-  .status-limit {
-    color: var(--text-dim);
   }
 
   /* The switches of the views are a group after a rule, so they do not read as facts. */
@@ -428,30 +256,11 @@
     border-left: 1px solid var(--line);
   }
 
-  .drawer-toggle {
-    height: var(--row);
-    padding: 0 var(--s3);
-    border-radius: 4px;
-    color: var(--text-dim);
-  }
-
-  .drawer-toggle:hover {
-    color: var(--text);
-  }
-
-  .drawer-toggle[aria-pressed='true'] {
-    background: var(--bg-card);
-    color: var(--text);
-  }
-
   /* --- a narrower window ------------------------------------------------------------------------- */
 
-  /* Under 1280 px the function keys that move leave the strip. */
+  /* Under 1280 px the field of the command line is narrower. The function keys that move leave
+     the strip (`StatusBar.tsx`). */
   @media (max-width: 1279px) {
-    .fkey.optional {
-      display: none;
-    }
-
     :root {
       --cmd-width: min(48ch, 40vw);
     }
@@ -468,15 +277,6 @@
     .brand,
     .ticker-title {
       display: none;
-    }
-  }
-
-  /* A narrow left column cuts the button of a new workspace. */
-  @container left-column (max-width: 20ch) {
-    .new-workspace {
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
     }
   }
 }

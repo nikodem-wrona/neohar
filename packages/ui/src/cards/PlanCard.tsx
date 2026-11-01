@@ -2,7 +2,9 @@
 // the buttons Approve and Request changes.
 
 import type { InteractionValue } from '@neohar/transport';
-import { createSignal, Show } from 'solid-js';
+import { type Ref, useState } from 'react';
+import { Button } from '../components/ui/button';
+import { Textarea } from '../components/ui/textarea';
 import { RichHtml } from '../rich/RichHtml';
 import { sendAnswer } from './answer';
 import { CardFrame } from './CardFrame';
@@ -15,64 +17,69 @@ export function PlanCard(props: {
   interaction: InteractionValue;
   payload: Plan;
   harness: string;
-  ref?: ((element: HTMLElement) => void) | undefined;
+  ref?: Ref<HTMLElement> | undefined;
 }) {
-  const { transport, via, report } = useCardHost();
-  const [feedback, setFeedback] = createSignal('');
-  const [busy, setBusy] = createSignal(false);
-  const [error, setError] = createSignal<string | null>(null);
+  const host = useCardHost();
+  const { report } = host;
+  const [feedback, setFeedback] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const answer = async (approve: boolean) => {
-    if (busy() || !canAnswer(props.interaction)) return;
+    if (busy || !canAnswer(props.interaction)) return;
     setBusy(true);
-    setError(
-      await sendAnswer(transport, props.interaction, planDecision(approve, feedback()), via),
-    );
+    setError(await sendAnswer(host, props.interaction, planDecision(approve, feedback)));
     setBusy(false);
   };
   return (
     <CardFrame
       interaction={props.interaction}
       harness={props.harness}
-      error={error()}
+      error={error}
       ref={props.ref}
+      footer={
+        canAnswer(props.interaction) ? (
+          <>
+            <Textarea
+              placeholder="What should change? (for Request changes)"
+              aria-label="Feedback for the agent"
+              value={feedback}
+              onChange={(event) => setFeedback(event.currentTarget.value)}
+            />
+            {/* Approve lets the agent go on: it is green. */}
+            <div className="flex flex-wrap items-center gap-1" role="group" aria-label="Answer">
+              <Button
+                variant="outline"
+                size="sm"
+                className="min-h-(--control) border-(--accent) text-(--accent)"
+                data-choice="approve"
+                disabled={busy}
+                onClick={() => void answer(true).catch(report)}
+              >
+                Approve
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="min-h-(--control)"
+                disabled={busy}
+                onClick={() => void answer(false).catch(report)}
+              >
+                Request changes
+              </Button>
+            </div>
+          </>
+        ) : null
+      }
     >
       <RichHtml html={props.payload.plan.html} />
-      <Show when={props.payload.plan.truncated}>
-        <p class="card-note">The plan is cut at the size limit.</p>
-      </Show>
-      <Show when={props.payload.plan_path}>
-        <p class="card-cwd">
-          <span class="card-label">File</span> {props.payload.plan_path}
+      {props.payload.plan.truncated ? (
+        <p className="card-note">The plan is cut at the size limit.</p>
+      ) : null}
+      {props.payload.plan_path ? (
+        <p className="card-cwd">
+          <span className="card-label">File</span> {props.payload.plan_path}
         </p>
-      </Show>
-      <Show when={canAnswer(props.interaction)}>
-        <textarea
-          class="card-feedback"
-          placeholder="What should change? (for Request changes)"
-          aria-label="Feedback for the agent"
-          value={feedback()}
-          onInput={(event) => setFeedback(event.currentTarget.value)}
-        />
-        <div class="card-actions" role="group" aria-label="Answer">
-          <button
-            type="button"
-            class="card-button selected"
-            data-choice="approve"
-            disabled={busy()}
-            onClick={() => void answer(true).catch(report)}
-          >
-            Approve
-          </button>
-          <button
-            type="button"
-            class="card-button"
-            disabled={busy()}
-            onClick={() => void answer(false).catch(report)}
-          >
-            Request changes
-          </button>
-        </div>
-      </Show>
+      ) : null}
     </CardFrame>
   );
 }

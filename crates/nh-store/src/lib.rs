@@ -15,6 +15,7 @@ mod degraded;
 mod drift_rows;
 mod events;
 mod git_rows;
+mod hermes_rows;
 mod interaction_rows;
 mod layout;
 mod migrate;
@@ -24,6 +25,7 @@ mod policy_rows;
 mod runs;
 mod scrollback;
 mod usage_rows;
+mod workflow_rows;
 
 use std::{
     cell::RefCell,
@@ -43,6 +45,7 @@ pub use degraded::PROBE_INTERVAL_MS;
 pub use drift_rows::DriftRow;
 pub use events::{EventsRead, Retention, Swept, TruncatedReason, Tx, is_audit_kind};
 pub use git_rows::{GitRepoRow, GitTrustRow};
+pub use hermes_rows::HermesChatRow;
 pub use interaction_rows::{DeliveryRow, InteractionRow};
 pub use layout::{GroupRow, LayoutRows, LoadedPane, PaneSlot, TabRow, WindowRow, WorkspaceRow};
 pub use migrate::SCHEMA_VERSION;
@@ -52,9 +55,10 @@ pub use policy_rows::{FingerprintRow, PolicyRuleRow};
 pub use runs::RunRow;
 pub use scrollback::{
     ArchivedLine, ArchivedRun, FLUSH_INTERVAL_MS, Flushed, PageBuilder, PageError, SEGMENT_BYTES,
-    SEGMENT_LINES, ScrollbackHit, ScrollbackWriter, SearchScope, SegmentInfo,
+    SEGMENT_LINES, ScrollbackWriter, SegmentInfo,
 };
 pub use usage_rows::{TranscriptState, UsageTotals};
+pub use workflow_rows::{ExecutionRow, NodeRow};
 
 /// How long a statement waits for a lock that another connection holds.
 const BUSY_TIMEOUT: Duration = Duration::from_secs(5);

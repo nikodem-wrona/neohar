@@ -10,8 +10,8 @@ use super::{
     common::{Axis, Bounds, Harness, Rect, RendererKind, Risk, Source, Urgency, Via, wire},
     envelope::CallError,
     ids::{
-        DeviceId, GroupId, InteractionId, JobId, NotificationId, PaneId, RunId, TabId, WindowId,
-        WorkspaceId,
+        ChatId, DeviceId, ExecutionId, GroupId, InteractionId, JobId, NotificationId, PaneId,
+        RunId, TabId, WindowId, WorkspaceId,
     },
     rich::{Command, Diff, DiffStats, Markdown},
     time::Timestamp,
@@ -1300,5 +1300,295 @@ wire! {
         /// Whether a Funnel is on `https_port`. neohar never turns one on.
         #[serde(default)]
         pub funnel: bool,
+    }
+}
+
+// --- workflows ------------------------------------------------------------------------------
+
+wire! {
+    /// `workflows`: a workflow file in `<config>/workflows/`. The key is the name of the file
+    /// without `.toml`. The core orders the rows by name.
+    pub struct WorkflowValue {
+        /// The name of the file without `.toml`. Calls name the workflow with it.
+        pub workflow: String,
+        /// The name in the file, for example "Review".
+        pub name: String,
+        /// The number of nodes.
+        pub nodes: u32,
+        /// The number of errors. A workflow with errors cannot be executed.
+        pub problems: u32,
+        /// The revision of the file, as `workflow.show` gives it.
+        pub revision: String,
+    }
+
+    /// The state of an execution of a workflow.
+    #[derive(Copy, Eq, Hash)]
+    #[serde(rename_all = "snake_case")]
+    pub enum ExecutionState {
+        /// A node works, or can start.
+        Running,
+        /// No node can start, and a node failed. Retry or skip the failed node, or cancel.
+        Paused,
+        /// Each node is done or skipped.
+        Done,
+        /// The person cancelled the execution.
+        Cancelled,
+    }
+
+    /// The state of one node in an execution.
+    #[derive(Copy, Eq, Hash)]
+    #[serde(rename_all = "snake_case")]
+    pub enum NodeState {
+        /// An input is not done.
+        Waiting,
+        /// The inputs are done, and `workflows.max_agents` agents work.
+        Queued,
+        /// The agent of the node works.
+        Working,
+        /// The agent of the node has an open interaction.
+        NeedsYou,
+        /// The report of the node exists.
+        Done,
+        /// The node failed. `reason` tells why.
+        Failed,
+        /// The person skipped the node.
+        Skipped,
+        /// The person cancelled the execution.
+        Cancelled,
+    }
+
+    /// The last line of a report: `Verdict: pass`, `warn` or `fail`.
+    #[derive(Copy, Eq, Hash)]
+    #[serde(rename_all = "snake_case")]
+    pub enum Verdict {
+        Pass,
+        Warn,
+        Fail,
+        /// The report has no verdict line.
+        Unknown,
+    }
+
+    /// One node of a `workflow_executions` row.
+    pub struct ExecutionNodeValue {
+        /// The id of the node in the graph of the execution.
+        pub node: String,
+        pub state: NodeState,
+        /// Why the node failed, or what it waits for, as a person reads it.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub reason: Option<String>,
+        /// The agent run of the node, while it has one.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub run: Option<RunId>,
+        /// The pane of that agent run, while the agent runs.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub pane: Option<PaneId>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub verdict: Option<Verdict>,
+        /// The absolute path of the report of the node.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub report: Option<String>,
+        /// The time of the node as a person reads it, for example "6 min".
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub time_text: Option<String>,
+        /// The agent of the node can start again with `workflow.continue`.
+        #[serde(default)]
+        pub resumable: bool,
+    }
+
+    /// `workflow_executions`: one execution of a workflow. The key is the id. The core orders
+    /// the rows, the newest first.
+    pub struct ExecutionValue {
+        pub id: ExecutionId,
+        /// The name of the workflow file without `.toml`.
+        pub workflow: String,
+        /// The name of the execution, for example "Review 3".
+        pub label: String,
+        /// The number of the execution of this workflow, from 1.
+        pub number: u32,
+        /// The folder in which the agents work.
+        pub folder: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub branch: Option<String>,
+        /// The base of the changes, for example `main`.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub base: Option<String>,
+        /// The `HEAD` commit at the start, short.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub head: Option<String>,
+        pub state: ExecutionState,
+        /// The nodes, in the order of the graph.
+        pub nodes: Vec<ExecutionNodeValue>,
+        /// The node of "Execute this node", when the execution has only that node.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub only: Option<String>,
+        pub started_at: Timestamp,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub ended_at: Option<Timestamp>,
+        /// The time and the length as a person reads it, for example "14:12 · 14 min".
+        pub time_text: String,
+        /// The `HEAD` commit or the changes of the worktree are different from the start.
+        #[serde(default)]
+        pub tree_changed: bool,
+        /// The folder of the files of the execution.
+        pub dir: String,
+        /// The path of `report.md`, when a Report node wrote it.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub report: Option<String>,
+    }
+}
+
+// --- hermes ---------------------------------------------------------------------------------
+
+wire! {
+    /// The state of a chat with Hermes Agent.
+    #[derive(Copy, Eq, Hash)]
+    #[serde(rename_all = "snake_case")]
+    pub enum HermesChatState {
+        /// The core starts `hermes acp` and opens the session.
+        Starting,
+        Idle,
+        /// A turn works.
+        Working,
+        /// An approval of the turn waits for the person.
+        Waiting,
+        /// `hermes acp` does not run. `error` tells why. A prompt or `hermes.retry` starts it
+        /// again.
+        Disconnected,
+    }
+
+    /// A model or a mode that the session offers.
+    pub struct HermesChoice {
+        pub id: String,
+        pub name: String,
+    }
+
+    /// `hermes_chats`: one chat with Hermes Agent. The key is the id. The core orders the rows,
+    /// the newest first.
+    pub struct HermesChatValue {
+        pub id: ChatId,
+        /// The title that Hermes gave the session, or the folder name before the first prompt.
+        pub title: String,
+        /// The folder in which Hermes works.
+        pub cwd: String,
+        /// The session id of Hermes, after `session/new`.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub session: Option<String>,
+        pub state: HermesChatState,
+        /// The state of the turn is a guess: the core found the turn when it resumed the
+        /// session, and ACP tells the end of a turn only to the client that sent the prompt.
+        #[serde(default)]
+        pub guessed: bool,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub model: Option<String>,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        pub models: Vec<HermesChoice>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub mode: Option<String>,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        pub modes: Vec<HermesChoice>,
+        /// The context window as a person reads it, for example "15k of 500k tokens".
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub context_text: Option<String>,
+        /// The approvals that wait.
+        #[serde(default)]
+        pub pending: u32,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub error: Option<String>,
+        pub started_at: Timestamp,
+        /// The start as a person reads it, for example "14:12" or "Oct 31".
+        pub time_text: String,
+    }
+
+    #[derive(Copy, Eq, Hash)]
+    #[serde(rename_all = "snake_case")]
+    pub enum HermesToolStatus {
+        Running,
+        Done,
+        Failed,
+    }
+
+    #[derive(Copy, Eq, Hash)]
+    #[serde(rename_all = "snake_case")]
+    pub enum HermesPlanStatus {
+        Pending,
+        InProgress,
+        Completed,
+    }
+
+    /// One step of the plan of a turn (the `todo` tool of Hermes).
+    pub struct HermesPlanEntry {
+        pub text: String,
+        pub status: HermesPlanStatus,
+    }
+
+    /// An option of an approval, as Hermes gives it.
+    pub struct HermesOption {
+        pub id: String,
+        pub label: String,
+        /// The option lets the tool run.
+        pub allow: bool,
+    }
+
+    #[derive(Copy, Eq, Hash)]
+    #[serde(rename_all = "snake_case")]
+    pub enum HermesAnswerState {
+        /// The approval waits for an answer.
+        Open,
+        /// The answer went to Hermes.
+        Answered,
+        /// The deadline went by, and Hermes denied the request.
+        Expired,
+        /// The request ended without an answer of neohar: the turn was cancelled, or
+        /// `hermes acp` stopped.
+        Gone,
+    }
+
+    #[serde(tag = "type", rename_all = "snake_case")]
+    pub enum HermesItemBody {
+        Prompt { markdown: Markdown },
+        Assistant {
+            markdown: Markdown,
+            /// More text can come.
+            #[serde(default)]
+            streaming: bool,
+        },
+        Thought { markdown: Markdown },
+        Tool {
+            title: String,
+            /// The kind of ACP: `read`, `edit`, `execute`, `search`, `fetch`, `think`, `other`.
+            kind: String,
+            status: HermesToolStatus,
+            #[serde(default, skip_serializing_if = "Option::is_none")]
+            output: Option<Markdown>,
+            #[serde(default, skip_serializing_if = "Option::is_none")]
+            diff: Option<Diff>,
+        },
+        Plan { entries: Vec<HermesPlanEntry> },
+        Approval {
+            /// The id that `hermes.answer` names.
+            request: String,
+            title: String,
+            #[serde(default, skip_serializing_if = "Option::is_none")]
+            detail: Option<Markdown>,
+            #[serde(default, skip_serializing_if = "Option::is_none")]
+            diff: Option<Diff>,
+            options: Vec<HermesOption>,
+            state: HermesAnswerState,
+            /// The label of the option that went to Hermes.
+            #[serde(default, skip_serializing_if = "Option::is_none")]
+            answer: Option<String>,
+            /// When Hermes denies the request if nobody answers (`approvals.timeout`).
+            #[serde(default, skip_serializing_if = "Option::is_none")]
+            deadline: Option<Timestamp>,
+        },
+        Notice { text: String },
+    }
+
+    /// `hermes_chat:<chat>`: one item of a chat. The core orders the items as the chat shows
+    /// them.
+    pub struct HermesItem {
+        pub id: String,
+        pub at: Timestamp,
+        pub body: HermesItemBody,
     }
 }

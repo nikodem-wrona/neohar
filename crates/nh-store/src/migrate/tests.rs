@@ -610,30 +610,6 @@ fn running_twice_changes_nothing_the_second_time() {
 // The schema. ----------------------------------------------------------------------------------
 
 #[test]
-fn full_text_search_is_in_the_bundled_sqlite() {
-    let mut conn = memory();
-    run_memory(&mut conn).expect("the migrations run");
-    conn.execute(
-        "INSERT INTO scrollback_fts (text, pane_id, line_no) VALUES ('migration failed: no such column', 'p1', 12)",
-        [],
-    )
-    .expect("a line");
-    conn.execute(
-        "INSERT INTO scrollback_fts (text, pane_id, line_no) VALUES ('all tests passed', 'p1', 13)",
-        [],
-    )
-    .expect("a line");
-    let (pane, line): (String, i64) = conn
-        .query_row(
-            "SELECT pane_id, line_no FROM scrollback_fts WHERE scrollback_fts MATCH 'migration'",
-            [],
-            |row| Ok((row.get(0)?, row.get(1)?)),
-        )
-        .expect("a hit");
-    assert_eq!((pane.as_str(), line), ("p1", 12));
-}
-
-#[test]
 fn the_interactions_reject_a_value_outside_their_enums() {
     let mut conn = memory();
     run_memory(&mut conn).expect("the migrations run");

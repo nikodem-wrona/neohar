@@ -35,6 +35,16 @@ pub fn launch_argv(
     argv
 }
 
+/// The arguments that let the agent read one more folder, or none when the manifest has no
+/// `add_dir_arg`.
+pub fn add_dir_args(launch: &Launch, dir: &str) -> Vec<String> {
+    launch
+        .add_dir_arg
+        .as_ref()
+        .map(|template| fill(template, "add_dir", dir))
+        .unwrap_or_default()
+}
+
 /// Whether the manifest can pre-assign a session id.
 pub fn preassigns(launch: &Launch) -> bool {
     launch.argv_with_session.is_some()

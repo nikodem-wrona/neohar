@@ -4,8 +4,9 @@
 // window (`FileModal.tsx`).
 
 import type { FsReadResult } from '@neohar/transport';
-import { createEffect, createSignal, For, on, Show } from 'solid-js';
+import { useState } from 'react';
 import { useApp } from '../app/context';
+import { Tooltip, TooltipContent, TooltipTrigger } from '../components/ui/tooltip';
 import { FileBody } from './FileBody';
 import { FileIcon } from './FileIcon';
 import type { MenuItem } from './model';
@@ -28,75 +29,74 @@ export function FileView(props: {
   onClose: () => void;
 }) {
   // A Markdown file shows its HTML first. The switch shows its lines.
-  const [source, setSource] = createSignal(false);
+  const [source, setSource] = useState(false);
   // Reveal acts on the screen of the Mac: a phone does not show it.
   const { form } = useApp();
   const actions = ACTIONS.filter((action) => form !== 'phone' || action.id !== 'reveal');
-  createEffect(
-    on(
-      () => props.path,
-      () => setSource(false),
-    ),
-  );
+  // Another file shows its HTML first again.
+  const [sourceOf, setSourceOf] = useState(props.path);
+  if (sourceOf !== props.path) {
+    setSourceOf(props.path);
+    setSource(false);
+  }
 
   return (
-    <section class="file-view" aria-label="File">
-      <header class="file-head">
-        <Show when={props.preview}>{(preview) => <FileIcon icon={preview().icon} />}</Show>
-        <span class="file-name" title={props.path}>
+    <section className="file-view" aria-label="File">
+      <header className="file-head">
+        {props.preview ? <FileIcon icon={props.preview.icon} /> : null}
+        <span className="file-name" title={props.path}>
           {props.preview?.name ?? props.path}
         </span>
-        <Show when={props.preview}>
-          {(preview) => <span class="file-info">{preview().info}</span>}
-        </Show>
-        <span class="file-spacer" />
-        <button
-          type="button"
-          class="file-close"
-          aria-label="Close the file"
-          title="Close the file"
-          onClick={() => props.onClose()}
-        >
-          <svg viewBox="0 0 16 16" width="10" height="10" aria-hidden="true">
-            <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.5" />
-          </svg>
-        </button>
-      </header>
-      <div class="file-actions" role="toolbar" aria-label="File actions">
-        <For each={actions}>
-          {(action) => (
+        {props.preview ? <span className="file-info">{props.preview.info}</span> : null}
+        <span className="file-spacer" />
+        <Tooltip>
+          <TooltipTrigger asChild>
             <button
               type="button"
-              class="file-action"
-              data-action={action.id}
-              title={action.id === 'open' ? 'Open the file in a large view' : action.label}
-              aria-label={action.label}
-              onClick={() => props.onAction(action.id, props.path)}
+              className="file-close"
+              aria-label="Close the file"
+              onClick={() => props.onClose()}
             >
-              {action.short}
+              <svg viewBox="0 0 16 16" width="10" height="10" aria-hidden="true">
+                <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.5" />
+              </svg>
             </button>
-          )}
-        </For>
-        <Show when={props.preview?.markdown}>
+          </TooltipTrigger>
+          <TooltipContent>Close the file</TooltipContent>
+        </Tooltip>
+      </header>
+      <div className="file-actions" role="toolbar" aria-label="File actions">
+        {actions.map((action) => (
+          <button
+            key={action.id}
+            type="button"
+            className="file-action"
+            data-action={action.id}
+            title={action.id === 'open' ? 'Open the file in a large view' : action.label}
+            aria-label={action.label}
+            onClick={() => props.onAction(action.id, props.path)}
+          >
+            {action.short}
+          </button>
+        ))}
+        {props.preview?.markdown ? (
           <button
             type="button"
-            class="file-action file-source"
-            aria-pressed={source()}
-            title={source() ? 'Show the Markdown' : 'Show the lines'}
-            onClick={() => setSource(!source())}
+            className="file-action file-source"
+            aria-pressed={source}
+            title={source ? 'Show the Markdown' : 'Show the lines'}
+            onClick={() => setSource(!source)}
           >
-            {source() ? 'Rendered' : 'Source'}
+            {source ? 'Rendered' : 'Source'}
           </button>
-        </Show>
+        ) : null}
       </div>
-      <Show when={props.error}>
-        <p class="file-error" role="alert">
+      {props.error ? (
+        <p className="file-error" role="alert">
           {props.error}
         </p>
-      </Show>
-      <Show when={props.preview}>
-        {(preview) => <FileBody preview={preview()} source={source()} />}
-      </Show>
+      ) : null}
+      {props.preview ? <FileBody preview={props.preview} source={source} /> : null}
     </section>
   );
 }

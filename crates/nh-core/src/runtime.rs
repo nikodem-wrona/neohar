@@ -196,6 +196,12 @@ pub(crate) struct Inner {
     pub turn_waits: Arc<crate::agents::turn::TurnWaits>,
     /// The status of the listener of the phone and the removals of phones.
     pub phones: Arc<crate::phones::PhoneSide>,
+    /// The workflow files of the person.
+    pub workflows: Arc<crate::workflows::Library>,
+    /// The executions of the workflows.
+    pub executor: Arc<crate::workflows::Executor>,
+    /// The chats with Hermes Agent.
+    pub hermes: Arc<crate::hermes::Hermes>,
 }
 
 impl Inner {
@@ -271,6 +277,8 @@ pub struct Core {
     _config_watcher: Option<ConfigWatcher>,
     /// Watches the directory of the harness manifests. It ends with the core.
     _harness_watcher: Option<harness::HarnessWatcher>,
+    /// Watches the folder of the workflow files. It ends with the core.
+    _workflow_watcher: Option<crate::watch::DirWatch>,
     /// The task that accepts connections on `api.sock`, and the signal that stops it.
     api_task: Option<tokio::task::JoinHandle<()>>,
     api_stop: Arc<tokio::sync::Notify>,
@@ -464,6 +472,8 @@ impl Core {
         control.set_discovery(Arc::clone(&discovery));
         // The Changes tab and the Git view run git only in the repositories that the person trusts.
         let trusts = crate::changes::trust::Trusts::new(&config.base_env);
+        let workflow_facts =
+            crate::workflows::FactsReader::new(Arc::clone(&trusts), &config.base_env);
         let changes = crate::changes::ChangesService::new(
             runtime.handle().clone(),
             &config.base_env,
@@ -484,6 +494,36 @@ impl Core {
             trusts,
         );
         git_view.bind_projections(projections.hub());
+        // The workflow files of the person, and the executor of their executions.
+        let workflow_library = crate::workflows::Library::new(
+            config.paths.config_dir()?.join(crate::workflows::DIR_NAME),
+            Arc::clone(projections.hub()),
+        );
+        let workflow_watcher = match workflow_library.watch() {
+            Ok(watcher) => Some(watcher),
+            Err(error) => {
+                tracing::warn!(%error, "the workflow files are not watched");
+                None
+            }
+        };
+        workflow_library.publish();
+        let executor = crate::workflows::Executor::new(
+            runtime.handle().clone(),
+            Arc::clone(&control),
+            Arc::clone(&jobs),
+            Arc::clone(&config_store),
+            Arc::clone(projections.hub()),
+            Arc::clone(&workflow_library),
+            workflow_facts,
+            &data_dir,
+        );
+        let (workflow_signals, workflow_signals_rx) = tokio::sync::mpsc::unbounded_channel();
+        let hermes = crate::hermes::Hermes::new(
+            runtime.handle().clone(),
+            Arc::clone(projections.hub()),
+            Arc::clone(&config_store),
+            config.base_env.clone(),
+        );
         let render = Arc::new(RenderServer::new(
             runtime.handle().clone(),
             Arc::clone(&panes),
@@ -509,6 +549,7 @@ impl Core {
             .with_keystrokes(Arc::clone(&keystrokes))
             .with_control(Arc::clone(&control))
             .with_phones(phones)
+            .with_workflows(workflow_signals)
             .with_push(Arc::clone(&push_slot))
             .with_adapters(Arc::clone(&adapters))
             .with_runtime(runtime_link.clone())
@@ -524,6 +565,8 @@ impl Core {
         // The first load of the manifests is an event for each manifest.
         harnesses.attach(actor.handle());
         git_view.bind_actor(actor.handle());
+        executor.start(actor.handle(), workflow_signals_rx);
+        hermes.start(actor.handle());
         adapters.attach(actor.handle());
         // The runs and the interactions of the last core are in the projections before the first
         // client asks.
@@ -686,6 +729,9 @@ impl Core {
             machines: crate::machines::MachineSlot::default(),
             turn_waits,
             phones: Arc::clone(&phone_side),
+            workflows: workflow_library,
+            executor,
+            hermes,
         });
         // The API server starts before the panes of the last core come back, because an agent in
         // such a pane can send a hook at once. It runs the calls on the core, so it starts here.
@@ -735,6 +781,7 @@ impl Core {
             actor,
             _config_watcher: config_watcher,
             _harness_watcher: harness_watcher,
+            _workflow_watcher: workflow_watcher,
             api_task,
             api_stop,
             _api_socket: api_socket,
@@ -1013,6 +1060,8 @@ impl CoreHandle {
         let direct = pane_calls::handles(method)
             || crate::changes::handles(method)
             || crate::git_view::handles(method)
+            || crate::workflows::handles(method)
+            || crate::hermes::handles(method)
             || crate::files::handles(method)
             || crate::doctor::handles(method)
             || agent_calls::handles(method)
@@ -1020,7 +1069,6 @@ impl CoreHandle {
             || integration_calls::handles(method)
             || rich_calls::handles(method)
             || crate::transcripts::calls::handles(method)
-            || crate::search::handles(method)
             || crate::session::handles(method)
             || crate::askpass::handles(method)
             || crate::machines::handles(method)
@@ -1038,6 +1086,10 @@ impl CoreHandle {
                 crate::changes::run(&self.inner, call, origin).await
             } else if crate::git_view::handles(method) {
                 crate::git_view::run(&self.inner, call, origin).await
+            } else if crate::workflows::handles(method) {
+                crate::workflows::run(&self.inner, call, origin).await
+            } else if crate::hermes::handles(method) {
+                crate::hermes::run(&self.inner, call, origin).await
             } else if crate::files::handles(method) {
                 crate::files::run(&self.inner, call, origin).await
             } else if crate::doctor::handles(method) {
@@ -1050,8 +1102,6 @@ impl CoreHandle {
                 rich_calls::run(&self.inner, call).await
             } else if crate::transcripts::calls::handles(method) {
                 crate::transcripts::calls::run(&self.inner, call).await
-            } else if crate::search::handles(method) {
-                crate::search::run(&self.inner, call).await
             } else if crate::session::handles(method) {
                 crate::session::run(&self.inner, call).await
             } else if crate::askpass::handles(method) {

@@ -159,7 +159,7 @@ export default function Home(): ReactNode {
             </p>
             <p className={styles.harnesses}>
               For <strong>Claude Code</strong> and <strong>Codex</strong>. macOS first. Tauri 2,
-              Rust and SolidJS.
+              Rust and React.
             </p>
             <div className={styles.buttons}>
               <Link className="button button--primary button--lg" to="/docs/intro">

@@ -8,7 +8,8 @@
 // of the app. It runs offline and reads only the files of the crates in the cargo registry. The
 // script merges the results, so that each license text comes one time.
 //
-// JavaScript: the packages in `dependencies` of the two apps, through their workspace packages.
+// JavaScript: the packages in `dependencies` of the two apps, through their workspace packages, and
+// the dependencies of those packages.
 // The devDependencies do not ship. Two more items are in the bundles: the tslib helpers that
 // @tauri-apps/api copies into its code, and the module preload code of Vite. When a dependency
 // changes, look at the `sources` of the source map of apps/desktop to find what the bundle has.
@@ -16,7 +17,7 @@
 // Data: the art of material-icon-theme (`mise run gen:icons`) and the syntax definitions that
 // syntect bundles.
 
-import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -218,6 +219,7 @@ interface PackageJson {
   name: string;
   version: string;
   license?: string;
+  author?: string | { name?: string };
   dependencies?: Record<string, string>;
 }
 
@@ -227,19 +229,52 @@ function readPackage(dir: string): PackageJson {
 
 /** The folder of package `name` as `from` sees it: its own node_modules, then the root. */
 function packageDir(name: string, from: string): string {
-  for (const dir of [join(from, 'node_modules', name), join(root, 'node_modules', name)]) {
-    if (existsSync(join(dir, 'package.json'))) return dir;
+  // As Node resolves: the `node_modules` of the package, then those of each folder above it. A
+  // package of bun keeps its dependencies beside it, in the folder above its real path.
+  for (let dir = realpathSync(from); ; dir = dirname(dir)) {
+    const candidate = join(dir, 'node_modules', name);
+    if (existsSync(join(candidate, 'package.json'))) return candidate;
+    if (dirname(dir) === dir) break;
   }
   throw new Error(`cannot find the package ${name} from ${from}: run bun install`);
 }
 
-/** The license files of a package, sorted by name. */
+/** The text of the MIT license, for a package that names it and ships no license file. */
+const MIT = `Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.`;
+
+/**
+ * The license files of a package, sorted by name. A package with the MIT license and no file
+ * (`react-remove-scroll-bar`, a dependency of Radix) gets the text of the license with its author.
+ * Any other package without a file is an error.
+ */
 function licenseTexts(dir: string): string[] {
   const files = readdirSync(dir)
     .filter((file) => /^(licen[cs]e|copying)/i.test(file) && !file.endsWith('.spdx'))
     .sort();
-  if (files.length === 0) throw new Error(`the package in ${dir} has no license file`);
-  return files.map((file) => clean(readFileSync(join(dir, file), 'utf8')));
+  if (files.length > 0) return files.map((file) => clean(readFileSync(join(dir, file), 'utf8')));
+  const pkg = readPackage(dir);
+  const author = typeof pkg.author === 'string' ? pkg.author : pkg.author?.name;
+  if (pkg.license !== 'MIT' || !author) {
+    throw new Error(`the package in ${dir} has no license file`);
+  }
+  const holder = author.replace(/\s*<[^>]*>/, '').replace(/\s+/g, ' ');
+  return [`MIT License\n\nCopyright (c) ${holder}\n\n${MIT}`];
 }
 
 /** The text of a file up to the first line that starts with `stop`. */
@@ -249,7 +284,7 @@ function upTo(text: string, stop: string): string {
   return clean(text.slice(0, at));
 }
 
-/** The packages in `dependencies` of the apps, through the workspace packages. */
+/** The packages in `dependencies` of the apps, through the workspace packages and their own dependencies. */
 function jsItems(): Item[] {
   const workspaces = new Map<string, string>();
   for (const parent of ['packages', 'apps']) {
@@ -265,8 +300,15 @@ function jsItems(): Item[] {
     seen.add(dir);
     for (const [name, range] of Object.entries(readPackage(dir).dependencies ?? {})) {
       const local = workspaces.get(name);
-      if (range.startsWith('workspace:') && local) walk(local);
-      else if (!found.has(name)) found.set(name, packageDir(name, dir));
+      if (range.startsWith('workspace:') && local) {
+        walk(local);
+      } else if (!found.has(name)) {
+        // A dependency of a dependency goes into the bundle too, such as `scheduler` of
+        // `react-dom`.
+        const external = packageDir(name, dir);
+        found.set(name, external);
+        walk(external);
+      }
     }
   };
   for (const app of JS_APPS) walk(join(root, app));

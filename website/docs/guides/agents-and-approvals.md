@@ -81,6 +81,7 @@ for you.** Looking means that the window has the focus and the pane has the keyb
 - A request that waits 30 minutes (`approvals.gate_timeout`) goes back to the dialog in the pane.
 - An agent that ends its turn while you do not look at its pane waits too: a line in the Inbox, a
   count, and a notification (`agents.turn_end_notice`). A look at the pane or a key ends the wait.
+- The agent of a [workflow](/docs/guides/workflows) node does not wait at the end of its turn.
 
 `approvals.mode` is `auto` (the rule above), `gate` (always hold) or `observe` (never hold).
 
@@ -91,12 +92,13 @@ for you.** Looking means that the window has the focus and the pane has the keyb
 | Card | Answers |
 |---|---|
 | Approval | **Allow**, **Allow `<rule>` always** (a session rule too), **Deny** (type a reason first if you want), **Deny and stop**. Keys `1` to `4` pick them |
-| Question | Choose the options, or type your own answer, then **Answer** |
+| Question | Choose the options or type your own answer, not both, then **Answer** |
 | Plan | **Approve**, or **Request changes** with feedback |
 
 The card shows the command or the diff, its risk and the last lines of the pane. At a **high**
 risk, Deny starts selected, a number key only selects, and Enter on the button answers. "Display
-only" means the agent is not linked to its pane: answer in the pane, or run `nh agent link`.
+only" means that neohar cannot type the answer into the pane. The agent is not linked to its pane
+(run `nh agent link`), or the request has more than one question. Answer in the pane.
 Invisible characters, such as the direction control U+202E, show as escapes like `<U+202E>`,
 and they make the risk high.
 
@@ -115,9 +117,11 @@ The rule allows a later request only up to the risk of the request that you allo
 allow `git log` always at a low risk, `git log --output=log.txt` writes a file and comes to you
 again.
 
-Under the card, neohar says what became of your answer: delivered, answered in the pane, or
-"Couldn't confirm your answer reached …". In that last case, look at the pane: neohar never sends
-an answer twice. The first answer wins, from any card, notification or client.
+When your answer arrives, a toast in the bottom right corner of the window says so. A card that is
+not open shows a badge for its state, such as "Answered" or "Answered in Claude Code". If neohar
+cannot confirm that your answer arrived, the card says "Couldn't confirm your answer reached …". In
+that case, look at the pane: neohar never sends an answer twice. The first answer wins, from any
+card, notification or client.
 
 From the command line:
 

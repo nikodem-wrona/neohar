@@ -2,13 +2,21 @@
 // plain text. Nothing here builds HTML from a string.
 
 import type { Spans } from '@neohar/transport';
-import { For } from 'solid-js';
 import { segments } from './segments';
 
 export function RichSpans(props: { value: Spans }) {
+  // The runs of a text do not move: their place is their key.
   return (
-    <For each={segments(props.value)}>
-      {(run) => (run.className ? <span class={run.className}>{run.text}</span> : run.text)}
-    </For>
+    <>
+      {segments(props.value).map((run, at) =>
+        run.className ? (
+          <span key={at} className={run.className}>
+            {run.text}
+          </span>
+        ) : (
+          run.text
+        ),
+      )}
+    </>
   );
 }

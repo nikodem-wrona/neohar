@@ -152,12 +152,13 @@ impl Layout {
         Ok(pane)
     }
 
-    /// Adds a tab with one pane to a workspace and selects it.
+    /// Adds a tab with one pane to a workspace and selects it. A hidden tab is not selected.
     fn add_tab(
         &mut self,
         workspace: usize,
         name: Option<&str>,
         spec: Option<ProcessSpec>,
+        hidden: bool,
         alloc: &mut dyn Alloc,
     ) -> Result<(TabId, String, PaneEntry), LayoutError> {
         let id = self.workspaces[workspace].id;
@@ -176,10 +177,13 @@ impl Layout {
             layout: tree::leaf(pane.id),
             floating: Vec::new(),
             zoomed: None,
+            hidden,
         };
         let workspace = &mut self.workspaces[workspace];
         workspace.tabs.push(tab);
-        workspace.selected_tab = Some(tab_id);
+        if !hidden {
+            workspace.selected_tab = Some(tab_id);
+        }
         Ok((tab_id, handle, pane))
     }
 
@@ -238,7 +242,7 @@ impl Layout {
         let id = workspace.id;
         self.workspaces.push(workspace);
         let index = self.workspaces.len() - 1;
-        let (tab, tab_handle, pane) = self.add_tab(index, None, params.command, alloc)?;
+        let (tab, tab_handle, pane) = self.add_tab(index, None, params.command, false, alloc)?;
         let workspace = &self.workspaces[index];
         let created = WorkspaceCreated {
             workspace: id,
@@ -346,7 +350,7 @@ impl Layout {
                     name: w.name.clone(),
                     root: w.root.clone(),
                     group: w.group,
-                    tabs: count(w.tabs.len()),
+                    tabs: count(w.tabs.iter().filter(|t| !t.hidden).count()),
                     panes: count(panes.len()),
                     agents: count(panes.iter().filter(|p| has_agent(p.id)).count()),
                 }
@@ -451,9 +455,28 @@ impl Layout {
     // --- tabs -----------------------------------------------------------------------------
 
     pub fn create_tab(&mut self, params: TabCreate, alloc: &mut dyn Alloc) -> Outcome<TabCreated> {
+        self.add_tab_with_events(params, false, alloc)
+    }
+
+    /// A tab that the tab bar does not show, for the agent of a workflow node. Selecting it shows
+    /// it.
+    pub fn create_hidden_tab(
+        &mut self,
+        params: TabCreate,
+        alloc: &mut dyn Alloc,
+    ) -> Outcome<TabCreated> {
+        self.add_tab_with_events(params, true, alloc)
+    }
+
+    fn add_tab_with_events(
+        &mut self,
+        params: TabCreate,
+        hidden: bool,
+        alloc: &mut dyn Alloc,
+    ) -> Outcome<TabCreated> {
         let index = self.resolve_workspace(&params.workspace)?;
         let (tab, handle, pane) =
-            self.add_tab(index, params.name.as_deref(), params.command, alloc)?;
+            self.add_tab(index, params.name.as_deref(), params.command, hidden, alloc)?;
         let workspace = &self.workspaces[index];
         let created = workspace
             .tabs
@@ -500,7 +523,7 @@ impl Layout {
         let closed = workspace.tabs.remove(t);
         if workspace.selected_tab == Some(closed.id) {
             // The tab before it, else the one that took its place.
-            workspace.selected_tab = workspace.tabs.get(t.saturating_sub(1)).map(|tab| tab.id);
+            workspace.selected_tab = workspace.visible_near(t);
         }
         events.push(event(
             closed.id,
@@ -524,11 +547,9 @@ impl Layout {
             None => from,
         };
         let moved = self.workspaces[from].tabs.remove(at);
+        let hidden = moved.hidden;
         if self.workspaces[from].selected_tab == Some(moved.id) {
-            self.workspaces[from].selected_tab = self.workspaces[from]
-                .tabs
-                .get(at.saturating_sub(1))
-                .map(|t| t.id);
+            self.workspaces[from].selected_tab = self.workspaces[from].visible_near(at);
         }
         let target = &mut self.workspaces[to];
         let place = index
@@ -536,7 +557,7 @@ impl Layout {
             .map_or(target.tabs.len(), |i| i.min(target.tabs.len()));
         let id = moved.id;
         target.tabs.insert(place, moved);
-        if target.selected_tab.is_none() {
+        if target.selected_tab.is_none() && !hidden {
             target.selected_tab = Some(id);
         }
         let target_id = target.id;
@@ -556,6 +577,8 @@ impl Layout {
     pub fn select_tab(&mut self, tab: &Ref<TabId>, window: Option<WindowId>) -> Outcome<()> {
         let (w, t) = self.resolve_tab(tab)?;
         let id = self.workspaces[w].tabs[t].id;
+        // A hidden tab shows from now on.
+        self.workspaces[w].tabs[t].hidden = false;
         if let Some(window) = window {
             self.show_tab_in_window(window, id)?;
         }

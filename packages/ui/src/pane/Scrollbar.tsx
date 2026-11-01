@@ -4,71 +4,100 @@
 // frames that follow move the thumb.
 
 import type { PaneId } from '@neohar/transport';
-import { createEffect, createSignal, onCleanup } from 'solid-js';
+import { type MouseEvent, type PointerEvent, useEffect, useRef, useState } from 'react';
 import { useApp } from '../app/context';
 import { createFrameSender, pageFrames } from '../lib/frames';
+import { useLatest } from '../lib/hooks';
 import { lineAt, type Thumb, thumbFor } from './thumb';
+
+/** The history that the last frame had: the first line, all lines, and the rows of the grid. */
+interface History {
+  thumb: Thumb | null;
+  top: number;
+  total: number;
+  rows: number;
+}
+
+const EMPTY: History = { thumb: null, top: 0, total: 0, rows: 0 };
+
+function sameHistory(a: History, b: History): boolean {
+  return (
+    a.top === b.top &&
+    a.total === b.total &&
+    a.rows === b.rows &&
+    a.thumb?.offset === b.thumb?.offset &&
+    a.thumb?.size === b.thumb?.size
+  );
+}
 
 export function Scrollbar(props: { id: PaneId; renderId: number | undefined }) {
   const { run, render } = useApp();
-  const [thumb, setThumb] = createSignal<Thumb | null>(null);
-  let track: HTMLDivElement | undefined;
-  /** The history that the last frame had: the first line, all lines, and the rows of the grid. */
-  let top = 0;
-  let total = 0;
-  let rows = 0;
+  const [history, setHistory] = useState<History>(EMPTY);
+  const { thumb, top, total, rows } = history;
+  const track = useRef<HTMLDivElement>(null);
+  /** The history of the last render, so that a frame that changes nothing sets no state. */
+  const shown = useRef<History>(EMPTY);
+  const live = useLatest({ id: props.id, history });
 
-  const update = (): void => {
-    const id = props.renderId;
-    if (render === undefined || id === undefined || !track) return;
-    const raw = render.decoder.raw;
-    top = raw.viewport_top(id);
-    total = raw.viewport_total(id);
-    rows = raw.rows(id);
-    setThumb(thumbFor(top, total, rows, track.clientHeight));
-  };
-  createEffect(() => {
+  useEffect(() => {
     const id = props.renderId;
     if (render === undefined || id === undefined) return;
+    const update = (): void => {
+      const element = track.current;
+      if (!element) return;
+      const raw = render.decoder.raw;
+      const top = raw.viewport_top(id);
+      const total = raw.viewport_total(id);
+      const rows = raw.rows(id);
+      const next = { thumb: thumbFor(top, total, rows, element.clientHeight), top, total, rows };
+      // A frame that does not move the history renders nothing.
+      if (sameHistory(shown.current, next)) return;
+      shown.current = next;
+      setHistory(next);
+    };
     update();
-    onCleanup(render.watch(id, update));
-  });
+    return render.watch(id, update);
+  }, [render, props.renderId]);
 
   // A drag sends the line under the thumb, at most once for each animation frame.
-  const sender = createFrameSender<number>(
-    (line) => run('pane.scroll', { pane: props.id, top_line: line }),
-    pageFrames,
+  const [sender] = useState(() =>
+    createFrameSender<number>(
+      (line) => run('pane.scroll', { pane: live.current.id, top_line: line }),
+      pageFrames,
+    ),
   );
-  onCleanup(() => sender.cancel());
-  let grab: { pointerY: number; offset: number; size: number } | null = null;
+  useEffect(() => () => sender.cancel(), [sender]);
+  const grab = useRef<{ pointerY: number; offset: number; size: number } | null>(null);
 
-  const onThumbDown = (e: PointerEvent): void => {
-    const current = thumb();
+  const onThumbDown = (e: PointerEvent<HTMLDivElement>): void => {
+    const current = thumb;
     if (e.button !== 0 || !current) return;
     e.preventDefault();
     e.stopPropagation();
     try {
-      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+      e.currentTarget.setPointerCapture(e.pointerId);
     } catch {
       // A pointer that the browser does not track keeps sending events to the thumb anyway.
     }
-    grab = { pointerY: e.clientY, offset: current.offset, size: current.size };
+    grab.current = { pointerY: e.clientY, offset: current.offset, size: current.size };
   };
   const onThumbMove = (e: PointerEvent): void => {
-    if (!grab || !track) return;
-    const offset = grab.offset + (e.clientY - grab.pointerY);
-    sender.push(lineAt(offset, total, rows, track.clientHeight, grab.size));
+    const held = grab.current;
+    if (!held || !track.current) return;
+    const offset = held.offset + (e.clientY - held.pointerY);
+    sender.push(lineAt(offset, total, rows, track.current.clientHeight, held.size));
   };
   const onThumbUp = (): void => {
-    grab = null;
+    grab.current = null;
     sender.flush();
   };
   const onTrackDown = (e: MouseEvent): void => {
-    const current = thumb();
-    if (e.button !== 0 || !current || !track || e.target !== track) return;
+    const current = thumb;
+    const element = track.current;
+    if (e.button !== 0 || !current || !element || e.target !== element) return;
     e.preventDefault();
     e.stopPropagation();
-    const y = e.clientY - track.getBoundingClientRect().top;
+    const y = e.clientY - element.getBoundingClientRect().top;
     // A page up or down, in lines. The core clamps to the history.
     const delta = y < current.offset ? -rows : rows;
     run('pane.scroll', { pane: props.id, delta });
@@ -76,13 +105,12 @@ export function Scrollbar(props: { id: PaneId; renderId: number | undefined }) {
 
   return (
     <div
-      class="scrollbar"
-      classList={{ active: thumb() !== null }}
-      ref={(element) => (track = element)}
+      className={thumb !== null ? 'scrollbar active' : 'scrollbar'}
+      ref={track}
       onMouseDown={onTrackDown}
     >
       <div
-        class="scrollbar-thumb"
+        className="scrollbar-thumb"
         role="scrollbar"
         aria-orientation="vertical"
         aria-controls={props.id}
@@ -90,9 +118,9 @@ export function Scrollbar(props: { id: PaneId; renderId: number | undefined }) {
         aria-valuemax={Math.max(total - rows, 0)}
         aria-valuenow={top}
         style={{
-          display: thumb() ? 'block' : 'none',
-          top: `${thumb()?.offset ?? 0}px`,
-          height: `${thumb()?.size ?? 0}px`,
+          display: thumb ? 'block' : 'none',
+          top: `${thumb?.offset ?? 0}px`,
+          height: `${thumb?.size ?? 0}px`,
         }}
         onPointerDown={onThumbDown}
         onPointerMove={onThumbMove}

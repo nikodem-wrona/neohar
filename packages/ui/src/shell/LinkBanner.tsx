@@ -3,8 +3,11 @@
 // reason, and the surfaces take no input. The banner is driven by the projection only: the page
 // guesses nothing about the network.
 
-import { Show } from 'solid-js';
 import { useApp } from '../app/context';
+import { Alert } from '../components/ui/alert';
+import { useSelect } from '../lib/hooks';
+import { cn } from '../lib/utils';
+import { BANNER, BANNER_FAULT, BANNER_HINT } from './banner';
 
 /** Whether the link of this window is down. A window without `link` is local. */
 export function linkIsDown(state: string | undefined): boolean {
@@ -13,17 +16,16 @@ export function linkIsDown(state: string | undefined): boolean {
 
 export function LinkBanner() {
   const { stores } = useApp();
-  const link = () => stores.link.state.byKey['_'];
-  return (
-    <Show when={linkIsDown(link()?.state) ? link() : undefined}>
-      {(down) => (
-        <div class="banner banner-link" role="alert" data-link-state={down().state}>
-          <span class="banner-link-text">{down().text}</span>
-          <Show when={down().reason}>
-            <span class="banner-hint">{down().reason}</span>
-          </Show>
-        </div>
-      )}
-    </Show>
-  );
+  const link = useSelect(stores.link, (state) => state.byKey['_']);
+  const down = linkIsDown(link?.state) ? link : undefined;
+  return down ? (
+    <Alert
+      className={cn('banner-link', BANNER, BANNER_FAULT)}
+      role="alert"
+      data-link-state={down.state}
+    >
+      <span className="font-semibold">{down.text}</span>
+      {down.reason ? <span className={BANNER_HINT}>{down.reason}</span> : null}
+    </Alert>
+  ) : null;
 }

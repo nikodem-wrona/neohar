@@ -1,6 +1,6 @@
 ---
 title: Workspaces and panes
-description: "Workspaces, tabs and panes, the command line of the window, the default shortcuts, and how to search the scrollback."
+description: "Workspaces, tabs and panes, the command line of the window, the default shortcuts, and the scrollback."
 sidebar_position: 2
 ---
 
@@ -16,9 +16,9 @@ either place.
 | Top row | The command line (it opens the palette) and the attention line: how many agents wait, and the first request |
 | Board | Under the top row: a strip for each agent, with its state, its work, its harness and its cost. A strip is a card: its glyph is green while the agent works, and its border is amber while it waits for you and red after an error. The agents that do not fit are behind **+N**, which is amber when one of them waits. Drag a strip onto another strip to change the order; the order stays after a restart. The board is always shown |
 | Left column | The workspaces and their tabs. **New workspace** is at the bottom. The arrow at the end of **Workspaces** folds it to a rail, and under 1000 px it starts folded |
-| Middle | The tab bar and the panes of the tab, or the [Git view](/docs/guides/files-and-changes#the-git-view) |
+| Middle | The tab bar and the panes of the tab, the [Git view](/docs/guides/files-and-changes#the-git-view) or the [Workflows view](/docs/guides/workflows) |
 | Right | The drawer: Inbox, Timeline, Files and Changes. Its arrow folds it to a rail, and under 1280 px it starts folded |
-| Bottom row | Function keys (a click runs the command), the limits of the harnesses, warnings, the machine, and the **Workspaces**, **Drawer** and **Git** switches |
+| Bottom row | Function keys (a click runs the command), the limits of the harnesses, warnings, the machine, and the **Workspaces**, **Drawer**, **Git** and **Workflows** switches |
 
 Each part is a panel with round corners. Drag the gap beside a side column to change its width,
 and the gap between two panes to change their shares. The pane in focus has a lighter title strip. A click
@@ -36,13 +36,14 @@ strip of each pane, turn on **Show handles** in the settings (`⌘,`, section Ui
 |---|---|---|
 | New workspace | **New workspace**, or the palette | `nh workspace create app --root ~/code/app` |
 | New tab | The plus button after the tabs | `nh tab create w3` |
-| Rename | Double-click the name, or `F2` on a tab | `nh workspace rename w3 api`, `nh tab rename w3:t2 build` |
+| Rename | Double-click the name, `F2` on a tab, or right-click a tab and click **Rename** | `nh workspace rename w3 api`, `nh tab rename w3:t2 build` |
 | Split a pane | `⌘D` (right), `⌘⇧D` (down) | `nh pane split w3:p5 right` |
 | Focus a pane | Click it, or `⌘⌥` and an arrow | — |
 | Resize | Drag a divider; double-click it to make the panes equal | `nh layout set-ratios`, `nh layout equalize` |
 | Zoom or float a pane | The buttons in the strip of the pane | `nh layout zoom w3:t2 --pane w3:p5`, `nh pane float w3:p5` |
+| Move a tab | Drag it onto another tab, or right-click it and click **Move left** or **Move right** | `nh tab move w3:t2 --index 0` |
 | Move a pane | Drag its strip onto a tab | `nh pane move w3:p5 w3:t1` |
-| Close | The cross of the pane, tab or workspace | `nh pane close w3:p5 --force` |
+| Close | The cross of the pane, tab or workspace, or **Close** in the menu of a tab | `nh pane close w3:p5 --force` |
 
 A workspace with a root starts its panes in that folder. When a program runs in a pane that you
 close, a dialog asks first, and the close stops every process that the pane started. When the program of a pane ends, the pane shows the exit code and a
@@ -81,8 +82,8 @@ with `nh config set keys.palette_open mod+j`.
 | `⌘D`, `⌘⇧D` | Split the pane right, down |
 | `⌘⇧I` | Show the Inbox |
 | `⌘⇧A` | Answer next: show the most urgent card |
-| `⌘⇧F` | Search the scrollback |
 | `⌘⇧G` | Open or close the Git view |
+| `⌘⇧E` | Open or close the Workflows view |
 | `⌘⇧N`, `⌘N` | New window |
 | `⌘⌥V` | Send the next key to the pane, also a reserved one |
 | `⌘W` | Close the window (the panes stay) |
@@ -93,23 +94,12 @@ with `nh config set keys.palette_open mod+j`.
 In a pane, drag to select. A double click selects a word and a triple click a line. Hold Shift to
 select in a program that uses the mouse.
 
-## Search and scrollback
+## Scrollback
 
 A pane keeps about 900 lines above the screen in memory, which the wheel and the scrollbar scroll.
-Every line that leaves the screen also goes to an archive on disk, which the search reads. The
-archive survives quits, crashes and updates. It goes when the pane closes.
-
-Press `⌘⇧F` and type words. Choose **All panes**, **This workspace** or **This pane**. Enter on a
-hit shows its pane at that line.
-
-- Each word of two letters or more also finds longer words that start with it: `migr fail` finds
-  "migration failed". Case does not matter.
-- The search finds lines that left the screen. A line that is still on the screen is not in the
-  archive yet.
-- A hit older than the history in memory opens the pane at its oldest line in memory. Read such a
-  line with `nh pane read`.
+Every line that leaves the screen also goes to an archive on disk. The archive survives quits,
+crashes and updates. It goes when the pane closes. Read the older lines with `nh pane read`:
 
 ```bash
-nh search query "migration failed" --workspace w3
 nh pane read w3:p5 --lines '{"from": 0, "to": 200}'   # absolute lines from the archive
 ```

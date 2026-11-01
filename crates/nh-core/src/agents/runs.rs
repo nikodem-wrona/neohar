@@ -88,9 +88,24 @@ pub(crate) struct Run {
     pub read: ReadStates<WindowId>,
     /// The end of a turn that nobody saw. Memory only.
     pub turn: super::turn::Turn,
+    /// The agent of a workflow node. The executor of the workflows follows its turns, the board
+    /// shows it only while it needs the person, and the end of a turn is no attention. Memory
+    /// only: the executor marks its runs again when the core starts.
+    pub workflow: bool,
 }
 
 impl Run {
+    /// Whether the board shows the run: always, except an agent of a workflow node that does not
+    /// need the person.
+    pub fn on_board(&self) -> bool {
+        !self.workflow
+            || !self.arbiter.pending().is_empty()
+            || matches!(
+                self.arbiter.execution().value,
+                Execution::Error | Execution::RateLimited { .. }
+            )
+    }
+
     pub fn live(&self) -> bool {
         self.ended_at.is_none()
     }
@@ -188,6 +203,7 @@ impl Run {
             ended_at: row.ended_at.map(Timestamp),
             read: ReadStates::new(),
             turn: super::turn::Turn::default(),
+            workflow: false,
         })
     }
 }
@@ -201,6 +217,8 @@ pub(crate) struct Expected {
     pub name: Option<String>,
     pub session: Option<String>,
     pub model: Option<String>,
+    /// The run is the agent of a workflow node.
+    pub workflow: bool,
 }
 
 /// All the runs of the core.
@@ -514,6 +532,17 @@ fn record(parts: &mut Parts<'_>, id: RunId, events: Vec<EventPayload>) {
         super::drift::record(parts, harness, version.as_deref(), n, n);
     }
     publish(parts, id);
+    if parts
+        .state
+        .runs
+        .by_id
+        .get(&id)
+        .is_some_and(|run| run.workflow)
+    {
+        parts
+            .state
+            .workflow_signal(crate::workflows::Signal::Changed { run: id });
+    }
     if board.is_some() {
         let windows: Vec<WindowId> = parts.state.layout.windows.iter().map(|w| w.id).collect();
         project::publish_board(parts.projections, &parts.state.runs, &windows);
@@ -641,6 +670,7 @@ fn create(parts: &mut Parts<'_>, pane: PaneId, found: Found) -> Option<RunId> {
         ended_at: None,
         read: ReadStates::new(),
         turn: super::turn::Turn::default(),
+        workflow: false,
     };
     let manifests = loaded(parts);
     adopt(&mut run, parts.state.runs.expected.remove(&pane));
@@ -691,6 +721,7 @@ fn adopt(run: &mut Run, expected: Option<Expected>) {
     };
     run.binding = promote();
     run.name = expected.name;
+    run.workflow = expected.workflow;
     if run.model.is_none() {
         run.model = expected.model;
     }
@@ -1286,6 +1317,31 @@ pub(crate) fn apply_signals(
     }
     if let Some(note) = turn {
         super::turn::follow(parts, id, note);
+    }
+    // The executor of the workflows takes the last message of a turn of its agents.
+    if parts
+        .state
+        .runs
+        .by_id
+        .get(&id)
+        .is_some_and(|run| run.workflow)
+    {
+        for signal in signals {
+            if let AdapterSignal::Raw {
+                harness_event,
+                payload,
+            } = signal
+                && harness_event == "Stop"
+            {
+                let message = payload
+                    .get("last_assistant_message")
+                    .and_then(serde_json::Value::as_str)
+                    .map(str::to_owned);
+                parts
+                    .state
+                    .workflow_signal(crate::workflows::Signal::TurnEnded { run: id, message });
+            }
+        }
     }
 }
 

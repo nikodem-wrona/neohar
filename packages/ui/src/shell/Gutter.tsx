@@ -2,8 +2,10 @@
 // characters, and the arrow keys change it by one character (five with Shift). The width is a
 // state of this view only (`app/view.ts`): the core does not know the chrome.
 
+import type { KeyboardEvent, PointerEvent } from 'react';
 import { COLUMN_LIMITS, type Columns } from '../app/view';
 import { useApp } from '../app/context';
+import { useSelect } from '../lib/hooks';
 
 /** The width of one character of the chrome font, in CSS pixels. */
 function charWidth(within: Element): number {
@@ -23,21 +25,21 @@ export function Gutter(props: {
   label: string;
 }) {
   const { view } = useApp();
-  const width = () => view.columns()[props.column];
+  const width = useSelect(view.columns, (columns) => columns[props.column]);
+  /** The width now, for a handler. */
+  const widthNow = (): number => view.columns.get()[props.column];
 
-  const onPointerDown = (event: PointerEvent): void => {
+  const onPointerDown = (event: PointerEvent<HTMLDivElement>): void => {
     if (event.button !== 0) return;
-    const rule = event.currentTarget as HTMLElement;
+    const rule = event.currentTarget;
     rule.setPointerCapture(event.pointerId);
     rule.classList.add('dragging');
     const step = charWidth(rule.parentElement ?? document.body);
     const startX = event.clientX;
-    const startWidth = width();
-    const move = (moved: PointerEvent): void =>
-      view.setColumn(
-        props.column,
-        startWidth + (props.direction * (moved.clientX - startX)) / step,
-      );
+    const startWidth = widthNow();
+    const { column, direction } = props;
+    const move = (moved: globalThis.PointerEvent): void =>
+      view.setColumn(column, startWidth + (direction * (moved.clientX - startX)) / step);
     const end = (): void => {
       rule.classList.remove('dragging');
       rule.removeEventListener('pointermove', move);
@@ -49,26 +51,26 @@ export function Gutter(props: {
     rule.addEventListener('pointercancel', end);
   };
 
-  const onKeyDown = (event: KeyboardEvent): void => {
+  const onKeyDown = (event: KeyboardEvent<HTMLDivElement>): void => {
     const by = event.shiftKey ? 5 : 1;
-    if (event.key === 'ArrowLeft') view.setColumn(props.column, width() - props.direction * by);
+    if (event.key === 'ArrowLeft') view.setColumn(props.column, widthNow() - props.direction * by);
     else if (event.key === 'ArrowRight')
-      view.setColumn(props.column, width() + props.direction * by);
+      view.setColumn(props.column, widthNow() + props.direction * by);
     else return;
     event.preventDefault();
   };
 
   return (
     <div
-      class="gutter"
+      className="gutter"
       data-column={props.column}
       role="separator"
       aria-orientation="vertical"
       aria-label={props.label}
-      aria-valuenow={width()}
+      aria-valuenow={width}
       aria-valuemin={COLUMN_LIMITS[props.column].min}
       aria-valuemax={COLUMN_LIMITS[props.column].max}
-      tabindex="0"
+      tabIndex={0}
       onPointerDown={onPointerDown}
       onKeyDown={onKeyDown}
     />

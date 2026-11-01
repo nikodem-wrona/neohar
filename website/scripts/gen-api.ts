@@ -78,6 +78,8 @@ const namespaces: Record<string, string> = {
   harness: 'Claude Code and Codex on this machine: discovery, version and login state.',
   changes: 'The Changes tab: the changes of a git worktree from HEAD, and the diff of one file.',
   git: 'The Git view: repositories and their trust, worktrees, branches, changes and history, and switch, fetch and pull.',
+  workflow:
+    'The Workflows view: the workflow files and their graphs, and the executions in a folder with the report of each node.',
   phone:
     'The phones that supervise this machine: the offer of a pairing, names and removal, and the mapping of tailscale serve.',
   events: 'Subscriptions to the event log, from a cursor.',
@@ -87,7 +89,6 @@ const namespaces: Record<string, string> = {
   integration: 'The hooks that neohar installs into Claude Code and Codex.',
   doctor: 'The checks of `nh doctor`.',
   debug: 'Bug reports and tools for development builds.',
-  search: 'Search of the scrollback archive.',
   palette: 'The command palette: the core ranks and runs the commands.',
   rich: 'Rich content on demand: diffs, sanitized markdown and highlighted code.',
   timeline: 'Older items of the timeline of a run.',

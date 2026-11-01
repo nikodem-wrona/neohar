@@ -19,8 +19,8 @@ export const FUNCTION_KEYS: readonly FunctionKey[] = [
   { command: 'palette.open', label: 'Command' },
   { command: 'interaction.answer_next', label: 'Answer', waits: true },
   { command: 'inbox.open', label: 'Inbox' },
-  { command: 'search.open', label: 'Search' },
   { command: 'git.open', label: 'Git', optional: true },
+  { command: 'workflows.open', label: 'Workflows', optional: true },
   { command: 'pane.split_right', label: 'Split', optional: true },
   { command: 'tab.next', label: 'Next tab', optional: true },
 ];

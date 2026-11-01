@@ -181,6 +181,13 @@ pub struct Launch {
     /// The arguments that choose an effort level. `{effort}` is the level.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub effort_arg: Option<Vec<String>>,
+    /// The arguments that keep the agent of a read-only workflow node from editing files.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub read_only_args: Vec<String>,
+    /// The arguments that let the agent read one more folder, such as the folder of the reports
+    /// of a workflow. `{add_dir}` is the folder.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub add_dir_arg: Option<Vec<String>>,
     /// The models that the form of a task offers, in the order of the menu.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub models: Vec<ModelEntry>,

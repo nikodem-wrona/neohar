@@ -1,7 +1,7 @@
 ---
 title: Remote machines
 description: "Run agents on another Mac: the nh daemon there, the [machines] table here, windows of a machine, nh --machine, and what is not built yet."
-sidebar_position: 5
+sidebar_position: 6
 ---
 
 neohar can show windows of a core that runs on another Mac. On that Mac, `nh daemon` runs the core
@@ -75,7 +75,7 @@ nh integration install all --machine studio
 
 ## What works in a remote window
 
-Everything of a local window works: panes, splits, scrollback, search, agents, cards, the Inbox,
+Everything of a local window works: panes, splits, scrollback, agents, cards, the Inbox,
 the Files and Changes tabs. Notifications, the badge and the tray show on your Mac, with the
 label in the title. Also:
 

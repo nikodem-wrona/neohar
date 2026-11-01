@@ -1,7 +1,7 @@
 ---
 title: Troubleshooting
 description: "nh doctor, the debug bundle, the logs, and the common problems: the core, hooks that do not arrive, Codex and the shared daemon, inherited variables, leaked holders."
-sidebar_position: 7
+sidebar_position: 8
 ---
 
 ## Start here

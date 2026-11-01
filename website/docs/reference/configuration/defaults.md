@@ -29,10 +29,12 @@ Write the keys that you want to change in `~/.config/neohar/config.toml` (or `$N
 | [`[scrollback]`](#scrollback) | `max_bytes_per_pane` |
 | [`[daemon]`](#daemon) | `prevent_sleep` |
 | [`[git]`](#git) | `fetch_minutes` |
+| [`[workflows]`](#workflows) | `max_agents`, `time_limit_min`, `keep_executions` |
+| [`[hermes]`](#hermes) | `command`, `args`, `approval_timeout_s` |
 | [`[phone]`](#phone) | `enabled`, `port`, `https_port`, `url`, `contact`, `keep_awake`, `font_size`, `keys` |
 | [`[ui]`](#ui) | `font_family`, `font_size`, `macos_option_as_alt`, `global_hotkey`, `editor`, `show_handles` |
 | [`[theme]`](#theme) | `bg`, `bg_raised`, `bg_hover`, `line`, `text`, `text_dim`, `accent`, `danger` |
-| [`[keys]`](#keys) | `palette_open`, `tab_next`, `tab_previous`, `pane_focus_left`, `pane_focus_right`, `pane_focus_up`, `pane_focus_down`, `pane_split_right`, `pane_split_down`, `inbox_open`, `interaction_answer_next`, `peek_sibling`, `search_open`, `git_open`, `window_new`, `pass_through` |
+| [`[keys]`](#keys) | `palette_open`, `tab_next`, `tab_previous`, `pane_focus_left`, `pane_focus_right`, `pane_focus_up`, `pane_focus_down`, `pane_split_right`, `pane_split_down`, `inbox_open`, `interaction_answer_next`, `peek_sibling`, `git_open`, `workflows_open`, `hermes_open`, `window_new`, `pass_through` |
 
 ## `[machines]` {#machines}
 
@@ -175,6 +177,36 @@ prevent_sleep = "while_agents_work"
 fetch_minutes = 10
 ```
 
+## `[workflows]` {#workflows}
+
+| Key | Default | Description |
+|---|---|---|
+| `max_agents` | `3` | The agents of one execution of a workflow that run at the same time. The other nodes that are ready wait for a free agent. |
+| `time_limit_min` | `60` | The time limit of an agent node, in minutes, when the node has none. Then the node fails. |
+| `keep_executions` | `100` | The executions that ended to keep, with their reports. The oldest go first. |
+
+```toml
+[workflows]
+max_agents = 3
+time_limit_min = 60
+keep_executions = 100
+```
+
+## `[hermes]` {#hermes}
+
+| Key | Default | Description |
+|---|---|---|
+| `command` | `"hermes"` | The program of Hermes Agent and its arguments. The core runs it for each open chat, and it must speak ACP on stdin and stdout. |
+| `args` | `["acp"]` |  |
+| `approval_timeout_s` | `300` | The seconds after which Hermes denies an approval that nobody answered. Set the same value as `approvals.timeout` in the config of Hermes (300 by default there). |
+
+```toml
+[hermes]
+command = "hermes"
+args = ["acp"]
+approval_timeout_s = 300
+```
+
 ## `[phone]` {#phone}
 
 | Key | Default | Description |
@@ -209,7 +241,7 @@ keys = ["|", "/", "~", "-"]
 | `macos_option_as_alt` | `"none"` | Which Option keys of a Mac act as Alt: "none", "left", "right" or "both". |
 | `global_hotkey` | `"ctrl+alt+cmd+n"` | The chord that shows neohar and the card that waits longest, from any application. The modifiers are `ctrl`, `alt`, `shift` and `cmd`, joined with "+", then a letter or a digit. An empty text turns the hotkey off. |
 | `editor` | `""` | The app that opens a file or a folder of the Files tab, by its name, such as "Visual Studio Code" or "Zed". An empty text opens a file with its default app and a folder in the Finder. |
-| `show_handles` | `false` | Whether the tab bar, the strip of a pane, the attention line, the Inbox and the search show the handles of tabs and panes, such as "w1:t2" and "w1:p3". Off, a pane goes by its title. |
+| `show_handles` | `false` | Whether the tab bar, the strip of a pane, the attention line and the Inbox show the handles of tabs and panes, such as "w1:t2" and "w1:p3". Off, a pane goes by its title. |
 
 ```toml
 [ui]
@@ -262,8 +294,9 @@ danger = "#ff5251"
 | `inbox_open` | `"mod+shift+i"` |  |
 | `interaction_answer_next` | `"mod+shift+a"` |  |
 | `peek_sibling` | `"mod+shift+p"` |  |
-| `search_open` | `"mod+shift+f"` |  |
 | `git_open` | `"mod+shift+g"` |  |
+| `workflows_open` | `"mod+shift+e"` |  |
+| `hermes_open` | `"mod+shift+h"` |  |
 | `window_new` | `"mod+shift+n"` |  |
 | `pass_through` | `"mod+alt+v"` | The chord that lets the next key reach the pane, also when it is reserved. |
 
@@ -281,8 +314,9 @@ pane_split_down = "mod+shift+d"
 inbox_open = "mod+shift+i"
 interaction_answer_next = "mod+shift+a"
 peek_sibling = "mod+shift+p"
-search_open = "mod+shift+f"
 git_open = "mod+shift+g"
+workflows_open = "mod+shift+e"
+hermes_open = "mod+shift+h"
 window_new = "mod+shift+n"
 pass_through = "mod+alt+v"
 ```
@@ -370,6 +404,24 @@ prevent_sleep = "while_agents_work"
 # or a token: it stops, and the view says so.
 fetch_minutes = 10
 
+[workflows]
+# The agents of one execution of a workflow that run at the same time. The other nodes that are
+# ready wait for a free agent.
+max_agents = 3
+# The time limit of an agent node, in minutes, when the node has none. Then the node fails.
+time_limit_min = 60
+# The executions that ended to keep, with their reports. The oldest go first.
+keep_executions = 100
+
+[hermes]
+# The program of Hermes Agent and its arguments. The core runs it for each open chat, and it must
+# speak ACP on stdin and stdout.
+command = "hermes"
+args = ["acp"]
+# The seconds after which Hermes denies an approval that nobody answered. Set the same value as
+# `approvals.timeout` in the config of Hermes (300 by default there).
+approval_timeout_s = 300
+
 [phone]
 # The listener of the phone: the app or `nh daemon` serves the phone app on a port of
 # 127.0.0.1, and `tailscale serve` puts it on the tailnet with HTTPS.
@@ -410,8 +462,8 @@ global_hotkey = "ctrl+alt+cmd+n"
 # Code" or "Zed". An empty text opens a file with its default app and a folder in the
 # Finder.
 editor = ""
-# Whether the tab bar, the strip of a pane, the attention line, the Inbox and the search show the
-# handles of tabs and panes, such as "w1:t2" and "w1:p3". Off, a pane goes by its title.
+# Whether the tab bar, the strip of a pane, the attention line and the Inbox show the handles of
+# tabs and panes, such as "w1:t2" and "w1:p3". Off, a pane goes by its title.
 show_handles = false
 
 [theme]
@@ -445,8 +497,9 @@ pane_split_down = "mod+shift+d"
 inbox_open = "mod+shift+i"
 interaction_answer_next = "mod+shift+a"
 peek_sibling = "mod+shift+p"
-search_open = "mod+shift+f"
 git_open = "mod+shift+g"
+workflows_open = "mod+shift+e"
+hermes_open = "mod+shift+h"
 window_new = "mod+shift+n"
 # The chord that lets the next key reach the pane, also when it is reserved.
 pass_through = "mod+alt+v"

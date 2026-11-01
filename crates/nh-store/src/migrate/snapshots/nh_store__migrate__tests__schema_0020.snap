@@ -1,0 +1,894 @@
+---
+source: crates/nh-store/src/migrate/tests.rs
+expression: schema_text(&conn)
+---
+pragma user_version = 20
+pragma application_id = 0
+pragma auto_vacuum = 0
+pragma encoding = "UTF-8"
+
+index agent_runs_pane on agent_runs
+    CREATE INDEX agent_runs_pane ON agent_runs (pane_id)
+
+index events_by_at on events
+    CREATE INDEX events_by_at ON events (at)
+
+index events_by_subject on events
+    CREATE INDEX events_by_subject ON events (subject, seq) WHERE subject IS NOT NULL
+
+index fingerprints_by_fingerprint on fingerprints
+    CREATE INDEX fingerprints_by_fingerprint ON fingerprints (fingerprint, at)
+
+index interactions_open on interactions
+    CREATE INDEX interactions_open ON interactions (state) WHERE state IN ('open', 'decision_recorded', 'delivering')
+
+index interactions_run on interactions
+    CREATE INDEX interactions_run ON interactions (run_id)
+
+index panes_handle on panes
+    CREATE UNIQUE INDEX panes_handle ON panes (handle) WHERE handle IS NOT NULL
+
+index panes_tab on panes
+    CREATE INDEX panes_tab ON panes (tab_id)
+
+index panes_token on panes
+    CREATE UNIQUE INDEX panes_token ON panes (pane_token) WHERE pane_token IS NOT NULL
+
+index sqlite_autoindex_agent_runs_1 on agent_runs
+
+index sqlite_autoindex_agent_runs_2 on agent_runs
+
+index sqlite_autoindex_blobs_1 on blobs
+
+index sqlite_autoindex_clients_1 on clients
+
+index sqlite_autoindex_deliveries_1 on deliveries
+
+index sqlite_autoindex_drift_1 on drift
+
+index sqlite_autoindex_git_repos_1 on git_repos
+
+index sqlite_autoindex_git_trust_1 on git_trust
+
+index sqlite_autoindex_groups_1 on groups
+
+index sqlite_autoindex_handle_counters_1 on handle_counters
+
+index sqlite_autoindex_interactions_1 on interactions
+
+index sqlite_autoindex_interactions_2 on interactions
+
+index sqlite_autoindex_meta_1 on meta
+
+index sqlite_autoindex_notifications_1 on notifications
+
+index sqlite_autoindex_panes_1 on panes
+
+index sqlite_autoindex_phone_devices_1 on phone_devices
+
+index sqlite_autoindex_phone_devices_2 on phone_devices
+
+index sqlite_autoindex_policy_rules_1 on policy_rules
+
+index sqlite_autoindex_projection_versions_1 on projection_versions
+
+index sqlite_autoindex_scrollback_segments_1 on scrollback_segments
+
+index sqlite_autoindex_snapshots_1 on snapshots
+
+index sqlite_autoindex_tabs_1 on tabs
+
+index sqlite_autoindex_tabs_2 on tabs
+
+index sqlite_autoindex_usage_1 on usage
+
+index sqlite_autoindex_windows_1 on windows
+
+index sqlite_autoindex_workflow_executions_1 on workflow_executions
+
+index sqlite_autoindex_workflow_nodes_1 on workflow_nodes
+
+index sqlite_autoindex_workspaces_1 on workspaces
+
+index sqlite_autoindex_workspaces_2 on workspaces
+
+index workflow_executions_by_start on workflow_executions
+    CREATE INDEX workflow_executions_by_start ON workflow_executions (started_at)
+
+index workflow_nodes_by_run on workflow_nodes
+    CREATE INDEX workflow_nodes_by_run ON workflow_nodes (run)
+
+table agent_runs on agent_runs
+    CREATE TABLE agent_runs (
+        id TEXT PRIMARY KEY,
+        pane_id TEXT REFERENCES panes (id) ON DELETE SET NULL,
+        harness TEXT NOT NULL CHECK (harness IN ('claude', 'codex')),
+        name TEXT UNIQUE,
+        harness_session_id TEXT,
+        previous_session_ids_json TEXT NOT NULL DEFAULT '[]',
+        transcript_path TEXT,
+        transcript_offset INTEGER NOT NULL DEFAULT 0,
+        binding TEXT NOT NULL,
+        binding_confidence REAL NOT NULL DEFAULT 1,
+        launch_mode TEXT NOT NULL CHECK (launch_mode IN ('tui', 'headless')),
+        version TEXT,
+        capabilities_json TEXT NOT NULL DEFAULT '{}',
+        facets_json TEXT NOT NULL DEFAULT '{}',
+        yolo INTEGER NOT NULL DEFAULT 0,
+        resume_json TEXT,
+        model TEXT,
+        started_at INTEGER NOT NULL,
+        ended_at INTEGER,
+        manifest TEXT,
+        pid INTEGER,
+        pid_start INTEGER,
+        transcript_ledger_json TEXT,
+        board_rank INTEGER
+    ) STRICT
+
+table blobs on blobs
+    CREATE TABLE blobs (
+        hash TEXT PRIMARY KEY,
+        bytes INTEGER NOT NULL,
+        mime TEXT NOT NULL,
+        created_at INTEGER NOT NULL
+    ) STRICT
+
+table clients on clients
+    CREATE TABLE clients (
+        device TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        last_seen INTEGER NOT NULL
+    ) STRICT
+
+table deliveries on deliveries
+    CREATE TABLE deliveries (
+        interaction_id TEXT PRIMARY KEY REFERENCES interactions (id) ON DELETE CASCADE,
+        native_ref TEXT,
+        decision_rev INTEGER NOT NULL DEFAULT 0,
+        decision_json TEXT,
+        decided_by TEXT,
+        via TEXT,
+        idempotency_key TEXT,
+        channel TEXT CHECK (channel IN ('native', 'keystroke')),
+        lease_json TEXT,
+        deadline INTEGER,
+        state TEXT NOT NULL,
+        attempts_json TEXT NOT NULL DEFAULT '[]'
+    ) STRICT
+
+table drift on drift
+    CREATE TABLE drift (
+        harness TEXT NOT NULL,
+        version TEXT NOT NULL,
+        observations INTEGER NOT NULL DEFAULT 0,
+        bad_signals INTEGER NOT NULL DEFAULT 0,
+        raised INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (harness, version)
+    ) STRICT
+
+table events on events
+    CREATE TABLE events (
+        seq INTEGER PRIMARY KEY AUTOINCREMENT,
+        at INTEGER NOT NULL,
+        kind TEXT NOT NULL,
+        v INTEGER NOT NULL DEFAULT 1,
+        subject TEXT,
+        payload_json TEXT NOT NULL
+    ) STRICT
+
+table fingerprints on fingerprints
+    CREATE TABLE fingerprints (
+        fingerprint TEXT NOT NULL,
+        decision TEXT NOT NULL CHECK (decision IN ('allow', 'deny')),
+        interaction_id TEXT,
+        at INTEGER NOT NULL,
+        harness TEXT,
+        tool TEXT,
+        pattern TEXT,
+        workspace TEXT,
+        eligible INTEGER NOT NULL DEFAULT 0
+    ) STRICT
+
+table git_repos on git_repos
+    CREATE TABLE git_repos (
+        path TEXT PRIMARY KEY,
+        added_at INTEGER NOT NULL
+    ) STRICT
+
+table git_trust on git_trust
+    CREATE TABLE git_trust (
+        common_dir TEXT PRIMARY KEY,
+        settings TEXT NOT NULL,
+        trusted_at INTEGER NOT NULL
+    ) STRICT
+
+table groups on groups
+    CREATE TABLE groups (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        parent_id TEXT REFERENCES groups (id) ON DELETE SET NULL,
+        sort_key TEXT NOT NULL,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+    ) STRICT
+
+table handle_counters on handle_counters
+    CREATE TABLE handle_counters (
+        scope TEXT PRIMARY KEY,
+        next INTEGER NOT NULL CHECK (next >= 1)
+    ) STRICT
+
+table interactions on interactions
+    CREATE TABLE interactions (
+        id TEXT PRIMARY KEY,
+        handle TEXT NOT NULL UNIQUE,
+        run_id TEXT REFERENCES agent_runs (id) ON DELETE SET NULL,
+        pane_id TEXT REFERENCES panes (id) ON DELETE SET NULL,
+        kind TEXT NOT NULL CHECK (kind IN ('approval', 'question', 'plan_review', 'notice')),
+        native_ref TEXT,
+        title TEXT NOT NULL,
+        risk TEXT NOT NULL CHECK (risk IN ('low', 'medium', 'high', 'unknown')),
+        payload_json TEXT NOT NULL,
+        state TEXT NOT NULL CHECK (state IN ('open', 'decision_recorded', 'delivering', 'delivered', 'delivery_unknown', 'failed', 'superseded', 'resolved_elsewhere', 'dismissed', 'cancelled')),
+        answerable INTEGER NOT NULL,
+        gate_mode TEXT NOT NULL CHECK (gate_mode IN ('gate', 'observe')),
+        source TEXT NOT NULL,
+        confidence REAL NOT NULL,
+        opened_at INTEGER NOT NULL,
+        deadline INTEGER,
+        resolved_at INTEGER,
+        resolution_json TEXT,
+        fingerprint TEXT
+    ) STRICT
+
+table meta on meta
+    CREATE TABLE meta (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+    ) STRICT
+
+table notifications on notifications
+    CREATE TABLE notifications (
+        id TEXT PRIMARY KEY,
+        text TEXT NOT NULL,
+        urgency TEXT NOT NULL CHECK (urgency IN ('low', 'normal', 'high')),
+        interaction_id TEXT REFERENCES interactions (id) ON DELETE SET NULL,
+        run_id TEXT REFERENCES agent_runs (id) ON DELETE SET NULL,
+        seen INTEGER NOT NULL DEFAULT 0,
+        created_at INTEGER NOT NULL
+    ) STRICT
+
+table panes on panes
+    CREATE TABLE panes (
+        id TEXT PRIMARY KEY,
+        render_id INTEGER NOT NULL,
+        workspace_id TEXT REFERENCES workspaces (id) ON DELETE SET NULL,
+        tab_id TEXT REFERENCES tabs (id) ON DELETE SET NULL,
+        handle TEXT,
+        pane_token TEXT,
+        socket TEXT,
+        holder_pid INTEGER,
+        secret BLOB,
+        fencing_token INTEGER,
+        argv_json TEXT NOT NULL DEFAULT '[]',
+        spec_json TEXT,
+        cwd TEXT,
+        cols INTEGER NOT NULL,
+        rows INTEGER NOT NULL,
+        liveness TEXT NOT NULL CHECK (liveness IN ('created', 'running', 'exited', 'lost')),
+        exit_kind TEXT CHECK (exit_kind IN ('code', 'signal', 'exec_failed')),
+        exit_value INTEGER,
+        recovery_method TEXT,
+        cleared_before_line INTEGER,
+        last_archived_line INTEGER,
+        clipboard_policy TEXT,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+    ) STRICT
+
+table phone_devices on phone_devices
+    CREATE TABLE phone_devices (
+        device TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        token_hash TEXT NOT NULL UNIQUE,
+        paired_at INTEGER NOT NULL,
+        seen_at INTEGER,
+        push_endpoint TEXT,
+        push_p256dh TEXT,
+        push_auth TEXT
+    ) STRICT
+
+table policy_rules on policy_rules
+    CREATE TABLE policy_rules (
+        id TEXT PRIMARY KEY,
+        scope TEXT NOT NULL CHECK (scope IN ('config', 'session')),
+        rule_json TEXT NOT NULL,
+        source TEXT NOT NULL,
+        created_at INTEGER NOT NULL
+    ) STRICT
+
+table projection_versions on projection_versions
+    CREATE TABLE projection_versions (
+        name TEXT PRIMARY KEY,
+        version INTEGER NOT NULL DEFAULT 0
+    ) STRICT
+
+table scrollback_segments on scrollback_segments
+    CREATE TABLE scrollback_segments (
+        pane_id TEXT NOT NULL REFERENCES panes (id) ON DELETE CASCADE,
+        segment_no INTEGER NOT NULL,
+        first_line INTEGER NOT NULL,
+        last_line INTEGER NOT NULL,
+        path TEXT NOT NULL,
+        bytes INTEGER NOT NULL,
+        PRIMARY KEY (pane_id, segment_no)
+    ) STRICT
+
+table snapshots on snapshots
+    CREATE TABLE snapshots (
+        pane TEXT NOT NULL REFERENCES panes (id) ON DELETE CASCADE,
+        offset INTEGER NOT NULL,
+        created_at INTEGER NOT NULL,
+        data BLOB NOT NULL,
+        PRIMARY KEY (pane, offset)
+    ) STRICT
+
+table sqlite_sequence on sqlite_sequence
+    CREATE TABLE sqlite_sequence (
+        name,
+        seq
+    )
+
+table tabs on tabs
+    CREATE TABLE tabs (
+        id TEXT PRIMARY KEY,
+        workspace_id TEXT NOT NULL REFERENCES workspaces (id) ON DELETE CASCADE,
+        handle TEXT NOT NULL UNIQUE,
+        name TEXT NOT NULL,
+        sort_key TEXT NOT NULL,
+        layout_json TEXT NOT NULL,
+        floating_json TEXT NOT NULL DEFAULT '[]',
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL,
+        zoomed_pane TEXT,
+        hidden INTEGER NOT NULL DEFAULT 0
+    ) STRICT
+
+table usage on usage
+    CREATE TABLE usage (
+        run_id TEXT NOT NULL REFERENCES agent_runs (id) ON DELETE CASCADE,
+        day TEXT NOT NULL,
+        model TEXT NOT NULL,
+        input INTEGER NOT NULL DEFAULT 0,
+        output INTEGER NOT NULL DEFAULT 0,
+        cache_read INTEGER NOT NULL DEFAULT 0,
+        cache_write INTEGER NOT NULL DEFAULT 0,
+        cost_usd REAL,
+        PRIMARY KEY (run_id, day, model)
+    ) STRICT
+
+table windows on windows
+    CREATE TABLE windows (
+        id TEXT PRIMARY KEY,
+        bounds_json TEXT,
+        tab_by_workspace_json TEXT NOT NULL DEFAULT '{}',
+        visible_panes_json TEXT NOT NULL DEFAULT '[]',
+        focused_pane TEXT REFERENCES panes (id) ON DELETE SET NULL,
+        open INTEGER NOT NULL DEFAULT 1,
+        sort_key TEXT NOT NULL,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL,
+        popout_pane TEXT REFERENCES panes (id) ON DELETE CASCADE,
+        client TEXT
+    ) STRICT
+
+table workflow_executions on workflow_executions
+    CREATE TABLE workflow_executions (
+        id TEXT PRIMARY KEY,
+        workflow TEXT NOT NULL,
+        name TEXT NOT NULL,
+        number INTEGER NOT NULL,
+        folder TEXT NOT NULL,
+        branch TEXT,
+        base TEXT,
+        head TEXT,
+        tree TEXT,
+        notes TEXT,
+        graph TEXT NOT NULL,
+        only_node TEXT,
+        workspace TEXT,
+        dir TEXT NOT NULL,
+        state TEXT NOT NULL,
+        tree_changed INTEGER NOT NULL DEFAULT 0,
+        started_at INTEGER NOT NULL,
+        ended_at INTEGER
+    ) STRICT
+
+table workflow_nodes on workflow_nodes
+    CREATE TABLE workflow_nodes (
+        execution TEXT NOT NULL REFERENCES workflow_executions (id) ON DELETE CASCADE,
+        node TEXT NOT NULL,
+        state TEXT NOT NULL,
+        reason TEXT,
+        run TEXT,
+        verdict TEXT,
+        report TEXT,
+        turns INTEGER NOT NULL DEFAULT 0,
+        started_at INTEGER,
+        ended_at INTEGER,
+        PRIMARY KEY (execution, node)
+    ) STRICT
+
+table workspaces on workspaces
+    CREATE TABLE workspaces (
+        id TEXT PRIMARY KEY,
+        handle TEXT NOT NULL UNIQUE,
+        name TEXT NOT NULL,
+        root_path TEXT,
+        machine TEXT NOT NULL DEFAULT 'local',
+        group_id TEXT REFERENCES groups (id) ON DELETE SET NULL,
+        sort_key TEXT NOT NULL,
+        closed_at INTEGER,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL,
+        selected_tab TEXT REFERENCES tabs (id) ON DELETE SET NULL
+    ) STRICT
+
+table agent_runs: columns 24, without_rowid 0, strict 1
+    column: cid 0, name "id", type "TEXT", notnull 1, dflt_value NULL, pk 1, hidden 0
+    column: cid 1, name "pane_id", type "TEXT", notnull 0, dflt_value NULL, pk 0, hidden 0
+    column: cid 2, name "harness", type "TEXT", notnull 1, dflt_value NULL, pk 0, hidden 0
+    column: cid 3, name "name", type "TEXT", notnull 0, dflt_value NULL, pk 0, hidden 0
+    column: cid 4, name "harness_session_id", type "TEXT", notnull 0, dflt_value NULL, pk 0, hidden 0
+    column: cid 5, name "previous_session_ids_json", type "TEXT", notnull 1, dflt_value "'[]'", pk 0, hidden 0
+    column: cid 6, name "transcript_path", type "TEXT", notnull 0, dflt_value NULL, pk 0, hidden 0
+    column: cid 7, name "transcript_offset", type "INTEGER", notnull 1, dflt_value "0", pk 0, hidden 0
+    column: cid 8, name "binding", type "TEXT", notnull 1, dflt_value NULL, pk 0, hidden 0
+    column: cid 9, name "binding_confidence", type "REAL", notnull 1, dflt_value "1", pk 0, hidden 0
+    column: cid 10, name "launch_mode", type "TEXT", notnull 1, dflt_value NULL, pk 0, hidden 0
+    column: cid 11, name "version", type "TEXT", notnull 0, dflt_value NULL, pk 0, hidden 0
+    column: cid 12, name "capabilities_json", type "TEXT", notnull 1, dflt_value "'{}'", pk 0, hidden 0
+    column: cid 13, name "facets_json", type "TEXT", notnull 1, dflt_value "'{}'", pk 0, hidden 0
+    column: cid 14, name "yolo", type "INTEGER", notnull 1, dflt_value "0", pk 0, hidden 0
+    column: cid 15, name "resume_json", type "TEXT", notnull 0, dflt_value NULL, pk 0, hidden 0
+    column: cid 16, name "model", type "TEXT", notnull 0, dflt_value NULL, pk 0, hidden 0
+    column: cid 17, name "started_at", type "INTEGER", notnull 1, dflt_value NULL, pk 0, hidden 0
+    column: cid 18, name "ended_at", type "INTEGER", notnull 0, dflt_value NULL, pk 0, hidden 0
+    column: cid 19, name "manifest", type "TEXT", notnull 0, dflt_value NULL, pk 0, hidden 0
+    column: cid 20, name "pid", type "INTEGER", notnull 0, dflt_value NULL, pk 0, hidden 0
+    column: cid 21, name "pid_start", type "INTEGER", notnull 0, dflt_value NULL, pk 0, hidden 0
+    column: cid 22, name "transcript_ledger_json", type "TEXT", notnull 0, dflt_value NULL, pk 0, hidden 0
+    column: cid 23, name "board_rank", type "INTEGER", notnull 0, dflt_value NULL, pk 0, hidden 0
+    foreign key: id 0, seq 0, table "panes", from "pane_id", to "id", on_update "NO ACTION", on_delete "SET NULL", match "NONE"
+    index: name "agent_runs_pane", unique 0, origin "c", partial 0
+        key: seqno 0, cid 1, name "pane_id", desc 0, coll "BINARY", key 1
+        key: seqno 1, cid -1, name NULL, desc 0, coll "BINARY", key 0
+    index: name "sqlite_autoindex_agent_runs_1", unique 1, origin "pk", partial 0
+        key: seqno 0, cid 0, name "id", desc 0, coll "BINARY", key 1
+        key: seqno 1, cid -1, name NULL, desc 0, coll "BINARY", key 0
+    index: name "sqlite_autoindex_agent_runs_2", unique 1, origin "u", partial 0
+        key: seqno 0, cid 3, name "name", desc 0, coll "BINARY", key 1
+        key: seqno 1, cid -1, name NULL, desc 0, coll "BINARY", key 0
+    rows: 0
+
+table blobs: columns 4, without_rowid 0, strict 1
+    column: cid 0, name "hash", type "TEXT", notnull 1, dflt_value NULL, pk 1, hidden 0
+    column: cid 1, name "bytes", type "INTEGER", notnull 1, dflt_value NULL, pk 0, hidden 0
+    column: cid 2, name "mime", type "TEXT", notnull 1, dflt_value NULL, pk 0, hidden 0
+    column: cid 3, name "created_at", type "INTEGER", notnull 1, dflt_value NULL, pk 0, hidden 0
+    index: name "sqlite_autoindex_blobs_1", unique 1, origin "pk", partial 0
+        key: seqno 0, cid 0, name "hash", desc 0, coll "BINARY", key 1
+        key: seqno 1, cid -1, name NULL, desc 0, coll "BINARY", key 0
+    rows: 0
+
+table clients: columns 3, without_rowid 0, strict 1
+    column: cid 0, name "device", type "TEXT", notnull 1, dflt_value NULL, pk 1, hidden 0
+    column: cid 1, name "name", type "TEXT", notnull 1, dflt_value NULL, pk 0, hidden 0
+    column: cid 2, name "last_seen", type "INTEGER", notnull 1, dflt_value NULL, pk 0, hidden 0
+    index: name "sqlite_autoindex_clients_1", unique 1, origin "pk", partial 0
+        key: seqno 0, cid 0, name "device", desc 0, coll "BINARY", key 1
+        key: seqno 1, cid -1, name NULL, desc 0, coll "BINARY", key 0
+    rows: 0
+
+table deliveries: columns 12, without_rowid 0, strict 1
+    column: cid 0, name "interaction_id", type "TEXT", notnull 1, dflt_value NULL, pk 1, hidden 0
+    column: cid 1, name "native_ref", type "TEXT", notnull 0, dflt_value NULL, pk 0, hidden 0
+    column: cid 2, name "decision_rev", type "INTEGER", notnull 1, dflt_value "0", pk 0, hidden 0
+    column: cid 3, name "decision_json", type "TEXT", notnull 0, dflt_value NULL, pk 0, hidden 0
+    column: cid 4, name "decided_by", type "TEXT", notnull 0, dflt_value NULL, pk 0, hidden 0
+    column: cid 5, name "via", type "TEXT", notnull 0, dflt_value NULL, pk 0, hidden 0
+    column: cid 6, name "idempotency_key", type "TEXT", notnull 0, dflt_value NULL, pk 0, hidden 0
+    column: cid 7, name "channel", type "TEXT", notnull 0, dflt_value NULL, pk 0, hidden 0
+    column: cid 8, name "lease_json", type "TEXT", notnull 0, dflt_value NULL, pk 0, hidden 0
+    column: cid 9, name "deadline", type "INTEGER", notnull 0, dflt_value NULL, pk 0, hidden 0
+    column: cid 10, name "state", type "TEXT", notnull 1, dflt_value NULL, pk 0, hidden 0
+    column: cid 11, name "attempts_json", type "TEXT", notnull 1, dflt_value "'[]'", pk 0, hidden 0
+    foreign key: id 0, seq 0, table "interactions", from "interaction_id", to "id", on_update "NO ACTION", on_delete "CASCADE", match "NONE"
+    index: name "sqlite_autoindex_deliveries_1", unique 1, origin "pk", partial 0
+        key: seqno 0, cid 0, name "interaction_id", desc 0, coll "BINARY", key 1
+        key: seqno 1, cid -1, name NULL, desc 0, coll "BINARY", key 0
+    rows: 0
+
+table drift: columns 5, without_rowid 0, strict 1
+    column: cid 0, name "harness", type "TEXT", notnull 1, dflt_value NULL, pk 1, hidden 0
+    column: cid 1, name "version", type "TEXT", notnull 1, dflt_value NULL, pk 2, hidden 0
+    column: cid 2, name "observations", type "INTEGER", notnull 1, dflt_value "0", pk 0, hidden 0
+    column: cid 3, name "bad_signals", type "INTEGER", notnull 1, dflt_value "0", pk 0, hidden 0
+    column: cid 4, name "raised", type "INTEGER", notnull 1, dflt_value "0", pk 0, hidden 0
+    index: name "sqlite_autoindex_drift_1", unique 1, origin "pk", partial 0
+        key: seqno 0, cid 0, name "harness", desc 0, coll "BINARY", key 1
+        key: seqno 1, cid 1, name "version", desc 0, coll "BINARY", key 1
+        key: seqno 2, cid -1, name NULL, desc 0, coll "BINARY", key 0
+    rows: 0
+
+table events: columns 6, without_rowid 0, strict 1
+    column: cid 0, name "seq", type "INTEGER", notnull 0, dflt_value NULL, pk 1, hidden 0
+    column: cid 1, name "at", type "INTEGER", notnull 1, dflt_value NULL, pk 0, hidden 0
+    column: cid 2, name "kind", type "TEXT", notnull 1, dflt_value NULL, pk 0, hidden 0
+    column: cid 3, name "v", type "INTEGER", notnull 1, dflt_value "1", pk 0, hidden 0
+    column: cid 4, name "subject", type "TEXT", notnull 0, dflt_value NULL, pk 0, hidden 0
+    column: cid 5, name "payload_json", type "TEXT", notnull 1, dflt_value NULL, pk 0, hidden 0
+    index: name "events_by_at", unique 0, origin "c", partial 0
+        key: seqno 0, cid 1, name "at", desc 0, coll "BINARY", key 1
+        key: seqno 1, cid -1, name NULL, desc 0, coll "BINARY", key 0
+    index: name "events_by_subject", unique 0, origin "c", partial 1
+        key: seqno 0, cid 4, name "subject", desc 0, coll "BINARY", key 1
+        key: seqno 1, cid 0, name "seq", desc 0, coll "BINARY", key 1
+        key: seqno 2, cid -1, name NULL, desc 0, coll "BINARY", key 0
+    rows: 0
+
+table fingerprints: columns 9, without_rowid 0, strict 1
+    column: cid 0, name "fingerprint", type "TEXT", notnull 1, dflt_value NULL, pk 0, hidden 0
+    column: cid 1, name "decision", type "TEXT", notnull 1, dflt_value NULL, pk 0, hidden 0
+    column: cid 2, name "interaction_id", type "TEXT", notnull 0, dflt_value NULL, pk 0, hidden 0
+    column: cid 3, name "at", type "INTEGER", notnull 1, dflt_value NULL, pk 0, hidden 0
+    column: cid 4, name "harness", type "TEXT", notnull 0, dflt_value NULL, pk 0, hidden 0
+    column: cid 5, name "tool", type "TEXT", notnull 0, dflt_value NULL, pk 0, hidden 0
+    column: cid 6, name "pattern", type "TEXT", notnull 0, dflt_value NULL, pk 0, hidden 0
+    column: cid 7, name "workspace", type "TEXT", notnull 0, dflt_value NULL, pk 0, hidden 0
+    column: cid 8, name "eligible", type "INTEGER", notnull 1, dflt_value "0", pk 0, hidden 0
+    index: name "fingerprints_by_fingerprint", unique 0, origin "c", partial 0
+        key: seqno 0, cid 0, name "fingerprint", desc 0, coll "BINARY", key 1
+        key: seqno 1, cid 3, name "at", desc 0, coll "BINARY", key 1
+        key: seqno 2, cid -1, name NULL, desc 0, coll "BINARY", key 0
+    rows: 0
+
+table git_repos: columns 2, without_rowid 0, strict 1
+    column: cid 0, name "path", type "TEXT", notnull 1, dflt_value NULL, pk 1, hidden 0
+    column: cid 1, name "added_at", type "INTEGER", notnull 1, dflt_value NULL, pk 0, hidden 0
+    index: name "sqlite_autoindex_git_repos_1", unique 1, origin "pk", partial 0
+        key: seqno 0, cid 0, name "path", desc 0, coll "BINARY", key 1
+        key: seqno 1, cid -1, name NULL, desc 0, coll "BINARY", key 0
+    rows: 0
+
+table git_trust: columns 3, without_rowid 0, strict 1
+    column: cid 0, name "common_dir", type "TEXT", notnull 1, dflt_value NULL, pk 1, hidden 0
+    column: cid 1, name "settings", type "TEXT", notnull 1, dflt_value NULL, pk 0, hidden 0
+    column: cid 2, name "trusted_at", type "INTEGER", notnull 1, dflt_value NULL, pk 0, hidden 0
+    index: name "sqlite_autoindex_git_trust_1", unique 1, origin "pk", partial 0
+        key: seqno 0, cid 0, name "common_dir", desc 0, coll "BINARY", key 1
+        key: seqno 1, cid -1, name NULL, desc 0, coll "BINARY", key 0
+    rows: 0
+
+table groups: columns 6, without_rowid 0, strict 1
+    column: cid 0, name "id", type "TEXT", notnull 1, dflt_value NULL, pk 1, hidden 0
+    column: cid 1, name "name", type "TEXT", notnull 1, dflt_value NULL, pk 0, hidden 0
+    column: cid 2, name "parent_id", type "TEXT", notnull 0, dflt_value NULL, pk 0, hidden 0
+    column: cid 3, name "sort_key", type "TEXT", notnull 1, dflt_value NULL, pk 0, hidden 0
+    column: cid 4, name "created_at", type "INTEGER", notnull 1, dflt_value NULL, pk 0, hidden 0
+    column: cid 5, name "updated_at", type "INTEGER", notnull 1, dflt_value NULL, pk 0, hidden 0
+    foreign key: id 0, seq 0, table "groups", from "parent_id", to "id", on_update "NO ACTION", on_delete "SET NULL", match "NONE"
+    index: name "sqlite_autoindex_groups_1", unique 1, origin "pk", partial 0
+        key: seqno 0, cid 0, name "id", desc 0, coll "BINARY", key 1
+        key: seqno 1, cid -1, name NULL, desc 0, coll "BINARY", key 0
+    rows: 0
+
+table handle_counters: columns 2, without_rowid 0, strict 1
+    column: cid 0, name "scope", type "TEXT", notnull 1, dflt_value NULL, pk 1, hidden 0
+    column: cid 1, name "next", type "INTEGER", notnull 1, dflt_value NULL, pk 0, hidden 0
+    index: name "sqlite_autoindex_handle_counters_1", unique 1, origin "pk", partial 0
+        key: seqno 0, cid 0, name "scope", desc 0, coll "BINARY", key 1
+        key: seqno 1, cid -1, name NULL, desc 0, coll "BINARY", key 0
+    rows: 0
+
+table interactions: columns 19, without_rowid 0, strict 1
+    column: cid 0, name "id", type "TEXT", notnull 1, dflt_value NULL, pk 1, hidden 0
+    column: cid 1, name "handle", type "TEXT", notnull 1, dflt_value NULL, pk 0, hidden 0
+    column: cid 2, name "run_id", type "TEXT", notnull 0, dflt_value NULL, pk 0, hidden 0
+    column: cid 3, name "pane_id", type "TEXT", notnull 0, dflt_value NULL, pk 0, hidden 0
+    column: cid 4, name "kind", type "TEXT", notnull 1, dflt_value NULL, pk 0, hidden 0
+    column: cid 5, name "native_ref", type "TEXT", notnull 0, dflt_value NULL, pk 0, hidden 0
+    column: cid 6, name "title", type "TEXT", notnull 1, dflt_value NULL, pk 0, hidden 0
+    column: cid 7, name "risk", type "TEXT", notnull 1, dflt_value NULL, pk 0, hidden 0
+    column: cid 8, name "payload_json", type "TEXT", notnull 1, dflt_value NULL, pk 0, hidden 0
+    column: cid 9, name "state", type "TEXT", notnull 1, dflt_value NULL, pk 0, hidden 0
+    column: cid 10, name "answerable", type "INTEGER", notnull 1, dflt_value NULL, pk 0, hidden 0
+    column: cid 11, name "gate_mode", type "TEXT", notnull 1, dflt_value NULL, pk 0, hidden 0
+    column: cid 12, name "source", type "TEXT", notnull 1, dflt_value NULL, pk 0, hidden 0
+    column: cid 13, name "confidence", type "REAL", notnull 1, dflt_value NULL, pk 0, hidden 0
+    column: cid 14, name "opened_at", type "INTEGER", notnull 1, dflt_value NULL, pk 0, hidden 0
+    column: cid 15, name "deadline", type "INTEGER", notnull 0, dflt_value NULL, pk 0, hidden 0
+    column: cid 16, name "resolved_at", type "INTEGER", notnull 0, dflt_value NULL, pk 0, hidden 0
+    column: cid 17, name "resolution_json", type "TEXT", notnull 0, dflt_value NULL, pk 0, hidden 0
+    column: cid 18, name "fingerprint", type "TEXT", notnull 0, dflt_value NULL, pk 0, hidden 0
+    foreign key: id 0, seq 0, table "panes", from "pane_id", to "id", on_update "NO ACTION", on_delete "SET NULL", match "NONE"
+    foreign key: id 1, seq 0, table "agent_runs", from "run_id", to "id", on_update "NO ACTION", on_delete "SET NULL", match "NONE"
+    index: name "interactions_open", unique 0, origin "c", partial 1
+        key: seqno 0, cid 9, name "state", desc 0, coll "BINARY", key 1
+        key: seqno 1, cid -1, name NULL, desc 0, coll "BINARY", key 0
+    index: name "interactions_run", unique 0, origin "c", partial 0
+        key: seqno 0, cid 2, name "run_id", desc 0, coll "BINARY", key 1
+        key: seqno 1, cid -1, name NULL, desc 0, coll "BINARY", key 0
+    index: name "sqlite_autoindex_interactions_1", unique 1, origin "pk", partial 0
+        key: seqno 0, cid 0, name "id", desc 0, coll "BINARY", key 1
+        key: seqno 1, cid -1, name NULL, desc 0, coll "BINARY", key 0
+    index: name "sqlite_autoindex_interactions_2", unique 1, origin "u", partial 0
+        key: seqno 0, cid 1, name "handle", desc 0, coll "BINARY", key 1
+        key: seqno 1, cid -1, name NULL, desc 0, coll "BINARY", key 0
+    rows: 0
+
+table meta: columns 2, without_rowid 0, strict 1
+    column: cid 0, name "key", type "TEXT", notnull 1, dflt_value NULL, pk 1, hidden 0
+    column: cid 1, name "value", type "TEXT", notnull 1, dflt_value NULL, pk 0, hidden 0
+    index: name "sqlite_autoindex_meta_1", unique 1, origin "pk", partial 0
+        key: seqno 0, cid 0, name "key", desc 0, coll "BINARY", key 1
+        key: seqno 1, cid -1, name NULL, desc 0, coll "BINARY", key 0
+    rows: 0
+
+table notifications: columns 7, without_rowid 0, strict 1
+    column: cid 0, name "id", type "TEXT", notnull 1, dflt_value NULL, pk 1, hidden 0
+    column: cid 1, name "text", type "TEXT", notnull 1, dflt_value NULL, pk 0, hidden 0
+    column: cid 2, name "urgency", type "TEXT", notnull 1, dflt_value NULL, pk 0, hidden 0
+    column: cid 3, name "interaction_id", type "TEXT", notnull 0, dflt_value NULL, pk 0, hidden 0
+    column: cid 4, name "run_id", type "TEXT", notnull 0, dflt_value NULL, pk 0, hidden 0
+    column: cid 5, name "seen", type "INTEGER", notnull 1, dflt_value "0", pk 0, hidden 0
+    column: cid 6, name "created_at", type "INTEGER", notnull 1, dflt_value NULL, pk 0, hidden 0
+    foreign key: id 0, seq 0, table "agent_runs", from "run_id", to "id", on_update "NO ACTION", on_delete "SET NULL", match "NONE"
+    foreign key: id 1, seq 0, table "interactions", from "interaction_id", to "id", on_update "NO ACTION", on_delete "SET NULL", match "NONE"
+    index: name "sqlite_autoindex_notifications_1", unique 1, origin "pk", partial 0
+        key: seqno 0, cid 0, name "id", desc 0, coll "BINARY", key 1
+        key: seqno 1, cid -1, name NULL, desc 0, coll "BINARY", key 0
+    rows: 0
+
+table panes: columns 24, without_rowid 0, strict 1
+    column: cid 0, name "id", type "TEXT", notnull 1, dflt_value NULL, pk 1, hidden 0
+    column: cid 1, name "render_id", type "INTEGER", notnull 1, dflt_value NULL, pk 0, hidden 0
+    column: cid 2, name "workspace_id", type "TEXT", notnull 0, dflt_value NULL, pk 0, hidden 0
+    column: cid 3, name "tab_id", type "TEXT", notnull 0, dflt_value NULL, pk 0, hidden 0
+    column: cid 4, name "handle", type "TEXT", notnull 0, dflt_value NULL, pk 0, hidden 0
+    column: cid 5, name "pane_token", type "TEXT", notnull 0, dflt_value NULL, pk 0, hidden 0
+    column: cid 6, name "socket", type "TEXT", notnull 0, dflt_value NULL, pk 0, hidden 0
+    column: cid 7, name "holder_pid", type "INTEGER", notnull 0, dflt_value NULL, pk 0, hidden 0
+    column: cid 8, name "secret", type "BLOB", notnull 0, dflt_value NULL, pk 0, hidden 0
+    column: cid 9, name "fencing_token", type "INTEGER", notnull 0, dflt_value NULL, pk 0, hidden 0
+    column: cid 10, name "argv_json", type "TEXT", notnull 1, dflt_value "'[]'", pk 0, hidden 0
+    column: cid 11, name "spec_json", type "TEXT", notnull 0, dflt_value NULL, pk 0, hidden 0
+    column: cid 12, name "cwd", type "TEXT", notnull 0, dflt_value NULL, pk 0, hidden 0
+    column: cid 13, name "cols", type "INTEGER", notnull 1, dflt_value NULL, pk 0, hidden 0
+    column: cid 14, name "rows", type "INTEGER", notnull 1, dflt_value NULL, pk 0, hidden 0
+    column: cid 15, name "liveness", type "TEXT", notnull 1, dflt_value NULL, pk 0, hidden 0
+    column: cid 16, name "exit_kind", type "TEXT", notnull 0, dflt_value NULL, pk 0, hidden 0
+    column: cid 17, name "exit_value", type "INTEGER", notnull 0, dflt_value NULL, pk 0, hidden 0
+    column: cid 18, name "recovery_method", type "TEXT", notnull 0, dflt_value NULL, pk 0, hidden 0
+    column: cid 19, name "cleared_before_line", type "INTEGER", notnull 0, dflt_value NULL, pk 0, hidden 0
+    column: cid 20, name "last_archived_line", type "INTEGER", notnull 0, dflt_value NULL, pk 0, hidden 0
+    column: cid 21, name "clipboard_policy", type "TEXT", notnull 0, dflt_value NULL, pk 0, hidden 0
+    column: cid 22, name "created_at", type "INTEGER", notnull 1, dflt_value NULL, pk 0, hidden 0
+    column: cid 23, name "updated_at", type "INTEGER", notnull 1, dflt_value NULL, pk 0, hidden 0
+    foreign key: id 0, seq 0, table "tabs", from "tab_id", to "id", on_update "NO ACTION", on_delete "SET NULL", match "NONE"
+    foreign key: id 1, seq 0, table "workspaces", from "workspace_id", to "id", on_update "NO ACTION", on_delete "SET NULL", match "NONE"
+    index: name "panes_handle", unique 1, origin "c", partial 1
+        key: seqno 0, cid 4, name "handle", desc 0, coll "BINARY", key 1
+        key: seqno 1, cid -1, name NULL, desc 0, coll "BINARY", key 0
+    index: name "panes_tab", unique 0, origin "c", partial 0
+        key: seqno 0, cid 3, name "tab_id", desc 0, coll "BINARY", key 1
+        key: seqno 1, cid -1, name NULL, desc 0, coll "BINARY", key 0
+    index: name "panes_token", unique 1, origin "c", partial 1
+        key: seqno 0, cid 5, name "pane_token", desc 0, coll "BINARY", key 1
+        key: seqno 1, cid -1, name NULL, desc 0, coll "BINARY", key 0
+    index: name "sqlite_autoindex_panes_1", unique 1, origin "pk", partial 0
+        key: seqno 0, cid 0, name "id", desc 0, coll "BINARY", key 1
+        key: seqno 1, cid -1, name NULL, desc 0, coll "BINARY", key 0
+    rows: 0
+
+table phone_devices: columns 8, without_rowid 0, strict 1
+    column: cid 0, name "device", type "TEXT", notnull 1, dflt_value NULL, pk 1, hidden 0
+    column: cid 1, name "name", type "TEXT", notnull 1, dflt_value NULL, pk 0, hidden 0
+    column: cid 2, name "token_hash", type "TEXT", notnull 1, dflt_value NULL, pk 0, hidden 0
+    column: cid 3, name "paired_at", type "INTEGER", notnull 1, dflt_value NULL, pk 0, hidden 0
+    column: cid 4, name "seen_at", type "INTEGER", notnull 0, dflt_value NULL, pk 0, hidden 0
+    column: cid 5, name "push_endpoint", type "TEXT", notnull 0, dflt_value NULL, pk 0, hidden 0
+    column: cid 6, name "push_p256dh", type "TEXT", notnull 0, dflt_value NULL, pk 0, hidden 0
+    column: cid 7, name "push_auth", type "TEXT", notnull 0, dflt_value NULL, pk 0, hidden 0
+    index: name "sqlite_autoindex_phone_devices_1", unique 1, origin "pk", partial 0
+        key: seqno 0, cid 0, name "device", desc 0, coll "BINARY", key 1
+        key: seqno 1, cid -1, name NULL, desc 0, coll "BINARY", key 0
+    index: name "sqlite_autoindex_phone_devices_2", unique 1, origin "u", partial 0
+        key: seqno 0, cid 2, name "token_hash", desc 0, coll "BINARY", key 1
+        key: seqno 1, cid -1, name NULL, desc 0, coll "BINARY", key 0
+    rows: 0
+
+table policy_rules: columns 5, without_rowid 0, strict 1
+    column: cid 0, name "id", type "TEXT", notnull 1, dflt_value NULL, pk 1, hidden 0
+    column: cid 1, name "scope", type "TEXT", notnull 1, dflt_value NULL, pk 0, hidden 0
+    column: cid 2, name "rule_json", type "TEXT", notnull 1, dflt_value NULL, pk 0, hidden 0
+    column: cid 3, name "source", type "TEXT", notnull 1, dflt_value NULL, pk 0, hidden 0
+    column: cid 4, name "created_at", type "INTEGER", notnull 1, dflt_value NULL, pk 0, hidden 0
+    index: name "sqlite_autoindex_policy_rules_1", unique 1, origin "pk", partial 0
+        key: seqno 0, cid 0, name "id", desc 0, coll "BINARY", key 1
+        key: seqno 1, cid -1, name NULL, desc 0, coll "BINARY", key 0
+    rows: 0
+
+table projection_versions: columns 2, without_rowid 0, strict 1
+    column: cid 0, name "name", type "TEXT", notnull 1, dflt_value NULL, pk 1, hidden 0
+    column: cid 1, name "version", type "INTEGER", notnull 1, dflt_value "0", pk 0, hidden 0
+    index: name "sqlite_autoindex_projection_versions_1", unique 1, origin "pk", partial 0
+        key: seqno 0, cid 0, name "name", desc 0, coll "BINARY", key 1
+        key: seqno 1, cid -1, name NULL, desc 0, coll "BINARY", key 0
+    rows: 0
+
+table scrollback_segments: columns 6, without_rowid 0, strict 1
+    column: cid 0, name "pane_id", type "TEXT", notnull 1, dflt_value NULL, pk 1, hidden 0
+    column: cid 1, name "segment_no", type "INTEGER", notnull 1, dflt_value NULL, pk 2, hidden 0
+    column: cid 2, name "first_line", type "INTEGER", notnull 1, dflt_value NULL, pk 0, hidden 0
+    column: cid 3, name "last_line", type "INTEGER", notnull 1, dflt_value NULL, pk 0, hidden 0
+    column: cid 4, name "path", type "TEXT", notnull 1, dflt_value NULL, pk 0, hidden 0
+    column: cid 5, name "bytes", type "INTEGER", notnull 1, dflt_value NULL, pk 0, hidden 0
+    foreign key: id 0, seq 0, table "panes", from "pane_id", to "id", on_update "NO ACTION", on_delete "CASCADE", match "NONE"
+    index: name "sqlite_autoindex_scrollback_segments_1", unique 1, origin "pk", partial 0
+        key: seqno 0, cid 0, name "pane_id", desc 0, coll "BINARY", key 1
+        key: seqno 1, cid 1, name "segment_no", desc 0, coll "BINARY", key 1
+        key: seqno 2, cid -1, name NULL, desc 0, coll "BINARY", key 0
+    rows: 0
+
+table snapshots: columns 4, without_rowid 0, strict 1
+    column: cid 0, name "pane", type "TEXT", notnull 1, dflt_value NULL, pk 1, hidden 0
+    column: cid 1, name "offset", type "INTEGER", notnull 1, dflt_value NULL, pk 2, hidden 0
+    column: cid 2, name "created_at", type "INTEGER", notnull 1, dflt_value NULL, pk 0, hidden 0
+    column: cid 3, name "data", type "BLOB", notnull 1, dflt_value NULL, pk 0, hidden 0
+    foreign key: id 0, seq 0, table "panes", from "pane", to "id", on_update "NO ACTION", on_delete "CASCADE", match "NONE"
+    index: name "sqlite_autoindex_snapshots_1", unique 1, origin "pk", partial 0
+        key: seqno 0, cid 0, name "pane", desc 0, coll "BINARY", key 1
+        key: seqno 1, cid 1, name "offset", desc 0, coll "BINARY", key 1
+        key: seqno 2, cid -1, name NULL, desc 0, coll "BINARY", key 0
+    rows: 0
+
+table sqlite_schema: columns 5, without_rowid 0, strict 0
+    column: cid 0, name "type", type "TEXT", notnull 0, dflt_value NULL, pk 0, hidden 0
+    column: cid 1, name "name", type "TEXT", notnull 0, dflt_value NULL, pk 0, hidden 0
+    column: cid 2, name "tbl_name", type "TEXT", notnull 0, dflt_value NULL, pk 0, hidden 0
+    column: cid 3, name "rootpage", type "INT", notnull 0, dflt_value NULL, pk 0, hidden 0
+    column: cid 4, name "sql", type "TEXT", notnull 0, dflt_value NULL, pk 0, hidden 0
+
+table sqlite_sequence: columns 2, without_rowid 0, strict 0
+    column: cid 0, name "name", type "", notnull 0, dflt_value NULL, pk 0, hidden 0
+    column: cid 1, name "seq", type "", notnull 0, dflt_value NULL, pk 0, hidden 0
+    rows: 0
+
+table tabs: columns 11, without_rowid 0, strict 1
+    column: cid 0, name "id", type "TEXT", notnull 1, dflt_value NULL, pk 1, hidden 0
+    column: cid 1, name "workspace_id", type "TEXT", notnull 1, dflt_value NULL, pk 0, hidden 0
+    column: cid 2, name "handle", type "TEXT", notnull 1, dflt_value NULL, pk 0, hidden 0
+    column: cid 3, name "name", type "TEXT", notnull 1, dflt_value NULL, pk 0, hidden 0
+    column: cid 4, name "sort_key", type "TEXT", notnull 1, dflt_value NULL, pk 0, hidden 0
+    column: cid 5, name "layout_json", type "TEXT", notnull 1, dflt_value NULL, pk 0, hidden 0
+    column: cid 6, name "floating_json", type "TEXT", notnull 1, dflt_value "'[]'", pk 0, hidden 0
+    column: cid 7, name "created_at", type "INTEGER", notnull 1, dflt_value NULL, pk 0, hidden 0
+    column: cid 8, name "updated_at", type "INTEGER", notnull 1, dflt_value NULL, pk 0, hidden 0
+    column: cid 9, name "zoomed_pane", type "TEXT", notnull 0, dflt_value NULL, pk 0, hidden 0
+    column: cid 10, name "hidden", type "INTEGER", notnull 1, dflt_value "0", pk 0, hidden 0
+    foreign key: id 0, seq 0, table "workspaces", from "workspace_id", to "id", on_update "NO ACTION", on_delete "CASCADE", match "NONE"
+    index: name "sqlite_autoindex_tabs_1", unique 1, origin "pk", partial 0
+        key: seqno 0, cid 0, name "id", desc 0, coll "BINARY", key 1
+        key: seqno 1, cid -1, name NULL, desc 0, coll "BINARY", key 0
+    index: name "sqlite_autoindex_tabs_2", unique 1, origin "u", partial 0
+        key: seqno 0, cid 2, name "handle", desc 0, coll "BINARY", key 1
+        key: seqno 1, cid -1, name NULL, desc 0, coll "BINARY", key 0
+    rows: 0
+
+table usage: columns 8, without_rowid 0, strict 1
+    column: cid 0, name "run_id", type "TEXT", notnull 1, dflt_value NULL, pk 1, hidden 0
+    column: cid 1, name "day", type "TEXT", notnull 1, dflt_value NULL, pk 2, hidden 0
+    column: cid 2, name "model", type "TEXT", notnull 1, dflt_value NULL, pk 3, hidden 0
+    column: cid 3, name "input", type "INTEGER", notnull 1, dflt_value "0", pk 0, hidden 0
+    column: cid 4, name "output", type "INTEGER", notnull 1, dflt_value "0", pk 0, hidden 0
+    column: cid 5, name "cache_read", type "INTEGER", notnull 1, dflt_value "0", pk 0, hidden 0
+    column: cid 6, name "cache_write", type "INTEGER", notnull 1, dflt_value "0", pk 0, hidden 0
+    column: cid 7, name "cost_usd", type "REAL", notnull 0, dflt_value NULL, pk 0, hidden 0
+    foreign key: id 0, seq 0, table "agent_runs", from "run_id", to "id", on_update "NO ACTION", on_delete "CASCADE", match "NONE"
+    index: name "sqlite_autoindex_usage_1", unique 1, origin "pk", partial 0
+        key: seqno 0, cid 0, name "run_id", desc 0, coll "BINARY", key 1
+        key: seqno 1, cid 1, name "day", desc 0, coll "BINARY", key 1
+        key: seqno 2, cid 2, name "model", desc 0, coll "BINARY", key 1
+        key: seqno 3, cid -1, name NULL, desc 0, coll "BINARY", key 0
+    rows: 0
+
+table windows: columns 11, without_rowid 0, strict 1
+    column: cid 0, name "id", type "TEXT", notnull 1, dflt_value NULL, pk 1, hidden 0
+    column: cid 1, name "bounds_json", type "TEXT", notnull 0, dflt_value NULL, pk 0, hidden 0
+    column: cid 2, name "tab_by_workspace_json", type "TEXT", notnull 1, dflt_value "'{}'", pk 0, hidden 0
+    column: cid 3, name "visible_panes_json", type "TEXT", notnull 1, dflt_value "'[]'", pk 0, hidden 0
+    column: cid 4, name "focused_pane", type "TEXT", notnull 0, dflt_value NULL, pk 0, hidden 0
+    column: cid 5, name "open", type "INTEGER", notnull 1, dflt_value "1", pk 0, hidden 0
+    column: cid 6, name "sort_key", type "TEXT", notnull 1, dflt_value NULL, pk 0, hidden 0
+    column: cid 7, name "created_at", type "INTEGER", notnull 1, dflt_value NULL, pk 0, hidden 0
+    column: cid 8, name "updated_at", type "INTEGER", notnull 1, dflt_value NULL, pk 0, hidden 0
+    column: cid 9, name "popout_pane", type "TEXT", notnull 0, dflt_value NULL, pk 0, hidden 0
+    column: cid 10, name "client", type "TEXT", notnull 0, dflt_value NULL, pk 0, hidden 0
+    foreign key: id 0, seq 0, table "panes", from "popout_pane", to "id", on_update "NO ACTION", on_delete "CASCADE", match "NONE"
+    foreign key: id 1, seq 0, table "panes", from "focused_pane", to "id", on_update "NO ACTION", on_delete "SET NULL", match "NONE"
+    index: name "sqlite_autoindex_windows_1", unique 1, origin "pk", partial 0
+        key: seqno 0, cid 0, name "id", desc 0, coll "BINARY", key 1
+        key: seqno 1, cid -1, name NULL, desc 0, coll "BINARY", key 0
+    rows: 0
+
+table workflow_executions: columns 18, without_rowid 0, strict 1
+    column: cid 0, name "id", type "TEXT", notnull 1, dflt_value NULL, pk 1, hidden 0
+    column: cid 1, name "workflow", type "TEXT", notnull 1, dflt_value NULL, pk 0, hidden 0
+    column: cid 2, name "name", type "TEXT", notnull 1, dflt_value NULL, pk 0, hidden 0
+    column: cid 3, name "number", type "INTEGER", notnull 1, dflt_value NULL, pk 0, hidden 0
+    column: cid 4, name "folder", type "TEXT", notnull 1, dflt_value NULL, pk 0, hidden 0
+    column: cid 5, name "branch", type "TEXT", notnull 0, dflt_value NULL, pk 0, hidden 0
+    column: cid 6, name "base", type "TEXT", notnull 0, dflt_value NULL, pk 0, hidden 0
+    column: cid 7, name "head", type "TEXT", notnull 0, dflt_value NULL, pk 0, hidden 0
+    column: cid 8, name "tree", type "TEXT", notnull 0, dflt_value NULL, pk 0, hidden 0
+    column: cid 9, name "notes", type "TEXT", notnull 0, dflt_value NULL, pk 0, hidden 0
+    column: cid 10, name "graph", type "TEXT", notnull 1, dflt_value NULL, pk 0, hidden 0
+    column: cid 11, name "only_node", type "TEXT", notnull 0, dflt_value NULL, pk 0, hidden 0
+    column: cid 12, name "workspace", type "TEXT", notnull 0, dflt_value NULL, pk 0, hidden 0
+    column: cid 13, name "dir", type "TEXT", notnull 1, dflt_value NULL, pk 0, hidden 0
+    column: cid 14, name "state", type "TEXT", notnull 1, dflt_value NULL, pk 0, hidden 0
+    column: cid 15, name "tree_changed", type "INTEGER", notnull 1, dflt_value "0", pk 0, hidden 0
+    column: cid 16, name "started_at", type "INTEGER", notnull 1, dflt_value NULL, pk 0, hidden 0
+    column: cid 17, name "ended_at", type "INTEGER", notnull 0, dflt_value NULL, pk 0, hidden 0
+    index: name "sqlite_autoindex_workflow_executions_1", unique 1, origin "pk", partial 0
+        key: seqno 0, cid 0, name "id", desc 0, coll "BINARY", key 1
+        key: seqno 1, cid -1, name NULL, desc 0, coll "BINARY", key 0
+    index: name "workflow_executions_by_start", unique 0, origin "c", partial 0
+        key: seqno 0, cid 16, name "started_at", desc 0, coll "BINARY", key 1
+        key: seqno 1, cid -1, name NULL, desc 0, coll "BINARY", key 0
+    rows: 0
+
+table workflow_nodes: columns 10, without_rowid 0, strict 1
+    column: cid 0, name "execution", type "TEXT", notnull 1, dflt_value NULL, pk 1, hidden 0
+    column: cid 1, name "node", type "TEXT", notnull 1, dflt_value NULL, pk 2, hidden 0
+    column: cid 2, name "state", type "TEXT", notnull 1, dflt_value NULL, pk 0, hidden 0
+    column: cid 3, name "reason", type "TEXT", notnull 0, dflt_value NULL, pk 0, hidden 0
+    column: cid 4, name "run", type "TEXT", notnull 0, dflt_value NULL, pk 0, hidden 0
+    column: cid 5, name "verdict", type "TEXT", notnull 0, dflt_value NULL, pk 0, hidden 0
+    column: cid 6, name "report", type "TEXT", notnull 0, dflt_value NULL, pk 0, hidden 0
+    column: cid 7, name "turns", type "INTEGER", notnull 1, dflt_value "0", pk 0, hidden 0
+    column: cid 8, name "started_at", type "INTEGER", notnull 0, dflt_value NULL, pk 0, hidden 0
+    column: cid 9, name "ended_at", type "INTEGER", notnull 0, dflt_value NULL, pk 0, hidden 0
+    foreign key: id 0, seq 0, table "workflow_executions", from "execution", to "id", on_update "NO ACTION", on_delete "CASCADE", match "NONE"
+    index: name "sqlite_autoindex_workflow_nodes_1", unique 1, origin "pk", partial 0
+        key: seqno 0, cid 0, name "execution", desc 0, coll "BINARY", key 1
+        key: seqno 1, cid 1, name "node", desc 0, coll "BINARY", key 1
+        key: seqno 2, cid -1, name NULL, desc 0, coll "BINARY", key 0
+    index: name "workflow_nodes_by_run", unique 0, origin "c", partial 0
+        key: seqno 0, cid 4, name "run", desc 0, coll "BINARY", key 1
+        key: seqno 1, cid -1, name NULL, desc 0, coll "BINARY", key 0
+    rows: 0
+
+table workspaces: columns 11, without_rowid 0, strict 1
+    column: cid 0, name "id", type "TEXT", notnull 1, dflt_value NULL, pk 1, hidden 0
+    column: cid 1, name "handle", type "TEXT", notnull 1, dflt_value NULL, pk 0, hidden 0
+    column: cid 2, name "name", type "TEXT", notnull 1, dflt_value NULL, pk 0, hidden 0
+    column: cid 3, name "root_path", type "TEXT", notnull 0, dflt_value NULL, pk 0, hidden 0
+    column: cid 4, name "machine", type "TEXT", notnull 1, dflt_value "'local'", pk 0, hidden 0
+    column: cid 5, name "group_id", type "TEXT", notnull 0, dflt_value NULL, pk 0, hidden 0
+    column: cid 6, name "sort_key", type "TEXT", notnull 1, dflt_value NULL, pk 0, hidden 0
+    column: cid 7, name "closed_at", type "INTEGER", notnull 0, dflt_value NULL, pk 0, hidden 0
+    column: cid 8, name "created_at", type "INTEGER", notnull 1, dflt_value NULL, pk 0, hidden 0
+    column: cid 9, name "updated_at", type "INTEGER", notnull 1, dflt_value NULL, pk 0, hidden 0
+    column: cid 10, name "selected_tab", type "TEXT", notnull 0, dflt_value NULL, pk 0, hidden 0
+    foreign key: id 0, seq 0, table "tabs", from "selected_tab", to "id", on_update "NO ACTION", on_delete "SET NULL", match "NONE"
+    foreign key: id 1, seq 0, table "groups", from "group_id", to "id", on_update "NO ACTION", on_delete "SET NULL", match "NONE"
+    index: name "sqlite_autoindex_workspaces_1", unique 1, origin "pk", partial 0
+        key: seqno 0, cid 0, name "id", desc 0, coll "BINARY", key 1
+        key: seqno 1, cid -1, name NULL, desc 0, coll "BINARY", key 0
+    index: name "sqlite_autoindex_workspaces_2", unique 1, origin "u", partial 0
+        key: seqno 0, cid 1, name "handle", desc 0, coll "BINARY", key 1
+        key: seqno 1, cid -1, name NULL, desc 0, coll "BINARY", key 0
+    rows: 0

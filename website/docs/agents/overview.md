@@ -8,7 +8,8 @@ neohar supervises coding agents that run in its panes. It does not wrap them: th
 `claude` or `codex` in a pane (or neohar types it for them), and the harness runs its own TUI.
 neohar learns what the harness does from several channels, merges them into one state per **run**,
 turns approvals and questions into objects that any client can answer, and sends each answer back
-through a channel that the harness honours. v1 supports Claude Code and Codex only.
+through a channel that the harness honours. This page is about Claude Code and Codex. Hermes Agent
+runs in a chat, not in a pane ([Hermes Agent](/docs/guides/hermes)).
 
 [Claude Code and Codex](/docs/agents/harnesses) covers each harness and the manifests;
 [Interactions](/docs/agents/interactions) covers approvals, gating, delivery and policy.

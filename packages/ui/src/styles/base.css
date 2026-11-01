@@ -53,8 +53,7 @@
     .agent-code,
     .pane-state,
     .pane-handle,
-    .pane-cwd,
-    .pane-cost,
+    .pane-detail-data,
     .strip-cost,
     .board-more,
     .badge,
@@ -63,7 +62,6 @@
     .card-peek,
     .card-handle,
     .card-cwd,
-    .card-key,
     .diff,
     .file-body,
     .files-root-path,
@@ -72,8 +70,6 @@
     .changes-root,
     .timeline-usage,
     .timeline-limit,
-    .palette-shortcut,
-    .setting-input,
     .phone-code
   ) {
     font-family: var(--font-data);
@@ -81,7 +77,7 @@
   }
 
   /* The title of a panel, a dialog or a card. */
-  :where(.band, .confirm-title, .dialog-title, .settings-title, .card-title) {
+  :where(.band, .dialog-title, .settings-title, .card-title) {
     font: var(--t-title);
   }
 
@@ -114,19 +110,10 @@
 
 @layer components {
   /* Glass: what floats over the panes. The panes under it show through, blurred. With
-     the setting of the system that reduces transparency, it is opaque. The components that float
-     are listed here, so a component sets its shape and not its fill. */
-  :is(
-    .glass,
-    .palette,
-    .board-list,
-    .files-menu,
-    .git-menu,
-    .confirm,
-    .dialog,
-    .file-modal,
-    .floating > .pane-title
-  ) {
+     the setting of the system that reduces transparency, it is opaque. A component that floats has
+     the class `glass` (the layers of shadcn/ui in `components/ui/`), so it sets its shape and not
+     its fill. */
+  :is(.glass, [data-sonner-toast], .floating > .pane-title) {
     background: var(--glass);
     -webkit-backdrop-filter: var(--glass-filter);
     backdrop-filter: var(--glass-filter);
@@ -135,17 +122,7 @@
   }
 
   @media (prefers-reduced-transparency: reduce) {
-    :is(
-      .glass,
-      .palette,
-      .board-list,
-      .files-menu,
-      .git-menu,
-      .confirm,
-      .dialog,
-      .file-modal,
-      .floating > .pane-title
-    ) {
+    :is(.glass, [data-sonner-toast], .floating > .pane-title) {
       background: var(--bg-raised);
       -webkit-backdrop-filter: none;
       backdrop-filter: none;
@@ -155,25 +132,6 @@
   .handle {
     color: var(--text-dim);
     font-weight: 400;
-  }
-
-  /* A key cap is gray: a key is not live. The cap of Answer is amber while an agent
-     waits. */
-  .cap {
-    display: inline-block;
-    min-width: 2ch;
-    padding: 0 4px;
-    border-radius: 2px;
-    line-height: 16px;
-    font-weight: 600;
-    text-align: center;
-    background: var(--cap);
-    color: var(--text);
-  }
-
-  .cap-wait {
-    background: var(--caution);
-    color: var(--on-signal);
   }
 
   /* The title row of a panel. */

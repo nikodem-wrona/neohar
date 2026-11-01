@@ -15,19 +15,21 @@
 
 import type { Decoder } from '@neohar/proto-wasm';
 import type { PhoneAccount, PhoneDevice } from '@neohar/transport';
-import { createEffect, createSignal, on, onCleanup, onMount, Show } from 'solid-js';
-import { AppProvider } from '../app/context';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { type App, AppProvider } from '../app/context';
 import { createFailures, reportRejections } from '../app/failures';
+import { createToasts } from '../app/toasts';
 import { showPane } from '../app/show';
 import { createViewState } from '../app/view';
-import { CardHostProvider } from '../cards/host';
+import { watchDeliveries } from '../cards/deliveries';
+import { type CardHost, CardHostProvider } from '../cards/host';
 import { Keyboard } from '../input/keyboard';
 import { InputSender } from '../input/sender';
 import { pageFrames } from '../lib/frames';
 import type { RenderHost } from '../render';
 import { Shell } from '../shell/Shell';
 import { createPhoneStores, createStores } from '../stores';
-import { PhoneProvider } from './context';
+import { type Phone, PhoneProvider } from './context';
 import { MachineList } from './Machines';
 import { hashOf, routeOf } from './model';
 import type { PhoneTransport } from './PhoneApp';
@@ -58,199 +60,293 @@ export interface PhoneDeskProps {
 /** Portrait has the single view: one pane at a time. */
 const PORTRAIT = '(orientation: portrait)';
 
-export function PhoneDesk(props: PhoneDeskProps) {
-  const { transport, windowId } = props;
+/**
+ * What the desk keeps for its life: the stores, the state of the view, the failures, the toasts
+ * and the input. The transport and the window of a desk do not change: another window is another
+ * desk.
+ */
+function createDesk(transport: PhoneTransport, home: PhoneTransport, windowId: string) {
   const failures = createFailures(transport);
-  onCleanup(reportRejections(window, failures.report));
   const stores = createStores(transport, windowId);
-  const own = createPhoneStores(props.home);
+  const toasts = createToasts();
+  const deliveries = watchDeliveries(stores, toasts);
+  const own = createPhoneStores(home);
   const view = createViewState();
   // A hardware keyboard of an iPhone has the chords of a Mac: `mod` is Command.
   const keyboard = new Keyboard({ platform: 'macos', optionAsAlt: 'none' });
   // A key that the socket lost goes again with its id after a reconnect.
   const input = new InputSender(transport, pageFrames, undefined, { outbox: true });
-  onCleanup(() => {
-    stores.close();
-    own.close();
-    failures.dismiss();
-  });
+  return {
+    failures,
+    stores,
+    toasts,
+    deliveries,
+    own,
+    view,
+    keyboard,
+    input,
+    close(): void {
+      deliveries.stop();
+      stores.close();
+      own.close();
+      failures.dismiss();
+      toasts.clear();
+    },
+  };
+}
+
+export function PhoneDesk(props: PhoneDeskProps) {
+  const { transport, windowId, home } = props;
+  const [desk] = useState(() => createDesk(transport, home, windowId));
+  const { failures, stores, toasts, deliveries, own, view, keyboard, input } = desk;
+  useEffect(() => () => desk.close(), [desk]);
+  useEffect(() => reportRejections(window, failures.report), [failures]);
 
   // A phone whose app the person sees gets no push. The Mac sends the push.
-  const visible = startVisibleReport(props.home, document);
-  onCleanup(() => visible.stop());
+  useEffect(() => {
+    const visible = startVisibleReport(home, document);
+    const endHome = home.onConnection((open) => {
+      if (open) visible.resend();
+    });
+    return () => {
+      endHome();
+      visible.stop();
+    };
+  }, [home]);
 
   // The single view follows the orientation. The core keeps it in memory only, so the page sends
   // it again after each new connection.
-  const portrait = window.matchMedia(PORTRAIT);
-  const sendSingle = (): void => {
-    // A failed call goes again with the next connection.
-    void transport
-      .call('window.set_single', { window: windowId, single: portrait.matches })
-      .catch(() => undefined);
-  };
-  portrait.addEventListener('change', sendSingle);
-  onCleanup(() => portrait.removeEventListener('change', sendSingle));
-  sendSingle();
-  const endConnection = transport.onConnection((open) => {
-    if (!open) return;
+  useEffect(() => {
+    const portrait = window.matchMedia(PORTRAIT);
+    const sendSingle = (): void => {
+      // A failed call goes again with the next connection.
+      void transport
+        .call('window.set_single', { window: windowId, single: portrait.matches })
+        .catch(() => undefined);
+    };
+    portrait.addEventListener('change', sendSingle);
     sendSingle();
-    input.resend();
-  });
-  onCleanup(endConnection);
-  const endHome = props.home.onConnection((open) => {
-    if (open) visible.resend();
-  });
-  onCleanup(endHome);
+    const endConnection = transport.onConnection((open) => {
+      if (!open) return;
+      sendSingle();
+      input.resend();
+    });
+    return () => {
+      portrait.removeEventListener('change', sendSingle);
+      endConnection();
+    };
+  }, [transport, windowId, input]);
 
   // The keyboard of the phone covers the bottom of the layout viewport. The shell has the height
   // of the visual viewport, so that the panes stay above the keyboard.
-  const height = (): void => {
-    const shown = window.visualViewport?.height ?? window.innerHeight;
-    document.documentElement.style.setProperty('--phone-height', `${Math.round(shown)}px`);
-  };
-  height();
-  window.visualViewport?.addEventListener('resize', height);
-  window.addEventListener('resize', height);
-  onCleanup(() => {
-    window.visualViewport?.removeEventListener('resize', height);
-    window.removeEventListener('resize', height);
-  });
+  useEffect(() => {
+    const height = (): void => {
+      const shown = window.visualViewport?.height ?? window.innerHeight;
+      document.documentElement.style.setProperty('--phone-height', `${Math.round(shown)}px`);
+    };
+    height();
+    window.visualViewport?.addEventListener('resize', height);
+    window.addEventListener('resize', height);
+    return () => {
+      window.visualViewport?.removeEventListener('resize', height);
+      window.removeEventListener('resize', height);
+    };
+  }, []);
 
   // The address chooses a view. A route that names a run waits for the agents.
-  const [hash, setHash] = createSignal(location.hash);
-  const onHash = (): void => {
-    setHash(location.hash);
-  };
-  window.addEventListener('hashchange', onHash);
-  onCleanup(() => window.removeEventListener('hashchange', onHash));
-  let handled: string | null = null;
-  createEffect(() => {
-    const current = hash();
-    const route = routeOf(current);
-    if (handled === current) return;
-    switch (route.kind) {
-      case 'desk':
-        handled = current;
-        return;
-      case 'settings':
-        handled = current;
-        view.setSheet({ kind: 'settings', section: route.section });
-        return;
-      case 'pane':
-        handled = current;
-        showPane(transport, windowId, route.pane).catch(failures.report);
-        return;
-      case 'interaction':
-        handled = current;
+  const [hash, setHash] = useState(location.hash);
+  useEffect(() => {
+    const onHash = (): void => {
+      setHash(location.hash);
+    };
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
+  const handled = useRef<string | null>(null);
+  useEffect(() => {
+    const current = hash;
+    /** Stops a wait for the focus of a pane. */
+    let stopOpener: (() => void) | undefined;
+    /** Opens the Inbox once the window has `pane` in focus. Returns the function that stops it. */
+    const openAfterFocus = (pane: string): (() => void) => {
+      const focused = () => stores.windows.get().byKey[windowId]?.focused_pane === pane;
+      if (focused()) {
         view.showDrawer('inbox');
-        view.focusCard(route.interaction);
-        return;
-      case 'run': {
-        if (stores.agents.state.status === 'loading') return;
-        handled = current;
-        const run = stores.agents.state.byKey[route.run];
-        // The Inbox shows the card of the run, or the line of its turn with the box Reply.
-        if (run && (run.facets.pending.length > 0 || stores.attention.state.byKey[route.run])) {
-          view.showDrawer('inbox');
-        }
-        if (run?.pane) showPane(transport, windowId, run.pane).catch(failures.report);
-        return;
+        return () => undefined;
       }
-    }
-  });
+      let waiting = true;
+      const stop = stores.windows.subscribe(() => {
+        if (!focused()) return;
+        stop();
+        // After every listener of this change, the rule of portrait included.
+        queueMicrotask(() => {
+          if (waiting) view.showDrawer('inbox');
+        });
+      });
+      return () => {
+        waiting = false;
+        stop();
+      };
+    };
+    const follow = (): void => {
+      const route = routeOf(current);
+      if (handled.current === current) return;
+      switch (route.kind) {
+        case 'desk':
+          handled.current = current;
+          return;
+        case 'settings':
+          handled.current = current;
+          view.sheet.set({ kind: 'settings', section: route.section });
+          return;
+        case 'pane':
+          handled.current = current;
+          showPane(transport, windowId, route.pane).catch(failures.report);
+          return;
+        case 'interaction':
+          handled.current = current;
+          view.showDrawer('inbox');
+          view.focusCard(route.interaction);
+          return;
+        case 'run': {
+          const agents = stores.agents.get();
+          if (agents.status === 'loading') return;
+          handled.current = current;
+          const run = agents.byKey[route.run];
+          // The Inbox shows the card of the run, or the line of its turn with the box Reply.
+          const inbox =
+            run !== undefined &&
+            (run.facets.pending.length > 0 ||
+              stores.attention.get().byKey[route.run] !== undefined);
+          if (!run?.pane) {
+            if (inbox) view.showDrawer('inbox');
+            return;
+          }
+          // The pane gets the focus, and in portrait the shell then closes the columns. The
+          // Inbox opens after that focus, so that it stays open.
+          if (inbox) stopOpener = openAfterFocus(run.pane);
+          showPane(transport, windowId, run.pane).catch((failure: unknown) => {
+            stopOpener?.();
+            view.showDrawer('inbox');
+            failures.report(failure);
+          });
+          return;
+        }
+      }
+    };
+    follow();
+    // A route that waits for the agents follows them until it is handled.
+    const endAgents = stores.agents.subscribe(follow);
+    const endAttention = stores.attention.subscribe(follow);
+    return () => {
+      endAgents();
+      endAttention();
+      stopOpener?.();
+    };
+  }, [hash, view, transport, windowId, failures, stores]);
   // A sheet that closes takes its address with it, so that a tap on the same push opens it again.
-  createEffect(
-    on(view.sheet, (sheet) => {
+  useEffect(() => {
+    const follow = (): void => {
+      const sheet = view.sheet.get();
       const route = routeOf(location.hash);
       if (sheet?.kind === 'settings') {
         const next = hashOf({ kind: 'settings', section: sheet.section });
         if (location.hash !== next) {
-          handled = next;
+          handled.current = next;
           history.replaceState(null, '', next);
         }
       } else if (route.kind === 'settings') {
-        handled = '#/';
+        handled.current = '#/';
         history.replaceState(null, '', '#/');
       }
-    }),
-  );
+    };
+    follow();
+    return view.sheet.subscribe(follow);
+  }, [view]);
 
   // The renderer and the decoder come after the first paint.
-  const [host, setHost] = createSignal<RenderHost>();
-  onMount(() => {
-    const load = props.loadDecoder;
+  const [host, setHost] = useState<RenderHost>();
+  const loadDecoder = useRef(props.loadDecoder);
+  useEffect(() => {
+    const load = loadDecoder.current;
     if (!load) return;
+    let created: RenderHost | undefined;
+    let ended = false;
     void Promise.all([import('../render'), load()]).then(
       ([module, decoder]) => {
-        const created = module.RenderHost.create({ transport, windowId, decoder });
+        if (ended) return;
+        created = module.RenderHost.create({ transport, windowId, decoder });
         created.start();
         setHost(created);
       },
       (failure: unknown) => console.warn('the renderer did not load', failure),
     );
-  });
-  onCleanup(() => host()?.stop());
+    return () => {
+      ended = true;
+      created?.stop();
+    };
+  }, [transport, windowId]);
 
-  const Desk = (inner: { render?: RenderHost }) => (
-    <AppProvider
-      value={{
-        transport,
-        run: failures.run,
-        report: failures.report,
-        failures,
-        form: 'phone',
-        stores,
-        windowId,
-        view,
-        input,
-        keyboard,
-        platform: 'macos',
-        upload: (file) =>
-          props.account.upload(
-            file,
-            file.name,
-            props.machine === 'local' ? undefined : props.machine,
-          ),
-        ...(inner.render ? { render: inner.render } : {}),
-      }}
-    >
-      {/* A card of the phone answers with `via: phone`, and its Open shows the pane. */}
-      <CardHostProvider
-        value={{
-          transport,
-          via: 'phone',
-          report: failures.report,
-          open: (pane) => {
-            view.setDrawerOpen(false);
-            showPane(transport, windowId, pane).catch(failures.report);
-          },
-        }}
-      >
-        <Shell
-          extraSettings={(section) =>
-            section === 'phone' ? <ThisPhone restart={props.restart} /> : undefined
-          }
-          extraLeft={() => <MachineList />}
-        />
-      </CardHostProvider>
-    </AppProvider>
+  const { account, machine, restart, onMachine, device, push } = props;
+  const app = useMemo<App>(
+    () => ({
+      transport,
+      run: failures.run,
+      report: failures.report,
+      failures,
+      toasts,
+      form: 'phone',
+      stores,
+      windowId,
+      view,
+      input,
+      keyboard,
+      platform: 'macos',
+      upload: (file) => account.upload(file, file.name, machine === 'local' ? undefined : machine),
+      ...(host ? { render: host } : {}),
+    }),
+    [transport, failures, toasts, stores, windowId, view, input, keyboard, account, machine, host],
+  );
+  // A card of the phone answers with `via: phone`, and its Open shows the pane.
+  const cardHost = useMemo<CardHost>(
+    () => ({
+      transport,
+      via: 'phone',
+      answered: deliveries.expect,
+      report: failures.report,
+      open: (pane) => {
+        view.drawerOpen.set(false);
+        showPane(transport, windowId, pane).catch(failures.report);
+      },
+    }),
+    [transport, deliveries, failures, view, windowId],
+  );
+  const phone = useMemo<Phone>(
+    () => ({
+      transport: home,
+      stores: own,
+      machine,
+      showMachine: onMachine,
+      account,
+      device,
+      push: push ?? realPushBrowser(),
+    }),
+    [home, own, machine, onMachine, account, device, push],
   );
 
   return (
-    <PhoneProvider
-      value={{
-        transport: props.home,
-        stores: own,
-        machine: props.machine,
-        showMachine: props.onMachine,
-        account: props.account,
-        device: props.device,
-        push: props.push ?? realPushBrowser(),
-      }}
-    >
-      <Show when={host()} keyed fallback={<Desk />}>
-        {(render) => <Desk render={render} />}
-      </Show>
+    <PhoneProvider value={phone}>
+      {/* The shell mounts again when the renderer comes. */}
+      <AppProvider key={host ? 'render' : 'light'} value={app}>
+        <CardHostProvider value={cardHost}>
+          <Shell
+            extraSettings={(section) =>
+              section === 'phone' ? <ThisPhone restart={restart} /> : undefined
+            }
+            extraLeft={() => <MachineList />}
+          />
+        </CardHostProvider>
+      </AppProvider>
     </PhoneProvider>
   );
 }

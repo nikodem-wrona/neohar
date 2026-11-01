@@ -4,8 +4,8 @@
 // failure until the person closes it, or for `FAILURE_SHOW_MS`.
 
 import { type Method, type Params, RpcError, type Transport } from '@neohar/transport';
-import { type Accessor, createSignal } from 'solid-js';
 import { realTimers, type Timers } from '../lib/timing';
+import { createValue, type Source } from '../lib/value';
 
 /** What the banner shows. */
 export interface Failure {
@@ -25,7 +25,7 @@ export interface Failures {
   /** Shows a failure in the banner: an `RpcError`, an `Error` or any other rejected value. */
   report(failure: unknown): void;
   /** The failure that the banner shows. */
-  shown: Accessor<Failure | null>;
+  shown: Source<Failure | null>;
   /** Removes the failure from the banner. */
   dismiss(): void;
 }
@@ -41,21 +41,21 @@ export function createFailures(
   transport: Pick<Transport, 'call'>,
   timers: Timers = realTimers,
 ): Failures {
-  const [shown, setShown] = createSignal<Failure | null>(null);
+  const shown = createValue<Failure | null>(null);
   let count = 0;
   let timer: unknown = null;
   const dismiss = (): void => {
     if (timer !== null) timers.clear(timer);
     timer = null;
-    setShown(null);
+    shown.set(null);
   };
   const report = (failure: unknown): void => {
     dismiss();
     count += 1;
-    setShown({ id: count, ...partsOf(failure) });
+    shown.set({ id: count, ...partsOf(failure) });
     timer = timers.set(() => {
       timer = null;
-      setShown(null);
+      shown.set(null);
     }, FAILURE_SHOW_MS);
   };
   return {

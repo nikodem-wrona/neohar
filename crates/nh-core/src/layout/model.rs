@@ -45,6 +45,9 @@ pub struct Tab {
     pub layout: LayoutNode,
     pub floating: Vec<FloatingPane>,
     pub zoomed: Option<PaneId>,
+    /// The tab bar does not show the tab, and no window selects it until something selects it
+    /// on purpose. It holds the agent of a workflow node.
+    pub hidden: bool,
 }
 
 impl Tab {
@@ -83,6 +86,24 @@ pub struct Workspace {
     pub group: Option<GroupId>,
     pub tabs: Vec<Tab>,
     pub selected_tab: Option<TabId>,
+}
+
+impl Workspace {
+    /// The tab to select when the tab at `at` goes: the visible tab before that place, else the
+    /// first visible tab after it.
+    pub fn visible_near(&self, at: usize) -> Option<TabId> {
+        let before = self.tabs[..at.min(self.tabs.len())]
+            .iter()
+            .rev()
+            .find(|tab| !tab.hidden);
+        before
+            .or_else(|| {
+                self.tabs[at.min(self.tabs.len())..]
+                    .iter()
+                    .find(|tab| !tab.hidden)
+            })
+            .map(|tab| tab.id)
+    }
 }
 
 /// How far the process of a pane is. The pane runtime reports it.
@@ -499,6 +520,20 @@ impl Layout {
 
     /// The row of the `panes` projection that the layout knows. The title, the screen and the
     /// like come from the pane runtime.
+    /// Whether a tab exists and is hidden.
+    pub fn tab_hidden(&self, tab: TabId) -> bool {
+        self.workspaces
+            .iter()
+            .flat_map(|workspace| &workspace.tabs)
+            .any(|t| t.id == tab && t.hidden)
+    }
+
+    /// The tab of a pane, and its workspace.
+    pub fn tab_of_pane(&self, pane: PaneId) -> Option<(WorkspaceId, TabId)> {
+        let entry = self.panes.get(&pane)?;
+        Some((entry.workspace, entry.tab))
+    }
+
     pub fn pane_value(&self, pane: &PaneEntry) -> PaneValue {
         PaneValue {
             id: pane.id,
@@ -546,7 +581,12 @@ impl Layout {
             root: workspace.root.clone(),
             machine: workspace.machine.clone(),
             group: workspace.group.and_then(|g| self.group_ref(g)),
-            tabs: workspace.tabs.iter().map(Tab::value).collect(),
+            tabs: workspace
+                .tabs
+                .iter()
+                .filter(|tab| !tab.hidden)
+                .map(Tab::value)
+                .collect(),
             selected_tab: workspace.selected_tab,
         }
     }
@@ -576,9 +616,17 @@ impl Layout {
                     workspace.handle
                 ));
             }
-            if workspace.selected_tab.is_none() && !workspace.tabs.is_empty() {
+            if workspace.selected_tab.is_none() && workspace.tabs.iter().any(|t| !t.hidden) {
                 return Err(format!(
                     "workspace {} has tabs and selects none",
+                    workspace.handle
+                ));
+            }
+            if let Some(selected) = workspace.selected_tab
+                && workspace.tabs.iter().any(|t| t.id == selected && t.hidden)
+            {
+                return Err(format!(
+                    "workspace {} selects a hidden tab",
                     workspace.handle
                 ));
             }
@@ -725,6 +773,7 @@ impl Layout {
                 floating: serde_json::from_value(row.floating.clone())
                     .map_err(|e| internal("the floating panes of a tab", &e))?,
                 zoomed: row.zoomed.map(PaneId::new),
+                hidden: row.hidden,
             };
             layout.workspaces[workspace].tabs.push(tab);
         }
@@ -799,9 +848,9 @@ impl Layout {
         for workspace in &mut layout.workspaces {
             let valid = workspace
                 .selected_tab
-                .is_some_and(|s| workspace.tabs.iter().any(|t| t.id == s));
+                .is_some_and(|s| workspace.tabs.iter().any(|t| t.id == s && !t.hidden));
             if !valid {
-                workspace.selected_tab = workspace.tabs.first().map(|t| t.id);
+                workspace.selected_tab = workspace.visible_near(0);
             }
         }
         layout

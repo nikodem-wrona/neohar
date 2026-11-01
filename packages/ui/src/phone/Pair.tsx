@@ -4,7 +4,8 @@
 // by itself. A person can also type the short code that the Mac shows.
 
 import { type PhoneAccount, type PhoneDevice, RpcError } from '@neohar/transport';
-import { createSignal, onMount, Show } from 'solid-js';
+import { useEffect, useState } from 'react';
+import { useLatest } from '../lib/hooks';
 import { pairCodeOf } from './model';
 
 export function Pair(props: {
@@ -14,12 +15,12 @@ export function Pair(props: {
   onPaired: (device: PhoneDevice) => void;
 }) {
   const code = pairCodeOf(props.search);
-  const [short, setShort] = createSignal('');
-  const [busy, setBusy] = createSignal(false);
-  const [error, setError] = createSignal<string | null>(null);
+  const [short, setShort] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const pair = (value: string): void => {
-    if (busy() || value.trim() === '') return;
+    if (busy || value.trim() === '') return;
     setBusy(true);
     setError(null);
     props.account.pair(value).then(
@@ -35,16 +36,17 @@ export function Pair(props: {
     );
   };
   // The first start of the app of the home screen has the code of the QR code.
-  onMount(() => {
+  const start = useLatest(() => {
     if (props.standalone && code) pair(code);
   });
+  useEffect(() => start.current(), [start]);
 
   return (
-    <main class="phone-main phone-pair">
-      <h1 class="phone-title">Pair this phone with the Mac</h1>
-      <Show when={!props.standalone}>
-        <section class="phone-section" aria-label="Add neohar to the home screen">
-          <ol class="phone-steps">
+    <main className="phone-main phone-pair">
+      <h1 className="phone-title">Pair this phone with the Mac</h1>
+      {!props.standalone ? (
+        <section className="phone-section" aria-label="Add neohar to the home screen">
+          <ol className="phone-steps">
             <li>Tap the Share button of Safari.</li>
             <li>Tap “Add to Home Screen”.</li>
             <li>
@@ -54,48 +56,48 @@ export function Pair(props: {
             </li>
           </ol>
         </section>
-      </Show>
+      ) : null}
       <form
-        class="phone-form"
+        className="phone-form"
         aria-label="Pair with a code"
         onSubmit={(event) => {
           event.preventDefault();
-          pair(short());
+          pair(short);
         }}
       >
-        <label class="phone-label" for="phone-code">
+        <label className="phone-label" htmlFor="phone-code">
           The code that the Mac shows
         </label>
         <input
           id="phone-code"
-          class="phone-field phone-code"
+          className="phone-field phone-code"
           type="text"
-          inputmode="text"
-          autocomplete="one-time-code"
-          autocapitalize="characters"
-          spellcheck={false}
-          maxlength="16"
-          value={short()}
-          onInput={(event) => setShort(event.currentTarget.value)}
+          inputMode="text"
+          autoComplete="one-time-code"
+          autoCapitalize="characters"
+          spellCheck={false}
+          maxLength={16}
+          value={short}
+          onChange={(event) => setShort(event.currentTarget.value)}
         />
         <button
           type="submit"
-          class="phone-button selected"
-          disabled={busy() || short().trim() === ''}
+          className="phone-button selected"
+          disabled={busy || short.trim() === ''}
         >
           Pair
         </button>
       </form>
-      <Show when={busy()}>
-        <p class="phone-empty" role="status">
+      {busy ? (
+        <p className="phone-empty" role="status">
           Pairing…
         </p>
-      </Show>
-      <Show when={error()}>
-        <p class="card-error" role="alert">
-          {error()}
+      ) : null}
+      {error ? (
+        <p className="card-error" role="alert">
+          {error}
         </p>
-      </Show>
+      ) : null}
     </main>
   );
 }

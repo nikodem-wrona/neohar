@@ -139,6 +139,14 @@ ulid_id!(
     /// launch of the app.
     DeviceId, "client device"
 );
+ulid_id!(
+    /// One execution of a workflow.
+    ExecutionId, "workflow execution"
+);
+ulid_id!(
+    /// A chat with Hermes Agent.
+    ChatId, "hermes chat"
+);
 
 /// What a handle points to.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]

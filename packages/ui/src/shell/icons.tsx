@@ -2,11 +2,11 @@
 // SVG. A rail button has the icon and no word, so its name is the accessible
 // name and the tooltip of the button.
 
-import type { JSX } from 'solid-js';
+import type { ReactNode } from 'react';
 
 export type RailIcon = 'workspaces' | 'inbox' | 'timeline' | 'files' | 'changes';
 
-const PATHS: Record<RailIcon, () => JSX.Element> = {
+const PATHS: Record<RailIcon, () => ReactNode> = {
   // A window with a column at its left.
   workspaces: () => (
     <>
@@ -50,9 +50,9 @@ export function Icon(props: { name: RailIcon }) {
       height="16"
       fill="none"
       stroke="currentColor"
-      stroke-width="1.5"
-      stroke-linecap="round"
-      stroke-linejoin="round"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
       aria-hidden="true"
     >
       {PATHS[props.name]()}
@@ -64,14 +64,14 @@ export function Icon(props: { name: RailIcon }) {
 export function SearchIcon() {
   return (
     <svg
-      class="search-icon"
+      className="search-icon"
       viewBox="0 0 16 16"
       width="14"
       height="14"
       fill="none"
       stroke="currentColor"
-      stroke-width="1.5"
-      stroke-linecap="round"
+      strokeWidth="1.5"
+      strokeLinecap="round"
       aria-hidden="true"
     >
       <circle cx="7" cy="7" r="4.25" />

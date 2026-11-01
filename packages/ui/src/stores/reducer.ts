@@ -1,5 +1,5 @@
 // The state of a projection and how a message changes it. These are plain functions: the
-// Solid store in `projection.ts` applies them, and a test can check them without a browser.
+// store in `projection.ts` applies them, and a test can check them without a browser.
 
 import type { PatchOp, ProjectionData } from '@neohar/transport';
 

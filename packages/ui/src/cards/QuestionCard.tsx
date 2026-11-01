@@ -1,12 +1,28 @@
-// The card of a question: the last message of the agent, each question with its
-// options and their descriptions, a free text, and one button that sends all the answers.
+// The card of a question: the last message of the agent, each question with its options as
+// choice cards, a field for an answer of the person's own, and one button that sends all the
+// answers. The header of one question is the title of the card, and the question is the first
+// line of the body. Enter in a field sends, when every question has an answer. An answer is the
+// options or the text, not both: keys type it into the dialog of the harness, which takes one.
 
 import type { InteractionValue, QuestionAnswer } from '@neohar/transport';
-import { createSignal, For, Show } from 'solid-js';
+import { type Ref, useState } from 'react';
+import { Badge } from '../components/ui/badge';
+import { Button } from '../components/ui/button';
+import { Checkbox } from '../components/ui/checkbox';
+import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
+import { RadioGroup, RadioGroupItem } from '../components/ui/radio-group';
 import { sendAnswer } from './answer';
 import { CardFrame } from './CardFrame';
 import { useCardHost } from './host';
-import { canAnswer, questionAnswer, questionComplete, questionDecision, toggled } from './model';
+import {
+  canAnswer,
+  questionAnswer,
+  questionComplete,
+  questionDecision,
+  questionTitle,
+  toggled,
+} from './model';
 
 type Questions = Extract<InteractionValue['payload'], { kind: 'question' }>;
 
@@ -14,94 +30,141 @@ export function QuestionCard(props: {
   interaction: InteractionValue;
   payload: Questions;
   harness: string;
-  ref?: ((element: HTMLElement) => void) | undefined;
+  ref?: Ref<HTMLElement> | undefined;
 }) {
-  const { transport, via, report } = useCardHost();
-  const questions = () => props.payload.questions;
-  const [selected, setSelected] = createSignal<string[][]>(questions().map(() => []));
-  const [texts, setTexts] = createSignal<string[]>(questions().map(() => ''));
-  const [busy, setBusy] = createSignal(false);
-  const [error, setError] = createSignal<string | null>(null);
+  const host = useCardHost();
+  const { report } = host;
+  const questions = props.payload.questions;
+  const single = questions.length === 1;
+  const [selected, setSelected] = useState<string[][]>(() => questions.map(() => []));
+  const [texts, setTexts] = useState<string[]>(() => questions.map(() => ''));
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const answers = (): QuestionAnswer[] =>
-    questions().map((question, at) =>
-      questionAnswer(question, selected()[at] ?? [], texts()[at] ?? ''),
-    );
-  const ready = () => questionComplete(answers(), questions().length);
+  const answers: QuestionAnswer[] = questions.map((question, at) =>
+    questionAnswer(question, selected[at] ?? [], texts[at] ?? ''),
+  );
+  const ready = questionComplete(answers, questions.length);
   const send = async () => {
-    if (busy() || !ready() || !canAnswer(props.interaction)) return;
+    if (busy || !ready || !canAnswer(props.interaction)) return;
     setBusy(true);
-    setError(await sendAnswer(transport, props.interaction, questionDecision(answers()), via));
+    setError(await sendAnswer(host, props.interaction, questionDecision(answers)));
     setBusy(false);
   };
+
+  /** Chooses an option of a question: its text goes. */
+  const pick = (at: number, label: string, multi: boolean): void => {
+    setSelected((all) => all.map((list, i) => (i === at ? toggled(list, label, multi) : list)));
+    setTexts((all) => all.map((text, i) => (i === at ? '' : text)));
+  };
+
+  /**
+   * The options of a question as choice cards of shadcn/ui: the title and the description, and
+   * the radio button or the check box at the end. The whole card is the label, so a click
+   * anywhere on it chooses.
+   */
+  const choices = (question: (typeof questions)[number], at: number) =>
+    question.options.map((option, index) => {
+      const id = `${props.interaction.id}-${at}-${index}`;
+      const on = (selected[at] ?? []).includes(option.label);
+      return (
+        <Label
+          key={option.label}
+          htmlFor={id}
+          className="flex cursor-pointer items-start gap-3 rounded-md border border-foreground/16 bg-background/25 px-3 py-2.5 text-sm font-normal transition-colors hover:border-foreground/32 hover:bg-foreground/4 has-[[data-state=checked]]:border-foreground has-[[data-state=checked]]:bg-foreground/8 has-[:disabled]:cursor-default has-[:disabled]:hover:border-foreground/16 has-[:disabled]:hover:bg-background/25"
+        >
+          <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+            <span className="font-semibold [overflow-wrap:anywhere] text-foreground">
+              {option.label}
+            </span>
+            {option.description ? (
+              <span className="[overflow-wrap:anywhere] text-muted-foreground">
+                {option.description}
+              </span>
+            ) : null}
+          </span>
+          {question.multi_select ? (
+            <Checkbox
+              id={id}
+              className="mt-px"
+              checked={on}
+              onCheckedChange={() => pick(at, option.label, true)}
+            />
+          ) : (
+            <RadioGroupItem id={id} className="mt-px" value={option.label} />
+          )}
+        </Label>
+      );
+    });
 
   return (
     <CardFrame
       interaction={props.interaction}
       harness={props.harness}
-      error={error()}
+      error={error}
+      title={questionTitle(questions)}
       ref={props.ref}
-    >
-      <Show when={props.payload.context}>
-        <p class="card-context">{props.payload.context}</p>
-      </Show>
-      <For each={questions()}>
-        {(question, at) => (
-          <fieldset class="card-question" disabled={!canAnswer(props.interaction)}>
-            <legend>
-              <Show when={question.header}>
-                <span class="card-label">{question.header}</span>{' '}
-              </Show>
-              {question.question}
-            </legend>
-            <For each={question.options}>
-              {(option) => (
-                <label class="card-option">
-                  <input
-                    type={question.multi_select ? 'checkbox' : 'radio'}
-                    name={`${props.interaction.id}-${at()}`}
-                    checked={(selected()[at()] ?? []).includes(option.label)}
-                    onChange={() =>
-                      setSelected((all) =>
-                        all.map((list, i) =>
-                          i === at() ? toggled(list, option.label, !!question.multi_select) : list,
-                        ),
-                      )
-                    }
-                  />
-                  <span class="card-option-label">{option.label}</span>
-                  <Show when={option.description}>
-                    <span class="card-option-description">{option.description}</span>
-                  </Show>
-                </label>
-              )}
-            </For>
-            <input
-              class="card-message"
-              type="text"
-              placeholder="Or type an answer"
-              aria-label={`Your own answer to: ${question.question}`}
-              value={texts()[at()] ?? ''}
-              onInput={(event) => {
-                const value = event.currentTarget.value;
-                setTexts((all) => all.map((text, i) => (i === at() ? value : text)));
-              }}
-            />
-          </fieldset>
-        )}
-      </For>
-      <Show when={canAnswer(props.interaction)}>
-        <div class="card-actions" role="group" aria-label="Answer">
-          <button
-            type="button"
-            class="card-button selected"
-            disabled={busy() || !ready()}
-            onClick={() => void send().catch(report)}
+      footer={
+        canAnswer(props.interaction) ? (
+          // The footer, as in shadcn/ui: a rule, and the action at the right.
+          <div
+            className="flex justify-end gap-(--s2) border-t border-border pt-(--s3)"
+            role="group"
+            aria-label="Answer"
           >
-            Answer
-          </button>
-        </div>
-      </Show>
+            <Button
+              className="min-h-(--control)"
+              disabled={busy || !ready}
+              onClick={() => void send().catch(report)}
+            >
+              Answer
+            </Button>
+          </div>
+        ) : null
+      }
+    >
+      {props.payload.context ? <p className="card-context">{props.payload.context}</p> : null}
+      {/* The questions of a card do not move: their place is their key. */}
+      {questions.map((question, at) => (
+        <fieldset key={at} className="card-ask" disabled={!canAnswer(props.interaction)}>
+          {/* The header of one question is the title of the card. */}
+          <legend className="card-prompt">
+            {!single && question.header ? <Badge>{question.header}</Badge> : null}
+            {question.question}
+          </legend>
+          {question.multi_select ? (
+            <div className="card-options">{choices(question, at)}</div>
+          ) : (
+            <RadioGroup
+              className="card-options flex flex-col gap-1.5"
+              value={selected[at]?.[0] ?? ''}
+              onValueChange={(label) => pick(at, label, false)}
+              disabled={!canAnswer(props.interaction)}
+            >
+              {choices(question, at)}
+            </RadioGroup>
+          )}
+          <Input
+            placeholder={
+              question.options.length > 0 ? 'Or type your own answer' : 'Type your answer'
+            }
+            aria-label={`Your own answer to: ${question.question}`}
+            value={texts[at] ?? ''}
+            onChange={(event) => {
+              const value = event.currentTarget.value;
+              setTexts((all) => all.map((text, i) => (i === at ? value : text)));
+              if (value.trim()) {
+                setSelected((all) => all.map((list, i) => (i === at ? [] : list)));
+              }
+            }}
+            onKeyDown={(event) => {
+              if (event.key !== 'Enter' || event.nativeEvent.isComposing) return;
+              event.preventDefault();
+              send().catch(report);
+            }}
+          />
+        </fieldset>
+      ))}
     </CardFrame>
   );
 }

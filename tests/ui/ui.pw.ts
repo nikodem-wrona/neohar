@@ -117,8 +117,33 @@ async function openShell(page: Page, request: APIRequestContext) {
 async function clickAgent(page: Page, pane: string): Promise<void> {
   const strip = page.locator(`.strips .strip[data-agent-pane="${pane}"]`);
   if ((await strip.count()) === 1) return strip.click();
-  await page.locator('.board-more').click();
-  await page.locator(`.board-list .strip[data-agent-pane="${pane}"]`).click();
+  await page.getByRole('button', { name: /more agents/ }).click();
+  await page
+    .getByRole('dialog', { name: 'Every agent' })
+    .locator(`.strip[data-agent-pane="${pane}"]`)
+    .click();
+}
+
+/**
+ * The id of the agent run of a pane, when the core has found it. The list of every agent shows
+ * only while it is open, so the test asks the core.
+ */
+async function runOf(
+  api: <T>(method: string, params: Record<string, unknown>) => Promise<T>,
+  pane: string,
+): Promise<string> {
+  let id = '';
+  await expect
+    .poll(
+      async () => {
+        const { agents } = await api<{ agents: { id: string }[] }>('agent.list', { pane });
+        id = agents[0]?.id ?? '';
+        return id;
+      },
+      { timeout: 20_000 },
+    )
+    .not.toBe('');
+  return id;
 }
 
 async function center(locator: Locator): Promise<{ x: number; y: number }> {
@@ -213,12 +238,10 @@ test('the left column folds to a rail and opens again, as the drawer does', asyn
   await expect(page.locator('.gutter[data-column="left"]')).toHaveCount(0);
   const rail = page.getByRole('navigation', { name: 'Folded left column' });
   await expect(rail).toBeVisible();
-  // The button is an icon, and its name is its tooltip.
+  // The button is an icon: its name says what it does, and a tooltip shows under the pointer.
   await expect(rail.getByRole('button')).toHaveCount(1);
-  await expect(rail.getByRole('button', { name: 'Show Workspaces' })).toHaveAttribute(
-    'title',
-    'Workspaces',
-  );
+  await rail.getByRole('button', { name: 'Show Workspaces' }).hover();
+  await expect(page.getByRole('tooltip', { name: 'Workspaces' })).toBeVisible();
   await expect(page.getByRole('region', { name: 'Board' })).toBeVisible();
   await expect.poll(paneWidth).toBeGreaterThan(before + 100);
 
@@ -228,14 +251,9 @@ test('the left column folds to a rail and opens again, as the drawer does', asyn
   await expect(page.locator('.left-rail')).toHaveCount(0);
   await expect.poll(async () => Math.abs((await paneWidth()) - before)).toBeLessThan(2);
 
-  // The switch of the status bar folds and opens the left column too.
-  const toggle = page.getByRole('button', { name: 'Workspaces', exact: true });
-  await expect(toggle).toHaveAttribute('aria-pressed', 'true');
-  await toggle.click();
-  await expect(page.locator('.left-rail')).toBeVisible();
-  await expect(toggle).toHaveAttribute('aria-pressed', 'false');
-  await toggle.click();
-  await expect(page.locator('.sidebar')).toBeVisible();
+  // The status bar has no switch for the left column or the drawer: their arrows and rails do it.
+  const views = page.getByRole('group', { name: 'Views' });
+  await expect(views.getByRole('button')).toHaveText(['Git', 'Workflows']);
 });
 
 test('the board has no fold, a new agent keeps its height, and a strip moves by drag', async ({
@@ -268,9 +286,7 @@ test('the board has no fold, a new agent keeps its height, and a strip moves by 
     const agents: string[] = [];
     for (const name of ['Board agent one', 'Board agent two']) {
       const made = await makeWorkspace(name, { command: { argv: [`${dir}/claude`] } });
-      const strip = page.locator(`.board-list .strip[data-agent-pane="${made.pane}"]`);
-      await expect(strip).toHaveCount(1, { timeout: 20_000 });
-      agents.push((await strip.getAttribute('data-agent')) ?? '');
+      agents.push(await runOf(api, made.pane));
     }
     expect(await height()).toBe(tall);
     const [one, two] = agents;
@@ -551,7 +567,7 @@ test('reserved chords perform their commands and other keys reach the page', asy
   // ⌘⇧N asks for a new window. ⌘⇧I shows the inbox of the drawer.
   await page.keyboard.press('Meta+Shift+KeyN');
   await expect.poll(async () => (await calls('window.open')).length).toBe(1);
-  await page.getByRole('button', { name: 'Drawer' }).click();
+  await page.getByRole('button', { name: 'Fold', exact: true }).click();
   await expect(page.locator('.drawer')).toHaveCount(0);
   await page.keyboard.press('Meta+Shift+KeyI');
   await expect(page.locator('.drawer')).toHaveCount(1);
@@ -997,7 +1013,13 @@ test('the scrollbar shows the history, and its thumb and track scroll', async ({
   const scrolls = await calls('pane.scroll');
   expect(scrolls.length).toBeGreaterThanOrEqual(1);
   expect(scrolls.every((call) => 'top_line' in call.params)).toBe(true);
-  await expect(thumb).toHaveAttribute('aria-valuenow', '0');
+  // The thumb is at the top of the track. Its value is the absolute line on top: the lines that a
+  // resize took back from the history keep their numbers, so the first line need not be 0, and
+  // the thumb can stay a few pixels under the top.
+  await expect
+    .poll(async () => ((await thumb.boundingBox())?.y ?? 0) - (trackBox?.y ?? 0))
+    .toBeLessThan(8);
+  await expect(thumb).toHaveAttribute('aria-valuenow', /^\d$/);
 
   // A click on the track below the thumb scrolls by a page.
   const rows = (await api<{ pane: { rows: number } }>('pane.show', { pane: made.pane })).pane.rows;
@@ -1144,7 +1166,7 @@ test('the palette finds a command, runs it, and asks before it stops a program',
   });
 
   // A command of the page: the inbox opens in the drawer.
-  await page.getByRole('button', { name: 'Drawer' }).click();
+  await page.getByRole('button', { name: 'Fold', exact: true }).click();
   await expect(page.locator('.drawer')).toHaveCount(0);
   await page.keyboard.press('Meta+KeyK');
   await page.keyboard.type('inbox');
@@ -1172,7 +1194,7 @@ test('the palette finds a command, runs it, and asks before it stops a program',
 async function openSettings(page: Page, info: Info): Promise<Page> {
   const settings = await page.context().newPage();
   await settings.goto(`/page.html?ws=${info.ws_port}&token=${info.token}&view=settings`);
-  await expect(settings.locator('.settings-nav')).toBeVisible();
+  await expect(settings.getByRole('tablist', { name: 'Sections' })).toBeVisible();
   return settings;
 }
 
@@ -1186,11 +1208,12 @@ test('the settings window shows the settings and the other window follows an edi
   try {
     // Every section of the configuration, with the new ones for the window.
     for (const name of ['Agents', 'Approvals', 'Keys', 'Theme', 'Ui']) {
-      await expect(settings.getByRole('button', { name, exact: true })).toBeVisible();
+      await expect(settings.getByRole('tab', { name, exact: true })).toBeVisible();
     }
-    await settings.getByRole('button', { name: 'Ui', exact: true }).click();
+    await settings.getByRole('tab', { name: 'Ui', exact: true }).click();
     const size = settings.locator('[data-setting="ui.font_size"]');
-    await expect(size.locator('input')).toHaveValue('13');
+    const sizeField = size.getByLabel('Font size');
+    await expect(sizeField).toHaveValue('13');
     await expect(size.locator('.setting-source')).toHaveText('default');
     await expect(size.getByRole('button', { name: 'Reset' })).toHaveCount(0);
 
@@ -1199,8 +1222,8 @@ test('the settings window shows the settings and the other window follows an edi
     const before = (await calls('window.report_metrics')).at(-1)?.params as {
       cell_width_px: number;
     };
-    await size.locator('input').fill('20');
-    await size.locator('input').press('Enter');
+    await sizeField.fill('20');
+    await sizeField.press('Enter');
     await expect(size.locator('.setting-source')).toHaveText('ui');
     await expect
       .poll(
@@ -1211,20 +1234,20 @@ test('the settings window shows the settings and the other window follows an edi
       .toBeGreaterThan(before.cell_width_px + 2);
 
     // The core refuses a wrong value, and the window shows why. The size has the type of a byte.
-    await size.locator('input').fill('300');
-    await size.locator('input').press('Enter');
+    await sizeField.fill('300');
+    await sizeField.press('Enter');
     await expect(size.getByRole('alert')).toBeVisible();
     const option = settings.locator('[data-setting="ui.macos_option_as_alt"]');
-    await option.locator('input').fill('weird');
-    await option.locator('input').press('Enter');
+    await option.getByLabel('Macos option as alt').fill('weird');
+    await option.getByLabel('Macos option as alt').press('Enter');
     await expect(option.getByRole('alert')).toBeVisible();
 
     // The switch of the handles shows them in the tab bar and in the strip of the pane, and a
     // reset hides them again.
     const handles = settings.locator('[data-setting="ui.show_handles"]');
-    await expect(handles.locator('input')).not.toBeChecked();
+    await expect(handles.getByLabel('Show handles')).not.toBeChecked();
     await expect(page.locator('.pane-handle')).toHaveCount(0);
-    await handles.locator('input').check();
+    await handles.getByLabel('Show handles').check();
     await expect(page.locator('.pane-handle')).toHaveText(/^w\d+:p\d+$/);
     await expect(page.locator('.tab.selected')).toHaveAttribute('data-handle', /^w\d+:t\d+$/);
     await handles.getByRole('button', { name: 'Reset' }).click();
@@ -1232,11 +1255,11 @@ test('the settings window shows the settings and the other window follows an edi
     await expect(page.locator('.tab[data-handle]')).toHaveCount(0);
 
     // A reset gives the default back.
-    await size.locator('input').fill('20');
-    await size.locator('input').press('Enter');
+    await sizeField.fill('20');
+    await sizeField.press('Enter');
     await size.getByRole('button', { name: 'Reset' }).click();
     await expect(size.locator('.setting-source')).toHaveText('default');
-    await expect(size.locator('input')).toHaveValue('13');
+    await expect(sizeField).toHaveValue('13');
     await expect
       .poll(
         async () =>
@@ -1252,6 +1275,45 @@ test('the settings window shows the settings and the other window follows an edi
   }
 });
 
+test('a text field of the settings writes the config one time, when the value is done', async ({
+  page,
+  request,
+}) => {
+  const { info, api } = await openShell(page, request);
+  const settings = await openSettings(page, info);
+  /** The writes of the font size that the settings window sent. */
+  const sets = async () =>
+    (
+      await settings.evaluate(() =>
+        (
+          window as never as { nhTest: { calls(): { method: string; params: unknown }[] } }
+        ).nhTest.calls(),
+      )
+    ).filter(
+      (call) =>
+        call.method === 'config.set' && (call.params as { key?: string }).key === 'ui.font_size',
+    );
+  try {
+    await settings.getByRole('tab', { name: 'Ui', exact: true }).click();
+    const field = settings.locator('[data-setting="ui.font_size"]').getByLabel('Font size');
+    await expect(field).toHaveValue('13');
+
+    // Each key changes the field only. The value goes to the core when the field loses the focus.
+    await field.fill('');
+    await field.pressSequentially('16');
+    await expect(field).toHaveValue('16');
+    expect(await sets()).toEqual([]);
+    await field.blur();
+    await expect(settings.locator('[data-setting="ui.font_size"] .setting-source')).toHaveText(
+      'ui',
+    );
+    expect((await sets()).map((call) => call.params)).toEqual([{ key: 'ui.font_size', value: 16 }]);
+  } finally {
+    await api('config.set', { key: 'ui.font_size', value: null });
+    await settings.close();
+  }
+});
+
 test('the theme and the keys of the settings change the window that is open', async ({
   page,
   request,
@@ -1262,10 +1324,10 @@ test('the theme and the keys of the settings change the window that is open', as
   const dialog = page.getByRole('dialog', { name: 'Command palette' });
   try {
     // A colour of the theme is a custom property of the window.
-    await settings.getByRole('button', { name: 'Theme', exact: true }).click();
+    await settings.getByRole('tab', { name: 'Theme', exact: true }).click();
     const accent = settings.locator('[data-setting="theme.accent"]');
-    await accent.locator('input').fill('#ff0000');
-    await accent.locator('input').press('Enter');
+    await accent.getByLabel('Accent').fill('#ff0000');
+    await accent.getByLabel('Accent').press('Enter');
     await expect
       .poll(async () =>
         page.evaluate(() => document.documentElement.style.getPropertyValue('--accent')),
@@ -1279,10 +1341,10 @@ test('the theme and the keys of the settings change the window that is open', as
       .toBe('#4aea7d');
 
     // A chord of the keys: the new chord opens the palette, and the old one is free.
-    await settings.getByRole('button', { name: 'Keys', exact: true }).click();
+    await settings.getByRole('tab', { name: 'Keys', exact: true }).click();
     const chord = settings.locator('[data-setting="keys.palette_open"]');
-    await chord.locator('input').fill('mod+j');
-    await chord.locator('input').press('Enter');
+    await chord.getByLabel('Palette open').fill('mod+j');
+    await chord.getByLabel('Palette open').press('Enter');
     await expect(chord.locator('.setting-source')).toHaveText('ui');
     await page.locator('.pane-surface').first().click();
     await expect
@@ -1399,8 +1461,18 @@ test('the section Phone publishes with Tailscale, pairs a phone, and renames and
         .filter((call) => call.startsWith('serve --'));
     expect(await changes()).toEqual([`serve --bg --yes --https=8443 http://127.0.0.1:${port}`]);
 
-    await section.getByRole('button', { name: 'Pair a phone' }).click();
+    // Escape closes the dialog of an offer, and the focus goes back to the button. WebKit gives
+    // no focus to a button on a click, so the key opens the dialog.
+    const pairButton = section.getByRole('button', { name: 'Pair a phone' });
     const dialog = settings.getByRole('dialog', { name: 'Pair a phone' });
+    await pairButton.focus();
+    await settings.keyboard.press('Enter');
+    await expect(dialog).toBeVisible();
+    await settings.keyboard.press('Escape');
+    await expect(dialog).toBeHidden();
+    await expect(pairButton).toBeFocused();
+
+    await pairButton.click();
     await expect(dialog.getByRole('img', { name: 'The QR code of the pairing' })).toBeVisible();
     await expect(dialog).toContainText('The code is good for 10 minutes and for one phone.');
     const code = (await dialog.locator('.phone-code').textContent()) ?? '';
@@ -1544,13 +1616,23 @@ test('an agent in a pane has a strip on the board and a mark in the strip of the
     // letters only for WAIT and ERR.
     await expect(page.locator(`[data-pane="${made.pane}"] .agent-badge`)).toHaveCount(0);
     await expect(page.locator(`[data-pane="${made.pane}"] .pane-state`)).toHaveCount(0);
-    // The working directory does not fit: it loses its start and keeps its end, the repository.
-    const cwd = page.locator(`[data-pane="${made.pane}"] .pane-cwd`);
-    await expect(cwd).toHaveAttribute('title', /the-repo$/, { timeout: 20_000 });
-    const [box, text] = await Promise.all([cwd.boundingBox(), cwd.locator('bdi').boundingBox()]);
-    expect(text!.width).toBeGreaterThan(box!.width);
-    expect(text!.x).toBeLessThan(box!.x);
-    expect(Math.abs(text!.x + text!.width - (box!.x + box!.width))).toBeLessThan(2);
+    // The strip has no working directory: the details under the button i have all of it. A click
+    // on the button again closes them, and so does Escape.
+    const info = page.locator(`[data-pane="${made.pane}"] [data-action="details"]`);
+    const details = page.getByRole('dialog', { name: /^Details of / });
+    await info.click();
+    await expect(info).toHaveAttribute('aria-expanded', 'true');
+    await expect(details.locator('[data-detail="folder"] dd')).toHaveText(/the-repo$/, {
+      timeout: 20_000,
+    });
+    await expect(details.locator('.harness-badge')).toHaveText('Claude Code');
+    await info.click();
+    await expect(details).toBeHidden();
+    await info.click();
+    await expect(details).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(details).toBeHidden();
+    await expect(info).toHaveAttribute('aria-expanded', 'false');
     await expect(page.locator('.pane-yolo')).toHaveCount(0);
     // A click on the strip gives the pane the focus. The strip then has no bar, is not in reverse,
     // and keeps the focus fill, not Hover, under the pointer. The pane has no ring, and its strip
@@ -1585,7 +1667,7 @@ test('the runs that do not fit are behind +N, which is amber for a wait and list
   page,
   request,
 }) => {
-  const { info, makeWorkspace } = await openShell(page, request);
+  const { info, api, makeWorkspace } = await openShell(page, request);
   const dir = `${tmpdir()}/nh-ui-more-${process.pid}`;
   const stop = async () => {
     await exec('pkill', ['-9', '-f', '^claude 362[0-3]$']).catch(() => undefined);
@@ -1603,11 +1685,7 @@ test('the runs that do not fit are behind +N, which is amber for a wait and list
       );
     }
     // The core finds these runs in the process list, a second or two after they start.
-    for (const pane of panes) {
-      await expect(page.locator(`.board-list .strip[data-agent-pane="${pane}"]`)).toHaveCount(1, {
-        timeout: 20_000,
-      });
-    }
+    for (const pane of panes) await runOf(api, pane);
     // The last run asks for a permission, as Claude Code does with its hooks, so it waits. It
     // starts last, so it is the last in the order of the core (by start time): behind the cell.
     const session = JSON.stringify({ session_id: 's-more', cwd: '/work', source: 'startup' });
@@ -1627,13 +1705,13 @@ test('the runs that do not fit are behind +N, which is amber for a wait and list
     const waiting = (await makeWorkspace('More 3', { command: { argv: [`${dir}/claude3`] } })).pane;
     // 800 px: the drawer and the left column fold, and the board has room for three strips.
     await page.setViewportSize({ width: 800, height: 720 });
-    const listed = page.locator(`.board-list .strip[data-agent-pane="${waiting}"]`);
-    await expect(listed).toHaveAttribute('data-code', 'WAIT', { timeout: 20_000 });
+    // The waiting run is behind the cell, so the name of the cell says that one waits.
+    const more = page.getByRole('button', { name: /more agents/ });
+    await expect(more).toHaveAccessibleName(/one waits for you/, { timeout: 20_000 });
 
     // Three strips show, the waiting run is behind the cell, and the cell is amber.
     await expect(page.locator('.strips .strip')).toHaveCount(3);
     await expect(page.locator(`.strips .strip[data-agent-pane="${waiting}"]`)).toHaveCount(0);
-    const more = page.locator('.board-more');
     await expect(more).toHaveText(/^\+\d+$/);
     await expect(more).toHaveClass(/waiting/);
     // The drawer is a rail of four icons, and the Inbox button is amber with the count.
@@ -1655,14 +1733,29 @@ test('the runs that do not fit are behind +N, which is amber for a wait and list
     const paneBox = await page.locator('.layout').boundingBox();
     await more.click();
     await expect(list).toBeVisible();
+    await expect(list.locator(`.strip[data-agent-pane="${waiting}"]`)).toHaveAttribute(
+      'data-code',
+      'WAIT',
+    );
     expect(await page.locator('.layout').boundingBox()).toEqual(paneBox);
+    // The list fades in. Axe reads the colours after the fade.
+    await list.evaluate((element) =>
+      Promise.all(element.getAnimations({ subtree: true }).map((animation) => animation.finished)),
+    );
     await page.addScriptTag({ content: axe.source });
     const found = await page.evaluate(async () => {
+      // The list lies in the top layer, out of the board, so axe reads both.
+      const include = [
+        document.querySelector('[role="region"][aria-label="Board"]'),
+        document.querySelector('[role="dialog"][aria-label="Every agent"]'),
+      ].filter((element) => element !== null);
       const result = await (
         window as never as {
-          axe: { run: (context: Element) => Promise<{ violations: AxeViolation[] }> };
+          axe: {
+            run: (context: { include: Element[] }) => Promise<{ violations: AxeViolation[] }>;
+          };
         }
-      ).axe.run(document.querySelector('.board') as Element);
+      ).axe.run({ include });
       return result.violations
         .filter((v) => v.impact === 'serious' || v.impact === 'critical')
         .map((v) => v.id);
@@ -1670,6 +1763,8 @@ test('the runs that do not fit are behind +N, which is amber for a wait and list
     expect(found).toEqual([]);
     await page.keyboard.press('Escape');
     await expect(list).toBeHidden();
+    // The focus goes back to the cell that opened the list.
+    await expect(more).toBeFocused();
 
     // A click on a row of the list shows the pane in its tab, and the list closes.
     await more.click();
@@ -1700,7 +1795,7 @@ test('the Timeline tab shows the turns of the agent in focus with its usage', as
   page,
   request,
 }) => {
-  const { info, makeWorkspace } = await openShell(page, request);
+  const { info, api, makeWorkspace } = await openShell(page, request);
   const dir = `${tmpdir()}/nh-ui-timeline-${process.pid}`;
   const script = `${dir}/claude`;
   const transcript = `${dir}/session.jsonl`;
@@ -1725,10 +1820,9 @@ test('the Timeline tab shows the turns of the agent in focus with its usage', as
       { mode: 0o755 },
     );
     const made = await makeWorkspace('Timeline', { command: { argv: [script] } });
-    // The agents of the tests before this one are still on the board, or behind its `+N` cell,
-    // whose list has every agent. This strip has our pane.
-    const row = page.locator(`.board-list .strip[data-agent-pane="${made.pane}"]`);
-    await expect(row).toHaveCount(1, { timeout: 20_000 });
+    // The agents of the tests before this one are still on the board, or behind its `+N` cell.
+    // The core finds the run of our pane.
+    await runOf(api, made.pane);
     // The window draws the pane before it can take the focus.
     await expect(page.locator(`[data-pane="${made.pane}"] .pane-harness`)).toContainText(
       'Claude Code',
@@ -1793,70 +1887,6 @@ test('the Timeline tab shows the turns of the agent in focus with its usage', as
     await stop();
     await rm(dir, { recursive: true, force: true });
   }
-});
-
-test('the search finds a line that left the screen and shows the pane at that line', async ({
-  page,
-  request,
-}) => {
-  const { api, calls, makeWorkspace } = await openShell(page, request);
-  // The needle is the first line, so the numbers push it off the screen. Words that no other test
-  // prints keep the hit unique in a core that other tests used.
-  const needle = 'zebrafinch quartz ledger';
-  const made = await makeWorkspace('Search', {
-    command: {
-      argv: ['/bin/sh', '-c', `echo '${needle} [one]'; seq 1 120; echo ready; exec sleep 600`],
-    },
-  });
-  await expect(page.locator(`[data-pane="${made.pane}"]`)).toBeVisible();
-  // The lines are in the archive when the core flushes it, and the search flushes it first.
-  await expect
-    .poll(async () => (await api<{ text: string }>('pane.read', { pane: made.pane })).text, {
-      timeout: 20_000,
-    })
-    .toContain('ready');
-  await page.locator(`[data-pane="${made.pane}"] .pane-surface`).click();
-  const dialog = page.getByRole('dialog', { name: 'Search scrollback' });
-
-  // ⌘⇧F opens the search, and the input has the keyboard.
-  await page.keyboard.press('Meta+Shift+KeyF');
-  await expect(dialog).toBeVisible();
-  await expect(dialog.getByRole('textbox')).toBeFocused();
-
-  // Typing asks the core, and the hit shows the pane, the line and the match.
-  await page.keyboard.type('zebrafinch quartz');
-  const hit = dialog.getByRole('option');
-  await expect(hit).toHaveCount(1, { timeout: 20_000 });
-  await expect(hit.locator('mark').first()).toHaveText('zebrafinch');
-  await expect(hit).toContainText('[one]');
-  await expect(hit).toHaveAttribute('data-line', '0');
-  const queries = await calls('search.query');
-  expect(queries.at(-1)?.params).toMatchObject({ query: 'zebrafinch quartz' });
-
-  // The scope "This pane" asks for the focused pane only.
-  await dialog.getByRole('button', { name: 'This pane' }).click();
-  await expect(hit).toHaveCount(1);
-  expect((await calls('search.query')).at(-1)?.params).toMatchObject({ pane: made.pane });
-
-  // Enter shows the pane in this window and scrolls it to the line.
-  await page.keyboard.press('Enter');
-  await expect(dialog).toHaveCount(0);
-  expect((await calls('palette.execute')).at(-1)?.params).toMatchObject({
-    command: `go.pane:${made.pane}`,
-  });
-  expect((await calls('pane.scroll')).at(-1)?.params).toMatchObject({
-    pane: made.pane,
-    top_line: 0,
-  });
-  await expect(page.locator(`[data-pane="${made.pane}"]`)).toHaveClass(/focused/);
-
-  // A query with no match says so, and Escape closes the search.
-  await page.keyboard.press('Meta+Shift+KeyF');
-  await expect(dialog).toBeVisible();
-  await page.keyboard.type('nothinglikethis');
-  await expect(dialog).toContainText('No line matches.', { timeout: 20_000 });
-  await page.keyboard.press('Escape');
-  await expect(dialog).toHaveCount(0);
 });
 
 test('a program that writes the clipboard waits for an answer in the pane', async ({
@@ -1925,14 +1955,10 @@ test('the shell has no serious accessibility violation (axe smoke test)', async 
     await page.getByRole('tab', { name }).click();
     expect(await violations(), `the ${name} tab`).toEqual([]);
   }
-  // The palette and the search are dialogs over the window.
+  // The palette is a dialog over the window.
   await page.keyboard.press('Meta+KeyK');
   await expect(page.getByRole('dialog', { name: 'Command palette' })).toBeVisible();
   expect(await violations(), 'the palette').toEqual([]);
-  await page.keyboard.press('Escape');
-  await page.keyboard.press('Meta+Shift+KeyF');
-  await expect(page.getByRole('dialog', { name: 'Search scrollback' })).toBeVisible();
-  expect(await violations(), 'the search').toEqual([]);
   await page.keyboard.press('Escape');
   // The question before a tab closes with a program in it.
   await expect
@@ -2065,7 +2091,7 @@ test('a workspace and a tab get a new name in place', async ({ page, request }) 
   // A double click on the name of the workspace opens a field with the name selected, and Enter
   // sends the new name.
   await row.locator('.workspace-title').dblclick();
-  const field = row.locator('.rename-field');
+  const field = row.getByRole('textbox', { name: /^Name of workspace/ });
   await expect(field).toBeFocused();
   await expect(field).toHaveValue('Before');
   await page.keyboard.type('After');
@@ -2086,7 +2112,9 @@ test('a workspace and a tab get a new name in place', async ({ page, request }) 
   // F2 on the tab of the left column opens its field, and Escape keeps the name.
   await sideTab.focus();
   await page.keyboard.press('F2');
-  const sideField = page.locator('.side-tab-row .rename-field');
+  const sideField = page
+    .getByRole('navigation', { name: 'Workspaces' })
+    .getByRole('textbox', { name: /^Name of tab/ });
   await expect(sideField).toBeFocused();
   await sideField.fill('Never');
   await sideField.press('Escape');
@@ -2096,7 +2124,9 @@ test('a workspace and a tab get a new name in place', async ({ page, request }) 
   // The palette renames the tab that the window shows, and a click outside the field sends it.
   await page.keyboard.press('Meta+KeyK');
   await page.keyboard.type('rename tab');
-  await expect(page.locator('.palette-item.selected .palette-title')).toHaveText('Rename tab');
+  await expect(
+    page.getByRole('dialog', { name: 'Command palette' }).getByRole('option', { selected: true }),
+  ).toContainText(/^Rename tab/);
   await page.keyboard.press('Enter');
   await expect(over).toBeFocused();
   await over.fill('Build');
@@ -2179,7 +2209,7 @@ test('an approval card shows what the agent sent as text, and the Inbox has no a
     );
     await makeWorkspace('Xss', { command: { argv: [script] } });
     await page.getByRole('tab', { name: 'Inbox' }).click();
-    const card = page.locator('.card-approval').filter({ hasText: 'window.__xss=1' });
+    const card = page.getByRole('article').filter({ hasText: 'window.__xss=1' });
     await expect(card).toHaveCount(1, { timeout: 20_000 });
 
     // The markup is text. It makes no element and no script ran.
@@ -2248,14 +2278,14 @@ test('the keys 1 to 4 answer an approval at a low risk and select a button at a 
     await makeWorkspace('Keys low', { command: { argv: [await asker(0, 'ls -la')] } });
     await makeWorkspace('Keys high', { command: { argv: [await asker(1, 'rm -rf build')] } });
     await page.getByRole('tab', { name: 'Inbox' }).click();
-    const low = page.locator('.card-approval[data-state="open"]').filter({ hasText: 'ls -la' });
-    const high = page
-      .locator('.card-approval[data-state="open"]')
-      .filter({ hasText: 'rm -rf build' });
+    const waiting = page.getByRole('article').and(page.locator('[data-state="open"]'));
+    const low = waiting.filter({ hasText: 'ls -la' });
+    const high = waiting.filter({ hasText: 'rm -rf build' });
     await expect(low).toHaveCount(1, { timeout: 20_000 });
     await expect(high).toHaveCount(1, { timeout: 20_000 });
-    await expect(high.locator('.card-risk')).toHaveText('high risk');
-    await expect(low.locator('.card-risk')).not.toHaveText('high risk');
+    const risk = /^(low|medium|high) risk$/;
+    await expect(high.getByText(risk)).toHaveText('high risk');
+    await expect(low.getByText(risk)).not.toHaveText('high risk');
     const answers = async () => (await calls('interaction.answer')).length;
     const before = await answers();
 
@@ -2362,7 +2392,9 @@ test('the Files tab shows the tree of the folder of the tab, a file, and acts on
     await openButton.click();
     const large = page.getByRole('dialog', { name: 'README.md' });
     await expect(large).toBeVisible();
-    await expect(large.locator('.file-modal-path')).toHaveText(join(base, 'README.md'));
+    await expect(large.getByTitle(join(base, 'README.md'), { exact: true })).toHaveText(
+      join(base, 'README.md'),
+    );
     await expect(large.locator('.file-icon')).toHaveAttribute('data-icon', 'readme');
     await expect(large.locator('.rich-html h1')).toHaveText('Title');
     await expect(large.locator('.file-body')).toBeFocused();
@@ -2468,13 +2500,20 @@ test('the Files tab shows the tree of the folder of the tab, a file, and acts on
     await expect(zetaView.locator('.file-text')).toHaveText(['z']);
     // The file came after the view opened, and its text took the focus then.
     await expect(zetaView.locator('.file-body')).toBeFocused();
-    await expect(view.locator('.file-name')).toHaveText('Zeta.txt');
+    // The modal view hides the rest of the window from a screen reader.
+    await expect(
+      page.getByRole('region', { name: 'File', includeHidden: true }).locator('.file-name'),
+    ).toHaveText('Zeta.txt');
+    // The view fades in: axe reads the colours after the animation.
+    await zetaView.evaluate((view) =>
+      Promise.all(view.getAnimations({ subtree: true }).map((animation) => animation.finished)),
+    );
     const largeViolations = await page.evaluate(async () => {
       const found = await (
         window as never as {
           axe: { run: (context: Element) => Promise<{ violations: AxeViolation[] }> };
         }
-      ).axe.run(document.querySelector('.file-modal') as Element);
+      ).axe.run(document.querySelector('[role="dialog"]') as Element);
       return found.violations
         .filter((v) => v.impact === 'serious' || v.impact === 'critical')
         .map((v) => ({ id: v.id, nodes: v.nodes.map((n) => n.target.join(' ')) }));
@@ -2641,4 +2680,323 @@ test('the Changes tab shows the changes of the worktree of the folder, and the d
   } finally {
     await rm(base, { recursive: true, force: true });
   }
+});
+
+test('the Workflows view builds a workflow on the canvas and shows its execution', async ({
+  page,
+  request,
+}) => {
+  const { makeWorkspace } = await openShell(page, request);
+  const project = await realpath(await mkdtemp(join(tmpdir(), 'nh-wf-')));
+  await makeWorkspace('Flows', { root: project });
+  const call = <T>(method: string, params: Record<string, unknown>) =>
+    page.evaluate(([m, p]) => (window as never as NhTest).nhTest.call(m as string, p), [
+      method,
+      params,
+    ] as const) as Promise<T>;
+  // The switch of the status bar opens the view over the tab bar and the panes.
+  await page
+    .getByRole('group', { name: 'Views' })
+    .getByRole('button', { name: 'Workflows' })
+    .click();
+  await expect(page.locator('.wf-view')).toBeVisible();
+  await expect(page.locator('.tabbar')).toHaveCount(0);
+  // A new workflow from the preset Review has the trigger, three reviews and the report.
+  await page.getByRole('button', { name: '+ New' }).click();
+  await page.getByPlaceholder('Name').fill('Review');
+  await page.getByRole('combobox', { name: 'Preset' }).click();
+  await page.getByRole('option', { name: /^Review/ }).click();
+  await page.getByRole('button', { name: 'Create' }).click();
+  await expect(page.locator('.wf-node')).toHaveCount(5);
+  await expect(page.locator('.wf-edges .wf-edge')).toHaveCount(6);
+
+  // A drag from the output port of the report to an empty place opens the picker there.
+  const port = page.locator('.wf-node[data-node="report"] .wf-port.out');
+  const box = await port.boundingBox();
+  if (!box) throw new Error('the port has no box');
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 160, box.y + 140, { steps: 8 });
+  await page.mouse.up();
+  const picker = page.getByRole('dialog', { name: 'Add a node' });
+  await expect(picker).toBeVisible();
+  await picker.getByPlaceholder('Add a node').fill('codex agent');
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.wf-node')).toHaveCount(6);
+  const saved = await call<{ graph: { nodes: { id: string; inputs?: string[] }[] } }>(
+    'workflow.show',
+    { workflow: 'review' },
+  );
+  expect(saved.graph.nodes.find((node) => node.id === 'codex')?.inputs).toEqual(['report']);
+
+  // Delete removes the selected node and its connection.
+  await page.locator('.wf-node[data-node="codex"] .wf-node-title').click();
+  await page.keyboard.press('Delete');
+  await expect(page.locator('.wf-node')).toHaveCount(5);
+  await expect(page.locator('.wf-edges .wf-edge')).toHaveCount(6);
+
+  // A double-click opens the details: inputs, settings and output.
+  await page.locator('.wf-node[data-node="logic"] .wf-node-title').dblclick();
+  const details = page.getByRole('dialog', { name: /^Agent · / });
+  await expect(details).toBeVisible();
+  await expect(details.getByRole('region', { name: 'Input' }).getByRole('button')).toHaveCount(5);
+  await details.getByRole('button', { name: 'Done' }).click();
+  await expect(details).toHaveCount(0);
+
+  // An execution shows its nodes with their states, and a panel with the execution.
+  await page.getByRole('button', { name: 'Execute workflow' }).click();
+  const execute = page.getByRole('dialog', { name: /^Execute / });
+  await expect(execute).toBeVisible();
+  await execute.getByRole('button', { name: 'Execute', exact: true }).click();
+  await expect(page.locator('.wf-panel')).toBeVisible();
+  await expect(page.locator('.wf-execution')).toHaveCount(1);
+  await expect(page.locator('.wf-node[data-node="start"] .wf-node-state')).toContainText('done');
+  await page
+    .getByRole('complementary', { name: 'Execution' })
+    .getByRole('button', { name: 'Cancel', exact: true })
+    .click();
+  await expect(page.locator('.wf-panel-title')).toContainText('cancelled');
+
+  // Escape closes the view, and the tab bar is back.
+  await page.locator('.wf-canvas').click({ position: { x: 5, y: 5 } });
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.wf-view')).toHaveCount(0);
+  await expect(page.locator('.tabbar')).toBeVisible();
+  await rm(project, { recursive: true, force: true });
+});
+
+test('Escape closes the picker and the dialogs of the Workflows view, and the focus goes back', async ({
+  page,
+  request,
+}) => {
+  const { makeWorkspace } = await openShell(page, request);
+  const project = await realpath(await mkdtemp(join(tmpdir(), 'nh-wf-')));
+  await makeWorkspace('Layers', { root: project });
+  await page
+    .getByRole('group', { name: 'Views' })
+    .getByRole('button', { name: 'Workflows' })
+    .click();
+  await expect(page.locator('.wf-view')).toBeVisible();
+  await page.getByRole('button', { name: '+ New' }).click();
+  await page.getByPlaceholder('Name').fill('Layers');
+  await page.getByRole('combobox', { name: 'Preset' }).click();
+  await page.getByRole('option', { name: /^Review/ }).click();
+  await page.getByRole('button', { name: 'Create' }).click();
+  await expect(page.locator('.wf-node')).toHaveCount(5);
+  const canvas = page.getByRole('application', { name: 'Workflow canvas' });
+
+  // Tab on the canvas opens the picker. Escape closes it, and the canvas has the focus again.
+  await canvas.click({ position: { x: 5, y: 5 } });
+  await expect(canvas).toBeFocused();
+  await page.keyboard.press('Tab');
+  const picker = page.getByRole('dialog', { name: 'Add a node' });
+  await expect(picker.getByPlaceholder('Add a node')).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(picker).toHaveCount(0);
+  await expect(canvas).toBeFocused();
+
+  // The details of a node open from the canvas, and the focus goes back to it.
+  await page.locator('.wf-node[data-node="logic"] .wf-node-title').dblclick();
+  const details = page.getByRole('dialog', { name: /^Agent · / });
+  await expect(details).toBeVisible();
+  // A choice of the harness goes to the core, and the card shows it.
+  await details.getByLabel('Harness').click();
+  await page.getByRole('option', { name: 'Codex' }).click();
+  await expect(details.getByLabel('Harness')).toHaveText('Codex');
+  await expect(page.locator('.wf-node[data-node="logic"] .wf-node-line')).toContainText('Codex');
+  // Escape closes the list of a select first, and then the details.
+  await details.getByLabel('Harness').click();
+  await expect(page.getByRole('listbox')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('listbox')).toHaveCount(0);
+  await expect(details).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(details).toHaveCount(0);
+  await expect(canvas).toBeFocused();
+
+  // The dialog of an execution gives the focus back to its button. WebKit gives no focus to a
+  // button on a click, so the key opens the dialog.
+  const button = page.getByRole('button', { name: 'Execute workflow' });
+  await button.focus();
+  await page.keyboard.press('Enter');
+  const execute = page.getByRole('dialog', { name: /^Execute / });
+  await expect(execute).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(execute).toHaveCount(0);
+  await expect(button).toBeFocused();
+
+  // Each Escape closed only its layer: the view is still open.
+  await expect(page.locator('.wf-view')).toBeVisible();
+  await rm(project, { recursive: true, force: true });
+});
+
+test('Escape closes the menu of a row and the large view of the Files tab, and gives the focus back', async ({
+  page,
+  request,
+}) => {
+  const { makeWorkspace } = await openShell(page, request);
+  const base = await realpath(await mkdtemp(join(tmpdir(), 'nh-files-layers-')));
+  try {
+    await writeFile(join(base, 'a.txt'), 'a\n');
+    await writeFile(join(base, 'b.txt'), 'b\n');
+    const made = await makeWorkspace('Layers', { root: base });
+    await page.getByRole('tab', { name: 'Files' }).click();
+    const tree = page.getByRole('tree', { name: 'Files' });
+    const a = tree.locator(`[data-path="${join(base, 'a.txt')}"]`);
+    const b = tree.locator(`[data-path="${join(base, 'b.txt')}"]`);
+    await expect(a).toBeVisible();
+
+    // The menu from a key: Escape closes it, and the row has the focus again.
+    await a.focus();
+    await page.keyboard.press('Shift+F10');
+    const menuOfA = page.getByRole('menu', { name: 'Actions of a.txt' });
+    await expect(menuOfA.getByRole('menuitem').first()).toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(menuOfA).toHaveCount(0);
+    await expect(a).toBeFocused();
+
+    // The menu from a right click: the same, also when a pane had the focus before.
+    await page.locator(`[data-pane="${made.pane}"] .pane-surface`).click();
+    await expect(page.locator(`[data-pane="${made.pane}"] .pane-input`)).toBeFocused();
+    await b.click({ button: 'right' });
+    const menuOfB = page.getByRole('menu', { name: 'Actions of b.txt' });
+    await expect(menuOfB.getByRole('menuitem').first()).toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(menuOfB).toHaveCount(0);
+    await expect(b).toBeFocused();
+
+    // Open in the menu shows the large view. The element that had the focus is gone with the
+    // menu, so Escape gives the focus to the row of the file.
+    await a.click({ button: 'right' });
+    await menuOfA.getByRole('menuitem', { name: 'Open', exact: true }).click();
+    const large = page.getByRole('dialog', { name: 'a.txt' });
+    await expect(large.locator('.file-body')).toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(large).toHaveCount(0);
+    await expect(a).toBeFocused();
+
+    // Open in the head of the file: Escape gives the focus back to the button. WebKit gives no
+    // focus to a button on a click, so the key opens the view.
+    const view = page.getByRole('region', { name: 'File' });
+    const open = view.getByRole('button', { name: 'Open', exact: true });
+    await open.focus();
+    await page.keyboard.press('Enter');
+    await expect(large).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(large).toHaveCount(0);
+    await expect(open).toBeFocused();
+
+    // The close button of the file has a tooltip with its name.
+    await view.getByRole('button', { name: 'Close the file' }).hover();
+    await expect(page.getByRole('tooltip')).toHaveText('Close the file');
+  } finally {
+    await rm(base, { recursive: true, force: true });
+  }
+});
+
+test('Escape closes the palette, the menu of a strip and a menu of the Git view, and the focus goes back', async ({
+  page,
+  request,
+}) => {
+  const { api, makeWorkspace } = await openShell(page, request);
+  const dir = await realpath(await mkdtemp(join(tmpdir(), 'nh-ui-layers-')));
+  const stop = () => exec('pkill', ['-9', '-f', '^claude 3631$']).catch(() => undefined);
+  try {
+    await writeFile(`${dir}/claude`, '#!/bin/bash\nexec -a claude /bin/sleep 3631\n', {
+      mode: 0o755,
+    });
+    const made = await makeWorkspace('Layers', { command: { argv: [`${dir}/claude`] }, root: dir });
+    // The run of this pane is the first strip of the board, so it is not behind the `+N` cell.
+    const agent = await runOf(api, made.pane);
+    await api('agent.move', { agent, index: 0 });
+    const strip = page.locator(`.strips .strip[data-agent-pane="${made.pane}"]`);
+    await expect(strip).toHaveCount(1);
+    await page.locator(`[data-pane="${made.pane}"] .pane-surface`).click();
+    await expect.poll(async () => activePane(page)).toBe(made.pane);
+
+    // The palette: Escape closes it, and the pane has the keyboard again.
+    const palette = page.getByRole('dialog', { name: 'Command palette' });
+    await page.keyboard.press('Meta+KeyK');
+    await expect(palette.getByRole('combobox')).toBeFocused();
+    expect(await activePane(page)).toBeNull();
+    await page.keyboard.press('Escape');
+    await expect(palette).toHaveCount(0);
+    await expect.poll(async () => activePane(page)).toBe(made.pane);
+
+    // The menu of a strip: a right click opens it, Escape closes it, and the pane has the keyboard
+    // again.
+    const menu = page.getByRole('menu', { name: 'Actions of the agent' });
+    await strip.click({ button: 'right' });
+    await expect(menu).toBeVisible();
+    await expect(menu.getByRole('menuitem', { name: 'Show the pane' })).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(menu).toHaveCount(0);
+    await expect.poll(async () => activePane(page)).toBe(made.pane);
+
+    // A menu of the Git view: Escape closes the menu and not the view, and the focus goes back to
+    // the button of the menu. Escape again closes the view.
+    await page.getByRole('button', { name: 'Git', exact: true }).click();
+    const git = page.getByRole('region', { name: 'Git view' });
+    await expect(git).toBeVisible();
+    const repository = git.getByRole('button', { name: /^Repository/ });
+    await repository.click();
+    const list = page.getByRole('dialog', { name: 'Repository' });
+    await expect(list.getByRole('combobox', { name: 'Filter the repository menu' })).toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(list).toHaveCount(0);
+    await expect(git).toBeVisible();
+    await expect(repository).toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(git).toHaveCount(0);
+  } finally {
+    await stop();
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test('Escape closes the question of a close, and the focus goes back to its button', async ({
+  page,
+  request,
+}) => {
+  const { api, makeWorkspace } = await openShell(page, request);
+  const command = { argv: ['/bin/sh', '-c', 'sleep 600 & exec sleep 600'] };
+  const made = await makeWorkspace('Escape', { command });
+  await expect
+    .poll(async () => (await api<Alive>('pane.show', { pane: made.pane })).pane.liveness.state)
+    .toBe('alive');
+
+  // The cross of the pane asks, from the keyboard. Escape keeps the pane, and the cross has the
+  // focus again.
+  const cross = page.locator(`[data-pane="${made.pane}"]`).getByRole('button', {
+    name: 'Close pane',
+  });
+  await cross.focus();
+  await page.keyboard.press('Enter');
+  const dialog = page.getByRole('alertdialog');
+  await expect(dialog.getByRole('button', { name: 'Close pane' })).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);
+  await expect(cross).toBeFocused();
+
+  // A click beside the box is a Cancel too.
+  await page.keyboard.press('Enter');
+  await expect(dialog).toBeVisible();
+  await page.mouse.click(5, 5);
+  await expect(dialog).toHaveCount(0);
+  await expect(page.locator(`[data-pane="${made.pane}"]`)).toBeVisible();
+
+  // The tip of an icon button shows under the pointer, and its name stays the label.
+  await cross.hover();
+  await expect(page.getByRole('tooltip', { name: 'Close pane' })).toBeVisible();
+
+  // A right click on a tab opens its menu, as a long press does on a phone, and Escape closes it.
+  await page
+    .getByRole('tablist', { name: 'Tabs' })
+    .getByRole('tab', { selected: true })
+    .click({ button: 'right' });
+  const menu = page.getByRole('menu', { name: /^Actions of / });
+  await expect(menu.getByRole('menuitem')).toHaveText(['Rename', 'Close']);
+  await page.keyboard.press('Escape');
+  await expect(menu).toHaveCount(0);
 });

@@ -2,8 +2,8 @@
 //!
 //! Query ranks the commands of the palette for a text. Execute runs one command on the layout, in
 //! the transaction of the command, and it needs the window that runs it for the commands on "the
-//! tab" or "the pane in focus". A command of the page (the search, the inbox, the settings) does
-//! nothing in the core. The result names it, and the page does it.
+//! tab" or "the pane in focus". A command of the page (the inbox, the settings) does nothing in the
+//! core. The result names it, and the page does it.
 
 use nh_proto::api::{
     calls::{

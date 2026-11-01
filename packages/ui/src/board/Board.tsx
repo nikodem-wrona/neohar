@@ -7,217 +7,260 @@
 // `fitStrips`, and the runs that do not fit go behind the `+N` cell, which opens the list of every
 // agent. The cell is amber when a run behind it waits. The attention line of the command line
 // still counts every run that waits. A right click on a strip opens its menu: show the pane, or show
-// the worktree of its folder in the Git view.
+// the worktree of its folder in the Git view, in a Context Menu of shadcn/ui. The list behind the
+// `+N` cell is a Popover.
 
 import type { AgentValue } from '@neohar/transport';
-import { createEffect, createMemo, createSignal, For, onCleanup, onMount, Show } from 'solid-js';
+import {
+  type CSSProperties,
+  type ReactElement,
+  useCallback,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react';
 import { badgeOf, workOf } from '../agents/badge';
 import { useApp } from '../app/context';
 import { dragged, dropTarget, pressToDrag, type Dragged } from '../app/drag';
+import { useLayer } from '../app/layer';
 import { showPane } from '../app/show';
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from '../components/ui/context-menu';
+import { Popover, PopoverTrigger } from '../components/ui/popover';
+import { shallowEqual, useRows, useSelect, useValue } from '../lib/hooks';
+import { cn } from '../lib/utils';
 import { hasUsage, usageText } from '../timeline/model';
-import { BOARD_LIST, BoardList } from './BoardList';
+import { BoardList } from './BoardList';
 import { fitStrips, waitsBehind } from './fit';
 import { Strip } from './Strip';
+import { Tip } from '../shell/Tip';
 
 /** The probe that measures one character of the chrome font: 20 zeros. */
 const PROBE = '0'.repeat(20);
 
 export function Board() {
-  const { stores, transport, run, report, windowId, view, form: shellForm } = useApp();
-  const runs = () => stores.agents.rows();
-  const [width, setWidth] = createSignal(0);
-  let board: HTMLElement | undefined;
-  let probe: HTMLSpanElement | undefined;
+  const { stores, transport, run, report, windowId, form: shellForm } = useApp();
+  const runs = useRows(stores.agents);
+  const [width, setWidth] = useState(0);
+  const board = useRef<HTMLElement>(null);
+  const probe = useRef<HTMLSpanElement>(null);
 
   // The width of the board in characters. The probe changes its size with the font of the
   // settings, so a new font fits the strips again too.
-  onMount(() => {
+  useLayoutEffect(() => {
     const observer = new ResizeObserver(() => {
-      if (!board || !probe) return;
-      const char = probe.getBoundingClientRect().width / PROBE.length;
-      setWidth(char > 0 ? board.clientWidth / char : 0);
+      if (!board.current || !probe.current) return;
+      const char = probe.current.getBoundingClientRect().width / PROBE.length;
+      setWidth(char > 0 ? board.current.clientWidth / char : 0);
     });
-    if (board) observer.observe(board);
-    if (probe) observer.observe(probe);
-    onCleanup(() => observer.disconnect());
-  });
+    if (board.current) observer.observe(board.current);
+    if (probe.current) observer.observe(probe.current);
+    return () => observer.disconnect();
+  }, []);
 
-  const fit = createMemo(() => fitStrips(runs().length, width()));
-  const shown = () => runs().slice(0, fit().shown);
-  const waiting = () =>
-    waitsBehind(
-      runs().map((run) => badgeOf(run).waiting),
-      fit().shown,
-    );
-  const form = (): 'two' | 'narrow' => (fit().narrow ? 'narrow' : 'two');
+  const fit = fitStrips(runs.length, width);
+  const shown = runs.slice(0, fit.shown);
+  const waiting = waitsBehind(
+    runs.map((run) => badgeOf(run).waiting),
+    fit.shown,
+  );
+  const form: 'two' | 'narrow' = fit.narrow ? 'narrow' : 'two';
 
   // A drag of a strip: the strip under the pointer shows a bar on the side where the run lands.
-  const [over, setOver] = createSignal<string | null>(null);
+  const [over, setOver] = useState<string | null>(null);
+  const moving = useValue(dragged);
   /** The place of the run that the person drags, or -1. */
-  const from = (): number => {
-    const item = dragged();
-    return item?.kind === 'agent' ? runs().findIndex((run) => run.id === item.id) : -1;
-  };
-  const lifted = (id: string): boolean => {
-    const item = dragged();
-    return item?.kind === 'agent' && item.id === id;
-  };
+  const from = moving?.kind === 'agent' ? runs.findIndex((run) => run.id === moving.id) : -1;
+  const lifted = (id: string): boolean => moving?.kind === 'agent' && moving.id === id;
   const drop = (item: Dragged, index: number): void => {
     setOver(null);
     if (item.kind === 'agent') run('agent.move', { agent: item.id, index });
   };
 
-  const work = (run: AgentValue): string =>
-    workOf(run, run.pane ? stores.panes.state.byKey[run.pane] : undefined);
+  // The panes and the window are hot projections: the board reads only the titles of the panes
+  // of its runs and the focused pane, so that another change of them does not draw it again.
+  const titles = useSelect(
+    stores.panes,
+    (state) => {
+      const picked: Record<string, string> = {};
+      for (const run of runs) {
+        const pane = run.pane ? state.byKey[run.pane] : undefined;
+        if (run.pane && pane) picked[run.pane] = pane.title;
+      }
+      return picked;
+    },
+    shallowEqual,
+  );
+  const focusedPane = useSelect(stores.windows, (state) => state.byKey[windowId]?.focused_pane);
+  const work = (run: AgentValue): string => {
+    const title = run.pane ? titles[run.pane] : undefined;
+    return workOf(run, title === undefined ? undefined : { title });
+  };
   const tooltip = (run: AgentValue): string => {
     const usage = hasUsage(run.usage) ? `\n${usageText(run.usage)}` : '';
     return `${badgeOf(run).tooltip}${usage}`;
   };
-  const focused = (run: AgentValue): boolean =>
-    !!run.pane && run.pane === stores.windows.state.byKey[windowId]?.focused_pane;
-  const show = (pane: string): void => {
-    showPane(transport, windowId, pane).catch(report);
-  };
+  const focused = (run: AgentValue): boolean => !!run.pane && run.pane === focusedPane;
+  const show = useCallback(
+    (pane: string): void => {
+      showPane(transport, windowId, pane).catch(report);
+    },
+    [transport, windowId, report],
+  );
 
-  // The menu of a strip is a popover in the top layer: a click elsewhere closes it.
-  const [menu, setMenu] = createSignal<{ pane: string; x: number; y: number } | null>(null);
-  let menuBox: HTMLDivElement | undefined;
-  const folderOf = (pane: string): string | undefined =>
-    stores.panes.state.byKey[pane]?.cwd ?? undefined;
-  createEffect(() => {
-    if (!menu() || !menuBox) return;
-    if (!menuBox.matches(':popover-open')) menuBox.showPopover();
-    menuBox.querySelector<HTMLElement>('[role="menuitem"]')?.focus();
-  });
-  const closeMenu = (): void => {
-    if (menuBox?.matches(':popover-open')) menuBox.hidePopover();
-    setMenu(null);
-  };
-  const onMenuKey = (event: KeyboardEvent): void => {
-    const items = [...(menuBox?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? [])];
-    const at = items.indexOf(document.activeElement as HTMLElement);
-    if (event.key === 'Escape' || event.key === 'Tab') {
-      event.preventDefault();
-      closeMenu();
-    } else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-      event.preventDefault();
-      const step = event.key === 'ArrowDown' ? 1 : -1;
-      items[(at + step + items.length) % items.length]?.focus();
-    }
-  };
+  // The list of every agent behind the `+N` cell. A click on a row shows the pane and closes it.
+  const [listOpen, setListOpen] = useState(false);
+  useLayer(listOpen);
+  const showFromList = useCallback(
+    (pane: string): void => {
+      setListOpen(false);
+      show(pane);
+    },
+    [show],
+  );
 
   return (
     <section
-      class="board"
-      classList={{ 'one-line': fit().narrow }}
-      style={{ '--strip': String(fit().strip) }}
+      className={cn('board', { 'one-line': fit.narrow })}
+      style={{ '--strip': String(fit.strip) } as CSSProperties}
       aria-label="Board"
-      ref={(element) => (board = element)}
+      ref={board}
     >
-      <span class="char-probe" aria-hidden="true" ref={(element) => (probe = element)}>
+      <span className="char-probe" aria-hidden="true" ref={probe}>
         {PROBE}
       </span>
-      <Show
-        when={runs().length > 0}
-        fallback={<p class="board-empty">No agent runs. Start one in a pane.</p>}
-      >
-        <ul class="strips" aria-label="Agents">
-          <For each={shown()}>
-            {(run, index) => (
-              <li
-                classList={{
-                  lifted: lifted(run.id),
-                  'drop-before': over() === run.id && from() > index(),
-                  'drop-after': over() === run.id && from() >= 0 && from() < index(),
-                }}
-                ref={(element) =>
-                  dropTarget(element, {
-                    accepts: (item) => item.kind === 'agent' && item.id !== run.id,
-                    enter: () => setOver(run.id),
-                    leave: () => setOver((current) => (current === run.id ? null : current)),
-                    drop: (item) => drop(item, index()),
-                  })
-                }
-                onPointerDown={(event) => pressToDrag(event, { kind: 'agent', id: run.id })}
-                onContextMenu={(event) => {
-                  if (shellForm === 'phone' || !run.pane) return;
-                  event.preventDefault();
-                  setMenu({ pane: run.pane, x: event.clientX, y: event.clientY });
-                }}
+      {runs.length > 0 ? (
+        <>
+          <ul className="strips" aria-label="Agents">
+            {shown.map((run, index) => (
+              <StripMenu
+                key={run.id}
+                pane={run.pane ?? null}
+                disabled={shellForm === 'phone' || !run.pane}
+                onShow={show}
               >
-                <Strip
-                  run={run}
-                  work={work(run)}
-                  tooltip={tooltip(run)}
-                  focused={focused(run)}
-                  form={form()}
-                  onShow={show}
-                />
-              </li>
-            )}
-          </For>
-        </ul>
-        <Show when={fit().hidden > 0}>
-          <button
-            type="button"
-            class="board-more"
-            classList={{ waiting: waiting() }}
-            popovertarget={BOARD_LIST}
-            aria-label={`${fit().hidden} more agents${waiting() ? ', one waits for you' : ''}`}
-            title="Every agent"
-          >
-            +{fit().hidden}
-          </button>
-        </Show>
-      </Show>
-      <BoardList runs={runs()} work={work} tooltip={tooltip} focused={focused} onShow={show} />
-      <Show when={menu()}>
-        {(shownMenu) => (
-          <div
-            class="files-menu"
-            role="menu"
-            popover="auto"
-            aria-label="Actions of the agent"
-            ref={(element) => {
-              menuBox = element;
-              element.addEventListener('toggle', (event) => {
-                if ((event as ToggleEvent).newState === 'closed') setMenu(null);
-              });
-            }}
-            style={{ left: `${shownMenu().x}px`, top: `${shownMenu().y}px` }}
-            onKeyDown={onMenuKey}
-          >
-            <button
-              type="button"
-              role="menuitem"
-              class="files-menu-item"
-              tabIndex={-1}
-              onClick={() => {
-                const pane = shownMenu().pane;
-                closeMenu();
-                show(pane);
-              }}
-            >
-              Show the pane
-            </button>
-            <button
-              type="button"
-              role="menuitem"
-              class="files-menu-item"
-              tabIndex={-1}
-              disabled={!folderOf(shownMenu().pane)}
-              onClick={() => {
-                const folder = folderOf(shownMenu().pane);
-                closeMenu();
-                if (folder) view.openGit(folder);
-              }}
-            >
-              Show in Git view
-            </button>
-          </div>
-        )}
-      </Show>
+                <li
+                  className={
+                    cn({
+                      lifted: lifted(run.id),
+                      'drop-before': over === run.id && from > index,
+                      'drop-after': over === run.id && from >= 0 && from < index,
+                    }) || undefined
+                  }
+                  ref={(element) => {
+                    if (!element) return;
+                    dropTarget(element, {
+                      accepts: (item) => item.kind === 'agent' && item.id !== run.id,
+                      enter: () => setOver(run.id),
+                      leave: () => setOver((current) => (current === run.id ? null : current)),
+                      drop: (item) => drop(item, index),
+                    });
+                  }}
+                  onPointerDown={(event) =>
+                    pressToDrag(event.nativeEvent, { kind: 'agent', id: run.id })
+                  }
+                >
+                  <Strip
+                    run={run}
+                    work={work(run)}
+                    tooltip={tooltip(run)}
+                    focused={focused(run)}
+                    form={form}
+                    onShow={show}
+                  />
+                </li>
+              </StripMenu>
+            ))}
+          </ul>
+          {fit.hidden > 0 ? (
+            <Popover open={listOpen} onOpenChange={setListOpen}>
+              <Tip text="Every agent" hidden={listOpen}>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className={cn('board-more', { waiting })}
+                    aria-label={`${fit.hidden} more agents${waiting ? ', one waits for you' : ''}`}
+                  >
+                    +{fit.hidden}
+                  </button>
+                </PopoverTrigger>
+              </Tip>
+              <BoardList
+                runs={runs}
+                work={work}
+                tooltip={tooltip}
+                focused={focused}
+                onShow={showFromList}
+              />
+            </Popover>
+          ) : null}
+        </>
+      ) : (
+        <p className="board-empty">No agent runs. Start one in a pane.</p>
+      )}
     </section>
+  );
+}
+
+/**
+ * The menu of a strip: a right click opens it at the pointer. It shows the pane, or shows the
+ * worktree of its folder in the Git view. A phone has no menu of a strip.
+ */
+function StripMenu(props: {
+  pane: string | null;
+  disabled: boolean;
+  onShow: (pane: string) => void;
+  children: ReactElement;
+}) {
+  const [open, setOpen] = useState(false);
+  useLayer(open);
+  return (
+    <ContextMenu onOpenChange={setOpen}>
+      <ContextMenuTrigger asChild disabled={props.disabled}>
+        {props.children}
+      </ContextMenuTrigger>
+      <ContextMenuContent
+        aria-label="Actions of the agent"
+        className="min-w-[24ch] rounded-(--r-md) p-1"
+      >
+        {props.pane ? <StripMenuItems pane={props.pane} onShow={props.onShow} /> : null}
+      </ContextMenuContent>
+    </ContextMenu>
+  );
+}
+
+/** The items of the menu of a strip. They read the folder of the pane while the menu is open. */
+function StripMenuItems(props: { pane: string; onShow: (pane: string) => void }) {
+  const { stores, view } = useApp();
+  const folder = useSelect(stores.panes, (state) => state.byKey[props.pane]?.cwd ?? undefined);
+  const item = 'px-2 py-1 text-sm';
+  return (
+    <>
+      <ContextMenuItem className={item} onSelect={() => props.onShow(props.pane)}>
+        Show the pane
+      </ContextMenuItem>
+      <ContextMenuItem
+        className={item}
+        disabled={!folder}
+        onSelect={() => {
+          if (folder) view.openGit(folder);
+        }}
+      >
+        Show in Git view
+      </ContextMenuItem>
+      <ContextMenuItem
+        className={item}
+        disabled={!folder}
+        onSelect={() => {
+          if (folder) view.openWorkflows(folder);
+        }}
+      >
+        Execute a workflow here
+      </ContextMenuItem>
+    </>
   );
 }

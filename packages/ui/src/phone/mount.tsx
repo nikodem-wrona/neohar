@@ -5,7 +5,7 @@
 
 import type { Decoder } from '@neohar/proto-wasm';
 import type { PhoneAccount } from '@neohar/transport';
-import { render } from 'solid-js/web';
+import { createRoot } from 'react-dom/client';
 import { PhoneApp, type PhoneTransport } from './PhoneApp';
 
 /** Whether the page runs as the app of the home screen. */
@@ -25,18 +25,17 @@ export function mountPhone(
     machineTransport?: (machine: string) => PhoneTransport;
   } = {},
 ): () => void {
-  return render(
-    () => (
-      <PhoneApp
-        transport={transport}
-        account={account}
-        search={location.search}
-        standalone={standalone()}
-        restart={() => location.replace('/')}
-        {...(options.loadDecoder ? { loadDecoder: options.loadDecoder } : {})}
-        {...(options.machineTransport ? { machineTransport: options.machineTransport } : {})}
-      />
-    ),
-    root,
+  const app = createRoot(root);
+  app.render(
+    <PhoneApp
+      transport={transport}
+      account={account}
+      search={location.search}
+      standalone={standalone()}
+      restart={() => location.replace('/')}
+      {...(options.loadDecoder ? { loadDecoder: options.loadDecoder } : {})}
+      {...(options.machineTransport ? { machineTransport: options.machineTransport } : {})}
+    />,
   );
+  return () => app.unmount();
 }

@@ -40,6 +40,8 @@ prompt_arg = "trailing"
 model_arg = ["--model", "{model}"]
 # `-c` takes TOML text, so the level is a TOML string.
 effort_arg = ["-c", 'model_reasoning_effort="{effort}"']
+# A read-only workflow node. The sandbox of Codex reads every folder, so no add_dir_arg.
+read_only_args = ["--sandbox", "read-only"]
 # The models come from the catalog of Codex. Each model there has its own effort levels, and
 # `efforts` is the list for the model of the settings of Codex.
 model_catalog = "codex"

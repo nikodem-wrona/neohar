@@ -89,6 +89,7 @@ fn rows(layout: &Layout) -> Rows {
                     layout: json(&t.layout),
                     floating: json(&t.floating),
                     zoomed: t.zoomed.map(|p| p.ulid()),
+                    hidden: t.hidden,
                 },
             );
         }

@@ -174,13 +174,6 @@ pub const COMMANDS: &[Spec] = &[
         Needs::Nothing,
     ),
     spec(
-        "search.open",
-        "Search scrollback",
-        "Search",
-        Some("⌘⇧F"),
-        Needs::Page,
-    ),
-    spec(
         "inbox.open",
         "Open the inbox",
         "Go to",
@@ -192,6 +185,20 @@ pub const COMMANDS: &[Spec] = &[
         "Git: open the Git view",
         "Go to",
         Some("⌘⇧G"),
+        Needs::Page,
+    ),
+    spec(
+        "workflows.open",
+        "Workflows: open the Workflows view",
+        "Go to",
+        Some("⌘⇧E"),
+        Needs::Page,
+    ),
+    spec(
+        "hermes.open",
+        "Hermes: open the chats with Hermes Agent",
+        "Go to",
+        Some("⌘⇧H"),
         Needs::Page,
     ),
     spec(
@@ -263,14 +270,18 @@ pub fn commands(layout: &Layout, degraded: Option<&str>) -> Vec<PaletteCommand> 
         ));
     }
     for workspace in &layout.workspaces {
-        for tab in &workspace.tabs {
+        for tab in workspace.tabs.iter().filter(|tab| !tab.hidden) {
             out.push(go(
                 format!("{GO_TAB}{}", tab.id),
                 format!("Go to tab {} / {}", workspace.name, tab.name),
             ));
         }
     }
-    for entry in layout.panes.values() {
+    for entry in layout
+        .panes
+        .values()
+        .filter(|entry| !layout.tab_hidden(entry.tab))
+    {
         let value = layout.pane_value(entry);
         let title = if value.title.is_empty() {
             format!("Go to pane {}", value.handle)
