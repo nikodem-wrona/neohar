@@ -4,7 +4,7 @@ This file gives guidance to coding agents that work in this repository. [CONTRIB
 
 ## What this repository is
 
-neohar (always lowercase) is a Tauri 2 desktop workspace to supervise coding agents. A Rust core owns the terminals, the agent state and the approvals. The core keeps agent processes alive when the app quits, crashes or updates. The webview is a thin surface that paints what the core sends. neohar supports Claude Code and Codex only.
+neohar (always lowercase) is a Tauri 2 desktop workspace to supervise coding agents. A Rust core owns the terminals, the agent state and the approvals. The core keeps agent processes alive when the app quits, crashes or updates. The webview is a thin surface that paints what the core sends. neohar supports Claude Code and Codex.
 
 The code is the reference: there is no separate spec or plan. `website/` is the documentation site (Docusaurus, with its own `bun install`). Its guide is short on purpose.
 
@@ -60,7 +60,7 @@ A change to the API in `nh-proto` has three generated outputs. Make all three in
 
 ## Scope and fixed choices
 
-- **Harnesses:** Claude Code and Codex, and no other harness. No extension transport, no generic agent protocol, no external adapter protocol, no plugin system.
+- **Harnesses:** each harness has its own adapter in the core. No extension transport, no external adapter protocol, no plugin system.
 - **Name:** `neohar`, lowercase everywhere, also in `neohar.app` and at the start of a sentence.
 - **UI:** React and TypeScript, shadcn/ui on Radix and Tailwind CSS, Vite, Bun. No `StrictMode`: it runs each effect two times, and a second attach of a pane loses its screen.
 - **VT engine:** `alacritty_terminal` behind the `VtEngine` trait, with `wezterm-term` as the named fallback. Not libghostty-vt: the cut points of the holder make parser-state snapshots unnecessary, and the Tauri build must stay free of foreign toolchains.

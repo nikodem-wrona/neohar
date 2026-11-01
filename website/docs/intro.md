@@ -68,7 +68,7 @@ flowchart LR
 
 These are decided:
 
-- Any harness other than Claude Code and Codex. No plugin system, no generic agent protocol.
+- A plugin system, or a harness adapter outside the core.
 - A terminal emulator product. Plain shells must be good, but the product is agent supervision.
 - Windows: the core uses Unix sockets and PTYs.
 - Cloud sandboxes, a merge queue, a planner, or a coding agent of its own.

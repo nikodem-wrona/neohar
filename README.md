@@ -218,7 +218,7 @@ mise run app:dev    # the app from the working tree, with its config and data in
 
 neohar does a small number of things, and these are decided:
 
-- **Two harnesses.** Claude Code and Codex, and no other. neohar has no plugin system and no generic agent protocol.
+- **An adapter in the core for each harness.** neohar has no plugin system, and an adapter outside the core cannot connect.
 - **Not a terminal emulator product.** Plain shells must work well, but the product is the supervision of agents.
 - **No Windows.** The core uses Unix sockets and PTYs.
 - **No cloud.** No cloud sandboxes, no merge queue, no planner, and no coding agent of its own.
