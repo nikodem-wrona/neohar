@@ -2,6 +2,7 @@
 
 pub mod agent;
 pub mod git;
+pub mod hermes;
 pub mod internal;
 pub mod pane;
 pub mod phone;

@@ -200,6 +200,8 @@ pub(crate) struct Inner {
     pub workflows: Arc<crate::workflows::Library>,
     /// The executions of the workflows.
     pub executor: Arc<crate::workflows::Executor>,
+    /// The chats with Hermes Agent.
+    pub hermes: Arc<crate::hermes::Hermes>,
 }
 
 impl Inner {
@@ -516,6 +518,12 @@ impl Core {
             &data_dir,
         );
         let (workflow_signals, workflow_signals_rx) = tokio::sync::mpsc::unbounded_channel();
+        let hermes = crate::hermes::Hermes::new(
+            runtime.handle().clone(),
+            Arc::clone(projections.hub()),
+            Arc::clone(&config_store),
+            config.base_env.clone(),
+        );
         let render = Arc::new(RenderServer::new(
             runtime.handle().clone(),
             Arc::clone(&panes),
@@ -558,6 +566,7 @@ impl Core {
         harnesses.attach(actor.handle());
         git_view.bind_actor(actor.handle());
         executor.start(actor.handle(), workflow_signals_rx);
+        hermes.start(actor.handle());
         adapters.attach(actor.handle());
         // The runs and the interactions of the last core are in the projections before the first
         // client asks.
@@ -722,6 +731,7 @@ impl Core {
             phones: Arc::clone(&phone_side),
             workflows: workflow_library,
             executor,
+            hermes,
         });
         // The API server starts before the panes of the last core come back, because an agent in
         // such a pane can send a hook at once. It runs the calls on the core, so it starts here.
@@ -1051,6 +1061,7 @@ impl CoreHandle {
             || crate::changes::handles(method)
             || crate::git_view::handles(method)
             || crate::workflows::handles(method)
+            || crate::hermes::handles(method)
             || crate::files::handles(method)
             || crate::doctor::handles(method)
             || agent_calls::handles(method)
@@ -1077,6 +1088,8 @@ impl CoreHandle {
                 crate::git_view::run(&self.inner, call, origin).await
             } else if crate::workflows::handles(method) {
                 crate::workflows::run(&self.inner, call, origin).await
+            } else if crate::hermes::handles(method) {
+                crate::hermes::run(&self.inner, call, origin).await
             } else if crate::files::handles(method) {
                 crate::files::run(&self.inner, call, origin).await
             } else if crate::doctor::handles(method) {

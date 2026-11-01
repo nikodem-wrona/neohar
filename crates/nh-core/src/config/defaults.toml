@@ -87,6 +87,15 @@ time_limit_min = 60
 # The executions that ended to keep, with their reports. The oldest go first.
 keep_executions = 100
 
+[hermes]
+# The program of Hermes Agent and its arguments. The core runs it for each open chat, and it must
+# speak ACP on stdin and stdout.
+command = "hermes"
+args = ["acp"]
+# The seconds after which Hermes denies an approval that nobody answered. Set the same value as
+# `approvals.timeout` in the config of Hermes (300 by default there).
+approval_timeout_s = 300
+
 [phone]
 # The listener of the phone: the app or `nh daemon` serves the phone app on a port of
 # 127.0.0.1, and `tailscale serve` puts it on the tailnet with HTTPS.
@@ -164,6 +173,7 @@ interaction_answer_next = "mod+shift+a"
 peek_sibling = "mod+shift+p"
 git_open = "mod+shift+g"
 workflows_open = "mod+shift+e"
+hermes_open = "mod+shift+h"
 window_new = "mod+shift+n"
 # The chord that lets the next key reach the pane, also when it is reserved.
 pass_through = "mod+alt+v"

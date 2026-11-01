@@ -1,6 +1,6 @@
 ---
 title: "Projections"
-description: "The 30 read models that clients subscribe to: a snapshot, then keyed patches."
+description: "The 32 read models that clients subscribe to: a snapshot, then keyed patches."
 sidebar_position: 3
 toc_max_heading_level: 2
 ---
@@ -46,6 +46,8 @@ A projection is a read model that the core keeps in memory. A client calls [`pro
 | [`git_changes`](#git-changes) | path | window id | [`ChangeRow`](/docs/reference/api/types#changerow) |
 | [`workflows`](#workflows) | file name |  | [`WorkflowValue`](/docs/reference/api/types#workflowvalue) |
 | [`workflow_executions`](#workflow-executions) | execution id |  | [`ExecutionValue`](/docs/reference/api/types#executionvalue) |
+| [`hermes_chats`](#hermes-chats) | chat id |  | [`HermesChatValue`](/docs/reference/api/types#hermeschatvalue) |
+| [`hermes_chat`](#hermes-chat) | item id | chat id | [`HermesItem`](/docs/reference/api/types#hermesitem) |
 
 ## `windows` {#windows}
 
@@ -636,6 +638,46 @@ Type: string.
 | `time_text` | string | yes | The time and the length as a person reads it, for example "14:12 · 14 min". |
 | `tree_changed` | boolean |  | The `HEAD` commit or the changes of the worktree are different from the start. Default: `false`. |
 | `workflow` | string | yes | The name of the workflow file without `.toml`. |
+
+## `hermes_chats` {#hermes-chats}
+
+**Key:** chat id
+
+### Value
+
+[`HermesChatValue`](/docs/reference/api/types#hermeschatvalue)
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `context_text` | string \| `null` |  | The context window as a person reads it, for example "15k of 500k tokens". |
+| `cwd` | string | yes | The folder in which Hermes works. |
+| `error` | string \| `null` |  |  |
+| `guessed` | boolean |  | The state of the turn is a guess: the core found the turn when it resumed the session, and ACP tells the end of a turn only to the client that sent the prompt. Default: `false`. |
+| `id` | [`ChatId`](/docs/reference/api/types#chatid) | yes |  |
+| `mode` | string \| `null` |  |  |
+| `model` | string \| `null` |  |  |
+| `models` | [`HermesChoice`](/docs/reference/api/types#hermeschoice)[] |  |  |
+| `modes` | [`HermesChoice`](/docs/reference/api/types#hermeschoice)[] |  |  |
+| `pending` | integer (uint32) |  | The approvals that wait. Default: `0`. |
+| `session` | string \| `null` |  | The session id of Hermes, after `session/new`. |
+| `started_at` | [`Timestamp`](/docs/reference/api/types#timestamp) | yes |  |
+| `state` | [`HermesChatState`](/docs/reference/api/types#hermeschatstate) | yes |  |
+| `time_text` | string | yes | The start as a person reads it, for example "14:12" or "Oct 31". |
+| `title` | string | yes | The title that Hermes gave the session, or the folder name before the first prompt. |
+
+## `hermes_chat:<chat>` {#hermes-chat}
+
+**Key:** item id · **Parameter:** chat id
+
+### Value
+
+[`HermesItem`](/docs/reference/api/types#hermesitem)
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `at` | [`Timestamp`](/docs/reference/api/types#timestamp) | yes |  |
+| `body` | [`HermesItemBody`](/docs/reference/api/types#hermesitembody) | yes |  |
+| `id` | string | yes |  |
 
 ## Notification `projection.message` {#notification-projection-message}
 

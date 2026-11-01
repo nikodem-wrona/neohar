@@ -1,6 +1,6 @@
 ---
 title: "Events"
-description: "The 59 kinds of events in the event outbox."
+description: "The 61 kinds of events in the event outbox."
 sidebar_position: 4
 ---
 
@@ -74,6 +74,8 @@ The core appends an event in the same SQLite transaction as the state change tha
 | [`workflow.execution_started`](#workflow-execution-started) | 1 | [`WorkflowExecutionEvent`](/docs/reference/api/types#workflowexecutionevent) |
 | [`workflow.node_changed`](#workflow-node-changed) | 1 | [`WorkflowNodeEvent`](/docs/reference/api/types#workflownodeevent) |
 | [`workflow.execution_ended`](#workflow-execution-ended) | 1 | [`WorkflowExecutionEvent`](/docs/reference/api/types#workflowexecutionevent) |
+| [`hermes.chat_started`](#hermes-chat-started) | 1 | [`HermesChatEvent`](/docs/reference/api/types#hermeschatevent) |
+| [`hermes.chat_closed`](#hermes-chat-closed) | 1 | [`HermesChatEvent`](/docs/reference/api/types#hermeschatevent) |
 
 ## agent events {#group-agent}
 
@@ -818,6 +820,30 @@ The core appends an event in the same SQLite transaction as the state change tha
 | `execution` | [`ExecutionId`](/docs/reference/api/types#executionid) | yes |  |
 | `state` | [`ExecutionState`](/docs/reference/api/types#executionstate) | yes |  |
 | `workflow` | string | yes | The name of the workflow file without `.toml`. |
+
+## hermes events {#group-hermes}
+
+### `hermes.chat_started` {#hermes-chat-started}
+
+**Version:** 1
+
+[`HermesChatEvent`](/docs/reference/api/types#hermeschatevent)
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `chat` | [`ChatId`](/docs/reference/api/types#chatid) | yes |  |
+| `cwd` | string | yes |  |
+
+### `hermes.chat_closed` {#hermes-chat-closed}
+
+**Version:** 1
+
+[`HermesChatEvent`](/docs/reference/api/types#hermeschatevent)
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `chat` | [`ChatId`](/docs/reference/api/types#chatid) | yes |  |
+| `cwd` | string | yes |  |
 
 ## Notification `events.event` {#notification-events-event}
 

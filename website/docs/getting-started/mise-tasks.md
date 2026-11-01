@@ -1,6 +1,6 @@
 ---
 title: "mise tasks"
-description: "All 48 tasks of mise.toml: what each one does, what it depends on and the commands it runs."
+description: "All 49 tasks of mise.toml: what each one does, what it depends on and the commands it runs."
 sidebar_position: 6
 toc_max_heading_level: 3
 ---
@@ -63,6 +63,7 @@ mise installs these tools at these versions (`mise install`):
 | [`test:install`](#test-install) | The test of scripts/app-install.sh, on folders under /tmp (it never touches ~/Applications) |  |
 | [`test:apps`](#test-apps) | Real programs in panes of nh-core: less, vim and htop (local, needs them installed) |  |
 | [`test:harness`](#test-harness) | Record the scenarios of the installed Claude Code and Codex offline and compare them with the committed recordings (local, macOS, needs both installed) |  |
+| [`test:hermes`](#test-hermes) | A chat with the installed Hermes Agent through the core: a prompt, an edit approval and a resume (local, needs Hermes with a model provider and the network; uses the quota of the provider) |  |
 | [`bench`](#bench) | Run the benches of nh-term against their budgets: frame build, snapshot and restore |  |
 | [`build:nh`](#build-nh) | Build the nh binary that the app starts holders with (target/debug/nh) |  |
 | [`build:web`](#build-web) | Build the phone app into target/web-dist. The builds of nh and of the app put it into the binary with NEOHAR_WEB_DIST |  |
@@ -354,6 +355,14 @@ Record the scenarios of the installed Claude Code and Codex offline and compare 
 
 ```bash
 bash scripts/with-test-env.sh env NEOHAR_HARNESS=1 cargo nextest run -p nh-golden --test record --test delivery --locked
+```
+
+### `test:hermes` {#test-hermes}
+
+A chat with the installed Hermes Agent through the core: a prompt, an edit approval and a resume (local, needs Hermes with a model provider and the network; uses the quota of the provider)
+
+```bash
+bash scripts/with-test-env.sh env NEOHAR_HERMES=1 cargo nextest run -p nh --test hermes_live --locked
 ```
 
 ## Benchmarks

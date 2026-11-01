@@ -142,6 +142,7 @@ export function Shell(props: ShellProps = {}) {
   // A phone has no Git view and no Workflows view in this version.
   const gitShown = useValue(view.gitOpen) && form !== 'phone';
   const workflowsShown = useValue(view.workflowsOpen) && form !== 'phone';
+  const hermesShown = useValue(view.hermesOpen) && form !== 'phone';
   // The Workflows view loads when it opens the first time, so the window starts without it.
   type WorkflowsModule = typeof import('../workflows/WorkflowsView');
   const [workflowsModule, setWorkflowsModule] = useState<WorkflowsModule | null>(null);
@@ -149,6 +150,13 @@ export function Shell(props: ShellProps = {}) {
     if (!workflowsShown || workflowsModule) return;
     import('../workflows/WorkflowsView').then((module) => setWorkflowsModule(module), report);
   }, [workflowsShown, workflowsModule, report]);
+  // The Hermes view loads when it opens the first time too.
+  type HermesModule = typeof import('../hermes/HermesView');
+  const [hermesModule, setHermesModule] = useState<HermesModule | null>(null);
+  useEffect(() => {
+    if (!hermesShown || hermesModule) return;
+    import('../hermes/HermesView').then((module) => setHermesModule(module), report);
+  }, [hermesShown, hermesModule, report]);
 
   // What a reserved chord reads in this window. The functions read the stores when the chord
   // runs.
@@ -184,6 +192,9 @@ export function Shell(props: ShellProps = {}) {
       },
       toggleWorkflows: () => {
         if (form !== 'phone') view.toggleWorkflows(windowFolder(stores, windowId) ?? null);
+      },
+      toggleHermes: () => {
+        if (form !== 'phone') view.toggleHermes();
       },
       focusCard: view.focusCard,
     };
@@ -322,8 +333,9 @@ export function Shell(props: ShellProps = {}) {
       for (const stop of folds) stop();
     };
   }, [actions, latestKeymap, render, report, transport, view, windowId]);
-  // While the Git view or the Workflows view covers the panes, the window draws none of them.
-  const panesHidden = gitShown || workflowsShown;
+  // While the Git view, the Workflows view or the Hermes view covers the panes, the window draws
+  // none of them.
+  const panesHidden = gitShown || workflowsShown || hermesShown;
   useEffect(() => {
     reporting.current?.setPanesHidden(panesHidden);
   }, [panesHidden]);
@@ -404,7 +416,9 @@ export function Shell(props: ShellProps = {}) {
           <FailureBanner />
           {/* The Git view and the Workflows view take the place of the tab bar and the panes. The
             panes keep running. */}
-          {workflowsShown ? (
+          {hermesShown ? (
+            <HermesFrame module={hermesModule} />
+          ) : workflowsShown ? (
             <WorkflowsFrame module={workflowsModule} />
           ) : gitShown ? (
             <GitView />
@@ -456,6 +470,15 @@ export function Shell(props: ShellProps = {}) {
         ) : null}
       </div>
     </TooltipProvider>
+  );
+}
+
+/** The Hermes view, once its chunk is there. */
+function HermesFrame(props: { module: typeof import('../hermes/HermesView') | null }) {
+  return props.module ? (
+    <props.module.HermesView />
+  ) : (
+    <p className="git-empty git-center">Opening the Hermes view…</p>
   );
 }
 

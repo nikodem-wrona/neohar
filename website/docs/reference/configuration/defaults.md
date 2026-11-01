@@ -30,10 +30,11 @@ Write the keys that you want to change in `~/.config/neohar/config.toml` (or `$N
 | [`[daemon]`](#daemon) | `prevent_sleep` |
 | [`[git]`](#git) | `fetch_minutes` |
 | [`[workflows]`](#workflows) | `max_agents`, `time_limit_min`, `keep_executions` |
+| [`[hermes]`](#hermes) | `command`, `args`, `approval_timeout_s` |
 | [`[phone]`](#phone) | `enabled`, `port`, `https_port`, `url`, `contact`, `keep_awake`, `font_size`, `keys` |
 | [`[ui]`](#ui) | `font_family`, `font_size`, `macos_option_as_alt`, `global_hotkey`, `editor`, `show_handles` |
 | [`[theme]`](#theme) | `bg`, `bg_raised`, `bg_hover`, `line`, `text`, `text_dim`, `accent`, `danger` |
-| [`[keys]`](#keys) | `palette_open`, `tab_next`, `tab_previous`, `pane_focus_left`, `pane_focus_right`, `pane_focus_up`, `pane_focus_down`, `pane_split_right`, `pane_split_down`, `inbox_open`, `interaction_answer_next`, `peek_sibling`, `git_open`, `workflows_open`, `window_new`, `pass_through` |
+| [`[keys]`](#keys) | `palette_open`, `tab_next`, `tab_previous`, `pane_focus_left`, `pane_focus_right`, `pane_focus_up`, `pane_focus_down`, `pane_split_right`, `pane_split_down`, `inbox_open`, `interaction_answer_next`, `peek_sibling`, `git_open`, `workflows_open`, `hermes_open`, `window_new`, `pass_through` |
 
 ## `[machines]` {#machines}
 
@@ -191,6 +192,21 @@ time_limit_min = 60
 keep_executions = 100
 ```
 
+## `[hermes]` {#hermes}
+
+| Key | Default | Description |
+|---|---|---|
+| `command` | `"hermes"` | The program of Hermes Agent and its arguments. The core runs it for each open chat, and it must speak ACP on stdin and stdout. |
+| `args` | `["acp"]` |  |
+| `approval_timeout_s` | `300` | The seconds after which Hermes denies an approval that nobody answered. Set the same value as `approvals.timeout` in the config of Hermes (300 by default there). |
+
+```toml
+[hermes]
+command = "hermes"
+args = ["acp"]
+approval_timeout_s = 300
+```
+
 ## `[phone]` {#phone}
 
 | Key | Default | Description |
@@ -280,6 +296,7 @@ danger = "#ff5251"
 | `peek_sibling` | `"mod+shift+p"` |  |
 | `git_open` | `"mod+shift+g"` |  |
 | `workflows_open` | `"mod+shift+e"` |  |
+| `hermes_open` | `"mod+shift+h"` |  |
 | `window_new` | `"mod+shift+n"` |  |
 | `pass_through` | `"mod+alt+v"` | The chord that lets the next key reach the pane, also when it is reserved. |
 
@@ -299,6 +316,7 @@ interaction_answer_next = "mod+shift+a"
 peek_sibling = "mod+shift+p"
 git_open = "mod+shift+g"
 workflows_open = "mod+shift+e"
+hermes_open = "mod+shift+h"
 window_new = "mod+shift+n"
 pass_through = "mod+alt+v"
 ```
@@ -395,6 +413,15 @@ time_limit_min = 60
 # The executions that ended to keep, with their reports. The oldest go first.
 keep_executions = 100
 
+[hermes]
+# The program of Hermes Agent and its arguments. The core runs it for each open chat, and it must
+# speak ACP on stdin and stdout.
+command = "hermes"
+args = ["acp"]
+# The seconds after which Hermes denies an approval that nobody answered. Set the same value as
+# `approvals.timeout` in the config of Hermes (300 by default there).
+approval_timeout_s = 300
+
 [phone]
 # The listener of the phone: the app or `nh daemon` serves the phone app on a port of
 # 127.0.0.1, and `tailscale serve` puts it on the tailnet with HTTPS.
@@ -472,6 +499,7 @@ interaction_answer_next = "mod+shift+a"
 peek_sibling = "mod+shift+p"
 git_open = "mod+shift+g"
 workflows_open = "mod+shift+e"
+hermes_open = "mod+shift+h"
 window_new = "mod+shift+n"
 # The chord that lets the next key reach the pane, also when it is reserved.
 pass_through = "mod+alt+v"

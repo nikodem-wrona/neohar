@@ -10,7 +10,8 @@ use serde_json::Value;
 
 use super::{
     calls::{
-        agent::*, git::*, internal::*, pane::*, phone::*, system::*, workflow::*, workspace::*,
+        agent::*, git::*, hermes::*, internal::*, pane::*, phone::*, system::*, workflow::*,
+        workspace::*,
     },
     common::{Empty, JobStarted},
     envelope::{ErrorCode, RpcError},
@@ -270,6 +271,12 @@ impl Method {
                 | Self::WorkflowExecution
                 | Self::WorkflowReportGet
                 | Self::WorkflowCopyToFolder
+                | Self::HermesCheck
+                | Self::HermesPrompt
+                | Self::HermesCancel
+                | Self::HermesAnswer
+                | Self::HermesSet
+                | Self::HermesRetry
                 | Self::EventsSubscribe
                 | Self::EventsUnsubscribe
                 | Self::ProjectionSubscribe
@@ -528,6 +535,16 @@ methods! {
     WorkflowReveal "workflow.reveal" UI (WorkflowReveal) -> Empty;
     WorkflowCopyToFolder "workflow.copy_to_folder" UI (WorkflowExecutionRef) -> WorkflowCopied;
 
+    // hermes
+    HermesCheck "hermes.check" BOTH (Empty) -> HermesStatus;
+    HermesStart "hermes.start" BOTH (HermesStart) -> HermesStarted;
+    HermesPrompt "hermes.prompt" BOTH (HermesPrompt) -> Empty;
+    HermesCancel "hermes.cancel" BOTH (HermesChatRef) -> Empty;
+    HermesAnswer "hermes.answer" BOTH (HermesAnswer) -> Empty;
+    HermesSet "hermes.set" BOTH (HermesSet) -> Empty;
+    HermesRetry "hermes.retry" BOTH (HermesChatRef) -> Empty;
+    HermesClose "hermes.close" BOTH (HermesChatRef) -> Empty;
+
     // events and projections
     EventsSubscribe "events.subscribe" CLI (EventsSubscribe) -> EventsSubscribed;
     EventsUnsubscribe "events.unsubscribe" CLI (EventsUnsubscribe) -> Empty;
@@ -773,6 +790,12 @@ mod tests {
                     "continue",
                     "reveal",
                     "copy_to_folder",
+                ],
+            ),
+            (
+                "hermes",
+                &[
+                    "check", "start", "prompt", "cancel", "answer", "set", "retry", "close",
                 ],
             ),
             ("events", &["subscribe", "unsubscribe"]),

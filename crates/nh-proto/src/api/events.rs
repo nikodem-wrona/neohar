@@ -11,7 +11,8 @@ use super::{
     calls::system::PolicyScope,
     common::{Harness, Risk, Source, Via, wire},
     ids::{
-        DeviceId, ExecutionId, GroupId, InteractionId, PaneId, RunId, TabId, WindowId, WorkspaceId,
+        ChatId, DeviceId, ExecutionId, GroupId, InteractionId, PaneId, RunId, TabId, WindowId,
+        WorkspaceId,
     },
     model::{AttentionReason, ExecutionState, InteractionKind, NodeState},
     time::Timestamp,
@@ -325,6 +326,12 @@ wire! {
         pub state: ExecutionState,
     }
 
+    /// The payload of `hermes.chat_started` and `hermes.chat_closed`.
+    pub struct HermesChatEvent {
+        pub chat: ChatId,
+        pub cwd: String,
+    }
+
     /// The payload of `workflow.node_changed`.
     pub struct WorkflowNodeEvent {
         pub execution: ExecutionId,
@@ -475,6 +482,8 @@ events! {
     WorkflowExecutionStarted = "workflow.execution_started" (WorkflowExecutionEvent);
     WorkflowNodeChanged = "workflow.node_changed" (WorkflowNodeEvent);
     WorkflowExecutionEnded = "workflow.execution_ended" (WorkflowExecutionEvent);
+    HermesChatStarted = "hermes.chat_started" (HermesChatEvent);
+    HermesChatClosed = "hermes.chat_closed" (HermesChatEvent);
 }
 
 impl Event {

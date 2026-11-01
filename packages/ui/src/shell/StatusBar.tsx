@@ -32,6 +32,10 @@ export function StatusBar(props: { actions: ActionContext; keymap: Keymap }) {
   // The switch of the Workflows view has a mark while an execution is paused or waits for you.
   const executions = useProjectionStore(transport, 'workflow_executions');
   const workflowsWait = useRows(executions).some(needsYou);
+  // The switch of the Hermes view has a mark while a chat waits for an approval.
+  const hermesWait = useRows(useProjectionStore(transport, 'hermes_chats')).some(
+    (chat) => chat.state === 'waiting',
+  );
   // The host serves `link` to each window. Without a host (the dev WebSocket) the window is local.
   const machine = useSelect(stores.link, (state) => state.byKey['_']?.text ?? 'local');
   const health = useSelect(stores.health, (state) => state.byKey['_']);
@@ -42,6 +46,7 @@ export function StatusBar(props: { actions: ActionContext; keymap: Keymap }) {
   const passNext = useValue(view.passNext);
   const gitOpen = useValue(view.gitOpen);
   const workflowsOpen = useValue(view.workflowsOpen);
+  const hermesOpen = useValue(view.hermesOpen);
   return (
     <footer className="statusbar">
       <div className="fkeys" role="toolbar" aria-label="Function keys">
@@ -144,6 +149,23 @@ export function StatusBar(props: { actions: ActionContext; keymap: Keymap }) {
               onClick={() => props.actions.toggleWorkflows()}
             >
               Workflows
+            </Button>
+          </Tip>
+          <Tip
+            text={
+              hermesWait
+                ? 'A chat with Hermes waits for an approval'
+                : 'The chats with Hermes Agent'
+            }
+            side="top"
+          >
+            <Button
+              variant="ghost"
+              className={cn(VIEW_SWITCH, { 'wf-waiting': hermesWait })}
+              aria-pressed={hermesOpen}
+              onClick={() => props.actions.toggleHermes()}
+            >
+              Hermes
             </Button>
           </Tip>
         </div>

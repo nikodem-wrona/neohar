@@ -31,6 +31,7 @@ mod focus;
 mod git_view;
 pub mod harness;
 pub mod health;
+mod hermes;
 pub mod holder;
 pub mod host;
 mod ids;

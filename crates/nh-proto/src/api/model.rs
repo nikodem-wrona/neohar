@@ -10,8 +10,8 @@ use super::{
     common::{Axis, Bounds, Harness, Rect, RendererKind, Risk, Source, Urgency, Via, wire},
     envelope::CallError,
     ids::{
-        DeviceId, ExecutionId, GroupId, InteractionId, JobId, NotificationId, PaneId, RunId, TabId,
-        WindowId, WorkspaceId,
+        ChatId, DeviceId, ExecutionId, GroupId, InteractionId, JobId, NotificationId, PaneId,
+        RunId, TabId, WindowId, WorkspaceId,
     },
     rich::{Command, Diff, DiffStats, Markdown},
     time::Timestamp,
@@ -1434,5 +1434,161 @@ wire! {
         /// The path of `report.md`, when a Report node wrote it.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         pub report: Option<String>,
+    }
+}
+
+// --- hermes ---------------------------------------------------------------------------------
+
+wire! {
+    /// The state of a chat with Hermes Agent.
+    #[derive(Copy, Eq, Hash)]
+    #[serde(rename_all = "snake_case")]
+    pub enum HermesChatState {
+        /// The core starts `hermes acp` and opens the session.
+        Starting,
+        Idle,
+        /// A turn works.
+        Working,
+        /// An approval of the turn waits for the person.
+        Waiting,
+        /// `hermes acp` does not run. `error` tells why. A prompt or `hermes.retry` starts it
+        /// again.
+        Disconnected,
+    }
+
+    /// A model or a mode that the session offers.
+    pub struct HermesChoice {
+        pub id: String,
+        pub name: String,
+    }
+
+    /// `hermes_chats`: one chat with Hermes Agent. The key is the id. The core orders the rows,
+    /// the newest first.
+    pub struct HermesChatValue {
+        pub id: ChatId,
+        /// The title that Hermes gave the session, or the folder name before the first prompt.
+        pub title: String,
+        /// The folder in which Hermes works.
+        pub cwd: String,
+        /// The session id of Hermes, after `session/new`.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub session: Option<String>,
+        pub state: HermesChatState,
+        /// The state of the turn is a guess: the core found the turn when it resumed the
+        /// session, and ACP tells the end of a turn only to the client that sent the prompt.
+        #[serde(default)]
+        pub guessed: bool,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub model: Option<String>,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        pub models: Vec<HermesChoice>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub mode: Option<String>,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        pub modes: Vec<HermesChoice>,
+        /// The context window as a person reads it, for example "15k of 500k tokens".
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub context_text: Option<String>,
+        /// The approvals that wait.
+        #[serde(default)]
+        pub pending: u32,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub error: Option<String>,
+        pub started_at: Timestamp,
+        /// The start as a person reads it, for example "14:12" or "Oct 31".
+        pub time_text: String,
+    }
+
+    #[derive(Copy, Eq, Hash)]
+    #[serde(rename_all = "snake_case")]
+    pub enum HermesToolStatus {
+        Running,
+        Done,
+        Failed,
+    }
+
+    #[derive(Copy, Eq, Hash)]
+    #[serde(rename_all = "snake_case")]
+    pub enum HermesPlanStatus {
+        Pending,
+        InProgress,
+        Completed,
+    }
+
+    /// One step of the plan of a turn (the `todo` tool of Hermes).
+    pub struct HermesPlanEntry {
+        pub text: String,
+        pub status: HermesPlanStatus,
+    }
+
+    /// An option of an approval, as Hermes gives it.
+    pub struct HermesOption {
+        pub id: String,
+        pub label: String,
+        /// The option lets the tool run.
+        pub allow: bool,
+    }
+
+    #[derive(Copy, Eq, Hash)]
+    #[serde(rename_all = "snake_case")]
+    pub enum HermesAnswerState {
+        /// The approval waits for an answer.
+        Open,
+        /// The answer went to Hermes.
+        Answered,
+        /// The deadline went by, and Hermes denied the request.
+        Expired,
+        /// The request ended without an answer of neohar: the turn was cancelled, or
+        /// `hermes acp` stopped.
+        Gone,
+    }
+
+    #[serde(tag = "type", rename_all = "snake_case")]
+    pub enum HermesItemBody {
+        Prompt { markdown: Markdown },
+        Assistant {
+            markdown: Markdown,
+            /// More text can come.
+            #[serde(default)]
+            streaming: bool,
+        },
+        Thought { markdown: Markdown },
+        Tool {
+            title: String,
+            /// The kind of ACP: `read`, `edit`, `execute`, `search`, `fetch`, `think`, `other`.
+            kind: String,
+            status: HermesToolStatus,
+            #[serde(default, skip_serializing_if = "Option::is_none")]
+            output: Option<Markdown>,
+            #[serde(default, skip_serializing_if = "Option::is_none")]
+            diff: Option<Diff>,
+        },
+        Plan { entries: Vec<HermesPlanEntry> },
+        Approval {
+            /// The id that `hermes.answer` names.
+            request: String,
+            title: String,
+            #[serde(default, skip_serializing_if = "Option::is_none")]
+            detail: Option<Markdown>,
+            #[serde(default, skip_serializing_if = "Option::is_none")]
+            diff: Option<Diff>,
+            options: Vec<HermesOption>,
+            state: HermesAnswerState,
+            /// The label of the option that went to Hermes.
+            #[serde(default, skip_serializing_if = "Option::is_none")]
+            answer: Option<String>,
+            /// When Hermes denies the request if nobody answers (`approvals.timeout`).
+            #[serde(default, skip_serializing_if = "Option::is_none")]
+            deadline: Option<Timestamp>,
+        },
+        Notice { text: String },
+    }
+
+    /// `hermes_chat:<chat>`: one item of a chat. The core orders the items as the chat shows
+    /// them.
+    pub struct HermesItem {
+        pub id: String,
+        pub at: Timestamp,
+        pub body: HermesItemBody,
     }
 }

@@ -195,6 +195,13 @@ pub const COMMANDS: &[Spec] = &[
         Needs::Page,
     ),
     spec(
+        "hermes.open",
+        "Hermes: open the chats with Hermes Agent",
+        "Go to",
+        Some("⌘⇧H"),
+        Needs::Page,
+    ),
+    spec(
         "settings.open",
         "Open settings",
         "App",

@@ -1335,6 +1335,11 @@ expression: document()
       ],
       "type": "object"
     },
+    "ChatId": {
+      "description": "The ULID of a hermes chat, as 26 characters.",
+      "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+      "type": "string"
+    },
     "CheckStatus": {
       "description": "How a check of the doctor came out.",
       "oneOf": [
@@ -4876,6 +4881,611 @@ expression: document()
         "warnings"
       ],
       "type": "object"
+    },
+    "HermesAnswer": {
+      "properties": {
+        "chat": {
+          "$ref": "#/$defs/ChatId"
+        },
+        "option": {
+          "description": "The `id` of one of its options.",
+          "type": "string"
+        },
+        "request": {
+          "description": "The `request` of the approval item.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "chat",
+        "request",
+        "option"
+      ],
+      "type": "object"
+    },
+    "HermesAnswerState": {
+      "oneOf": [
+        {
+          "const": "open",
+          "description": "The approval waits for an answer.",
+          "type": "string"
+        },
+        {
+          "const": "answered",
+          "description": "The answer went to Hermes.",
+          "type": "string"
+        },
+        {
+          "const": "expired",
+          "description": "The deadline went by, and Hermes denied the request.",
+          "type": "string"
+        },
+        {
+          "const": "gone",
+          "description": "The request ended without an answer of neohar: the turn was cancelled, or\n`hermes acp` stopped.",
+          "type": "string"
+        }
+      ]
+    },
+    "HermesChatEvent": {
+      "description": "The payload of `hermes.chat_started` and `hermes.chat_closed`.",
+      "properties": {
+        "chat": {
+          "$ref": "#/$defs/ChatId"
+        },
+        "cwd": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "chat",
+        "cwd"
+      ],
+      "type": "object"
+    },
+    "HermesChatRef": {
+      "properties": {
+        "chat": {
+          "$ref": "#/$defs/ChatId"
+        }
+      },
+      "required": [
+        "chat"
+      ],
+      "type": "object"
+    },
+    "HermesChatState": {
+      "description": "The state of a chat with Hermes Agent.",
+      "oneOf": [
+        {
+          "enum": [
+            "idle"
+          ],
+          "type": "string"
+        },
+        {
+          "const": "starting",
+          "description": "The core starts `hermes acp` and opens the session.",
+          "type": "string"
+        },
+        {
+          "const": "working",
+          "description": "A turn works.",
+          "type": "string"
+        },
+        {
+          "const": "waiting",
+          "description": "An approval of the turn waits for the person.",
+          "type": "string"
+        },
+        {
+          "const": "disconnected",
+          "description": "`hermes acp` does not run. `error` tells why. A prompt or `hermes.retry` starts it\nagain.",
+          "type": "string"
+        }
+      ]
+    },
+    "HermesChatValue": {
+      "description": "`hermes_chats`: one chat with Hermes Agent. The key is the id. The core orders the rows,\nthe newest first.",
+      "properties": {
+        "context_text": {
+          "description": "The context window as a person reads it, for example \"15k of 500k tokens\".",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "cwd": {
+          "description": "The folder in which Hermes works.",
+          "type": "string"
+        },
+        "error": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "guessed": {
+          "default": false,
+          "description": "The state of the turn is a guess: the core found the turn when it resumed the\nsession, and ACP tells the end of a turn only to the client that sent the prompt.",
+          "type": "boolean"
+        },
+        "id": {
+          "$ref": "#/$defs/ChatId"
+        },
+        "mode": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "model": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "models": {
+          "items": {
+            "$ref": "#/$defs/HermesChoice"
+          },
+          "type": "array"
+        },
+        "modes": {
+          "items": {
+            "$ref": "#/$defs/HermesChoice"
+          },
+          "type": "array"
+        },
+        "pending": {
+          "default": 0,
+          "description": "The approvals that wait.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "session": {
+          "description": "The session id of Hermes, after `session/new`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "started_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "state": {
+          "$ref": "#/$defs/HermesChatState"
+        },
+        "time_text": {
+          "description": "The start as a person reads it, for example \"14:12\" or \"Oct 31\".",
+          "type": "string"
+        },
+        "title": {
+          "description": "The title that Hermes gave the session, or the folder name before the first prompt.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "cwd",
+        "state",
+        "started_at",
+        "time_text"
+      ],
+      "type": "object"
+    },
+    "HermesChoice": {
+      "description": "A model or a mode that the session offers.",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ],
+      "type": "object"
+    },
+    "HermesItem": {
+      "description": "`hermes_chat:<chat>`: one item of a chat. The core orders the items as the chat shows\nthem.",
+      "properties": {
+        "at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "body": {
+          "$ref": "#/$defs/HermesItemBody"
+        },
+        "id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "at",
+        "body"
+      ],
+      "type": "object"
+    },
+    "HermesItemBody": {
+      "oneOf": [
+        {
+          "properties": {
+            "markdown": {
+              "$ref": "#/$defs/Markdown"
+            },
+            "type": {
+              "const": "prompt",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "markdown"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "markdown": {
+              "$ref": "#/$defs/Markdown"
+            },
+            "streaming": {
+              "default": false,
+              "description": "More text can come.",
+              "type": "boolean"
+            },
+            "type": {
+              "const": "assistant",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "markdown"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "markdown": {
+              "$ref": "#/$defs/Markdown"
+            },
+            "type": {
+              "const": "thought",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "markdown"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "diff": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Diff"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "kind": {
+              "description": "The kind of ACP: `read`, `edit`, `execute`, `search`, `fetch`, `think`, `other`.",
+              "type": "string"
+            },
+            "output": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Markdown"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "status": {
+              "$ref": "#/$defs/HermesToolStatus"
+            },
+            "title": {
+              "type": "string"
+            },
+            "type": {
+              "const": "tool",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "title",
+            "kind",
+            "status"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "entries": {
+              "items": {
+                "$ref": "#/$defs/HermesPlanEntry"
+              },
+              "type": "array"
+            },
+            "type": {
+              "const": "plan",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "entries"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "answer": {
+              "description": "The label of the option that went to Hermes.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "deadline": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Timestamp"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "When Hermes denies the request if nobody answers (`approvals.timeout`)."
+            },
+            "detail": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Markdown"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "diff": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Diff"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "options": {
+              "items": {
+                "$ref": "#/$defs/HermesOption"
+              },
+              "type": "array"
+            },
+            "request": {
+              "description": "The id that `hermes.answer` names.",
+              "type": "string"
+            },
+            "state": {
+              "$ref": "#/$defs/HermesAnswerState"
+            },
+            "title": {
+              "type": "string"
+            },
+            "type": {
+              "const": "approval",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "request",
+            "title",
+            "options",
+            "state"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "text": {
+              "type": "string"
+            },
+            "type": {
+              "const": "notice",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "text"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "HermesOption": {
+      "description": "An option of an approval, as Hermes gives it.",
+      "properties": {
+        "allow": {
+          "description": "The option lets the tool run.",
+          "type": "boolean"
+        },
+        "id": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "allow"
+      ],
+      "type": "object"
+    },
+    "HermesPlanEntry": {
+      "description": "One step of the plan of a turn (the `todo` tool of Hermes).",
+      "properties": {
+        "status": {
+          "$ref": "#/$defs/HermesPlanStatus"
+        },
+        "text": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "text",
+        "status"
+      ],
+      "type": "object"
+    },
+    "HermesPlanStatus": {
+      "enum": [
+        "pending",
+        "in_progress",
+        "completed"
+      ],
+      "type": "string"
+    },
+    "HermesPrompt": {
+      "properties": {
+        "chat": {
+          "$ref": "#/$defs/ChatId"
+        },
+        "input_id": {
+          "description": "A second call with the same id sends nothing.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "text": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "chat",
+        "text",
+        "input_id"
+      ],
+      "type": "object"
+    },
+    "HermesSet": {
+      "properties": {
+        "chat": {
+          "$ref": "#/$defs/ChatId"
+        },
+        "mode": {
+          "description": "The id of a mode of the chat.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "model": {
+          "description": "The id of a model of the chat.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "chat"
+      ],
+      "type": "object"
+    },
+    "HermesStart": {
+      "properties": {
+        "cwd": {
+          "description": "The absolute path of the folder in which Hermes works.",
+          "type": "string"
+        },
+        "prompt": {
+          "description": "The first prompt.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "cwd"
+      ],
+      "type": "object"
+    },
+    "HermesStarted": {
+      "properties": {
+        "chat": {
+          "$ref": "#/$defs/ChatId"
+        }
+      },
+      "required": [
+        "chat"
+      ],
+      "type": "object"
+    },
+    "HermesStatus": {
+      "description": "`hermes.check`: whether this machine can run Hermes.",
+      "properties": {
+        "approvals_mode": {
+          "description": "`approvals.mode` of the config of Hermes. With `smart` or `off`, shell commands do not\nask in the chat.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "found": {
+          "description": "`hermes acp --version` answered.",
+          "type": "boolean"
+        },
+        "message": {
+          "description": "What to do, when Hermes is not found or the check failed.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "ok": {
+          "description": "`hermes acp --check` passed.",
+          "type": "boolean"
+        },
+        "version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "found",
+        "ok"
+      ],
+      "type": "object"
+    },
+    "HermesToolStatus": {
+      "enum": [
+        "running",
+        "done",
+        "failed"
+      ],
+      "type": "string"
     },
     "Hunk": {
       "properties": {
@@ -8591,8 +9201,8 @@ expression: document()
       "type": "object"
     },
     "Projection": {
-      "description": "The name of a projection. timeline:<run>, pane_text:<pane>, agents_for:<window>, changes_for:<window>, changes_head:<window>, git_head:<window>, git_worktrees:<window>, git_branches:<window> and git_changes:<window> take an id.",
-      "pattern": "^(windows|tree|panes|agents|attention|interactions|notifications|machines|harnesses|limits|jobs|palette|settings|phones|phone_pairing|phone_status|git_repos|workflows|workflow_executions|health|link|timeline:[0-9A-HJKMNP-TV-Z]{26}|pane_text:[0-9A-HJKMNP-TV-Z]{26}|agents_for:[0-9A-HJKMNP-TV-Z]{26}|changes_for:[0-9A-HJKMNP-TV-Z]{26}|changes_head:[0-9A-HJKMNP-TV-Z]{26}|git_head:[0-9A-HJKMNP-TV-Z]{26}|git_worktrees:[0-9A-HJKMNP-TV-Z]{26}|git_branches:[0-9A-HJKMNP-TV-Z]{26}|git_changes:[0-9A-HJKMNP-TV-Z]{26})$",
+      "description": "The name of a projection. timeline:<run>, pane_text:<pane>, agents_for:<window>, changes_for:<window>, changes_head:<window>, git_head:<window>, git_worktrees:<window>, git_branches:<window>, git_changes:<window> and hermes_chat:<chat> take an id.",
+      "pattern": "^(windows|tree|panes|agents|attention|interactions|notifications|machines|harnesses|limits|jobs|palette|settings|phones|phone_pairing|phone_status|git_repos|workflows|workflow_executions|hermes_chats|health|link|timeline:[0-9A-HJKMNP-TV-Z]{26}|pane_text:[0-9A-HJKMNP-TV-Z]{26}|agents_for:[0-9A-HJKMNP-TV-Z]{26}|changes_for:[0-9A-HJKMNP-TV-Z]{26}|changes_head:[0-9A-HJKMNP-TV-Z]{26}|git_head:[0-9A-HJKMNP-TV-Z]{26}|git_worktrees:[0-9A-HJKMNP-TV-Z]{26}|git_branches:[0-9A-HJKMNP-TV-Z]{26}|git_changes:[0-9A-HJKMNP-TV-Z]{26}|hermes_chat:[0-9A-HJKMNP-TV-Z]{26})$",
       "type": "string"
     },
     "ProjectionData": {
@@ -12260,6 +12870,20 @@ expression: document()
         "$ref": "#/$defs/WorkflowExecutionEvent"
       },
       "v": 1
+    },
+    {
+      "kind": "hermes.chat_started",
+      "payload": {
+        "$ref": "#/$defs/HermesChatEvent"
+      },
+      "v": 1
+    },
+    {
+      "kind": "hermes.chat_closed",
+      "payload": {
+        "$ref": "#/$defs/HermesChatEvent"
+      },
+      "v": 1
     }
   ],
   "methods": [
@@ -14144,6 +14768,118 @@ expression: document()
       ]
     },
     {
+      "name": "hermes.check",
+      "params": {
+        "$ref": "#/$defs/Empty"
+      },
+      "result": {
+        "$ref": "#/$defs/HermesStatus"
+      },
+      "scopes": [
+        "ui",
+        "cli",
+        "phone"
+      ]
+    },
+    {
+      "name": "hermes.start",
+      "params": {
+        "$ref": "#/$defs/HermesStart"
+      },
+      "result": {
+        "$ref": "#/$defs/HermesStarted"
+      },
+      "scopes": [
+        "ui",
+        "cli",
+        "phone"
+      ]
+    },
+    {
+      "name": "hermes.prompt",
+      "params": {
+        "$ref": "#/$defs/HermesPrompt"
+      },
+      "result": {
+        "$ref": "#/$defs/Empty"
+      },
+      "scopes": [
+        "ui",
+        "cli",
+        "phone"
+      ]
+    },
+    {
+      "name": "hermes.cancel",
+      "params": {
+        "$ref": "#/$defs/HermesChatRef"
+      },
+      "result": {
+        "$ref": "#/$defs/Empty"
+      },
+      "scopes": [
+        "ui",
+        "cli",
+        "phone"
+      ]
+    },
+    {
+      "name": "hermes.answer",
+      "params": {
+        "$ref": "#/$defs/HermesAnswer"
+      },
+      "result": {
+        "$ref": "#/$defs/Empty"
+      },
+      "scopes": [
+        "ui",
+        "cli",
+        "phone"
+      ]
+    },
+    {
+      "name": "hermes.set",
+      "params": {
+        "$ref": "#/$defs/HermesSet"
+      },
+      "result": {
+        "$ref": "#/$defs/Empty"
+      },
+      "scopes": [
+        "ui",
+        "cli",
+        "phone"
+      ]
+    },
+    {
+      "name": "hermes.retry",
+      "params": {
+        "$ref": "#/$defs/HermesChatRef"
+      },
+      "result": {
+        "$ref": "#/$defs/Empty"
+      },
+      "scopes": [
+        "ui",
+        "cli",
+        "phone"
+      ]
+    },
+    {
+      "name": "hermes.close",
+      "params": {
+        "$ref": "#/$defs/HermesChatRef"
+      },
+      "result": {
+        "$ref": "#/$defs/Empty"
+      },
+      "scopes": [
+        "ui",
+        "cli",
+        "phone"
+      ]
+    },
+    {
       "name": "events.subscribe",
       "params": {
         "$ref": "#/$defs/EventsSubscribe"
@@ -14914,6 +15650,24 @@ expression: document()
       "singleton": false,
       "value": {
         "$ref": "#/$defs/ExecutionValue"
+      }
+    },
+    {
+      "key": "chat id",
+      "name": "hermes_chats",
+      "parameter": null,
+      "singleton": false,
+      "value": {
+        "$ref": "#/$defs/HermesChatValue"
+      }
+    },
+    {
+      "key": "item id",
+      "name": "hermes_chat",
+      "parameter": "chat id",
+      "singleton": false,
+      "value": {
+        "$ref": "#/$defs/HermesItem"
       }
     }
   ],

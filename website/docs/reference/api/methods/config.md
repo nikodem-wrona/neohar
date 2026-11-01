@@ -1,7 +1,7 @@
 ---
 title: "config.*"
 description: "The configuration: the merged values with provenance, edits and reload."
-sidebar_position: 21
+sidebar_position: 22
 toc_max_heading_level: 2
 ---
 

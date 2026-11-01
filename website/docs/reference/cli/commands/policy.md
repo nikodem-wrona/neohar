@@ -1,7 +1,7 @@
 ---
 title: "nh policy"
 description: "Rules that decide approvals"
-sidebar_position: 21
+sidebar_position: 22
 ---
 
 :::info[Generated page]

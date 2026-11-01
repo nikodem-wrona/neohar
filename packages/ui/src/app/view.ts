@@ -126,20 +126,22 @@ export function createViewState() {
   const gitTarget = createValue<GitTarget>({ folder: null, seq: 0 });
   const workflowsOpen = createValue(false);
   const workflowsTarget = createValue<GitTarget>({ folder: null, seq: 0 });
+  const hermesOpen = createValue(false);
   const layers = createValue(0);
   /**
-   * The side columns before the Git view or the Workflows view folded them, to open them again
-   * when the view closes. The two views never show at the same time.
+   * The side columns before the Git view, the Workflows view or the Hermes view folded them, to
+   * open them again when the view closes. Only one of the views shows at a time.
    */
   let unfolded: { left: boolean; drawer: boolean } | null = null;
+  const covered = (): boolean => gitOpen.get() || workflowsOpen.get() || hermesOpen.get();
   const fold = (): void => {
-    if (gitOpen.get() || workflowsOpen.get()) return;
+    if (covered()) return;
     unfolded = { left: leftOpen.get(), drawer: drawerOpen.get() };
     leftOpen.set(false);
     drawerOpen.set(false);
   };
   const unfold = (): void => {
-    if (gitOpen.get() || workflowsOpen.get() || !unfolded) return;
+    if (covered() || !unfolded) return;
     leftOpen.set(unfolded.left);
     drawerOpen.set(unfolded.drawer);
     unfolded = null;
@@ -147,6 +149,7 @@ export function createViewState() {
   const openGit = (folder: string | null = null): void => {
     fold();
     workflowsOpen.set(false);
+    hermesOpen.set(false);
     gitOpen.set(true);
     gitTarget.set({ folder, seq: gitTarget.get().seq + 1 });
   };
@@ -158,12 +161,24 @@ export function createViewState() {
   const openWorkflows = (folder: string | null = null): void => {
     fold();
     gitOpen.set(false);
+    hermesOpen.set(false);
     workflowsOpen.set(true);
     workflowsTarget.set({ folder, seq: workflowsTarget.get().seq + 1 });
   };
   const closeWorkflows = (): void => {
     if (!workflowsOpen.get()) return;
     workflowsOpen.set(false);
+    unfold();
+  };
+  const openHermes = (): void => {
+    fold();
+    gitOpen.set(false);
+    workflowsOpen.set(false);
+    hermesOpen.set(true);
+  };
+  const closeHermes = (): void => {
+    if (!hermesOpen.get()) return;
+    hermesOpen.set(false);
     unfold();
   };
   return {
@@ -224,6 +239,9 @@ export function createViewState() {
       } else if (id === 'workflows.open') {
         if (workflowsOpen.get()) closeWorkflows();
         else openWorkflows();
+      } else if (id === 'hermes.open') {
+        if (hermesOpen.get()) closeHermes();
+        else openHermes();
       } else if (id === 'settings.open') {
         // A phone has no settings window: the core names this command of the page.
         sheet.set({ kind: 'settings', section: null });
@@ -280,6 +298,14 @@ export function createViewState() {
     toggleWorkflows(folder: string | null = null): void {
       if (workflowsOpen.get()) closeWorkflows();
       else openWorkflows(folder);
+    },
+    /** The Hermes view covers the panes as the Workflows view does: the chats with Hermes Agent. */
+    hermesOpen: hermesOpen as Source<boolean>,
+    openHermes,
+    closeHermes,
+    toggleHermes(): void {
+      if (hermesOpen.get()) closeHermes();
+      else openHermes();
     },
   };
 }

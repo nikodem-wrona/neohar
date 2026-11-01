@@ -11,13 +11,13 @@ use serde_json::Value;
 
 use super::{
     common::wire,
-    ids::{IdError, PaneId, RunId, WindowId},
+    ids::{ChatId, IdError, PaneId, RunId, WindowId},
     model::{
         AgentValue, AttentionValue, ChangeRow, ChangesHead, ExecutionValue, GitBranchValue,
-        GitHead, GitRepoValue, GitWorktreeValue, HarnessValue, HealthValue, InteractionValue,
-        JobValue, LimitValue, LinkValue, MachineValue, NotificationValue, PaletteValue, PaneValue,
-        PhonePairingValue, PhoneStatusValue, PhoneValue, SettingsSection, TimelineItem,
-        WindowValue, WorkflowValue, WorkspaceValue,
+        GitHead, GitRepoValue, GitWorktreeValue, HarnessValue, HealthValue, HermesChatValue,
+        HermesItem, InteractionValue, JobValue, LimitValue, LinkValue, MachineValue,
+        NotificationValue, PaletteValue, PaneValue, PhonePairingValue, PhoneStatusValue,
+        PhoneValue, SettingsSection, TimelineItem, WindowValue, WorkflowValue, WorkspaceValue,
     },
 };
 
@@ -78,11 +78,15 @@ pub enum Projection {
     Workflows,
     /// The executions of the workflows, with the state of each node.
     WorkflowExecutions,
+    /// The chats with Hermes Agent.
+    HermesChats,
+    /// The items of one chat with Hermes Agent (`hermes_chat:<chat>`).
+    HermesChat(ChatId),
 }
 
 impl Projection {
     /// The projections without a parameter, in a fixed order.
-    pub const STATIC: [Self; 19] = [
+    pub const STATIC: [Self; 20] = [
         Self::Windows,
         Self::Tree,
         Self::Panes,
@@ -102,6 +106,7 @@ impl Projection {
         Self::GitRepos,
         Self::Workflows,
         Self::WorkflowExecutions,
+        Self::HermesChats,
     ];
 
     /// Whether the projection has one key, `_`.
@@ -151,6 +156,8 @@ impl Projection {
             Self::GitChanges(_) => "git_changes",
             Self::Workflows => "workflows",
             Self::WorkflowExecutions => "workflow_executions",
+            Self::HermesChats => "hermes_chats",
+            Self::HermesChat(_) => "hermes_chat",
         }
     }
 }
@@ -167,6 +174,7 @@ impl fmt::Display for Projection {
             Self::GitWorktrees(window) => write!(f, "git_worktrees:{window}"),
             Self::GitBranches(window) => write!(f, "git_branches:{window}"),
             Self::GitChanges(window) => write!(f, "git_changes:{window}"),
+            Self::HermesChat(chat) => write!(f, "hermes_chat:{chat}"),
             other => f.write_str(other.base_name()),
         }
     }
@@ -203,6 +211,9 @@ impl FromStr for Projection {
         if let Some(window) = text.strip_prefix("git_changes:") {
             return window.parse().map(Self::GitChanges);
         }
+        if let Some(chat) = text.strip_prefix("hermes_chat:") {
+            return chat.parse().map(Self::HermesChat);
+        }
         Self::STATIC
             .iter()
             .chain(&[Self::Health, Self::Link])
@@ -233,8 +244,8 @@ impl JsonSchema for Projection {
     fn json_schema(_: &mut SchemaGenerator) -> Schema {
         schemars::json_schema!({
             "type": "string",
-            "pattern": "^(windows|tree|panes|agents|attention|interactions|notifications|machines|harnesses|limits|jobs|palette|settings|phones|phone_pairing|phone_status|git_repos|workflows|workflow_executions|health|link|timeline:[0-9A-HJKMNP-TV-Z]{26}|pane_text:[0-9A-HJKMNP-TV-Z]{26}|agents_for:[0-9A-HJKMNP-TV-Z]{26}|changes_for:[0-9A-HJKMNP-TV-Z]{26}|changes_head:[0-9A-HJKMNP-TV-Z]{26}|git_head:[0-9A-HJKMNP-TV-Z]{26}|git_worktrees:[0-9A-HJKMNP-TV-Z]{26}|git_branches:[0-9A-HJKMNP-TV-Z]{26}|git_changes:[0-9A-HJKMNP-TV-Z]{26})$",
-            "description": "The name of a projection. timeline:<run>, pane_text:<pane>, agents_for:<window>, changes_for:<window>, changes_head:<window>, git_head:<window>, git_worktrees:<window>, git_branches:<window> and git_changes:<window> take an id."
+            "pattern": "^(windows|tree|panes|agents|attention|interactions|notifications|machines|harnesses|limits|jobs|palette|settings|phones|phone_pairing|phone_status|git_repos|workflows|workflow_executions|hermes_chats|health|link|timeline:[0-9A-HJKMNP-TV-Z]{26}|pane_text:[0-9A-HJKMNP-TV-Z]{26}|agents_for:[0-9A-HJKMNP-TV-Z]{26}|changes_for:[0-9A-HJKMNP-TV-Z]{26}|changes_head:[0-9A-HJKMNP-TV-Z]{26}|git_head:[0-9A-HJKMNP-TV-Z]{26}|git_worktrees:[0-9A-HJKMNP-TV-Z]{26}|git_branches:[0-9A-HJKMNP-TV-Z]{26}|git_changes:[0-9A-HJKMNP-TV-Z]{26}|hermes_chat:[0-9A-HJKMNP-TV-Z]{26})$",
+            "description": "The name of a projection. timeline:<run>, pane_text:<pane>, agents_for:<window>, changes_for:<window>, changes_head:<window>, git_head:<window>, git_worktrees:<window>, git_branches:<window>, git_changes:<window> and hermes_chat:<chat> take an id."
         })
     }
 }
@@ -351,6 +362,8 @@ pub fn specs() -> Vec<ProjectionSpec> {
         spec!("git_changes", "path", ChangeRow, param "window id"),
         spec!("workflows", "file name", WorkflowValue),
         spec!("workflow_executions", "execution id", ExecutionValue),
+        spec!("hermes_chats", "chat id", HermesChatValue),
+        spec!("hermes_chat", "item id", HermesItem, param "chat id"),
     ]
 }
 

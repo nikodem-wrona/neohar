@@ -791,6 +791,68 @@
   },
   {
     "path": [
+      "hermes"
+    ],
+    "about": "Chats with Hermes Agent, as the Hermes view shows them"
+  },
+  {
+    "path": [
+      "hermes",
+      "check"
+    ],
+    "about": "Check that Hermes Agent runs here, and read its approvals.mode"
+  },
+  {
+    "path": [
+      "hermes",
+      "start"
+    ],
+    "about": "Start a chat with Hermes in a folder (an absolute path)"
+  },
+  {
+    "path": [
+      "hermes",
+      "prompt"
+    ],
+    "about": "Send a prompt to a chat; during a turn it waits for the end of the turn"
+  },
+  {
+    "path": [
+      "hermes",
+      "cancel"
+    ],
+    "about": "Stop the turn of a chat"
+  },
+  {
+    "path": [
+      "hermes",
+      "answer"
+    ],
+    "about": "Answer an approval of a chat with one of its options"
+  },
+  {
+    "path": [
+      "hermes",
+      "set"
+    ],
+    "about": "Change the model or the mode of a chat"
+  },
+  {
+    "path": [
+      "hermes",
+      "retry"
+    ],
+    "about": "Start hermes acp again for a chat that is disconnected"
+  },
+  {
+    "path": [
+      "hermes",
+      "close"
+    ],
+    "about": "Close a chat; the session stays in Hermes"
+  },
+  {
+    "path": [
       "config"
     ],
     "about": "The configuration"

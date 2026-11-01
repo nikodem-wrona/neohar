@@ -471,6 +471,9 @@ export interface ChangesHead {
   trust?: GitTrustAsk | null;
 }
 
+/** The ULID of a hermes chat, as 26 characters. */
+export type ChatId = string;
+
 /** How a check of the doctor came out. */
 export type CheckStatus = 'ok' | 'info' | 'warn' | 'fail';
 
@@ -1704,6 +1707,184 @@ export interface HealthValue {
   warnings: DoctorWarning[];
 }
 
+export interface HermesAnswer {
+  chat: ChatId;
+  /** The `id` of one of its options. */
+  option: string;
+  /** The `request` of the approval item. */
+  request: string;
+}
+
+export type HermesAnswerState = 'open' | 'answered' | 'expired' | 'gone';
+
+/** The payload of `hermes.chat_started` and `hermes.chat_closed`. */
+export interface HermesChatEvent {
+  chat: ChatId;
+  cwd: string;
+}
+
+export interface HermesChatRef {
+  chat: ChatId;
+}
+
+/** The state of a chat with Hermes Agent. */
+export type HermesChatState = 'idle' | 'starting' | 'working' | 'waiting' | 'disconnected';
+
+/**
+ * `hermes_chats`: one chat with Hermes Agent. The key is the id. The core orders the rows,
+ * the newest first.
+ */
+export interface HermesChatValue {
+  /** The context window as a person reads it, for example "15k of 500k tokens". */
+  context_text?: string | null;
+  /** The folder in which Hermes works. */
+  cwd: string;
+  error?: string | null;
+  /**
+   * The state of the turn is a guess: the core found the turn when it resumed the
+   * session, and ACP tells the end of a turn only to the client that sent the prompt.
+   */
+  guessed?: boolean;
+  id: ChatId;
+  mode?: string | null;
+  model?: string | null;
+  models?: HermesChoice[];
+  modes?: HermesChoice[];
+  /** The approvals that wait. */
+  pending?: number;
+  /** The session id of Hermes, after `session/new`. */
+  session?: string | null;
+  started_at: Timestamp;
+  state: HermesChatState;
+  /** The start as a person reads it, for example "14:12" or "Oct 31". */
+  time_text: string;
+  /** The title that Hermes gave the session, or the folder name before the first prompt. */
+  title: string;
+}
+
+/** A model or a mode that the session offers. */
+export interface HermesChoice {
+  id: string;
+  name: string;
+}
+
+/**
+ * `hermes_chat:<chat>`: one item of a chat. The core orders the items as the chat shows
+ * them.
+ */
+export interface HermesItem {
+  at: Timestamp;
+  body: HermesItemBody;
+  id: string;
+}
+
+export type HermesItemBody =
+  | {
+      markdown: Markdown;
+      type: 'prompt';
+    }
+  | {
+      markdown: Markdown;
+      /** More text can come. */
+      streaming?: boolean;
+      type: 'assistant';
+    }
+  | {
+      markdown: Markdown;
+      type: 'thought';
+    }
+  | {
+      diff?: Diff | null;
+      /** The kind of ACP: `read`, `edit`, `execute`, `search`, `fetch`, `think`, `other`. */
+      kind: string;
+      output?: Markdown | null;
+      status: HermesToolStatus;
+      title: string;
+      type: 'tool';
+    }
+  | {
+      entries: HermesPlanEntry[];
+      type: 'plan';
+    }
+  | {
+      /** The label of the option that went to Hermes. */
+      answer?: string | null;
+      /** When Hermes denies the request if nobody answers (`approvals.timeout`). */
+      deadline?: Timestamp | null;
+      detail?: Markdown | null;
+      diff?: Diff | null;
+      options: HermesOption[];
+      /** The id that `hermes.answer` names. */
+      request: string;
+      state: HermesAnswerState;
+      title: string;
+      type: 'approval';
+    }
+  | {
+      text: string;
+      type: 'notice';
+    };
+
+/** An option of an approval, as Hermes gives it. */
+export interface HermesOption {
+  /** The option lets the tool run. */
+  allow: boolean;
+  id: string;
+  label: string;
+}
+
+/** One step of the plan of a turn (the `todo` tool of Hermes). */
+export interface HermesPlanEntry {
+  status: HermesPlanStatus;
+  text: string;
+}
+
+export type HermesPlanStatus = 'pending' | 'in_progress' | 'completed';
+
+export interface HermesPrompt {
+  chat: ChatId;
+  /** A second call with the same id sends nothing. */
+  input_id: number;
+  text: string;
+}
+
+export interface HermesSet {
+  chat: ChatId;
+  /** The id of a mode of the chat. */
+  mode?: string | null;
+  /** The id of a model of the chat. */
+  model?: string | null;
+}
+
+export interface HermesStart {
+  /** The absolute path of the folder in which Hermes works. */
+  cwd: string;
+  /** The first prompt. */
+  prompt?: string | null;
+}
+
+export interface HermesStarted {
+  chat: ChatId;
+}
+
+/** `hermes.check`: whether this machine can run Hermes. */
+export interface HermesStatus {
+  /**
+   * `approvals.mode` of the config of Hermes. With `smart` or `off`, shell commands do not
+   * ask in the chat.
+   */
+  approvals_mode?: string | null;
+  /** `hermes acp --version` answered. */
+  found: boolean;
+  /** What to do, when Hermes is not found or the check failed. */
+  message?: string | null;
+  /** `hermes acp --check` passed. */
+  ok: boolean;
+  version?: string | null;
+}
+
+export type HermesToolStatus = 'running' | 'done' | 'failed';
+
 export interface Hunk {
   header: string;
   lines: DiffLine[];
@@ -2925,7 +3106,7 @@ export interface ProcessSpec {
   env?: Record<string, string>;
 }
 
-/** The name of a projection. timeline:<run>, pane_text:<pane>, agents_for:<window>, changes_for:<window>, changes_head:<window>, git_head:<window>, git_worktrees:<window>, git_branches:<window> and git_changes:<window> take an id. */
+/** The name of a projection. timeline:<run>, pane_text:<pane>, agents_for:<window>, changes_for:<window>, changes_head:<window>, git_head:<window>, git_worktrees:<window>, git_branches:<window>, git_changes:<window> and hermes_chat:<chat> take an id. */
 export type Projection = string;
 
 /** The state of a projection: the values by key, and the order of the keys. */
@@ -4069,6 +4250,14 @@ export interface MethodMap {
   'workflow.continue': { params: WorkflowContinue; result: JobStarted };
   'workflow.reveal': { params: WorkflowReveal; result: Empty };
   'workflow.copy_to_folder': { params: WorkflowExecutionRef; result: WorkflowCopied };
+  'hermes.check': { params: Empty; result: HermesStatus };
+  'hermes.start': { params: HermesStart; result: HermesStarted };
+  'hermes.prompt': { params: HermesPrompt; result: Empty };
+  'hermes.cancel': { params: HermesChatRef; result: Empty };
+  'hermes.answer': { params: HermesAnswer; result: Empty };
+  'hermes.set': { params: HermesSet; result: Empty };
+  'hermes.retry': { params: HermesChatRef; result: Empty };
+  'hermes.close': { params: HermesChatRef; result: Empty };
   'events.subscribe': { params: EventsSubscribe; result: EventsSubscribed };
   'events.unsubscribe': { params: EventsUnsubscribe; result: Empty };
   'projection.subscribe': { params: ProjectionSubscribe; result: ProjectionSubscribed };
@@ -4247,6 +4436,14 @@ export type UiMethod =
   | 'workflow.continue'
   | 'workflow.reveal'
   | 'workflow.copy_to_folder'
+  | 'hermes.check'
+  | 'hermes.start'
+  | 'hermes.prompt'
+  | 'hermes.cancel'
+  | 'hermes.answer'
+  | 'hermes.set'
+  | 'hermes.retry'
+  | 'hermes.close'
   | 'projection.subscribe'
   | 'projection.unsubscribe'
   | 'projection.versions'
@@ -4368,6 +4565,14 @@ export type CliMethod =
   | 'workflow.retry'
   | 'workflow.skip'
   | 'workflow.cancel'
+  | 'hermes.check'
+  | 'hermes.start'
+  | 'hermes.prompt'
+  | 'hermes.cancel'
+  | 'hermes.answer'
+  | 'hermes.set'
+  | 'hermes.retry'
+  | 'hermes.close'
   | 'events.subscribe'
   | 'events.unsubscribe'
   | 'projection.subscribe'
@@ -4538,6 +4743,14 @@ export const METHOD_SCOPES: { readonly [M in Method]: readonly Scope[] } = {
   'workflow.continue': ['ui', 'phone'],
   'workflow.reveal': ['ui', 'phone'],
   'workflow.copy_to_folder': ['ui', 'phone'],
+  'hermes.check': ['ui', 'cli', 'phone'],
+  'hermes.start': ['ui', 'cli', 'phone'],
+  'hermes.prompt': ['ui', 'cli', 'phone'],
+  'hermes.cancel': ['ui', 'cli', 'phone'],
+  'hermes.answer': ['ui', 'cli', 'phone'],
+  'hermes.set': ['ui', 'cli', 'phone'],
+  'hermes.retry': ['ui', 'cli', 'phone'],
+  'hermes.close': ['ui', 'cli', 'phone'],
   'events.subscribe': ['cli'],
   'events.unsubscribe': ['cli'],
   'projection.subscribe': ['ui', 'cli', 'phone'],
@@ -4618,6 +4831,8 @@ export interface ProjectionValueMap {
   git_changes: ChangeRow;
   workflows: WorkflowValue;
   workflow_executions: ExecutionValue;
+  hermes_chats: HermesChatValue;
+  hermes_chat: HermesItem;
 }
 
 export type ProjectionBase = keyof ProjectionValueMap;
@@ -4645,6 +4860,7 @@ export type ProjectionName =
   | 'git_repos'
   | 'workflows'
   | 'workflow_executions'
+  | 'hermes_chats'
   | `timeline:${string}`
   | `pane_text:${string}`
   | `agents_for:${string}`
@@ -4653,7 +4869,8 @@ export type ProjectionName =
   | `git_head:${string}`
   | `git_worktrees:${string}`
   | `git_branches:${string}`
-  | `git_changes:${string}`;
+  | `git_changes:${string}`
+  | `hermes_chat:${string}`;
 
 /** The projections with one key, `_`. */
 export const SINGLETON_PROJECTIONS = [
@@ -4730,6 +4947,8 @@ export interface EventPayloadMap {
   'workflow.execution_started': WorkflowExecutionEvent;
   'workflow.node_changed': WorkflowNodeEvent;
   'workflow.execution_ended': WorkflowExecutionEvent;
+  'hermes.chat_started': HermesChatEvent;
+  'hermes.chat_closed': HermesChatEvent;
 }
 
 export type EventKind = keyof EventPayloadMap;

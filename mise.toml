@@ -242,6 +242,10 @@ description = "Record the scenarios of the installed Claude Code and Codex offli
 depends = ["build:nh"]
 run = "bash scripts/with-test-env.sh env NEOHAR_HARNESS=1 cargo nextest run -p nh-golden --test record --test delivery --locked"
 
+[tasks."test:hermes"]
+description = "A chat with the installed Hermes Agent through the core: a prompt, an edit approval and a resume (local, needs Hermes with a model provider and the network; uses the quota of the provider)"
+run = "bash scripts/with-test-env.sh env NEOHAR_HERMES=1 cargo nextest run -p nh --test hermes_live --locked"
+
 [tasks."record:golden"]
 description = "Record every scenario of the installed Claude Code and Codex into tests/harness-golden (local, macOS)"
 depends = ["build:nh"]

@@ -225,6 +225,16 @@ pub struct Workflows {
     pub keep_executions: u32,
 }
 
+/// The chats with Hermes Agent.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Hermes {
+    /// The program that speaks ACP.
+    pub command: String,
+    pub args: Vec<String>,
+    /// The seconds after which Hermes denies an approval that nobody answered.
+    pub approval_timeout_s: u32,
+}
+
 /// The listener of the phone.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Phone {
@@ -296,6 +306,7 @@ pub struct Keys {
     pub peek_sibling: String,
     pub git_open: String,
     pub workflows_open: String,
+    pub hermes_open: String,
     pub window_new: String,
     pub pass_through: String,
 }
@@ -366,6 +377,7 @@ pub struct Config {
     pub daemon: Daemon,
     pub git: Git,
     pub workflows: Workflows,
+    pub hermes: Hermes,
     pub phone: Phone,
     pub ui: Ui,
     pub theme: Theme,
@@ -417,6 +429,7 @@ default_from_file! {
     Daemon => ["daemon"];
     Git => ["git"];
     Workflows => ["workflows"];
+    Hermes => ["hermes"];
     Phone => ["phone"];
     Ui => ["ui"];
     Theme => ["theme"];

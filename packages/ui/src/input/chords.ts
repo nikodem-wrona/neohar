@@ -175,6 +175,7 @@ export const DEFAULT_KEYS: Readonly<Record<string, string>> = {
   peek_sibling: 'mod+shift+p',
   git_open: 'mod+shift+g',
   workflows_open: 'mod+shift+e',
+  hermes_open: 'mod+shift+h',
   window_new: 'mod+shift+n',
   pass_through: 'mod+alt+v',
 };

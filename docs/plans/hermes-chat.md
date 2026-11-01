@@ -126,6 +126,21 @@ All are additions, so a `feat` (minor). Each change of `nh-proto` needs `mise ru
 4. **UI.** `packages/ui/src/hermes/` as above, the chord, the palette command, the strip on the board.
 5. **Live suite and guide.** `mise run test:hermes`, gated by `NEOHAR_HERMES=1`, with the real `hermes acp` (local only, never in CI). A guide page `website/docs/agents/hermes.md`. Update the "supports Claude Code and Codex" sentences in AGENTS.md and `website/docs/agents/overview.md`.
 
+## What v1 does (2026-11-01)
+
+The implementation is smaller than the plan below. These are the differences:
+
+| Plan | v1 |
+| --- | --- |
+| A Hermes chat is a `Run` with `harness: hermes`, on the board, in `attention` and with interactions | A module of its own, `nh-core/src/hermes/`, as the executor of the workflows is. `Harness` has 487 uses in 94 files, and most are for PTY runs. The chats are in `hermes_chats` and `hermes_chat:<chat>`, and an approval is an item of the chat, answered with `hermes.answer`. The status bar marks the **Hermes** switch while a chat waits. The board, `attention`, notifications and the phone come later. |
+| One `hermes acp` for each chat | One `hermes acp` for every open chat: ACP names the session in each message. It starts with the first chat and stops after the last one closes. |
+| `elicitation/create` for questions | Not sent: the `clarify` tool is not in the ACP toolset. The core does not offer `elicitation` in `initialize`. |
+| `hermes.commands`, `hermes.sessions` | Not in v1. A slash command is text. |
+| The codec in `nh-agents/src/hermes/` | `nh-core/src/hermes/thread.rs`: no I/O, unit tests in `tests.rs`. |
+| `session/set_config_option` | `session/set_model` and `session/set_mode`. |
+
+The calls: `hermes.check`, `hermes.start`, `hermes.prompt`, `hermes.cancel`, `hermes.answer`, `hermes.set`, `hermes.retry`, `hermes.close`. The table `hermes_chats` (migration 0021) keeps the open chats and their session ids. `crates/nh/tests/hermes.rs` drives the core with a bash `hermes` that speaks ACP; `mise run test:hermes` drives it with the real Hermes.
+
 ## Spike results
 
 On 2026-10-31, with Hermes 0.22.5+3133 (`openai-codex`, `gpt-6.1-sol`) and a Python ACP client that recorded each frame. Each scenario used an empty temporary folder.

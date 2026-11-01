@@ -4,7 +4,7 @@ This file gives guidance to coding agents that work in this repository. [CONTRIB
 
 ## What this repository is
 
-neohar (always lowercase) is a Tauri 2 desktop workspace to supervise coding agents. A Rust core owns the terminals, the agent state and the approvals. The core keeps agent processes alive when the app quits, crashes or updates. The webview is a thin surface that paints what the core sends. neohar supports Claude Code and Codex.
+neohar (always lowercase) is a Tauri 2 desktop workspace to supervise coding agents. A Rust core owns the terminals, the agent state and the approvals. The core keeps agent processes alive when the app quits, crashes or updates. The webview is a thin surface that paints what the core sends. neohar supports Claude Code and Codex in panes, and Hermes Agent in a chat (`nh-core/src/hermes/`).
 
 The code is the reference: there is no separate spec or plan. `website/` is the documentation site (Docusaurus, with its own `bun install`). Its guide is short on purpose.
 

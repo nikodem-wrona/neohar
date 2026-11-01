@@ -38,6 +38,7 @@ function context(overrides: Partial<ActionContext> = {}) {
     togglePalette: () => drawer.push('palette'),
     toggleGit: () => drawer.push('git'),
     toggleWorkflows: () => drawer.push('workflows'),
+    toggleHermes: () => drawer.push('hermes'),
     focusCard: (id) => drawer.push(`card:${id}`),
     ...overrides,
   };

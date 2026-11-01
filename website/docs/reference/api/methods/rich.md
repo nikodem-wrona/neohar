@@ -1,7 +1,7 @@
 ---
 title: "rich.*"
 description: "Rich content on demand: diffs, sanitized markdown and highlighted code."
-sidebar_position: 27
+sidebar_position: 28
 toc_max_heading_level: 2
 ---
 
