@@ -67,6 +67,8 @@ use crate::{
 
 /// The tick: time limits and time texts.
 const TICK: Duration = Duration::from_secs(20);
+/// The longest wait of a call for the first load of the executions.
+const LOAD_WAIT: Duration = Duration::from_secs(10);
 /// How often the waiter of a start looks at its job.
 const JOB_POLL: Duration = Duration::from_millis(200);
 /// The longest report that the core reads back for `report.md`.
@@ -197,6 +199,9 @@ pub(crate) struct Executor {
     book: Mutex<Vec<Exec>>,
     queue: mpsc::UnboundedSender<Message>,
     receiver: Mutex<Option<mpsc::UnboundedReceiver<Message>>>,
+    /// The executions of the store are in the book. A call waits for it after a start of the
+    /// core, so it does not answer `not_found` for an execution that the store has.
+    loaded: tokio::sync::watch::Sender<bool>,
     /// The turns of runs that ended before the executor knew the run of their node.
     early: Mutex<HashMap<RunId, Option<String>>>,
 }
@@ -230,6 +235,7 @@ impl Executor {
             book: Mutex::new(Vec::new()),
             queue,
             receiver: Mutex::new(Some(receiver)),
+            loaded: tokio::sync::watch::Sender::new(false),
             early: Mutex::new(HashMap::new()),
         })
     }
@@ -1780,8 +1786,15 @@ impl Executor {
 
     /// Loads the executions of the store, marks the runs of their nodes, and takes the turns that
     /// ended while the core was away.
+    /// Waits until the executions of the store are loaded, for at most [`LOAD_WAIT`].
+    pub(crate) async fn wait_loaded(&self) {
+        let mut loaded = self.loaded.subscribe();
+        let _ = tokio::time::timeout(LOAD_WAIT, loaded.wait_for(|done| *done)).await;
+    }
+
     async fn load(self: &Arc<Self>) {
         let Ok(actor) = self.actor() else {
+            self.loaded.send_replace(true);
             return;
         };
         let rows = actor
@@ -1808,6 +1821,7 @@ impl Executor {
             });
         }
         *self.book() = book.clone();
+        self.loaded.send_replace(true);
         for exec in &book {
             self.publish(exec);
         }

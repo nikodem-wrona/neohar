@@ -117,6 +117,7 @@ pub(crate) async fn run(
 ) -> Result<Value, RpcError> {
     let library = &inner.workflows;
     let executor = &inner.executor;
+    executor.wait_loaded().await;
     match call {
         Call::WorkflowListGet(_) => json_of(&WorkflowList {
             workflows: library.values(),
